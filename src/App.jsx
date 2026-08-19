@@ -159,8 +159,8 @@ function App() {
                 <circle className="node node-5" cx="350" cy="150" r="5" />
                 <text x="140" y="35">5 m</text>
                 <text x="18" y="105" transform="rotate(-90 18 105)">5 m</text>
-                <text x="150" y="175">ROOM · 24.98 m²</text>
-                <text x="300" y="245">KITCHEN · 12.40 m²</text>
+                <text x="220" y="190">ROOM · 24.98 m²</text>
+                <text x="280" y="245">KITCHEN · 12.40 m²</text>
               </svg>
             </div>
           </div>
