@@ -1,6 +1,6 @@
 # VED Electrical Services — Functional Specification & Codex Project Guide
 
-> **Purpose of this file:**  
+> **Purpose of this file:**
 > This document defines the project structure, system responsibilities, development boundaries, data flow, and implementation order for Codex before any major coding begins.
 >
 > Codex should treat this document as the primary implementation guide unless a newer project specification explicitly replaces a section.
@@ -1675,9 +1675,9 @@ Then inspect the relevant repository files before editing.
                                    ▼
 ┌──────────────────────────────────────────────────────┐
 │                  REACT FRONTEND                      │
-│                                                     │
-│ Dashboard │ Projects │ Konva 2D │ Three.js 3D      │
-│ Routing │ Estimation │ Reports │ Admin UI           │
+│                                                      │
+│ Dashboard │ Projects │ Konva 2D │ Three.js 3D        │
+│ Routing │ Estimation │ Reports │ Admin UI            │
 └─────────────────────────┬────────────────────────────┘
                           │
                     REST / JSON
@@ -1685,9 +1685,9 @@ Then inspect the relevant repository files before editing.
                           ▼
 ┌──────────────────────────────────────────────────────┐
 │                    FASTAPI                           │
-│                                                     │
-│ Auth │ Projects │ Processing │ Layout │ Routing     │
-│ Materials │ Estimates │ Reports │ Administration    │
+│                                                      │
+│ Auth │ Projects │ Processing │ Layout │ Routing      │
+│ Materials │ Estimates │ Reports │ Administration     │
 └─────────────┬───────────────────────┬────────────────┘
               │                       │
               ▼                       ▼
