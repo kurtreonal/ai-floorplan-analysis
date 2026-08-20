@@ -342,8 +342,8 @@ h1, h2, h3 {
 }
 
 .draw-svg .junction-box {
-  fill: var(--accent);
-  stroke: var(--paper);
+  fill: #0b2333;
+  stroke: #3f7185;
   stroke-width: 1.5;
   opacity: 0;
   animation: pop 0.5s ease-in-out forwards 2.4s;
