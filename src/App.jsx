@@ -151,10 +151,17 @@ function App() {
                 <path className="outline" d="M45,42 H475 V310 H45 Z M210,42 V180 M345,42 V180 M45,180 H164 M198,180 H299 M333,180 H429 M463,180 H475 M175,202 V310 M390,202 V310 M45,202 H132 M166,202 H175 M390,202 H399 M433,202 H475 M45,310 H253 M311,310 H475 M247,310 V348 H317 V310" />
                 <path className="outline detail" d="M95,42 H125 M260,42 H290 M390,42 H420 M45,104 H45 M475,104 V140 M45,235 V270 M475,230 V265 M75,310 H115 M205,310 H245 M335,310 H375" />
                 <path className="outline door" d="M198,180 V146 A34,34 0 0 0 164,180 M333,180 V146 A34,34 0 0 0 299,180 M463,180 V146 A34,34 0 0 0 429,180 M166,202 V236 A34,34 0 0 1 132,202 M253,310 V281 A29,29 0 0 1 282,310 M311,310 V281 A29,29 0 0 0 282,310 M399,202 V236 A34,34 0 0 0 433,202" />
-                <path className="route route-a" d="M128,108 V191 H410 V108" />
+                <path className="route route-a" d="M128,108 V191 H282" />
                 <path className="route route-b" d="M282,108 V255" />
                 <path className="route route-c" d="M110,255 H128 V191" />
-                <path className="route route-c" d="M410,108 V255 H432" />
+                <path className="route route-c" d="M410,191 H282" />
+                <path className="route route-c" d="M410,108 V191" />
+                <path className="route route-c" d="M432,255 H410 V191" />
+                <g className="junction-boxes" aria-label="Lighting junction boxes">
+                  <rect className="junction-box" x="122" y="185" width="12" height="12" rx="2" />
+                  <rect className="junction-box" x="276" y="185" width="12" height="12" rx="2" />
+                  <rect className="junction-box" x="404" y="185" width="12" height="12" rx="2" />
+                </g>
                 <circle className="node node-1" cx="128" cy="108" r="5" />
                 <circle className="node node-2" cx="282" cy="108" r="5" />
                 <circle className="node node-3" cx="410" cy="108" r="5" />
