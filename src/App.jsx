@@ -148,12 +148,13 @@ function App() {
               </div>
 
               <svg className="draw-svg" viewBox="0 0 520 360" role="img" aria-label="Residential unit blueprint illustration">
-                <path className="outline" d="M45,42 H475 V310 H45 Z M210,42 V180 M345,42 V180 M45,180 H164 M198,180 H299 M333,180 H429 M463,180 H475 M175,236 V310 M390,236 V310 M45,202 H175 M390,202 H475 M45,310 H243 M277,310 H475 M225,310 V348 H295 V310" />
+                <path className="outline" d="M45,42 H475 V310 H45 Z M210,42 V180 M345,42 V180 M45,180 H164 M198,180 H299 M333,180 H429 M463,180 H475 M175,202 V310 M390,202 V310 M45,202 H132 M166,202 H175 M390,202 H399 M433,202 H475 M45,310 H231 M289,310 H475 M225,310 V348 H295 V310" />
                 <path className="outline detail" d="M95,42 H125 M260,42 H290 M390,42 H420 M45,104 H45 M475,104 V140 M45,235 V270 M475,230 V265 M75,310 H115 M205,310 H245 M335,310 H375" />
-                <path className="outline door" d="M198,180 V146 A34,34 0 0 0 164,180 M333,180 V146 A34,34 0 0 0 299,180 M463,180 V146 A34,34 0 0 0 429,180" />
-                <path className="route route-a" d="M128,108 V191 H432 V255" />
-                <path className="route route-b" d="M282,108 V191 H282 V255" />
-                <path className="route route-c" d="M410,108 V191 H110 V255" />
+                <path className="outline door" d="M198,180 V146 A34,34 0 0 0 164,180 M333,180 V146 A34,34 0 0 0 299,180 M463,180 V146 A34,34 0 0 0 429,180 M166,202 V236 A34,34 0 0 1 132,202 M231,310 V281 A29,29 0 0 1 260,310 M289,310 V281 A29,29 0 0 0 260,310 M399,202 V236 A34,34 0 0 0 433,202" />
+                <path className="route route-a" d="M128,108 V191 H410 V108" />
+                <path className="route route-b" d="M282,108 V255" />
+                <path className="route route-c" d="M110,255 H128 V191" />
+                <path className="route route-c" d="M410,108 V255 H432" />
                 <circle className="node node-1" cx="128" cy="108" r="5" />
                 <circle className="node node-2" cx="282" cy="108" r="5" />
                 <circle className="node node-3" cx="410" cy="108" r="5" />
@@ -165,9 +166,9 @@ function App() {
                 <text x="128" y="82" textAnchor="middle">MASTER BEDROOM</text>
                 <text x="128" y="98" textAnchor="middle">4.00 m × 4.00 m</text>
                 <text x="277" y="82" textAnchor="middle">BEDROOM 1</text>
-                <text x="277" y="98" textAnchor="middle">3.20 m × 3.50 m</text>
+                <text x="277" y="98" textAnchor="middle">4.00 m × 3.50 m</text>
                 <text x="410" y="82" textAnchor="middle">BEDROOM 2</text>
-                <text x="410" y="98" textAnchor="middle">3.20 m × 3.50 m</text>
+                <text x="410" y="98" textAnchor="middle">4.00 m × 3.50 m</text>
                 <text x="110" y="235" textAnchor="middle">KITCHEN</text>
                 <text x="110" y="251" textAnchor="middle">3.00 m × 3.80 m</text>
                 <text x="282" y="235" textAnchor="middle">LIVING ROOM</text>
@@ -272,11 +273,6 @@ function Logo() {
     <div className="logo" aria-label="VED Electrical Services logo">
       <div className="brand-lockup">
         <img src={vedLogo} alt="VED Electrical Services" className="brand-logo" />
-        <span className="brand-divider" aria-hidden="true" />
-        <div className="brand-text">
-          <span>VED ELECTRICAL</span>
-          <span>SERVICES</span>
-        </div>
       </div>
     </div>
   )
@@ -286,8 +282,6 @@ function FooterBrand() {
   return (
     <div className="footer-brand" aria-label="VED Electrical Services logo">
       <img src={vedLogo} alt="VED Electrical Services" />
-      <span className="footer-brand-divider" aria-hidden="true" />
-      <span className="footer-brand-text">VED ELECTRICAL SERVICES</span>
     </div>
   )
 }
