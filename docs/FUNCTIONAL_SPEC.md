@@ -36,6 +36,23 @@ The system accepts residential or commercial floor plans and assists Electrical 
 
 The original thesis architecture specifies React.js, OpenCV, YOLOv8, Konva.js, Three.js, A* pathfinding, SQL/MySQL, and a Python backend. The implementation will use **FastAPI instead of Flask**.
 
+## Current Prototype Implementation Decisions
+
+For the current prototype/development phase:
+
+- **MySQL remains the required database.**
+- The primary Windows local-development workflow uses **MySQL started from XAMPP**.
+- FastAPI connects directly to MySQL through **SQLAlchemy ORM + PyMySQL**. Apache and PHP are not backend dependencies.
+- `phpMyAdmin` may be used as an optional local administration tool for creating or inspecting the development database.
+- The primary development database name is `ved_electrical`.
+- Database schema creation during the prototype uses SQLAlchemy metadata (for example, `Base.metadata.create_all()`).
+- **No Alembic or schema-migration workflow is required during the current prototype phase.** Development schema reset/recreation is allowed while the data model is still being tested.
+- Authentication uses **OAuth 2.0 + OpenID Connect (OIDC)** with a configurable external identity provider.
+- Local application passwords are not stored or verified by VED.
+- MySQL stores the local application user record and VED authorization role (`ADMIN` or `DESIGNER`) after external identity verification.
+
+XAMPP is a local-development convenience, not a production architecture requirement. A later deployment may use another MySQL host without changing the application's SQLAlchemy domain model.
+
 ---
 
 # 2. Important Development Rule
@@ -167,7 +184,8 @@ FastAPI
 Uvicorn
 Pydantic
 SQLAlchemy
-Alembic
+PyMySQL
+OAuth 2.0 / OpenID Connect (OIDC)
 ```
 
 FastAPI replaces the Flask backend described in the original theoretical framework.
@@ -631,18 +649,49 @@ The source system explicitly includes an exportable PDF report as part of the Sy
 
 # 19. Database
 
-Initial database target:
+Required database:
 
 ```text
 MySQL
 ```
 
+Primary Windows local-development workflow:
+
+```text
+XAMPP Control Panel
+        ↓
+Start MySQL
+        ↓
+MySQL at configured host/port
+        ↓
+PyMySQL
+        ↓
+SQLAlchemy ORM
+        ↓
+FastAPI
+```
+
+Default local development assumptions may use:
+
+```text
+Host: 127.0.0.1
+Port: 3306
+Database: ved_electrical
+```
+
+These values must remain environment-configurable. Database credentials must never be hard-coded in application source.
+
+FastAPI connects directly to MySQL. Apache and PHP are not required by the FastAPI backend, and `phpMyAdmin` is only an optional local database administration interface.
+
 Use:
 
 ```text
 SQLAlchemy ORM
-Alembic migrations
+PyMySQL
+SQLAlchemy metadata / Base.metadata.create_all()
 ```
+
+For the current prototype, do not introduce Alembic or another schema-migration framework. While the schema is still being tested, the development database may be reset/recreated and the current tables recreated from SQLAlchemy models. Production-grade schema migration/versioning is deferred until explicitly requested.
 
 Do not perform raw SQL throughout the application unless there is a specific performance requirement.
 
@@ -858,8 +907,6 @@ backend/
 │       ├── generator.py
 │       └── templates/
 │
-├── alembic/
-│
 ├── tests/
 │
 └── requirements.txt
@@ -1047,7 +1094,37 @@ React loads review/editor
 
 # 30. Authentication and Authorization
 
-Required roles:
+Authentication uses:
+
+```text
+OAuth 2.0
++
+OpenID Connect (OIDC)
+```
+
+The OAuth/OIDC provider must remain configurable until a concrete provider is selected.
+
+Target authentication flow:
+
+```text
+React Sign In
+      ↓
+FastAPI /api/auth/login
+      ↓
+Configured OAuth/OIDC Provider
+      ↓
+FastAPI /api/auth/callback
+      ↓
+Validated External Identity
+      ↓
+Local MySQL User Record
+      ↓
+VED Role Authorization
+```
+
+VED does not require or store a local application password. External provider identity is mapped to a local `users` record using provider identity data such as provider name and provider subject identifier.
+
+Required local application roles:
 
 ```text
 ADMIN
@@ -1056,9 +1133,18 @@ DESIGNER
 
 [Inference] A `PROJECT_ENGINEER` role can be introduced if responsibilities need to be separated from the Admin role later.
 
-Backend authorization must control protected actions.
+OAuth/OIDC establishes who the user is. The local MySQL role determines what the authenticated user may do inside VED.
 
-Hiding buttons in React is not sufficient authorization.
+Backend authorization must control protected actions. Hiding buttons in React is not sufficient authorization.
+
+Security requirements include:
+
+- OAuth/OIDC client secrets remain server-side.
+- Provider tokens and authorization codes must not be written to normal application logs.
+- OAuth state validation is required.
+- OIDC nonce/identity-token validation must be applied when used by the selected provider flow.
+- Authentication must not rely only on frontend state.
+- Secrets remain outside version control.
 
 Example:
 
@@ -1235,9 +1321,9 @@ Vite
 
 FastAPI
 SQLAlchemy
-Alembic
+PyMySQL
 
-MySQL
+MySQL (XAMPP for primary Windows local development)
 ```
 
 Create:
@@ -1266,7 +1352,7 @@ Materials
 Pricing
 ```
 
-Create migrations before building dependent modules.
+Create and verify the required MySQL development schema from SQLAlchemy models before building dependent modules. During the prototype phase, schema reset/recreation is allowed instead of maintaining migration history.
 
 ---
 
@@ -1548,10 +1634,20 @@ APP_ENV=development
 API_HOST=0.0.0.0
 API_PORT=8000
 
-DATABASE_URL=mysql+pymysql://user:password@localhost:3306/ved_electrical
+# XAMPP-friendly local MySQL example.
+# Replace change_me only in the ignored local .env file.
+DATABASE_URL=mysql+pymysql://root:change_me@127.0.0.1:3306/ved_electrical
 
-JWT_SECRET=
-JWT_ALGORITHM=HS256
+# OAuth 2.0 / OpenID Connect
+OAUTH_PROVIDER=configure_me
+OAUTH_CLIENT_ID=change_me
+OAUTH_CLIENT_SECRET=change_me
+OAUTH_REDIRECT_URI=http://localhost:8000/api/auth/callback
+OAUTH_DISCOVERY_URL=change_me
+OAUTH_SCOPES=openid profile email
+
+# Application session/state protection
+SESSION_SECRET=change_me
 
 UPLOAD_DIR=storage/uploads
 PROCESSED_DIR=storage/processed
@@ -1581,7 +1677,7 @@ Validation implemented
 
 Authorization implemented
 
-Database migration implemented
+Database/schema change implemented
 
 Database persistence implemented
 
@@ -1655,7 +1751,7 @@ Does it affect routing?
 
 Does it affect estimates?
 
-Does a migration need to be created?
+Does the MySQL development schema need to change?
 
 What tests need to pass?
 ```
@@ -1692,7 +1788,7 @@ Then inspect the relevant repository files before editing.
               │                       │
               ▼                       ▼
 ┌────────────────────────┐   ┌─────────────────────────┐
-│      AI / CV ENGINE    │   │     SQL DATABASE        │
+│      AI / CV ENGINE    │   │     MYSQL DATABASE      │
 │                        │   │                         │
 │ OpenCV                 │   │ Users                   │
 │ Wall Detection         │   │ Projects                │
@@ -1778,7 +1874,7 @@ For every completed ticket, Codex should report:
 Ticket:
 Status:
 Files changed:
-Database migrations:
+Database/schema changes:
 API changes:
 Tests added/updated:
 Manual verification performed:
@@ -1830,10 +1926,10 @@ scripts/
 **Acceptance Criteria:**
 
 - [ ] `.env.example` exists.
-- [ ] It contains database, API, frontend URL, upload directory, processed directory, report directory, JWT, and YOLO model settings.
+- [ ] It contains database, API, frontend URL, upload directory, processed directory, report directory, OAuth/OIDC, session, and YOLO model settings.
 - [ ] No real password, secret, API key, or private connection string is committed.
 - [ ] Backend configuration reads values from environment variables rather than hard-coded paths.
-- [ ] Missing mandatory variables produce a clear startup error.
+- [ ] Missing variables that are mandatory for an active feature produce a clear configuration/startup error.
 
 ---
 
@@ -1872,9 +1968,9 @@ scripts/
 
 ## Epic B — Database Foundation
 
-### TICKET B1 — Configure SQLAlchemy Database Connection
+### TICKET B1 — Configure SQLAlchemy MySQL Connection
 
-**Goal:** Connect FastAPI to MySQL through SQLAlchemy.
+**Goal:** Connect FastAPI to MySQL through SQLAlchemy and PyMySQL, using XAMPP-managed MySQL as the primary Windows local-development workflow.
 
 **Dependencies:** A2, A4.
 
@@ -1882,31 +1978,38 @@ scripts/
 
 - [ ] Database URL comes from environment configuration.
 - [ ] Application can connect to the configured MySQL database.
-- [ ] Database session management is isolated in the backend core/database layer.
-- [ ] A failed connection produces a clear application error.
+- [ ] The documented primary Windows local workflow can connect to MySQL started from XAMPP.
+- [ ] SQLAlchemy engine/session management is isolated in the backend core/database layer.
+- [ ] PyMySQL is used as the MySQL DBAPI driver unless a later ticket explicitly changes it.
+- [ ] A failed connection produces a clear application error without exposing credentials.
 - [ ] No database credentials are hard-coded.
+- [ ] Apache and PHP are not required by the FastAPI database connection.
+- [ ] No Alembic or migration framework is introduced in this ticket.
 
 ---
 
-### TICKET B2 — Configure Alembic
+### TICKET B2 — Initialize Development Database Schema
 
-**Goal:** Establish database migration management.
+**Goal:** Create the current MySQL development schema from SQLAlchemy ORM models without introducing migration tooling.
 
 **Dependencies:** B1.
 
 **Acceptance Criteria:**
 
-- [ ] Alembic is initialized.
-- [ ] Alembic reads the same database configuration as FastAPI.
-- [ ] An initial empty or baseline migration can be generated.
-- [ ] `alembic upgrade head` succeeds against a clean development database.
-- [ ] Migration instructions are documented.
+- [ ] MySQL remains the configured database.
+- [ ] Schema definitions come from SQLAlchemy models.
+- [ ] A controlled development initialization command/function can create missing tables using SQLAlchemy metadata.
+- [ ] Running initialization against an empty `ved_electrical` development database creates the current required tables.
+- [ ] Database credentials continue to come from environment configuration.
+- [ ] No Alembic dependency, migration directory, or migration command is introduced.
+- [ ] Development schema reset/recreation behavior is documented for the prototype phase.
+- [ ] No production schema-migration guarantee is claimed during this prototype phase.
 
 ---
 
-### TICKET B3 — Create Roles and Users Tables
+### TICKET B3 — Create OAuth Users and Roles Tables
 
-**Goal:** Implement the first authentication-related schema.
+**Goal:** Implement the local authorization schema used after OAuth/OIDC identity verification.
 
 **Dependencies:** B2.
 
@@ -1914,11 +2017,14 @@ scripts/
 
 - [ ] `roles` table exists.
 - [ ] `users` table exists.
-- [ ] User email has a uniqueness constraint.
-- [ ] User password is stored only as a password hash field.
-- [ ] User references a valid role.
-- [ ] Migration can upgrade and downgrade successfully.
+- [ ] A user does not require a local password or password-hash field.
+- [ ] The user model can store an OAuth/OIDC provider identifier and provider subject/user identifier.
+- [ ] Provider + provider subject uniquely identify an external identity.
+- [ ] Email and display name can be stored when supplied by the configured identity provider.
+- [ ] Optional avatar/profile image URL can be stored without making it mandatory.
+- [ ] User references a valid local VED role.
 - [ ] Initial roles include `ADMIN` and `DESIGNER`.
+- [ ] The schema can be created successfully in the MySQL development database through the current SQLAlchemy schema initialization workflow.
 
 ---
 
@@ -1934,7 +2040,7 @@ scripts/
 - [ ] Each project references its owner/creator.
 - [ ] Project name, status, timestamps, and optional client/location metadata are supported.
 - [ ] Project status uses a documented set of allowed states.
-- [ ] Migration upgrade and downgrade succeed.
+- [ ] The SQLAlchemy project model and constraints can be created successfully in the MySQL development schema.
 
 ---
 
@@ -1957,56 +2063,66 @@ scripts/
 
 ## Epic C — Authentication and Authorization
 
-### TICKET C1 — Implement Password Hashing
+### TICKET C1 — Configure OAuth/OIDC Authentication
 
-**Goal:** Add backend password hashing utilities.
+**Goal:** Establish provider-configurable OAuth 2.0 / OpenID Connect authentication configuration for FastAPI.
 
 **Dependencies:** B3.
 
 **Acceptance Criteria:**
 
-- [ ] Plain-text passwords are never stored.
-- [ ] Password verification works for valid credentials.
-- [ ] Invalid passwords fail verification.
-- [ ] Password hashing logic is isolated from API route code.
-- [ ] Unit tests cover hashing and verification.
+- [ ] OAuth/OIDC configuration comes from environment variables.
+- [ ] Client ID is not hard-coded.
+- [ ] Client secret is not hard-coded.
+- [ ] Redirect URI is configurable.
+- [ ] Provider/discovery configuration is configurable.
+- [ ] Required OAuth/OIDC settings fail clearly when the authentication feature starts without them.
+- [ ] Provider tokens and authorization codes are not logged.
+- [ ] No local password authentication or password-hashing utility is introduced.
 
 ---
 
-### TICKET C2 — Implement Login Endpoint
+### TICKET C2 — Implement OAuth Login and Callback
 
-**Goal:** Authenticate users through FastAPI.
+**Goal:** Authenticate users through the configured OAuth/OIDC provider and resolve the verified identity to a local MySQL user.
 
 **Dependencies:** C1.
 
 **Acceptance Criteria:**
 
-- [ ] `POST /api/auth/login` exists.
-- [ ] Valid credentials return an authentication token and basic user information.
-- [ ] Invalid credentials return an appropriate 4xx response.
-- [ ] Password hashes are never returned.
+- [ ] `GET /api/auth/login` starts the OAuth/OIDC authorization flow.
+- [ ] `GET /api/auth/callback` handles the configured provider callback.
+- [ ] OAuth state is validated before accepting the callback.
+- [ ] OIDC identity validation is applied when required by the selected provider flow.
+- [ ] Invalid or failed authorization returns a controlled authentication error.
+- [ ] Successful authentication resolves the external provider identity to a local MySQL user record.
+- [ ] New valid external identities can create/link a local VED user according to a documented rule.
+- [ ] No local password is requested or stored.
+- [ ] OAuth client secrets are never returned to the frontend.
+- [ ] Raw provider tokens and authorization codes are not logged.
 - [ ] Login activity can be audited later without changing the endpoint contract.
 
 ---
 
 ### TICKET C3 — Implement Current User Endpoint
 
-**Goal:** Allow the frontend to restore an authenticated session.
+**Goal:** Allow the frontend to restore the authenticated VED application session.
 
 **Dependencies:** C2.
 
 **Acceptance Criteria:**
 
 - [ ] `GET /api/auth/me` exists.
-- [ ] Valid authentication returns current user ID, name, email, and role.
+- [ ] Valid authentication returns current local user ID, name/display name, email when available, and VED role.
 - [ ] Missing or invalid authentication returns HTTP 401.
 - [ ] Protected route dependency is reusable by other routes.
+- [ ] Provider tokens are not returned by `/api/auth/me`.
 
 ---
 
 ### TICKET C4 — Implement Role-Based Authorization
 
-**Goal:** Restrict Admin and Designer actions.
+**Goal:** Restrict Admin and Designer actions using the local MySQL role after OAuth/OIDC authentication.
 
 **Dependencies:** C3.
 
@@ -2015,25 +2131,43 @@ scripts/
 - [ ] Reusable backend role-check dependency exists.
 - [ ] Admin-only sample route rejects Designer accounts.
 - [ ] Designer-accessible routes remain accessible to authorized Designers.
+- [ ] OAuth/OIDC provider identity does not directly grant VED Admin privileges.
 - [ ] Authorization does not rely only on hiding frontend controls.
 - [ ] Authorization behavior has automated tests.
 
 ---
 
-### TICKET C5 — Build Frontend Login Screen
+### TICKET C5 — Build Frontend OAuth Sign-In Screen
 
-**Goal:** Connect React authentication UI to FastAPI.
+**Goal:** Connect React authentication UI to the FastAPI OAuth/OIDC flow.
 
 **Dependencies:** A3, C2, C3.
 
 **Acceptance Criteria:**
 
-- [ ] Login form validates required fields.
-- [ ] Successful login routes the user to the dashboard.
-- [ ] Invalid login displays a readable error.
+- [ ] Login screen provides a provider-neutral Sign In action.
+- [ ] Sign In starts the backend OAuth/OIDC flow instead of collecting a local password.
+- [ ] Successful authentication returns the user to the application.
+- [ ] OAuth/OIDC errors display a readable error state.
 - [ ] Authentication state can be restored using `/api/auth/me`.
 - [ ] Protected frontend routes redirect unauthenticated users.
-- [ ] No password is logged in the browser console.
+- [ ] OAuth client secrets and raw provider tokens are not exposed in browser logs.
+
+---
+
+### TICKET C6 — Implement Logout
+
+**Goal:** End the local authenticated VED application session.
+
+**Dependencies:** C2, C3.
+
+**Acceptance Criteria:**
+
+- [ ] Logout endpoint/action exists.
+- [ ] The local authenticated application session is invalidated.
+- [ ] `/api/auth/me` returns unauthenticated after logout.
+- [ ] Frontend returns to the unauthenticated state.
+- [ ] Logout does not modify unrelated external provider account data.
 
 ---
 
@@ -2190,7 +2324,7 @@ scripts/
 - [ ] Job stores type, status, progress, timestamps, and error message.
 - [ ] Allowed states include `queued`, `processing`, `completed`, `failed`, and `cancelled`.
 - [ ] Job references the relevant floor plan.
-- [ ] Migration upgrade and downgrade succeed.
+- [ ] The processing-jobs model can be created successfully in the current MySQL development schema.
 
 ---
 
@@ -2863,7 +2997,7 @@ scripts/
 - [ ] Estimate references the project.
 - [ ] Each item stores quantity, unit, captured unit price, and line total.
 - [ ] Historical estimates are not silently changed by later price updates.
-- [ ] Migration upgrade/downgrade succeeds.
+- [ ] The estimate models and constraints can be created successfully in the current MySQL development schema.
 
 ---
 
@@ -3213,10 +3347,10 @@ scripts/
 
 - [ ] Required Node.js version is documented.
 - [ ] Required Python version is documented.
-- [ ] MySQL setup is documented.
+- [ ] XAMPP-based MySQL local-development setup is documented, including starting MySQL and creating/inspecting `ved_electrical` (`phpMyAdmin` may be used optionally).
 - [ ] Frontend install/run commands are documented.
 - [ ] Backend install/run commands are documented.
-- [ ] Alembic migration commands are documented.
+- [ ] SQLAlchemy development schema initialization/reset procedure is documented.
 - [ ] Environment setup is documented.
 - [ ] No undocumented manual secret is required to start local development.
 
@@ -3248,7 +3382,7 @@ scripts/
 
 - [ ] Frontend deployment requirements are documented.
 - [ ] FastAPI deployment requirements are documented.
-- [ ] SQL database requirements are documented.
+- [ ] MySQL database requirements are documented.
 - [ ] Persistent file/object storage requirements are documented.
 - [ ] Environment/secrets management is documented.
 - [ ] HTTPS and CORS requirements are documented.
@@ -3266,6 +3400,7 @@ A1 → A2 → A3 → A4
 B1 → B2 → B3 → B4 → B5
 
 C1 → C2 → C3 → C4 → C5
+C6 after C2/C3 (logout)
 
 D1 → D2 → D3 → D4
 
@@ -3394,7 +3529,7 @@ EXPECTED COMPLETION REPORT:
 Ticket:
 Status:
 Files changed:
-Database migrations:
+Database/schema changes:
 API changes:
 Tests added/updated:
 Acceptance criteria results:
