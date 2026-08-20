@@ -12,6 +12,40 @@ dist
 dist-ssr
 *.local
 
+# Environment files (keep the public template tracked)
+.env
+.env.*
+!.env.example
+
+# Python environments, caches, and test artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Uploaded and generated project artifacts
+storage/uploads/**
+storage/processed/**
+storage/detections/**
+storage/previews/**
+storage/reports/**
+!storage/.gitkeep
+
+# Local AI model weights and exports
+models/**/*.pt
+models/**/*.pth
+models/**/*.onnx
+models/**/*.engine
+models/**/*.weights
+!models/.gitkeep
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

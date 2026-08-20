@@ -184,6 +184,19 @@ These should be introduced when their tickets require them rather than blocking 
 
 ## Repository Structure Target
 
+The application directories established by Ticket A1 are:
+
+| Directory | Responsibility |
+|---|---|
+| `frontend/` | React and Vite frontend application code. |
+| `backend/` | FastAPI backend application code. |
+| `storage/` | Runtime uploads and generated artifacts; contents are not committed. |
+| `docs/` | Functional, architecture, and project documentation. |
+| `models/` | Local AI model artifacts and related resources. |
+| `scripts/` | Development and operational helper scripts. |
+
+The existing root-level Vite prototype is retained unchanged during this repository-foundation ticket. Moving or replacing it is outside Ticket A1.
+
 ```text
 ved-electrical-services/
 ├── AGENTS.md
