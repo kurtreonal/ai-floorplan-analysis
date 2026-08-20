@@ -329,6 +329,10 @@ h1, h2, h3 {
   animation: draw-route 1.2s ease forwards 1.9s, flow 1.4s linear infinite 3.1s;
 }
 
+.draw-svg .route-c {
+  animation: draw-route 1.2s ease forwards 2.1s, flow 1.4s linear infinite 3.3s;
+}
+
 .draw-svg .node {
   fill: var(--paper);
   stroke: var(--accent);
@@ -341,6 +345,7 @@ h1, h2, h3 {
 .node-3 { animation: pop 0.4s ease forwards 2.3s; }
 .node-4 { animation: pop 0.4s ease forwards 2.1s; }
 .node-5 { animation: pop 0.4s ease forwards 2.4s; }
+.node-6 { animation: pop 0.4s ease forwards 2.6s; }
 
 .draw-svg text {
   fill: var(--line-cyan-dim);

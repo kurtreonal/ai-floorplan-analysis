@@ -147,20 +147,33 @@ function App() {
                 <span>SCALE 1:50</span>
               </div>
 
-              <svg className="draw-svg" viewBox="0 0 420 300" role="img" aria-label="Residential unit blueprint illustration">
-                <path className="outline" d="M30,40 H260 V130 H390 V260 H120 V190 H30 Z" />
-                <path className="outline partition" d="M120,130 V190" />
-                <path className="route route-a" d="M55,60 L55,150 L200,150 L200,220 L350,220" />
-                <path className="route route-b" d="M240,60 L240,150 L350,150" />
-                <circle className="node node-1" cx="55" cy="60" r="5" />
-                <circle className="node node-2" cx="200" cy="150" r="5" />
-                <circle className="node node-3" cx="350" cy="220" r="5" />
-                <circle className="node node-4" cx="240" cy="60" r="5" />
-                <circle className="node node-5" cx="350" cy="150" r="5" />
-                <text x="140" y="35">5 m</text>
-                <text x="18" y="105" transform="rotate(-90 18 105)">5 m</text>
-                <text x="220" y="190">ROOM · 24.98 m²</text>
-                <text x="280" y="245">KITCHEN · 12.40 m²</text>
+              <svg className="draw-svg" viewBox="0 0 520 360" role="img" aria-label="Residential unit blueprint illustration">
+                <path className="outline" d="M45,42 H475 V310 H45 Z M210,42 V180 M345,42 V180 M45,180 H164 M198,180 H299 M333,180 H429 M463,180 H475 M175,236 V310 M390,236 V310 M45,202 H175 M390,202 H475 M45,310 H243 M277,310 H475 M225,310 V348 H295 V310" />
+                <path className="outline detail" d="M95,42 H125 M260,42 H290 M390,42 H420 M45,104 H45 M475,104 V140 M45,235 V270 M475,230 V265 M75,310 H115 M205,310 H245 M335,310 H375" />
+                <path className="outline door" d="M198,180 V146 A34,34 0 0 0 164,180 M333,180 V146 A34,34 0 0 0 299,180 M463,180 V146 A34,34 0 0 0 429,180" />
+                <path className="route route-a" d="M128,108 V191 H432 V255" />
+                <path className="route route-b" d="M282,108 V191 H282 V255" />
+                <path className="route route-c" d="M410,108 V191 H110 V255" />
+                <circle className="node node-1" cx="128" cy="108" r="5" />
+                <circle className="node node-2" cx="282" cy="108" r="5" />
+                <circle className="node node-3" cx="410" cy="108" r="5" />
+                <circle className="node node-4" cx="110" cy="255" r="5" />
+                <circle className="node node-5" cx="282" cy="255" r="5" />
+                <circle className="node node-6" cx="432" cy="255" r="5" />
+                <text x="238" y="27">11.50 m</text>
+                <text x="17" y="190" transform="rotate(-90 17 190)">9.00 m</text>
+                <text x="128" y="82" textAnchor="middle">MASTER BEDROOM</text>
+                <text x="128" y="98" textAnchor="middle">4.00 m × 4.00 m</text>
+                <text x="277" y="82" textAnchor="middle">BEDROOM 1</text>
+                <text x="277" y="98" textAnchor="middle">3.20 m × 3.50 m</text>
+                <text x="410" y="82" textAnchor="middle">BEDROOM 2</text>
+                <text x="410" y="98" textAnchor="middle">3.20 m × 3.50 m</text>
+                <text x="110" y="235" textAnchor="middle">KITCHEN</text>
+                <text x="110" y="251" textAnchor="middle">3.00 m × 3.80 m</text>
+                <text x="282" y="235" textAnchor="middle">LIVING ROOM</text>
+                <text x="282" y="251" textAnchor="middle">5.00 m × 3.80 m</text>
+                <text x="432" y="235" textAnchor="middle">CR</text>
+                <text x="432" y="251" textAnchor="middle">2.00 m × 2.50 m</text>
               </svg>
             </div>
           </div>
