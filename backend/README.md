@@ -46,6 +46,20 @@ The database connection is initialized lazily, so importing or starting FastAPI 
 
 B1 provides connectivity and session management only. It does not create tables, run `create_all()`, or include migration tooling.
 
+## Development schema initialization
+
+B2 provides one canonical SQLAlchemy `Base` and an explicit development-only schema initializer. Run it deliberately from `backend/`:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.core.schema
+```
+
+The command loads every model registered through `app.models` and calls `Base.metadata.create_all()` to create missing tables. It is blocked unless `APP_ENV=development`, and it does not run automatically when FastAPI starts or when `/health` is requested.
+
+During B2 alone there are no domain models, so a successful command reports zero registered application tables and leaves the database without application tables. B3 and later model tickets will register their tables with the same canonical `Base`.
+
+`create_all()` is not a migration system. It creates missing tables but does not reliably alter existing tables when model definitions change. A deliberate development reset/recreation may therefore be necessary while the prototype schema is experimental. Any destructive reset must be performed manually and intentionally after confirming the development target; this project does not provide an automatic reset command. No production schema-migration guarantee is provided during the prototype phase.
+
 ## Run
 
 Start Uvicorn:
