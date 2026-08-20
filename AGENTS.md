@@ -108,10 +108,12 @@ Python
 FastAPI
 Uvicorn
 Pydantic
+Pydantic Settings
 SQLAlchemy
-Alembic
 MySQL
 ```
+
+Use PyMySQL as the intended SQLAlchemy MySQL driver when database connectivity is introduced in B1. Do not claim it is installed before that ticket.
 
 FastAPI is the required backend framework.
 
@@ -302,7 +304,6 @@ backend/
 │   └── reports/
 │       ├── generator.py
 │       └── templates/
-├── alembic/
 ├── tests/
 └── requirements.txt
 ```
@@ -389,7 +390,7 @@ Example shape:
 }
 ```
 
-The exact schema may evolve through migrations and documented API changes, but all dependent modules must stay synchronized.
+The exact schema may evolve through documented schema and API changes, but all dependent modules must stay synchronized.
 
 ---
 
@@ -820,7 +821,7 @@ Use:
 ```text
 MySQL
 SQLAlchemy
-Alembic
+PyMySQL when database connectivity is introduced
 ```
 
 Do not scatter raw SQL throughout the application.
@@ -831,12 +832,33 @@ Prefer:
 SQLAlchemy models
 Repository methods
 Service-layer business logic
-Alembic migrations
 ```
 
-Create migrations for schema changes.
+MySQL is the required database. XAMPP is the preferred Windows local MySQL workflow, but it is not a production dependency. Database host, port, user, password, and database name must remain configurable through `DATABASE_URL`; never hard-code database credentials.
 
-Do not manually alter a development database and leave the migration history out of sync.
+Preferred Windows development flow:
+
+```text
+XAMPP Control Panel
+    ↓
+Start MySQL
+    ↓
+MySQL at the configured host and port
+    ↓
+FastAPI
+    ↓
+SQLAlchemy
+    ↓
+PyMySQL driver
+    ↓
+ved_electrical database
+```
+
+FastAPI connects directly to MySQL. It does not communicate through phpMyAdmin. phpMyAdmin is optional database-administration tooling; Apache and PHP are not required by FastAPI.
+
+SQLAlchemy models define the prototype schema. Development schema initialization may use `Base.metadata.create_all()`, and database reset/recreation is allowed while the schema is experimental. `create_all()` creates missing tables but does not migrate or transform existing tables.
+
+Do not introduce Alembic, migration files, or migration commands during the current prototype phase unless the user explicitly changes the architecture. Production schema-migration strategy is deferred.
 
 ---
 
@@ -888,6 +910,21 @@ Do not create redundant tables that duplicate an existing domain concept without
 
 # 23. Authentication and Authorization
 
+Authentication uses OAuth 2.0 with OpenID Connect. Do not implement local email/password authentication, local password verification, password hashing, or local JWT-based authentication.
+
+Keep authentication and authorization separate:
+
+```text
+OAuth/OIDC
+    → establishes the external user identity
+
+Local MySQL user record
+    → maps the external identity to VED
+
+Application role
+    → determines authorization inside VED
+```
+
 Required roles:
 
 ```text
@@ -898,6 +935,8 @@ DESIGNER
 Authorization must be enforced by FastAPI.
 
 Frontend hiding is only a UI convenience and is not sufficient security.
+
+An OAuth/OIDC provider must not implicitly grant VED authorization roles unless a future ticket explicitly defines and validates that mapping.
 
 Examples:
 
@@ -993,7 +1032,8 @@ Do not expose:
 
 ```text
 Database credentials
-JWT secrets
+OAuth/OIDC client secrets
+Provider tokens and authorization codes
 Python stack traces
 Private filesystem paths
 Model filesystem internals
@@ -1016,10 +1056,13 @@ APP_ENV=development
 API_HOST=0.0.0.0
 API_PORT=8000
 
-DATABASE_URL=mysql+pymysql://user:password@localhost:3306/ved_electrical
+DATABASE_URL=mysql+pymysql://root:change_me@127.0.0.1:3306/ved_electrical
 
-JWT_SECRET=
-JWT_ALGORITHM=HS256
+OAUTH_CLIENT_ID=change_me
+OAUTH_CLIENT_SECRET=change_me
+OAUTH_REDIRECT_URI=http://localhost:8000/api/auth/callback
+OAUTH_DISCOVERY_URL=change_me
+SESSION_SECRET=change_me
 
 UPLOAD_DIR=storage/uploads
 PROCESSED_DIR=storage/processed
@@ -1212,7 +1255,7 @@ NOT TESTED
 BLOCKED
 ```
 
-Never mark `PASS` based only on visual inspection when the criterion requires a build, test, API call, migration, or calculation.
+Never mark `PASS` based only on visual inspection when the criterion requires a build, test, API call, schema-initialization check, or calculation.
 
 ---
 
@@ -1256,7 +1299,7 @@ Frontend build
 Frontend tests
 Backend tests
 FastAPI endpoint checks
-Alembic migration checks
+Database schema-initialization checks when required by the ticket
 Linting if configured
 ```
 
@@ -1354,7 +1397,8 @@ Do not log:
 
 ```text
 Passwords
-JWT secrets
+OAuth/OIDC client secrets
+Provider tokens and authorization codes
 Raw authentication tokens
 Private environment variables
 ```
@@ -1403,7 +1447,9 @@ Never trust the frontend for authorization.
 
 Prevent path traversal in uploaded filenames and file-serving endpoints.
 
-Use password hashing.
+OAuth client secrets must remain server-side. Do not log OAuth/OIDC provider tokens, authorization codes, or raw authentication tokens, and do not expose them to normal users.
+
+When OAuth is implemented, validate callback state. When OIDC is implemented, validate identity claims according to the selected provider. Local application authorization must be enforced by FastAPI; hiding React controls is not sufficient authorization.
 
 Keep secrets outside version control.
 

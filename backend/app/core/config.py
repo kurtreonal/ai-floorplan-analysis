@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, SecretStr
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,11 +27,6 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
 
     database_url: str | None = None
-
-    jwt_secret: SecretStr
-    jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = Field(default=30, gt=0)
-    jwt_refresh_token_expire_days: int = Field(default=7, gt=0)
 
     upload_dir: Path | None = None
     processed_dir: Path | None = None
