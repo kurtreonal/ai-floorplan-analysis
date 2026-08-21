@@ -7,6 +7,7 @@ from app.models.base import Base
 
 
 if TYPE_CHECKING:
+    from app.models.project import Project
     from app.models.role import Role
 
 
@@ -53,3 +54,4 @@ class User(Base):
     )
 
     role: Mapped["Role"] = relationship(back_populates="users")
+    projects: Mapped[list["Project"]] = relationship(back_populates="owner")
