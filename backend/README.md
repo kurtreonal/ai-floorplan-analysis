@@ -22,6 +22,10 @@ FastAPI startup does not require authentication configuration. C1 defines provid
 
 The authentication configuration uses `OAUTH_PROVIDER`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `OAUTH_REDIRECT_URI`, `OAUTH_DISCOVERY_URL`, `OAUTH_SCOPES`, and `SESSION_SECRET`. OIDC configuration must include the `openid` scope. Client and session secrets use Pydantic secret values so their representations remain redacted. C1 does not add OAuth routes, provider integration, or session middleware; those belong to later authentication tickets.
 
+C2 adds `GET /api/auth/login` and `GET /api/auth/callback`. The login route redirects through the configured provider and stores temporary state and nonce data only in the signed, HttpOnly application session. The callback requires matching state, relies on Authlib's OIDC ID-token validation, and uses only the validated `userinfo.sub` claim as the provider subject. Provider access tokens, refresh tokens, ID tokens, and authorization codes are not stored in MySQL or the application session and are not logged.
+
+After a validated callback, provider plus subject resolves the local user. An existing user's local role is preserved. A previously unseen external identity is created with the local `DESIGNER` role, which is the least-privileged current VED application role; provider claims never grant `ADMIN`. The callback stores only the local user ID in the application session and redirects to `FRONTEND_URL`. C2 does not add database tables or columns.
+
 ## XAMPP database setup
 
 XAMPP is a local-development convenience. FastAPI connects directly to the MySQL-compatible server through SQLAlchemy and PyMySQL; it does not connect through phpMyAdmin. Apache and PHP are not required by FastAPI.
