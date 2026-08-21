@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 OAUTH_PLACEHOLDER_VALUES = frozenset(
-    {"change_me", "changeme", "placeholder", "replace_me"}
+    {"change_me", "changeme", "configure_me", "placeholder", "replace_me"}
 )
 
 
