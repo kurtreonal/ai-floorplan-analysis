@@ -60,6 +60,24 @@ During B2 alone there are no domain models, so a successful command reports zero
 
 `create_all()` is not a migration system. It creates missing tables but does not reliably alter existing tables when model definitions change. A deliberate development reset/recreation may therefore be necessary while the prototype schema is experimental. Any destructive reset must be performed manually and intentionally after confirming the development target; this project does not provide an automatic reset command. No production schema-migration guarantee is provided during the prototype phase.
 
+## OAuth user and role schema
+
+B3 registers the `roles` and `users` models with the canonical SQLAlchemy `Base`. The user record maps an external OAuth/OIDC provider identity to a local VED role; it does not store a local password, JWT, provider token, or application session.
+
+Create the registered development tables with the existing explicit initializer:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.core.schema
+```
+
+Then seed the required local authorization roles explicitly:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.core.seed
+```
+
+The seed command is development-only and idempotently ensures that `ADMIN` and `DESIGNER` exist. It does not seed users and does not run automatically during FastAPI startup or schema creation.
+
 ## Run
 
 Start Uvicorn:
