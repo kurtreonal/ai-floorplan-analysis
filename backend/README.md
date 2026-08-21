@@ -18,7 +18,9 @@ python -m venv .venv
 
 The application optionally reads `.env` from the repository root. Process environment variables take precedence over values in that file. The `.env` file is not required and must not be committed. If it is created from `.env.example`, replace placeholder values before use.
 
-The A4 foundation does not require authentication configuration at startup. OAuth 2.0 and OpenID Connect will be configured in their dedicated authentication ticket. Feature-specific mandatory settings will be validated when each feature is introduced.
+FastAPI startup does not require authentication configuration. C1 defines provider-neutral OAuth 2.0/OpenID Connect settings, but validates them only when the authentication feature requests its configuration. This keeps `/health` available during local setup while making incomplete or placeholder authentication configuration fail clearly before an OAuth flow starts.
+
+The authentication configuration uses `OAUTH_PROVIDER`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `OAUTH_REDIRECT_URI`, `OAUTH_DISCOVERY_URL`, `OAUTH_SCOPES`, and `SESSION_SECRET`. OIDC configuration must include the `openid` scope. Client and session secrets use Pydantic secret values so their representations remain redacted. C1 does not add OAuth routes, provider integration, or session middleware; those belong to later authentication tickets.
 
 ## XAMPP database setup
 
