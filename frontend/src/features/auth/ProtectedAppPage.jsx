@@ -60,6 +60,19 @@ export function ProtectedAppPage({ session }) {
           )}
         </dl>
         <p className="auth-note">Project workspace features will appear here as their tickets are completed.</p>
+        {session.error && (
+          <div className="auth-message auth-message-error auth-sign-out-error" role="alert">
+            {session.error}
+          </div>
+        )}
+        <button
+          className="btn btn-outline-dark auth-sign-out"
+          type="button"
+          disabled={session.isSigningOut}
+          onClick={session.signOut}
+        >
+          {session.isSigningOut ? 'Signing out…' : 'Sign out'}
+        </button>
         <a className="auth-home-link" href="#/">← Return to landing page</a>
       </section>
     </main>

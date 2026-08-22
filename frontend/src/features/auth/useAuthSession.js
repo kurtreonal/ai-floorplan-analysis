@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { fetchCurrentUser } from '../../api/auth.js'
+import { endLocalSession, fetchCurrentUser } from '../../api/auth.js'
 
 
 export function useAuthSession() {
@@ -8,6 +8,10 @@ export function useAuthSession() {
   const [session, setSession] = useState({
     status: 'loading',
     user: null,
+  })
+  const [signOutState, setSignOutState] = useState({
+    isSigningOut: false,
+    error: null,
   })
 
   useEffect(() => {
@@ -37,5 +41,21 @@ export function useAuthSession() {
     setRefreshKey((currentKey) => currentKey + 1)
   }, [])
 
-  return { ...session, retry }
+  const signOut = useCallback(async () => {
+    setSignOutState({ isSigningOut: true, error: null })
+
+    try {
+      await endLocalSession()
+      setSession({ status: 'unauthenticated', user: null })
+      setSignOutState({ isSigningOut: false, error: null })
+      window.location.replace('#/signin')
+    } catch {
+      setSignOutState({
+        isSigningOut: false,
+        error: 'We couldn’t sign you out. Please try again.',
+      })
+    }
+  }, [])
+
+  return { ...session, ...signOutState, retry, signOut }
 }
