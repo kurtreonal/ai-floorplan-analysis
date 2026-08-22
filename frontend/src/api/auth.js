@@ -1,10 +1,13 @@
-const DEFAULT_API_BASE_URL = 'http://localhost:8000'
-
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+const configuredAuthEnabled = import.meta.env.VITE_AUTH_ENABLED?.trim().toLowerCase()
 
-export const API_BASE_URL = (
-  configuredApiBaseUrl || DEFAULT_API_BASE_URL
-).replace(/\/+$/, '')
+export const AUTH_ENABLED = configuredAuthEnabled === 'true'
+
+if (AUTH_ENABLED && !configuredApiBaseUrl) {
+  throw new Error('VITE_API_BASE_URL is required when authentication is enabled.')
+}
+
+export const API_BASE_URL = (configuredApiBaseUrl || '').replace(/\/+$/, '')
 
 export const AUTH_LOGIN_URL = `${API_BASE_URL}/api/auth/login`
 export const AUTH_ME_URL = `${API_BASE_URL}/api/auth/me`

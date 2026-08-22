@@ -231,3 +231,40 @@ The folders that do not exist yet should be created by the appropriate developme
 - Material prices come from the database.
 - Historical estimates should preserve the price snapshot used when they were generated.
 - Generated layouts and estimates are planning outputs and still require appropriate professional validation.
+
+---
+
+## Production Deployment Checklist
+
+The current Vercel project deploys the static React frontend only. A production
+authentication flow also requires a separately deployed HTTPS FastAPI backend;
+never point a public frontend build at `localhost`.
+
+Before deploying:
+
+- Use a dedicated production environment and database. Do not reuse local XAMPP credentials.
+- Set `APP_ENV=production` and `APP_DEBUG=false` explicitly on the backend host.
+- Generate unique production values for `OAUTH_CLIENT_SECRET` and `SESSION_SECRET`; never prefix secrets with `VITE_`.
+- Keep `VITE_AUTH_ENABLED=false` for a frontend-only Vercel deployment. Set it to `true` only when a public HTTPS FastAPI backend is ready.
+- When production authentication is enabled, set `VITE_API_BASE_URL` in Vercel to the public HTTPS FastAPI origin before building the frontend.
+- Set `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS` to the exact public frontend origin; never use `*` with credentialed requests.
+- Register the exact production `/api/auth/callback` HTTPS URL with the OAuth/OIDC provider.
+- Keep database, OAuth, and session secrets only in the deployment platforms' encrypted environment settings.
+- Run `python scripts/validate_env.py`, backend tests, frontend lint, and the frontend production build.
+- Confirm `/health`, login, callback, `/api/auth/me`, role authorization, logout, and post-logout `401` behavior on the deployed origins.
+- Inspect the built frontend bundle for `localhost`, private URLs, source maps, and secret names before release.
+- Confirm HTTPS, HSTS, credentialed CORS, secure cookies, logging redaction, and rollback procedures.
+
+Repository protection:
+
+- Enable GitHub secret scanning and push protection under **Settings → Security → Code security and analysis**.
+- Protect `main` under **Settings → Branches**. Require pull requests, at least one approval, dismissal of stale approvals, conversation resolution, and the `Environment validation` and `Secret scan` status checks.
+- Enable the tracked pre-commit hook once per clone with `powershell -File scripts/install_git_hooks.ps1`.
+- Treat automated scanning as defense in depth. Rotate any exposed credential immediately, even if it is later removed from Git history.
+
+Local OAuth development remains enabled through the ignored `frontend/.env.local`:
+
+```env
+VITE_AUTH_ENABLED=true
+VITE_API_BASE_URL=http://localhost:8000
+```

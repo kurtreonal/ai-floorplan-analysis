@@ -3,7 +3,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { endLocalSession, fetchCurrentUser } from '../../api/auth.js'
 
 
-export function useAuthSession() {
+const DISABLED_SESSION = {
+  status: 'unauthenticated',
+  user: null,
+}
+
+
+export function useAuthSession({ enabled = true } = {}) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [session, setSession] = useState({
     status: 'loading',
@@ -15,6 +21,10 @@ export function useAuthSession() {
   })
 
   useEffect(() => {
+    if (!enabled) {
+      return undefined
+    }
+
     const controller = new AbortController()
 
     async function restoreSession() {
@@ -35,7 +45,7 @@ export function useAuthSession() {
 
     restoreSession()
     return () => controller.abort()
-  }, [refreshKey])
+  }, [enabled, refreshKey])
 
   const retry = useCallback(() => {
     setRefreshKey((currentKey) => currentKey + 1)
@@ -57,5 +67,10 @@ export function useAuthSession() {
     }
   }, [])
 
-  return { ...session, ...signOutState, retry, signOut }
+  return {
+    ...(enabled ? session : DISABLED_SESSION),
+    ...signOutState,
+    retry,
+    signOut,
+  }
 }
