@@ -1,4 +1,5 @@
 import vedLogo from './assets/ved-logo.png'
+import { AUTH_ENABLED } from './api/auth.js'
 import { ProtectedAppPage } from './features/auth/ProtectedAppPage.jsx'
 import { SignInPage } from './features/auth/SignInPage.jsx'
 import { useAuthSession } from './features/auth/useAuthSession.js'
@@ -83,7 +84,7 @@ const footerColumns = [
   { title: 'RESOURCES', links: ['Documentation', 'Support', 'Status'] },
 ]
 
-function LandingPage({ session }) {
+function LandingPage({ authEnabled, session }) {
   return (
     <div className="ved-app">
       <header className="site-header">
@@ -112,10 +113,12 @@ function LandingPage({ session }) {
           </nav>
 
           <div className="nav-cta">
-            <a href={session.status === 'authenticated' ? '#/app' : '#/signin'} className="btn btn-ghost">
-              {session.status === 'authenticated' ? 'Open app' : 'Sign in'}
-            </a>
-            <a href="#/app" className="btn btn-accent">Get started</a>
+            {authEnabled && (
+              <a href={session.status === 'authenticated' ? '#/app' : '#/signin'} className="btn btn-ghost">
+                {session.status === 'authenticated' ? 'Open app' : 'Sign in'}
+              </a>
+            )}
+            <a href={authEnabled ? '#/app' : '#cta'} className="btn btn-accent">Get started</a>
           </div>
         </div>
       </header>
@@ -137,7 +140,7 @@ function LandingPage({ session }) {
               </p>
 
               <div className="hero-ctas">
-                <a href="#/app" className="btn btn-accent btn-large">Create a floor plan</a>
+                <a href={authEnabled ? '#/app' : '#cta'} className="btn btn-accent btn-large">Create a floor plan</a>
                 <a href="#cta" className="btn btn-ghost btn-large">Upload a floor plan →</a>
               </div>
 
@@ -247,8 +250,8 @@ function LandingPage({ session }) {
               <h2>Draw your first layout, free</h2>
               <p>No CAD experience required. Start from a blank canvas or upload the plan you already have.</p>
               <div className="cta-buttons">
-                <a href="#/app" className="btn btn-outline-dark">Create a floor plan</a>
-                <a href="#/app" className="btn btn-dark">Upload a floor plan</a>
+                <a href={authEnabled ? '#/app' : '#cta'} className="btn btn-outline-dark">Create a floor plan</a>
+                <a href={authEnabled ? '#/app' : '#cta'} className="btn btn-dark">Upload a floor plan</a>
               </div>
             </div>
           </div>
@@ -302,17 +305,17 @@ function FooterBrand() {
 
 function App() {
   const route = useHashRoute()
-  const session = useAuthSession()
+  const session = useAuthSession({ enabled: AUTH_ENABLED })
 
-  if (route === '/signin') {
+  if (AUTH_ENABLED && route === '/signin') {
     return <SignInPage session={session} />
   }
 
-  if (route === '/app') {
+  if (AUTH_ENABLED && route === '/app') {
     return <ProtectedAppPage session={session} />
   }
 
-  return <LandingPage session={session} />
+  return <LandingPage authEnabled={AUTH_ENABLED} session={session} />
 }
 
 export default App

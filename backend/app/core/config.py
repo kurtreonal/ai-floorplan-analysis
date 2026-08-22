@@ -38,9 +38,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_env: str = "development"
+    app_env: str = "production"
     app_name: str = "VED Electrical Services"
-    app_debug: bool = True
+    app_debug: bool = False
 
     api_host: str = "127.0.0.1"
     api_port: int = Field(default=8000, ge=1, le=65535)

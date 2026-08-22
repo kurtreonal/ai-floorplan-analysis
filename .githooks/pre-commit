@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+blocked_files=""
+while IFS= read -r path; do
+  name=${path##*/}
+  case "$name" in
+    .env)
+      blocked_files="${blocked_files}${path}\n"
+      ;;
+    .env.*)
+      if [ "$name" != ".env.example" ]; then
+        blocked_files="${blocked_files}${path}\n"
+      fi
+      ;;
+  esac
+done <<EOF
+$(git diff --cached --name-only --diff-filter=ACMR)
+EOF
+
+if [ -n "$blocked_files" ]; then
+  printf 'ERROR: private environment files cannot be committed:\n%b' "$blocked_files" >&2
+  exit 1
+fi
+
+if command -v python >/dev/null 2>&1; then
+  python scripts/validate_env.py
+elif command -v python3 >/dev/null 2>&1; then
+  python3 scripts/validate_env.py
+else
+  echo "ERROR: Python is required to validate environment templates." >&2
+  exit 1
+fi
