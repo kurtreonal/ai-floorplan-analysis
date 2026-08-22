@@ -30,6 +30,8 @@ C3 adds `GET /api/auth/me`. It reads the local user ID from the signed applicati
 
 C4 adds the reusable `require_roles(...)` FastAPI dependency factory. It builds on `get_current_user`, compares allowed role names with the user's current MySQL role, returns `401 Unauthorized` for missing authentication, and returns `403 Forbidden` when an authenticated user lacks an allowed role. Routes can require `ADMIN` or allow both `ADMIN` and `DESIGNER` without trusting client input, provider claims, session role values, or numeric role IDs. C4 does not add production routes, permissions, tables, or schema changes.
 
+Credentialed CORS uses the comma-separated `CORS_ALLOWED_ORIGINS` setting so approved browser origins can call FastAPI with the signed application session cookie. Entries are trimmed and deduplicated, and wildcard origins are rejected because credentials are enabled. The local template allows `http://localhost:5173`; production origins must be configured explicitly. CORS does not change the session cookie's HttpOnly, SameSite, Secure, path, or lifetime behavior.
+
 ## XAMPP database setup
 
 XAMPP is a local-development convenience. FastAPI connects directly to the MySQL-compatible server through SQLAlchemy and PyMySQL; it does not connect through phpMyAdmin. Apache and PHP are not required by FastAPI.

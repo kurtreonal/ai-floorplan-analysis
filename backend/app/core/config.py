@@ -16,6 +16,10 @@ class OAuthOIDCConfigurationError(RuntimeError):
     """Raised when the authentication feature lacks safe OAuth/OIDC settings."""
 
 
+class CORSConfigurationError(RuntimeError):
+    """Raised when credentialed CORS configuration is unsafe."""
+
+
 class OAuthOIDCConfiguration(BaseModel):
     provider: str
     client_id: str
@@ -73,6 +77,22 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def get_cors_allowed_origins(settings: Settings | None = None) -> tuple[str, ...]:
+    source = settings or get_settings()
+    origins = tuple(
+        dict.fromkeys(
+            origin.strip()
+            for origin in source.cors_allowed_origins.split(",")
+            if origin.strip()
+        )
+    )
+    if "*" in origins:
+        raise CORSConfigurationError(
+            "CORS_ALLOWED_ORIGINS cannot contain '*' when credentials are enabled."
+        )
+    return origins
 
 
 def get_oauth_oidc_configuration(

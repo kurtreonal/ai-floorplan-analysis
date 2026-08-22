@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes.auth import router as auth_router
@@ -6,6 +7,7 @@ from app.api.routes.health import router as health_router
 from app.core.config import (
     OAuthOIDCConfigurationError,
     Settings,
+    get_cors_allowed_origins,
     get_oauth_oidc_configuration,
     get_settings,
 )
@@ -34,6 +36,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             same_site="lax",
             https_only=application_settings.app_env.casefold() != "development",
         )
+
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(get_cors_allowed_origins(application_settings)),
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=[
+            "Accept",
+            "Accept-Language",
+            "Content-Language",
+            "Content-Type",
+        ],
+    )
 
     application.include_router(health_router)
     application.include_router(auth_router)
