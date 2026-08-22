@@ -26,6 +26,8 @@ C2 adds `GET /api/auth/login` and `GET /api/auth/callback`. The login route redi
 
 After a validated callback, provider plus subject resolves the local user. An existing user's local role is preserved. A previously unseen external identity is created with the local `DESIGNER` role, which is the least-privileged current VED application role; provider claims never grant `ADMIN`. The callback stores only the local user ID in the application session and redirects to `FRONTEND_URL`. C2 does not add database tables or columns.
 
+C3 adds `GET /api/auth/me`. It reads the local user ID from the signed application session, reloads the user and current `ADMIN` or `DESIGNER` role from MySQL, and returns only the local ID, display name, email, avatar URL, and role. Missing, malformed, or stale session identities return `401 Unauthorized`; a stale user ID is removed from the session. The endpoint does not contact the OAuth provider and does not return provider subjects, provider tokens, authorization codes, or secrets. Role-based route restrictions and logout remain deferred to later tickets.
+
 ## XAMPP database setup
 
 XAMPP is a local-development convenience. FastAPI connects directly to the MySQL-compatible server through SQLAlchemy and PyMySQL; it does not connect through phpMyAdmin. Apache and PHP are not required by FastAPI.

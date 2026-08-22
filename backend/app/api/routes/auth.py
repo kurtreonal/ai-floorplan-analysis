@@ -11,9 +11,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse
 
+from app.api.dependencies import get_current_user
 from app.core.config import OAuthOIDCConfiguration
 from app.core.database import get_db
 from app.core.oauth import create_oauth_client
+from app.models import User
+from app.schemas.auth import CurrentUserResponse
 from app.services.authentication import (
     AuthenticationServiceError,
     ExternalOIDCIdentity,
@@ -61,6 +64,17 @@ def _get_active_configuration(request: Request) -> OAuthOIDCConfiguration:
 def _optional_string_claim(userinfo: Mapping[str, Any], name: str) -> str | None:
     value = userinfo.get(name)
     return value if isinstance(value, str) and value else None
+
+
+@router.get("/me", response_model=CurrentUserResponse)
+def current_user(user: User = Depends(get_current_user)) -> CurrentUserResponse:
+    return CurrentUserResponse(
+        id=user.id,
+        display_name=user.display_name,
+        email=user.email,
+        avatar_url=user.avatar_url,
+        role=user.role.name,
+    )
 
 
 @router.get("/login", name="oauth_login")

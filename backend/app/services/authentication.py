@@ -6,6 +6,7 @@ from app.repositories.user_repository import (
     add_user,
     find_role_by_name,
     find_user_by_external_identity,
+    find_user_by_id_with_role,
 )
 
 
@@ -22,6 +23,17 @@ class ExternalOIDCIdentity(BaseModel):
     email: str | None = Field(default=None, max_length=320)
     display_name: str | None = Field(default=None, max_length=255)
     avatar_url: str | None = None
+
+
+def resolve_current_user(
+    database_session: Session,
+    *,
+    user_id: int,
+) -> User | None:
+    return find_user_by_id_with_role(
+        database_session,
+        user_id=user_id,
+    )
 
 
 def resolve_external_user(
