@@ -28,6 +28,8 @@ After a validated callback, provider plus subject resolves the local user. An ex
 
 C3 adds `GET /api/auth/me`. It reads the local user ID from the signed application session, reloads the user and current `ADMIN` or `DESIGNER` role from MySQL, and returns only the local ID, display name, email, avatar URL, and role. Missing, malformed, or stale session identities return `401 Unauthorized`; a stale user ID is removed from the session. The endpoint does not contact the OAuth provider and does not return provider subjects, provider tokens, authorization codes, or secrets. Role-based route restrictions and logout remain deferred to later tickets.
 
+C4 adds the reusable `require_roles(...)` FastAPI dependency factory. It builds on `get_current_user`, compares allowed role names with the user's current MySQL role, returns `401 Unauthorized` for missing authentication, and returns `403 Forbidden` when an authenticated user lacks an allowed role. Routes can require `ADMIN` or allow both `ADMIN` and `DESIGNER` without trusting client input, provider claims, session role values, or numeric role IDs. C4 does not add production routes, permissions, tables, or schema changes.
+
 ## XAMPP database setup
 
 XAMPP is a local-development convenience. FastAPI connects directly to the MySQL-compatible server through SQLAlchemy and PyMySQL; it does not connect through phpMyAdmin. Apache and PHP are not required by FastAPI.
