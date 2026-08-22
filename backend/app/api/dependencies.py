@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -67,3 +69,29 @@ def get_current_user(
         )
 
     return user
+
+
+def require_roles(*allowed_role_names: str) -> Callable[[User], User]:
+    if not allowed_role_names or any(
+        not isinstance(role_name, str) or not role_name.strip()
+        for role_name in allowed_role_names
+    ):
+        raise ValueError("At least one non-empty role name is required.")
+
+    allowed_roles = frozenset(
+        role_name.strip().upper() for role_name in allowed_role_names
+    )
+
+    def role_dependency(
+        current_user: User = Depends(get_current_user),
+    ) -> User:
+        role = current_user.role
+        if role is None or role.name not in allowed_roles:
+            raise _authentication_error(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="AUTHORIZATION_DENIED",
+                message="The authenticated user is not authorized for this action.",
+            )
+        return current_user
+
+    return role_dependency
