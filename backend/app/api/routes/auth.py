@@ -77,6 +77,14 @@ def current_user(user: User = Depends(get_current_user)) -> CurrentUserResponse:
     )
 
 
+@router.post("/logout")
+def logout(request: Request) -> dict[str, str]:
+    session_data = request.scope.get("session")
+    if session_data is not None:
+        session_data.clear()
+    return {"status": "ok"}
+
+
 @router.get("/login", name="oauth_login")
 async def oauth_login(request: Request) -> RedirectResponse:
     configuration = _get_active_configuration(request)

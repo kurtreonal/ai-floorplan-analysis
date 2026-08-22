@@ -8,6 +8,7 @@ export const API_BASE_URL = (
 
 export const AUTH_LOGIN_URL = `${API_BASE_URL}/api/auth/login`
 export const AUTH_ME_URL = `${API_BASE_URL}/api/auth/me`
+export const AUTH_LOGOUT_URL = `${API_BASE_URL}/api/auth/logout`
 
 export function beginOAuthSignIn(location = window.location) {
   location.assign(AUTH_LOGIN_URL)
@@ -31,4 +32,18 @@ export async function fetchCurrentUser({ signal } = {}) {
   }
 
   return response.json()
+}
+
+export async function endLocalSession() {
+  const response = await fetch(AUTH_LOGOUT_URL, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('The sign-out service is unavailable.')
+  }
 }

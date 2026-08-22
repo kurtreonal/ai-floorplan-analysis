@@ -112,7 +112,11 @@ class RoleAuthorizationTests(unittest.TestCase):
         payload = {"user_id": user.id, **untrusted_values}
         encoded = b64encode(json.dumps(payload).encode("utf-8"))
         cookie = TimestampSigner(SESSION_SECRET).sign(encoded).decode("utf-8")
-        self.client.cookies.set(SESSION_COOKIE, cookie)
+        self.client.cookies.set(
+            SESSION_COOKIE,
+            cookie,
+            domain="testserver.local",
+        )
 
     def test_unauthenticated_request_returns_401(self) -> None:
         response = self.client.get("/_tests/admin-only")
@@ -229,7 +233,12 @@ class RoleAuthorizationTests(unittest.TestCase):
         }
         self.assertEqual(
             auth_paths,
-            {"/api/auth/login", "/api/auth/callback", "/api/auth/me"},
+            {
+                "/api/auth/login",
+                "/api/auth/callback",
+                "/api/auth/me",
+                "/api/auth/logout",
+            },
         )
 
         unauthenticated = self.client.get("/api/auth/me")
@@ -240,6 +249,54 @@ class RoleAuthorizationTests(unittest.TestCase):
         self.assertEqual(authenticated.status_code, 200)
         self.assertEqual(authenticated.json()["role"], "DESIGNER")
         self.assertNotIn("oauth_subject", authenticated.json())
+
+    def test_logout_invalidates_session_and_role_authorization(self) -> None:
+        self._set_session(self.designer)
+        self.assertEqual(self.client.get("/api/auth/me").status_code, 200)
+        self.assertEqual(
+            self.client.get("/_tests/designer-accessible").status_code,
+            200,
+        )
+
+        logout = self.client.post("/api/auth/logout")
+
+        self.assertEqual(logout.status_code, 200)
+        self.assertEqual(logout.json(), {"status": "ok"})
+        self.assertEqual(self.client.get("/api/auth/me").status_code, 401)
+        self.assertEqual(
+            self.client.get("/_tests/designer-accessible").status_code,
+            401,
+        )
+
+    def test_logout_is_idempotent_for_unauthenticated_session(self) -> None:
+        first = self.client.post("/api/auth/logout")
+        second = self.client.post("/api/auth/logout")
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json(), {"status": "ok"})
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json(), {"status": "ok"})
+
+    def test_logout_preserves_credentialed_cors_policy(self) -> None:
+        trusted = self.client.post(
+            "/api/auth/logout",
+            headers={"Origin": "http://localhost:5173"},
+        )
+        untrusted = self.client.post(
+            "/api/auth/logout",
+            headers={"Origin": "https://untrusted.example"},
+        )
+
+        self.assertEqual(trusted.status_code, 200)
+        self.assertEqual(
+            trusted.headers.get("access-control-allow-origin"),
+            "http://localhost:5173",
+        )
+        self.assertEqual(
+            trusted.headers.get("access-control-allow-credentials"),
+            "true",
+        )
+        self.assertNotIn("access-control-allow-origin", untrusted.headers)
 
 
 if __name__ == "__main__":
