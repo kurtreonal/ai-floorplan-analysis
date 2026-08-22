@@ -1,3 +1,10 @@
+import vedLogo from './assets/ved-logo.png'
+import { ProtectedAppPage } from './features/auth/ProtectedAppPage.jsx'
+import { SignInPage } from './features/auth/SignInPage.jsx'
+import { useAuthSession } from './features/auth/useAuthSession.js'
+import { useHashRoute } from './routes/useHashRoute.js'
+
+
 const pipelineSteps = [
   {
     title: 'Floor plan input',
@@ -76,7 +83,7 @@ const footerColumns = [
   { title: 'RESOURCES', links: ['Documentation', 'Support', 'Status'] },
 ]
 
-function App() {
+function LandingPage({ session }) {
   return (
     <div className="ved-app">
       <header className="site-header">
@@ -105,8 +112,10 @@ function App() {
           </nav>
 
           <div className="nav-cta">
-            <a href="#" className="btn btn-ghost">Sign in</a>
-            <a href="#cta" className="btn btn-accent">Get started</a>
+            <a href={session.status === 'authenticated' ? '#/app' : '#/signin'} className="btn btn-ghost">
+              {session.status === 'authenticated' ? 'Open app' : 'Sign in'}
+            </a>
+            <a href="#/app" className="btn btn-accent">Get started</a>
           </div>
         </div>
       </header>
@@ -128,7 +137,7 @@ function App() {
               </p>
 
               <div className="hero-ctas">
-                <a href="#cta" className="btn btn-accent btn-large">Create a floor plan</a>
+                <a href="#/app" className="btn btn-accent btn-large">Create a floor plan</a>
                 <a href="#cta" className="btn btn-ghost btn-large">Upload a floor plan →</a>
               </div>
 
@@ -238,8 +247,8 @@ function App() {
               <h2>Draw your first layout, free</h2>
               <p>No CAD experience required. Start from a blank canvas or upload the plan you already have.</p>
               <div className="cta-buttons">
-                <a href="#" className="btn btn-outline-dark">Create a floor plan</a>
-                <a href="#" className="btn btn-dark">Upload a floor plan</a>
+                <a href="#/app" className="btn btn-outline-dark">Create a floor plan</a>
+                <a href="#/app" className="btn btn-dark">Upload a floor plan</a>
               </div>
             </div>
           </div>
@@ -273,8 +282,6 @@ function App() {
   )
 }
 
-import vedLogo from './assets/ved-logo.png'
-
 function Logo() {
   return (
     <div className="logo" aria-label="VED Electrical Services logo">
@@ -291,6 +298,21 @@ function FooterBrand() {
       <img src={vedLogo} alt="VED Electrical Services" />
     </div>
   )
+}
+
+function App() {
+  const route = useHashRoute()
+  const session = useAuthSession()
+
+  if (route === '/signin') {
+    return <SignInPage session={session} />
+  }
+
+  if (route === '/app') {
+    return <ProtectedAppPage session={session} />
+  }
+
+  return <LandingPage session={session} />
 }
 
 export default App
