@@ -1,5 +1,5 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models import Role, User
 
@@ -15,6 +15,19 @@ def find_user_by_external_identity(
             User.oauth_provider == provider,
             User.oauth_subject == subject,
         )
+    )
+
+
+def find_user_by_id_with_role(
+    database_session: Session,
+    *,
+    user_id: int,
+) -> User | None:
+    return database_session.scalar(
+        select(User)
+        .options(joinedload(User.role))
+        .where(User.id == user_id)
+        .execution_options(populate_existing=True)
     )
 
 
