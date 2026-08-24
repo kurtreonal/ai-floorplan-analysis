@@ -20,6 +20,10 @@ class CORSConfigurationError(RuntimeError):
     """Raised when credentialed CORS configuration is unsafe."""
 
 
+class UploadDirectoryConfigurationError(RuntimeError):
+    """Raised when file storage lacks a usable upload-directory setting."""
+
+
 class OAuthOIDCConfiguration(BaseModel):
     provider: str
     client_id: str
@@ -82,6 +86,28 @@ def get_settings() -> Settings:
 def get_max_upload_size_bytes(settings: Settings | None = None) -> int:
     source = settings or get_settings()
     return source.max_upload_size_mb * 1024 * 1024
+
+
+def get_upload_directory(settings: Settings | None = None) -> Path:
+    source = settings or get_settings()
+    if source.upload_dir is None:
+        raise UploadDirectoryConfigurationError(
+            "UPLOAD_DIR is required when file storage is used."
+        )
+
+    configured_path = source.upload_dir
+    if configured_path == Path("."):
+        raise UploadDirectoryConfigurationError(
+            "UPLOAD_DIR is required when file storage is used."
+        )
+    try:
+        if configured_path.is_absolute():
+            return configured_path.resolve(strict=False)
+        return (REPOSITORY_ROOT / configured_path).resolve(strict=False)
+    except (OSError, RuntimeError):
+        raise UploadDirectoryConfigurationError(
+            "UPLOAD_DIR could not be resolved safely."
+        ) from None
 
 
 def get_cors_allowed_origins(settings: Settings | None = None) -> tuple[str, ...]:
