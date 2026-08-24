@@ -76,8 +76,12 @@ export function ProtectedAppPage({ route, session }) {
 
       <main className="project-app-main">
         {projectRoute.view === 'dashboard' && <ProjectDashboardPage session={session} />}
-        {projectRoute.view === 'project' && <ProjectDetailPage projectId={projectRoute.projectId} />}
-        {projectRoute.view === 'invalid' && <ProjectDetailPage projectId={null} />}
+        {projectRoute.view === 'project' && (
+          <ProjectDetailPage projectId={projectRoute.projectId} session={session} />
+        )}
+        {projectRoute.view === 'invalid' && (
+          <ProjectDetailPage projectId={null} session={session} />
+        )}
       </main>
     </div>
   )

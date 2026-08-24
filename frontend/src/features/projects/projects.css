@@ -212,8 +212,108 @@
 .project-detail-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .project-shell-error { width: min(1180px, calc(100% - 48px)); margin: 12px auto 0; }
 
+.project-floor-panel {
+  margin-top: 38px;
+  padding-top: 34px;
+  border-top: 1px solid var(--paper-line);
+}
+
+.project-floor-panel h2 { margin-top: 6px; font-size: clamp(26px, 3vw, 38px); }
+.project-floor-panel h3 { font-size: 20px; }
+.project-floor-state {
+  display: flex;
+  min-height: 130px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px dashed #aaa594;
+  color: var(--ink-soft);
+}
+.project-floor-state .auth-spinner { border-top-color: var(--accent); }
+.project-floor-state p { margin: 0; }
+.project-floor-empty {
+  margin-top: 24px;
+  padding: 26px;
+  border: 1px dashed #aaa594;
+  background: rgba(143, 212, 228, 0.06);
+}
+.project-floor-empty p,
+.project-floor-admin > p,
+.floor-plan-form-help,
+.floor-plan-selected-file { margin: 7px 0 0; color: var(--ink-soft); }
+
+.project-floor-designer-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 22px;
+  margin-top: 24px;
+}
+
+.project-floor-create-block,
+.project-floor-upload-block,
+.project-floor-admin {
+  padding: 24px;
+  border: 1px solid var(--paper-line);
+  background: var(--white);
+}
+
+.project-floor-create-form,
+.floor-plan-upload-form { display: grid; gap: 14px; margin-top: 18px; }
+.project-floor-create-form label,
+.floor-plan-upload-form label,
+.project-floor-selector { display: grid; gap: 7px; font-weight: 600; }
+.project-floor-create-form input,
+.floor-plan-upload-form input,
+.project-floor-selector select {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #aaa594;
+  border-radius: 2px;
+  color: var(--ink);
+  background: var(--white);
+  font: inherit;
+}
+.project-floor-selector { margin-bottom: 18px; }
+.project-floor-create-form input:focus-visible,
+.floor-plan-upload-form input:focus-visible,
+.project-floor-selector select:focus-visible {
+  outline: 3px solid var(--line-cyan);
+  outline-offset: 3px;
+}
+.project-floor-create-form input:disabled,
+.floor-plan-upload-form input:disabled,
+.project-floor-selector select:disabled { cursor: wait; opacity: 0.68; }
+.project-floor-create-form .project-alert,
+.floor-plan-upload-form .project-alert { grid-column: auto; }
+.floor-plan-uploading { display: flex; align-items: center; gap: 10px; color: var(--accent-dim); }
+.floor-plan-uploading .auth-spinner { border-top-color: var(--accent); }
+
+.project-floor-admin ul,
+.session-upload-grid { display: grid; gap: 12px; margin-top: 18px; }
+.project-floor-admin li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 0;
+  border-top: 1px solid var(--paper-line);
+}
+.project-floor-admin li span { color: var(--ink-soft); font-size: 9px; }
+.session-upload-section { margin-top: 30px; }
+.session-upload-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.session-upload-card { padding: 20px; border: 1px solid var(--paper-line); border-top: 3px solid var(--line-cyan); }
+.session-upload-card > strong { overflow-wrap: anywhere; font-size: 18px; }
+.session-upload-card dl { display: grid; gap: 8px; margin-top: 16px; }
+.session-upload-card dl div { display: grid; grid-template-columns: 96px 1fr; gap: 10px; }
+.session-upload-card dt { color: var(--ink-soft); font-size: 10px; text-transform: uppercase; }
+.session-upload-card dd { margin: 0; overflow-wrap: anywhere; font-size: 13px; }
+
 @media (max-width: 900px) {
   .project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .project-floor-designer-tools { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
@@ -223,10 +323,12 @@
   .project-app-main { width: min(100% - 28px, 1180px); padding-top: 28px; }
   .project-dashboard-hero { align-items: start; padding: 28px 24px; }
   .project-dashboard-count { display: none; }
-  .project-form, .project-grid, .project-detail-grid { grid-template-columns: 1fr; }
+  .project-form, .project-grid, .project-detail-grid, .session-upload-grid { grid-template-columns: 1fr; }
   .project-list-heading, .project-detail-heading { align-items: flex-start; flex-direction: column; }
   .project-detail-status { margin-top: 0; }
   .project-create-panel, .project-list-panel, .project-detail, .project-detail-error { padding: 24px 20px; }
+  .project-floor-create-block, .project-floor-upload-block, .project-floor-admin { padding: 20px 16px; }
+  .project-floor-admin li { align-items: flex-start; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {
