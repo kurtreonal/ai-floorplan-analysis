@@ -2,8 +2,13 @@ import { useEffect } from 'react'
 
 import vedLogo from '../../assets/ved-logo.png'
 import { getProtectedRouteRedirect } from '../../routes/authRoutes.js'
+import { parseProjectRoute } from '../../routes/projectRoutes.js'
+import { ProjectDashboardPage } from '../projects/ProjectDashboardPage.jsx'
+import { ProjectDetailPage } from '../projects/ProjectDetailPage.jsx'
+import '../projects/projects.css'
 
-export function ProtectedAppPage({ session }) {
+
+export function ProtectedAppPage({ route, session }) {
   useEffect(() => {
     const redirect = getProtectedRouteRedirect(session.status)
     if (redirect) {
@@ -38,43 +43,42 @@ export function ProtectedAppPage({ session }) {
     )
   }
 
+  const projectRoute = parseProjectRoute(route)
+  const displayName = session.user.display_name || session.user.email || 'VED user'
+
   return (
-    <main className="auth-shell">
-      <section className="auth-card auth-card-wide" aria-labelledby="workspace-title">
-        <img className="auth-workspace-logo" src={vedLogo} alt="VED Electrical Services" />
-        <div className="auth-card-accent mono">AUTHENTICATED APPLICATION</div>
-        <h1 id="workspace-title">Your access is confirmed.</h1>
-        <p className="auth-intro">
-          Welcome, {session.user.display_name || session.user.email || 'VED user'}.
-        </p>
-        <dl className="auth-profile">
-          <div>
-            <dt>Role</dt>
-            <dd>{session.user.role}</dd>
+    <div className="project-app">
+      <header className="project-app-header">
+        <a className="project-app-brand" href="#/app" aria-label="VED project dashboard">
+          <img src={vedLogo} alt="VED Electrical Services" />
+        </a>
+        <div className="project-user-controls">
+          <div className="project-user-summary">
+            <strong>{displayName}</strong>
+            <span className="mono">{session.user.role}</span>
           </div>
-          {session.user.email && (
-            <div>
-              <dt>Email</dt>
-              <dd>{session.user.email}</dd>
-            </div>
-          )}
-        </dl>
-        <p className="auth-note">Project workspace features will appear here as their tickets are completed.</p>
-        {session.error && (
-          <div className="auth-message auth-message-error auth-sign-out-error" role="alert">
-            {session.error}
-          </div>
-        )}
-        <button
-          className="btn btn-outline-dark auth-sign-out"
-          type="button"
-          disabled={session.isSigningOut}
-          onClick={session.signOut}
-        >
-          {session.isSigningOut ? 'Signing out…' : 'Sign out'}
-        </button>
-        <a className="auth-home-link" href="#/">← Return to landing page</a>
-      </section>
-    </main>
+          <button
+            className="btn btn-ghost project-sign-out"
+            type="button"
+            disabled={session.isSigningOut}
+            onClick={session.signOut}
+          >
+            {session.isSigningOut ? 'Signing out…' : 'Sign out'}
+          </button>
+        </div>
+      </header>
+
+      {session.error && (
+        <div className="auth-message auth-message-error project-shell-error" role="alert">
+          {session.error}
+        </div>
+      )}
+
+      <main className="project-app-main">
+        {projectRoute.view === 'dashboard' && <ProjectDashboardPage session={session} />}
+        {projectRoute.view === 'project' && <ProjectDetailPage projectId={projectRoute.projectId} />}
+        {projectRoute.view === 'invalid' && <ProjectDetailPage projectId={null} />}
+      </main>
+    </div>
   )
 }
