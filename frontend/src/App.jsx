@@ -311,8 +311,11 @@ function App() {
     return <SignInPage session={session} />
   }
 
-  if (AUTH_ENABLED && route === '/app') {
-    return <ProtectedAppPage session={session} />
+  if (
+    AUTH_ENABLED
+    && (route === '/app' || route === '/app/projects' || route.startsWith('/app/projects/'))
+  ) {
+    return <ProtectedAppPage route={route} session={session} />
   }
 
   return <LandingPage authEnabled={AUTH_ENABLED} session={session} />
