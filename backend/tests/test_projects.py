@@ -8,8 +8,9 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from itsdangerous import TimestampSigner
+from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import InvalidRequestError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -17,6 +18,7 @@ from app.core.config import Settings, get_settings
 from app.core.database import get_db, get_engine
 from app.main import create_app
 from app.models import Project, Role, User
+from app.services.project_service import get_accessible_project
 
 
 SESSION_COOKIE = "ved_session"
@@ -137,7 +139,7 @@ class ProjectCreationTests(unittest.TestCase):
         project = Project(
             owner_id=owner.id,
             name=name or f"D2 Project {uuid4().hex}",
-            updated_at=updated_at or datetime.now(),
+            updated_at=updated_at or datetime.now().replace(microsecond=0),
         )
         self.database_session.add(project)
         self.database_session.flush()
@@ -311,6 +313,239 @@ class ProjectCreationTests(unittest.TestCase):
         rollback.assert_called_once_with()
         self.assertNotIn(sensitive_detail, response.text)
 
+    def test_detail_designer_receives_own_project_metadata(self) -> None:
+        project = self._add_project(self.designer, name="D3 Designer Project")
+        project.client_name = "D3 Client"
+        project.location = "D3 Location"
+        self.database_session.flush()
+        self._set_session(self.designer)
+
+        response = self.client.get(f"/api/projects/{project.id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "id": project.id,
+                "owner_id": self.designer.id,
+                "name": "D3 Designer Project",
+                "status": "draft",
+                "client_name": "D3 Client",
+                "location": "D3 Location",
+                "created_at": project.created_at.isoformat(),
+                "updated_at": project.updated_at.isoformat(),
+            },
+        )
+
+    def test_detail_response_excludes_unrelated_payloads(self) -> None:
+        project = self._add_project(self.designer)
+        self._set_session(self.designer)
+
+        response = self.client.get(f"/api/projects/{project.id}")
+        excluded_fields = {
+            "project_floors",
+            "floor_plans",
+            "uploads",
+            "detections",
+            "ai_results",
+            "geometry",
+            "routes",
+            "estimates",
+            "reports",
+            "owner",
+        }
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(excluded_fields.isdisjoint(response.json()))
+
+    def test_detail_designer_cannot_retrieve_another_project(self) -> None:
+        project = self._add_project(self.other_designer)
+        self._set_session(self.designer)
+
+        response = self.client.get(f"/api/projects/{project.id}")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json()["detail"]["error"]["code"],
+            "PROJECT_NOT_FOUND",
+        )
+
+    def test_detail_owner_query_forgery_does_not_grant_access(self) -> None:
+        project = self._add_project(self.other_designer)
+        self._set_session(self.designer)
+
+        response = self.client.get(
+            f"/api/projects/{project.id}?owner_id={self.other_designer.id}"
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_detail_owner_header_forgery_does_not_grant_access(self) -> None:
+        project = self._add_project(self.other_designer)
+        self._set_session(self.designer)
+
+        response = self.client.get(
+            f"/api/projects/{project.id}",
+            headers={
+                "X-Owner-ID": str(self.other_designer.id),
+                "X-Role": "ADMIN",
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_detail_session_forgery_does_not_grant_access(self) -> None:
+        project = self._add_project(self.other_designer)
+        self._set_session(
+            self.designer,
+            owner_id=self.other_designer.id,
+            role="ADMIN",
+        )
+
+        response = self.client.get(f"/api/projects/{project.id}")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_detail_admin_can_retrieve_designer_project(self) -> None:
+        project = self._add_project(self.designer)
+        self._set_session(self.admin)
+
+        response = self.client.get(f"/api/projects/{project.id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], project.id)
+        self.assertEqual(response.json()["owner_id"], self.designer.id)
+
+    def test_detail_unauthenticated_request_returns_401(self) -> None:
+        project = self._add_project(self.designer)
+
+        response = self.client.get(f"/api/projects/{project.id}")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json()["detail"]["error"]["code"],
+            "AUTHENTICATION_REQUIRED",
+        )
+
+    def test_detail_unsupported_role_returns_403(self) -> None:
+        project = self._add_project(self.designer)
+        unsupported_user = SimpleNamespace(role=SimpleNamespace(name="VIEWER"))
+        self.application.dependency_overrides[get_current_user] = (
+            lambda: unsupported_user
+        )
+        try:
+            response = self.client.get(f"/api/projects/{project.id}")
+        finally:
+            self.application.dependency_overrides.pop(get_current_user)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["detail"]["error"]["code"],
+            "AUTHORIZATION_DENIED",
+        )
+
+    def test_detail_nonexistent_project_returns_sanitized_404(self) -> None:
+        self._set_session(self.admin)
+
+        response = self.client.get("/api/projects/9223372036854775807")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json(),
+            {
+                "detail": {
+                    "error": {
+                        "code": "PROJECT_NOT_FOUND",
+                        "message": "The requested project was not found.",
+                        "details": {},
+                    }
+                }
+            },
+        )
+
+    def test_detail_invalid_project_ids_return_422(self) -> None:
+        self._set_session(self.designer)
+
+        for project_id in ("not-an-integer", "0", "-1"):
+            with self.subTest(project_id=project_id):
+                response = self.client.get(f"/api/projects/{project_id}")
+                self.assertEqual(response.status_code, 422)
+
+    def test_detail_database_failure_is_sanitized(self) -> None:
+        project = self._add_project(self.designer)
+        self._set_session(self.designer)
+        sensitive_detail = "mysql+pymysql://root:private@127.0.0.1/ved_electrical"
+
+        with (
+            patch(
+                "app.api.routes.projects.get_accessible_project",
+                side_effect=SQLAlchemyError(sensitive_detail),
+            ),
+            patch.object(self.database_session, "rollback") as rollback,
+        ):
+            response = self.client.get(f"/api/projects/{project.id}")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            response.json(),
+            {
+                "detail": {
+                    "error": {
+                        "code": "PROJECT_DETAIL_FAILED",
+                        "message": "The project could not be loaded.",
+                        "details": {},
+                    }
+                }
+            },
+        )
+        rollback.assert_called_once_with()
+        self.assertNotIn(sensitive_detail, response.text)
+
+    def test_detail_lookup_does_not_modify_project(self) -> None:
+        project = self._add_project(self.designer, name="D3 Unchanged Project")
+        before = (
+            project.owner_id,
+            project.name,
+            project.status,
+            project.client_name,
+            project.location,
+            project.created_at,
+            project.updated_at,
+        )
+        self._set_session(self.designer)
+
+        response = self.client.get(f"/api/projects/{project.id}")
+        self.database_session.refresh(project)
+        after = (
+            project.owner_id,
+            project.name,
+            project.status,
+            project.client_name,
+            project.location,
+            project.created_at,
+            project.updated_at,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(after, before)
+
+    def test_detail_lookup_keeps_relationships_unloaded(self) -> None:
+        project = self._add_project(self.designer)
+
+        found = get_accessible_project(
+            self.database_session,
+            current_user=self.designer,
+            project_id=project.id,
+        )
+
+        self.assertTrue(
+            {"owner", "project_floors"}.issubset(
+                sqlalchemy_inspect(found).unloaded
+            )
+        )
+        with self.assertRaises(InvalidRequestError):
+            _ = found.owner
+
     def test_designer_receives_201(self) -> None:
         response = self._create_project()
 
@@ -469,9 +704,10 @@ class ProjectCreationTests(unittest.TestCase):
         self.assertEqual(current_user.status_code, 200)
         self.assertEqual(current_user.json()["id"], self.designer.id)
 
-    def test_openapi_declares_get_and_post_without_detail_route(self) -> None:
+    def test_openapi_declares_collection_and_detail_operations(self) -> None:
         schema = self.application.openapi()
         project_path = schema["paths"]["/api/projects"]
+        detail_path = schema["paths"]["/api/projects/{project_id}"]
         post_operation = project_path["post"]
         get_operation = project_path["get"]
 
@@ -496,7 +732,25 @@ class ProjectCreationTests(unittest.TestCase):
             get_schema["items"]["$ref"],
             "#/components/schemas/ProjectResponse",
         )
-        self.assertNotIn("/api/projects/{project_id}", schema["paths"])
+        self.assertEqual(set(detail_path), {"get"})
+        self.assertEqual(
+            detail_path["get"]["responses"]["200"]["content"][
+                "application/json"
+            ]["schema"]["$ref"],
+            "#/components/schemas/ProjectResponse",
+        )
+        project_paths = {
+            path: set(operations)
+            for path, operations in schema["paths"].items()
+            if path.startswith("/api/projects")
+        }
+        self.assertEqual(
+            project_paths,
+            {
+                "/api/projects": {"get", "post"},
+                "/api/projects/{project_id}": {"get"},
+            },
+        )
 
 
 if __name__ == "__main__":
