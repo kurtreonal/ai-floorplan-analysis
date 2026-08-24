@@ -203,7 +203,7 @@ describe('project detail', () => {
     expect(screen.getByText(PROJECT.client_name)).toBeTruthy()
     expect(screen.getByText(PROJECT.location)).toBeTruthy()
     expect(screen.getByRole('link', { name: /Back to dashboard/ }).getAttribute('href')).toBe('#/app')
-    expect(screen.queryByText(/upload/i)).toBeNull()
+    expect(screen.getByText(/upload original floor-plan files/i)).toBeTruthy()
     expect(screen.queryByText(/AI results/i)).toBeNull()
   })
 

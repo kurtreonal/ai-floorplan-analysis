@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { fetchProject, ProjectApiError } from '../../api/projects.js'
+import { ProjectFloorUploadPanel } from './ProjectFloorUploadPanel.jsx'
 
 
 function formatTimestamp(value) {
@@ -26,7 +27,7 @@ function getDetailError(error) {
   return 'We could not load this project. Please try again.'
 }
 
-export function ProjectDetailPage({ projectId }) {
+export function ProjectDetailPage({ projectId, session }) {
   const [project, setProject] = useState(null)
   const [loadState, setLoadState] = useState(projectId ? 'loading' : 'invalid')
   const [error, setError] = useState(projectId ? null : 'The project address is invalid.')
@@ -96,7 +97,7 @@ export function ProjectDetailPage({ projectId }) {
         </span>
       </div>
       <p className="project-detail-intro">
-        Workspace metadata is ready. Floor plans and analysis tools will appear as their tickets are completed.
+        Review the project metadata, organize its floors, and upload original floor-plan files.
       </p>
       <dl className="project-detail-grid">
         <div><dt>Project ID</dt><dd>{project.id}</dd></div>
@@ -106,6 +107,7 @@ export function ProjectDetailPage({ projectId }) {
         <div><dt>Created</dt><dd>{formatTimestamp(project.created_at)}</dd></div>
         <div><dt>Last updated</dt><dd>{formatTimestamp(project.updated_at)}</dd></div>
       </dl>
+      {session && <ProjectFloorUploadPanel projectId={project.id} session={session} />}
     </article>
   )
 }
