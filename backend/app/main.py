@@ -4,6 +4,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.health import router as health_router
+from app.api.routes.projects import router as projects_router
 from app.core.config import (
     OAuthOIDCConfigurationError,
     Settings,
@@ -52,6 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     application.include_router(health_router)
     application.include_router(auth_router)
+    application.include_router(projects_router)
     return application
 
 
