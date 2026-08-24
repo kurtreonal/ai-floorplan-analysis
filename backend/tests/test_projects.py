@@ -1,6 +1,8 @@
 import json
 import unittest
 from base64 import b64encode
+from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -10,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import get_current_user
 from app.core.config import Settings, get_settings
 from app.core.database import get_db, get_engine
 from app.main import create_app
@@ -66,7 +69,23 @@ class ProjectCreationTests(unittest.TestCase):
             display_name="D1 Designer",
             role_id=cls.roles["DESIGNER"].id,
         )
-        cls.database_session.add_all((cls.admin, cls.designer))
+        cls.other_designer = User(
+            oauth_provider="d2-test",
+            oauth_subject=f"other-designer-{marker}",
+            email=f"other-designer-{marker}@example.test",
+            display_name="D2 Other Designer",
+            role_id=cls.roles["DESIGNER"].id,
+        )
+        cls.empty_designer = User(
+            oauth_provider="d2-test",
+            oauth_subject=f"empty-designer-{marker}",
+            email=f"empty-designer-{marker}@example.test",
+            display_name="D2 Empty Designer",
+            role_id=cls.roles["DESIGNER"].id,
+        )
+        cls.database_session.add_all(
+            (cls.admin, cls.designer, cls.other_designer, cls.empty_designer)
+        )
         cls.database_session.flush()
 
         cls.application = create_app(settings)
@@ -88,8 +107,9 @@ class ProjectCreationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client.cookies.clear()
 
-    def _set_session(self, user: User) -> None:
-        encoded = b64encode(json.dumps({"user_id": user.id}).encode("utf-8"))
+    def _set_session(self, user: User, **untrusted_values: object) -> None:
+        payload = {"user_id": user.id, **untrusted_values}
+        encoded = b64encode(json.dumps(payload).encode("utf-8"))
         cookie = TimestampSigner(SESSION_SECRET).sign(encoded).decode("utf-8")
         self.client.cookies.set(
             SESSION_COOKIE,
@@ -106,6 +126,190 @@ class ProjectCreationTests(unittest.TestCase):
             **overrides,
         }
         return self.client.post("/api/projects", json=payload)
+
+    def _add_project(
+        self,
+        owner: User,
+        *,
+        name: str | None = None,
+        updated_at: datetime | None = None,
+    ) -> Project:
+        project = Project(
+            owner_id=owner.id,
+            name=name or f"D2 Project {uuid4().hex}",
+            updated_at=updated_at or datetime.now(),
+        )
+        self.database_session.add(project)
+        self.database_session.flush()
+        return project
+
+    def test_list_designer_receives_200_and_owned_projects(self) -> None:
+        owned = self._add_project(self.designer)
+        self._set_session(self.designer)
+
+        response = self.client.get("/api/projects")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(owned.id, {project["id"] for project in response.json()})
+
+    def test_list_designer_cannot_see_another_designer_projects(self) -> None:
+        owned = self._add_project(self.designer)
+        another = self._add_project(self.other_designer)
+        self._set_session(self.designer)
+
+        response = self.client.get("/api/projects")
+        project_ids = {project["id"] for project in response.json()}
+
+        self.assertIn(owned.id, project_ids)
+        self.assertNotIn(another.id, project_ids)
+
+    def test_list_uses_session_identity_and_ignores_owner_forgery(self) -> None:
+        another = self._add_project(self.other_designer)
+        self._set_session(
+            self.designer,
+            owner_id=self.other_designer.id,
+            role="ADMIN",
+        )
+
+        response = self.client.get(
+            f"/api/projects?owner_id={self.other_designer.id}",
+            headers={"X-Owner-ID": str(self.other_designer.id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(another.id, {project["id"] for project in response.json()})
+
+    def test_list_admin_receives_200_and_projects_from_multiple_owners(self) -> None:
+        first = self._add_project(self.designer)
+        second = self._add_project(self.other_designer)
+        self._set_session(self.admin)
+
+        response = self.client.get("/api/projects")
+        project_ids = {project["id"] for project in response.json()}
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(first.id, project_ids)
+        self.assertIn(second.id, project_ids)
+
+    def test_list_results_match_response_contract(self) -> None:
+        project = self._add_project(self.designer)
+        self._set_session(self.designer)
+
+        response = self.client.get("/api/projects")
+        result = next(item for item in response.json() if item["id"] == project.id)
+
+        self.assertEqual(
+            set(result),
+            {
+                "id",
+                "owner_id",
+                "name",
+                "status",
+                "client_name",
+                "location",
+                "created_at",
+                "updated_at",
+            },
+        )
+        self.assertEqual(result["status"], "draft")
+        self.assertIsInstance(result["updated_at"], str)
+
+    def test_list_results_use_deterministic_order(self) -> None:
+        baseline = datetime(2026, 1, 1, 12, 0, 0)
+        older = self._add_project(self.other_designer, updated_at=baseline)
+        tied_first = self._add_project(
+            self.other_designer,
+            updated_at=baseline + timedelta(days=1),
+        )
+        tied_second = self._add_project(
+            self.other_designer,
+            updated_at=baseline + timedelta(days=1),
+        )
+        self._set_session(self.other_designer)
+
+        response = self.client.get("/api/projects")
+        relevant_ids = {older.id, tied_first.id, tied_second.id}
+        ordered_ids = [
+            project["id"]
+            for project in response.json()
+            if project["id"] in relevant_ids
+        ]
+
+        self.assertEqual(ordered_ids, [tied_second.id, tied_first.id, older.id])
+
+    def test_list_designer_with_no_projects_receives_empty_list(self) -> None:
+        self._set_session(self.empty_designer)
+
+        response = self.client.get("/api/projects")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+    def test_list_admin_with_no_projects_receives_empty_list(self) -> None:
+        self._set_session(self.admin)
+
+        with patch(
+            "app.api.routes.projects.list_accessible_projects",
+            return_value=[],
+        ):
+            response = self.client.get("/api/projects")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+    def test_list_unauthenticated_request_returns_401(self) -> None:
+        response = self.client.get("/api/projects")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json()["detail"]["error"]["code"],
+            "AUTHENTICATION_REQUIRED",
+        )
+
+    def test_list_unsupported_role_returns_403(self) -> None:
+        unsupported_user = SimpleNamespace(role=SimpleNamespace(name="VIEWER"))
+        self.application.dependency_overrides[get_current_user] = (
+            lambda: unsupported_user
+        )
+        try:
+            response = self.client.get("/api/projects")
+        finally:
+            self.application.dependency_overrides.pop(get_current_user)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["detail"]["error"]["code"],
+            "AUTHORIZATION_DENIED",
+        )
+
+    def test_list_database_failure_is_sanitized(self) -> None:
+        self._set_session(self.designer)
+        sensitive_detail = "mysql+pymysql://root:private@127.0.0.1/ved_electrical"
+
+        with (
+            patch(
+                "app.api.routes.projects.list_accessible_projects",
+                side_effect=SQLAlchemyError(sensitive_detail),
+            ),
+            patch.object(self.database_session, "rollback") as rollback,
+        ):
+            response = self.client.get("/api/projects")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            response.json(),
+            {
+                "detail": {
+                    "error": {
+                        "code": "PROJECT_LIST_FAILED",
+                        "message": "Projects could not be loaded.",
+                        "details": {},
+                    }
+                }
+            },
+        )
+        rollback.assert_called_once_with()
+        self.assertNotIn(sensitive_detail, response.text)
 
     def test_designer_receives_201(self) -> None:
         response = self._create_project()
@@ -265,24 +469,34 @@ class ProjectCreationTests(unittest.TestCase):
         self.assertEqual(current_user.status_code, 200)
         self.assertEqual(current_user.json()["id"], self.designer.id)
 
-    def test_openapi_declares_only_post_with_project_schemas(self) -> None:
+    def test_openapi_declares_get_and_post_without_detail_route(self) -> None:
         schema = self.application.openapi()
         project_path = schema["paths"]["/api/projects"]
-        operation = project_path["post"]
+        post_operation = project_path["post"]
+        get_operation = project_path["get"]
 
-        self.assertEqual(set(project_path), {"post"})
+        self.assertEqual(set(project_path), {"get", "post"})
         self.assertEqual(
-            operation["requestBody"]["content"]["application/json"]["schema"][
-                "$ref"
-            ],
+            post_operation["requestBody"]["content"]["application/json"][
+                "schema"
+            ]["$ref"],
             "#/components/schemas/ProjectCreate",
         )
         self.assertEqual(
-            operation["responses"]["201"]["content"]["application/json"][
+            post_operation["responses"]["201"]["content"]["application/json"][
                 "schema"
             ]["$ref"],
             "#/components/schemas/ProjectResponse",
         )
+        get_schema = get_operation["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]
+        self.assertEqual(get_schema["type"], "array")
+        self.assertEqual(
+            get_schema["items"]["$ref"],
+            "#/components/schemas/ProjectResponse",
+        )
+        self.assertNotIn("/api/projects/{project_id}", schema["paths"])
 
 
 if __name__ == "__main__":

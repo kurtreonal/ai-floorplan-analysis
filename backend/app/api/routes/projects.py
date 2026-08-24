@@ -6,10 +6,40 @@ from app.api.dependencies import require_roles
 from app.core.database import get_db
 from app.models import User
 from app.schemas.project import ProjectCreate, ProjectResponse
-from app.services.project_service import create_project
+from app.services.project_service import create_project, list_accessible_projects
 
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
+
+
+@router.get(
+    "",
+    response_model=list[ProjectResponse],
+    status_code=status.HTTP_200_OK,
+)
+def list_projects_endpoint(
+    current_user: User = Depends(require_roles("ADMIN", "DESIGNER")),
+    database_session: Session = Depends(get_db),
+) -> list[ProjectResponse]:
+    try:
+        projects = list_accessible_projects(
+            database_session,
+            current_user=current_user,
+        )
+    except SQLAlchemyError:
+        database_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": {
+                    "code": "PROJECT_LIST_FAILED",
+                    "message": "Projects could not be loaded.",
+                    "details": {},
+                }
+            },
+        ) from None
+
+    return [ProjectResponse.model_validate(project) for project in projects]
 
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
