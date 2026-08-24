@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.floor_plans import router as floor_plans_router
 from app.api.routes.health import router as health_router
 from app.api.routes.projects import router as projects_router
 from app.core.config import (
@@ -54,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(health_router)
     application.include_router(auth_router)
     application.include_router(projects_router)
+    application.include_router(floor_plans_router)
     return application
 
 
