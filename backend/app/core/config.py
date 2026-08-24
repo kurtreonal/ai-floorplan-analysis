@@ -79,6 +79,11 @@ def get_settings() -> Settings:
     return Settings()
 
 
+def get_max_upload_size_bytes(settings: Settings | None = None) -> int:
+    source = settings or get_settings()
+    return source.max_upload_size_mb * 1024 * 1024
+
+
 def get_cors_allowed_origins(settings: Settings | None = None) -> tuple[str, ...]:
     source = settings or get_settings()
     origins = tuple(
