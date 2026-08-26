@@ -7,6 +7,7 @@ from app.models.base import Base
 
 
 if TYPE_CHECKING:
+    from app.models.processing_job import ProcessingJob
     from app.models.project_floor import ProjectFloor
 
 
@@ -49,4 +50,7 @@ class FloorPlan(Base):
 
     project_floor: Mapped["ProjectFloor"] = relationship(
         back_populates="floor_plans"
+    )
+    processing_jobs: Mapped[list["ProcessingJob"]] = relationship(
+        back_populates="floor_plan"
     )

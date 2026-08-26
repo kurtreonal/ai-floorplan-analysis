@@ -1,11 +1,11 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through E3A/E4. It
+This directory contains the FastAPI backend implemented through F1. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
-project-floor APIs, and original floor-plan upload validation and storage.
-Processing jobs, AI/CV, canonical geometry, routing, estimation, and reporting
-are not implemented.
+project-floor APIs, original floor-plan upload validation and storage, and
+persisted processing-job records. Processing endpoints, workers, AI/CV,
+canonical geometry, routing, estimation, and reporting are not implemented.
 
 ## Requirements
 
@@ -56,7 +56,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype has these five application tables:
+The current prototype has these six application tables:
 
 ```text
 roles
@@ -64,6 +64,7 @@ users
 projects
 project_floors
 floor_plans
+processing_jobs
 ```
 
 Alembic and production schema migrations remain deferred. Never run schema
@@ -156,6 +157,23 @@ persistence fails, it rolls back and removes the newly written file as a
 compensating cleanup action. Later processing must write separate derived files
 and must never modify the stored original.
 
+## Processing-job records
+
+F1 adds `processing_jobs` as a persisted child of `floor_plans`. Its database
+fields are `id`, `floor_plan_id`, `type`, `status`, `progress`,
+`error_message`, `created_at`, and `updated_at`. The Python model exposes the
+database `type` column as `job_type`.
+
+Allowed statuses are `queued`, `processing`, `completed`, `failed`, and
+`cancelled`. The named `ck_processing_jobs_status` constraint enforces that
+set, while `ck_processing_jobs_progress` enforces progress from 0 through 100.
+Status defaults to `queued`, progress defaults to `0`, and `floor_plan_id` is an
+indexed required foreign key to `floor_plans.id`.
+
+F1 stores records only. It does not create a start-processing endpoint, a
+job-status endpoint, a worker or queue, automatic job creation after upload, or
+AI/CV behavior. Creating a job does not change `floor_plans.processing_status`.
+
 ## Error responses
 
 Application-generated errors currently use FastAPI `HTTPException`, which
@@ -201,12 +219,12 @@ Run from `backend/` with the configured MySQL service and seeded roles
 available:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest tests.test_project_floors -v
+.\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs -v
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe -m compileall -q app tests
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 14 focused E3A tests and 157 full backend
-tests. The existing Starlette TestClient/httpx deprecation warning does not by
-itself indicate a test failure.
+The current expected totals are 17 focused F1 tests and 174 full backend tests.
+The existing Starlette TestClient/httpx deprecation warning does not by itself
+indicate a test failure.

@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through E4, including E3A, and labels
+> the architecture actually implemented through F1, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -12,20 +12,21 @@
 ### Implemented
 
 - A1–A4: repository, environment, React/Vite, and FastAPI foundations
-- B1–B5: SQLAlchemy/PyMySQL connectivity and five-table prototype schema
+- B1–B5: SQLAlchemy/PyMySQL connectivity and the first five prototype tables
 - C1–C6: OAuth/OIDC, signed sessions, current-user restoration, role checks,
   frontend sign-in, and logout
 - D1–D4: project create/list/detail APIs and project dashboard UI
 - E1–E3: upload validation, original storage, and upload API
 - E3A: project-floor list/create API required by upload
 - E4: project-floor selection/creation and upload UI
+- F1: persisted processing-job model and sixth prototype table
 
 ### Planned
 
-F1 and later roadmap tickets remain unimplemented, including processing jobs,
-OpenCV/YOLO processing, detection review, canonical geometry, Konva 2D,
-Three.js 3D, routing, quantities, estimates, reports, administration, and audit
-logging.
+F2 and later roadmap tickets remain unimplemented, including processing APIs,
+workers, OpenCV/YOLO processing, detection review, canonical geometry, Konva
+2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
+audit logging.
 
 ### Proposed but not approved
 
@@ -144,7 +145,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set through E4 is exactly:
+The live and SQLAlchemy model table set through F1 is exactly:
 
 ```text
 roles
@@ -152,6 +153,7 @@ users
 projects
 project_floors
 floor_plans
+processing_jobs
 ```
 
 Relationships:
@@ -161,12 +163,21 @@ roles 1 ── * users
 users 1 ── * projects
 projects 1 ── * project_floors
 project_floors 1 ── * floor_plans
+floor_plans 1 ── * processing_jobs
 ```
 
 - `users` maps provider plus subject to a local role and contains no password.
 - `projects.owner_id` identifies the authoritative Designer owner.
 - `project_floors` supports multiple ordered floors per project.
 - `floor_plans` stores upload metadata and a relative storage reference.
+- `processing_jobs` stores a job type, constrained lifecycle status, bounded
+  progress, a safe nullable error message, and timestamps for one floor plan.
+
+Processing-job status is restricted by `ck_processing_jobs_status` to `queued`,
+`processing`, `completed`, `failed`, or `cancelled`. Progress is restricted by
+`ck_processing_jobs_progress` to the inclusive range 0–100. The defaults are
+`queued` and `0`. F1 persists records only and does not change a floor plan's
+upload status or introduce processing behavior.
 
 The required seeded role names are `ADMIN` and `DESIGNER`. Schema initialization
 and role seeding are explicit development commands and do not run at FastAPI
@@ -275,12 +286,12 @@ originals directory.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through E4 is:
+The verified baseline through F1 is:
 
 ```text
-E3A focused backend: 14 tests
-Full backend:         157 tests
-Frontend:              47 tests
+F1 focused backend: 17 tests
+Full backend:       174 tests
+Frontend baseline:  47 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -294,7 +305,7 @@ The target data flow remains:
 ```text
 Original floor plan
         ↓
-Planned processing job and AI/CV pipeline
+Persisted processing job with planned orchestration and AI/CV pipeline
         ↓
 Planned Designer review
         ↓
@@ -316,7 +327,8 @@ truth.
 ## 12. Current limitations and next decision
 
 - No persistent floor-plan listing/retrieval API
-- No processing-job schema or API
+- Processing-job records exist, but no start/status API, worker, queue,
+  cancellation workflow, or automatic upload hook exists
 - No OpenCV/YOLO pipeline
 - No detection review or canonical geometry
 - No 2D/3D editor implementation
@@ -325,6 +337,6 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next decision must explicitly select either the formal F1 processing-jobs
-ticket or a separately approved floor-plan listing ticket. Neither is implied by
-this architecture update.
+The next decision must explicitly select either the formal F2 start-processing
+endpoint ticket or a separately approved floor-plan listing ticket. Neither is
+implied by F1.

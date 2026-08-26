@@ -4,13 +4,13 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented and verified through E4, including the E3A project-floor prerequisite.**
+**Implemented through F1, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the five-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the six-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -18,6 +18,7 @@ The repository currently includes:
 - JPEG, PNG, and PDF validation;
 - collision-safe original-file storage and compensating cleanup;
 - the floor-plan upload API and project-workspace upload UI.
+- persisted processing-job records with constrained status and progress fields.
 
 Implementation must continue incrementally through the tickets in
 `docs/FUNCTIONAL_SPEC.md`; completing E4 does not imply that the downstream AI,
@@ -169,12 +170,12 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 
 ## Current Roadmap Position
 
-Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, and the E3A
-project-floor prerequisite are implemented. F1 and all later functional tickets
-remain unimplemented.
+Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
+prerequisite, and F1 are implemented. F2 and all later functional tickets remain
+unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
-listing API or begin processing jobs as part of unrelated work.
+listing API or processing behavior as part of unrelated work.
 
 ---
 
@@ -252,7 +253,9 @@ The folders that do not exist yet should be created by the appropriate developme
 - `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 can show
   successful upload responses during the current page session, but uploads do
   not repopulate after reload.
-- Processing jobs and processing-status APIs are not implemented.
+- Processing-job records are implemented, but no start-processing or job-status
+  endpoint, background worker, queue, cancellation workflow, or automatic job
+  creation exists.
 - No OpenCV or YOLO processing pipeline is implemented.
 - Canonical geometry and the Konva 2D/Three.js 3D editors are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports
