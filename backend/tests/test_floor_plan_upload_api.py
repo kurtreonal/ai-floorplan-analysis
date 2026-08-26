@@ -558,7 +558,9 @@ class FloorPlanUploadApiTests(unittest.TestCase):
         self.assertGreaterEqual(len(closed_states), 1)
         self.assertTrue(all(closed_states))
 
-    def test_openapi_declares_only_the_approved_floor_plan_operation(self) -> None:
+    def test_openapi_preserves_upload_and_declares_only_approved_operations(
+        self,
+    ) -> None:
         paths = self.application.openapi()["paths"]
         endpoint = paths["/api/projects/{project_id}/floor-plans"]
         self.assertEqual(set(endpoint), {"post"})
@@ -566,7 +568,13 @@ class FloorPlanUploadApiTests(unittest.TestCase):
         self.assertIn("post", paths["/api/projects"])
         self.assertIn("get", paths["/api/projects"])
         self.assertIn("get", paths["/api/projects/{project_id}"])
-        self.assertNotIn("/api/floor-plans/{floor_plan_id}/process", paths)
+        processing_endpoint = paths[
+            "/api/floor-plans/{floor_plan_id}/process"
+        ]
+        self.assertEqual(set(processing_endpoint), {"post"})
+        self.assertFalse(
+            any(path.startswith("/api/processing-jobs") for path in paths)
+        )
 
 
 if __name__ == "__main__":
