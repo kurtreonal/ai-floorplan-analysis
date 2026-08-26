@@ -1,11 +1,12 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through F1. It
+This directory contains the FastAPI backend implemented through F2. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
-persisted processing-job records. Processing endpoints, workers, AI/CV,
-canonical geometry, routing, estimation, and reporting are not implemented.
+persisted processing-job records, and the owning-Designer start-processing
+endpoint. Workers, processing-status APIs, AI/CV, canonical geometry, routing,
+estimation, and reporting are not implemented.
 
 ## Requirements
 
@@ -94,13 +95,13 @@ the session.
 
 Authorization behavior:
 
-- `DESIGNER` can create projects, create floors for owned projects, and upload
-  floor plans to owned project floors.
+- `DESIGNER` can create projects, create floors for owned projects, upload floor
+  plans to owned project floors, and start processing for owned floor plans.
 - `DESIGNER` project access is owner-scoped; cross-owner access returns `404`
   to conceal resource existence.
 - `ADMIN` can list and inspect all projects and list their floors.
-- `ADMIN` cannot create projects, create floors, or upload floor plans through
-  the current API.
+- `ADMIN` cannot create projects, create floors, upload floor plans, or start
+  floor-plan processing through the current API.
 - Missing authentication returns `401`; an authenticated unsupported role
   returns `403`.
 
@@ -170,9 +171,26 @@ set, while `ck_processing_jobs_progress` enforces progress from 0 through 100.
 Status defaults to `queued`, progress defaults to `0`, and `floor_plan_id` is an
 indexed required foreign key to `floor_plans.id`.
 
-F1 stores records only. It does not create a start-processing endpoint, a
-job-status endpoint, a worker or queue, automatic job creation after upload, or
-AI/CV behavior. Creating a job does not change `floor_plans.processing_status`.
+F2 exposes:
+
+```http
+POST /api/floor-plans/{floor_plan_id}/process
+```
+
+An owning Designer receives `202 Accepted` with `job_id` and status `queued`.
+The server controls the `floor_plan_analysis` job type. Admin and unsupported
+roles receive `403`; inaccessible and nonexistent floor plans share a sanitized
+`404`. A `queued` or `processing` job produces `409`, while `completed`,
+`failed`, or `cancelled` jobs permit a new attempt.
+
+The service locks the authorized `floor_plans` row with `SELECT ... FOR UPDATE`
+before checking for an active job. The database job row is currently the
+durable queue. Failure-state persistence stores only the stable message
+`Floor-plan processing could not be started.`
+
+F2 does not provide a job-status endpoint, worker, external queue, automatic
+upload hook, cancellation endpoint, or AI/CV behavior. Job lifecycle changes do
+not modify the original upload or `floor_plans.processing_status`.
 
 ## Error responses
 
@@ -220,11 +238,12 @@ available:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs -v
+.\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs_api -v
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe -m compileall -q app tests
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 17 focused F1 tests and 174 full backend tests.
-The existing Starlette TestClient/httpx deprecation warning does not by itself
-indicate a test failure.
+The current expected totals are 15 focused F2 tests, 17 focused F1 regression
+tests, and 189 full backend tests. The existing Starlette TestClient/httpx
+deprecation warning does not by itself indicate a test failure.

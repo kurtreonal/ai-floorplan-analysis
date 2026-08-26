@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through F1, including E3A, and labels
+> the architecture actually implemented through F2, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -20,10 +20,11 @@
 - E3A: project-floor list/create API required by upload
 - E4: project-floor selection/creation and upload UI
 - F1: persisted processing-job model and sixth prototype table
+- F2: owning-Designer start-processing API with durable queued jobs
 
 ### Planned
 
-F2 and later roadmap tickets remain unimplemented, including processing APIs,
+F3 and later roadmap tickets remain unimplemented, including job-status APIs,
 workers, OpenCV/YOLO processing, detection review, canonical geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
@@ -96,8 +97,9 @@ remain deferred.
 ### AI/CV
 
 OpenCV, NumPy, Ultralytics YOLO, and PDF-to-image processing remain planned.
-No model loading, preprocessing, wall detection, symbol inference, or processing
-job exists in the implemented application.
+Processing-job persistence and the F2 queued-job endpoint exist, but no worker,
+preprocessing, model loading, wall detection, or symbol inference exists. A
+queued job therefore does not mean analysis is executing.
 
 ## 4. Authentication and session architecture
 
@@ -137,6 +139,7 @@ CORS accepts explicit configured origins and rejects wildcard origins.
 | List project floors | Owned project | Any project |
 | Create project floor | Owned project | Denied |
 | Upload floor plan | Owned project/floor | Denied |
+| Start floor-plan processing | Owned floor plan | Denied |
 
 Missing authentication returns `401`. Authenticated unsupported roles return
 `403`. Designer access to another owner's project returns `404` to conceal the
@@ -145,7 +148,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set through F1 is exactly:
+The live and SQLAlchemy model table set through F2 remains exactly:
 
 ```text
 roles
@@ -176,8 +179,8 @@ floor_plans 1 ── * processing_jobs
 Processing-job status is restricted by `ck_processing_jobs_status` to `queued`,
 `processing`, `completed`, `failed`, or `cancelled`. Progress is restricted by
 `ck_processing_jobs_progress` to the inclusive range 0–100. The defaults are
-`queued` and `0`. F1 persists records only and does not change a floor plan's
-upload status or introduce processing behavior.
+`queued` and `0`. F2 uses each job row as the durable queue entry and does not
+change a floor plan's upload status.
 
 The required seeded role names are `ADMIN` and `DESIGNER`. Schema initialization
 and role seeding are explicit development commands and do not run at FastAPI
@@ -201,11 +204,17 @@ GET  /api/projects/{project_id}/floors
 POST /api/projects/{project_id}/floors
 
 POST /api/projects/{project_id}/floor-plans
+
+POST /api/floor-plans/{floor_plan_id}/process
 ```
 
 All business responses use Pydantic response schemas. Project-floor listing is
 ordered by `sort_order` then ID. The upload endpoint requires a positive
 `project_floor_id` multipart field and an uploaded file.
+The processing endpoint requires an owning Designer, returns `202` with a
+durable queued job ID, locks the authorized parent floor-plan row before its
+active-job check, and returns `409` for an existing queued or processing job.
+Terminal jobs permit a new attempt.
 
 Application-generated errors use FastAPI `HTTPException` and therefore appear
 under `detail`:
@@ -286,12 +295,13 @@ originals directory.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through F1 is:
+The verified baseline through F2 is:
 
 ```text
-F1 focused backend: 17 tests
-Full backend:       174 tests
-Frontend baseline:  47 tests
+F2 focused backend:    15 tests
+F1 focused regression: 17 tests
+Full backend:          189 tests
+Frontend baseline:      47 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -305,7 +315,7 @@ The target data flow remains:
 ```text
 Original floor plan
         ↓
-Persisted processing job with planned orchestration and AI/CV pipeline
+Durable queued processing job with planned worker and AI/CV pipeline
         ↓
 Planned Designer review
         ↓
@@ -327,8 +337,8 @@ truth.
 ## 12. Current limitations and next decision
 
 - No persistent floor-plan listing/retrieval API
-- Processing-job records exist, but no start/status API, worker, queue,
-  cancellation workflow, or automatic upload hook exists
+- Start-processing creates a durable queued database row, but no status API,
+  worker, external queue, cancellation endpoint, or automatic upload hook exists
 - No OpenCV/YOLO pipeline
 - No detection review or canonical geometry
 - No 2D/3D editor implementation
@@ -337,6 +347,6 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next decision must explicitly select either the formal F2 start-processing
+The next decision must explicitly select either the formal F3 processing-status
 endpoint ticket or a separately approved floor-plan listing ticket. Neither is
-implied by F1.
+implied by F2.

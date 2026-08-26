@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through F1, including the E3A project-floor
+The repository is implemented through F2, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -68,13 +68,15 @@ D1–D4
 E1–E4
 E3A — Project Floor API
 F1 — Create Processing Jobs Table
+F2 — Create Start Processing Endpoint
 ```
 
 The implemented application includes authentication and signed sessions,
 database-authoritative roles, project and project-floor workflows, upload
 validation and original storage, the upload API, the project upload UI, and
-persisted processing-job records. F2 and later tickets remain unimplemented. In
-particular, there is no processing endpoint, worker, queue, AI/CV pipeline,
+persisted processing-job records, and an owning-Designer endpoint that creates a
+durable queued job. F3 and later tickets remain unimplemented. In particular,
+there is no processing-status endpoint, worker, external queue, AI/CV pipeline,
 detection review, canonical geometry, 2D/3D editor, routing, estimation, or
 report implementation.
 
@@ -2426,6 +2428,28 @@ operation is part of F1.
 **Goal:** Start analysis without blocking the initial request.
 
 **Dependencies:** F1, E3.
+
+**Implementation status:** Complete. F2 creates and commits a queued
+`floor_plan_analysis` job, then returns immediately without running analysis.
+
+Implemented behavior:
+
+- `POST /api/floor-plans/{floor_plan_id}/process` accepts no request body and
+  returns `202` with a typed `job_id` and `queued` status.
+- Only the owning Designer may start processing. Admin and unsupported roles
+  receive `403`; missing, inaccessible, and cross-owner records use sanitized
+  responses without disclosing ownership.
+- The authorized floor-plan row is locked with `SELECT ... FOR UPDATE` before
+  checking active jobs. Existing `queued` or `processing` jobs return `409`;
+  terminal jobs permit another attempt.
+- The processing-job row is the durable queue entry. No worker or AI operation
+  runs during F2.
+- Failure-state persistence stores a stable safe message and does not modify the
+  original upload or `floor_plans.processing_status`.
+- Database creation failures roll back and return a sanitized `503`.
+
+F2 does not add F3's status endpoint, a worker, an external queue, an automatic
+upload hook, cancellation behavior, or a floor-plan listing endpoint.
 
 **Acceptance Criteria:**
 

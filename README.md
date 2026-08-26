@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through F1, including the E3A project-floor prerequisite.**
+**Implemented through F2, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
@@ -17,11 +17,12 @@ The repository currently includes:
 - project-floor list/create APIs;
 - JPEG, PNG, and PDF validation;
 - collision-safe original-file storage and compensating cleanup;
-- the floor-plan upload API and project-workspace upload UI.
-- persisted processing-job records with constrained status and progress fields.
+- the floor-plan upload API and project-workspace upload UI;
+- persisted processing-job records with constrained status and progress fields;
+- an owning-Designer start-processing API that creates a durable queued job.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing E4 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing F2 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -171,11 +172,11 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 ## Current Roadmap Position
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
-prerequisite, and F1 are implemented. F2 and all later functional tickets remain
-unimplemented.
+prerequisite, F1, and F2 are implemented. F3 and all later functional tickets
+remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
-listing API or processing behavior as part of unrelated work.
+listing API or processing-status behavior as part of unrelated work.
 
 ---
 
@@ -253,9 +254,9 @@ The folders that do not exist yet should be created by the appropriate developme
 - `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 can show
   successful upload responses during the current page session, but uploads do
   not repopulate after reload.
-- Processing-job records are implemented, but no start-processing or job-status
-  endpoint, background worker, queue, cancellation workflow, or automatic job
-  creation exists.
+- `POST /api/floor-plans/{floor_plan_id}/process` creates a durable queued job,
+  but no job-status endpoint, worker, external queue, cancellation workflow, or
+  automatic job creation exists.
 - No OpenCV or YOLO processing pipeline is implemented.
 - Canonical geometry and the Konva 2D/Three.js 3D editors are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports
