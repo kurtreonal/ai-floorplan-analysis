@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through F2, including the E3A project-floor
+The repository is implemented through F3, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -69,16 +69,17 @@ E1–E4
 E3A — Project Floor API
 F1 — Create Processing Jobs Table
 F2 — Create Start Processing Endpoint
+F3 — Create Processing Status Endpoint
 ```
 
 The implemented application includes authentication and signed sessions,
 database-authoritative roles, project and project-floor workflows, upload
 validation and original storage, the upload API, the project upload UI, and
-persisted processing-job records, and an owning-Designer endpoint that creates a
-durable queued job. F3 and later tickets remain unimplemented. In particular,
-there is no processing-status endpoint, worker, external queue, AI/CV pipeline,
-detection review, canonical geometry, 2D/3D editor, routing, estimation, or
-report implementation.
+persisted processing-job records, an owning-Designer endpoint that creates a
+durable queued job, and an ownership-aware read-only status endpoint. F4 and
+later tickets remain unimplemented. In particular, there is no processing-status
+UI, worker, external queue, AI/CV pipeline, detection review, canonical geometry,
+2D/3D editor, routing, estimation, or report implementation.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
 successful uploads returned during the current page session; records cannot
@@ -2467,6 +2468,24 @@ upload hook, cancellation behavior, or a floor-plan listing endpoint.
 **Goal:** Allow the frontend to track job progress.
 
 **Dependencies:** F2.
+
+**Implementation status:** Complete. F3 adds a read-only status endpoint without
+starting a worker or mutating processing state.
+
+Implemented behavior:
+
+- `GET /api/processing-jobs/{job_id}` returns only `job_id`, `type`, `status`,
+  `progress`, and nullable `error_message`.
+- Designers may read jobs belonging to their own projects; Admins may read any
+  job. Missing and cross-owner jobs share a sanitized `404`.
+- Unauthenticated requests receive `401`; unsupported roles receive `403`.
+- Failed jobs return a stable generic error message. Raw stored errors, paths,
+  SQL text, secrets, and stack traces are never returned.
+- Repository reads select only public job fields, prohibit relationship lazy
+  loading, acquire no row lock, and perform no writes.
+
+F3 does not add a processing UI, worker, external queue, cancellation behavior,
+automatic upload hook, AI/CV behavior, or floor-plan listing endpoint.
 
 **Acceptance Criteria:**
 

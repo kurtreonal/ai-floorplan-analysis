@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through F2, including E3A, and labels
+> the architecture actually implemented through F3, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -21,10 +21,11 @@
 - E4: project-floor selection/creation and upload UI
 - F1: persisted processing-job model and sixth prototype table
 - F2: owning-Designer start-processing API with durable queued jobs
+- F3: ownership-aware, read-only processing-job status API
 
 ### Planned
 
-F3 and later roadmap tickets remain unimplemented, including job-status APIs,
+F4 and later roadmap tickets remain unimplemented, including the processing UI,
 workers, OpenCV/YOLO processing, detection review, canonical geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
@@ -97,7 +98,7 @@ remain deferred.
 ### AI/CV
 
 OpenCV, NumPy, Ultralytics YOLO, and PDF-to-image processing remain planned.
-Processing-job persistence and the F2 queued-job endpoint exist, but no worker,
+Processing-job persistence and the F2/F3 job APIs exist, but no worker,
 preprocessing, model loading, wall detection, or symbol inference exists. A
 queued job therefore does not mean analysis is executing.
 
@@ -206,6 +207,7 @@ POST /api/projects/{project_id}/floors
 POST /api/projects/{project_id}/floor-plans
 
 POST /api/floor-plans/{floor_plan_id}/process
+GET  /api/processing-jobs/{job_id}
 ```
 
 All business responses use Pydantic response schemas. Project-floor listing is
@@ -215,6 +217,10 @@ The processing endpoint requires an owning Designer, returns `202` with a
 durable queued job ID, locks the authorized parent floor-plan row before its
 active-job check, and returns `409` for an existing queued or processing job.
 Terminal jobs permit a new attempt.
+The status endpoint permits owning Designers and all Admins, selects only public
+job fields without relationship loading or row locks, and maps any failed job to
+a stable generic public error message. Missing and cross-owner jobs use the same
+sanitized `404` response.
 
 Application-generated errors use FastAPI `HTTPException` and therefore appear
 under `detail`:
@@ -295,12 +301,13 @@ originals directory.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through F2 is:
+The verified baseline through F3 is:
 
 ```text
-F2 focused backend:    15 tests
+F3 focused backend:    11 tests
+F2 focused regression: 15 tests
 F1 focused regression: 17 tests
-Full backend:          189 tests
+Full backend:          200 tests
 Frontend baseline:      47 tests
 ```
 
@@ -337,8 +344,9 @@ truth.
 ## 12. Current limitations and next decision
 
 - No persistent floor-plan listing/retrieval API
-- Start-processing creates a durable queued database row, but no status API,
-  worker, external queue, cancellation endpoint, or automatic upload hook exists
+- Start-processing creates a durable queued database row and status polling is
+  read-only, but no worker, external queue, cancellation endpoint, processing UI,
+  or automatic upload hook exists
 - No OpenCV/YOLO pipeline
 - No detection review or canonical geometry
 - No 2D/3D editor implementation
@@ -347,6 +355,6 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next decision must explicitly select either the formal F3 processing-status
-endpoint ticket or a separately approved floor-plan listing ticket. Neither is
-implied by F2.
+The next decision must explicitly select either the formal F4 processing-status
+UI ticket or a separately approved floor-plan listing ticket. Neither is implied
+by F3.

@@ -1,8 +1,22 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, PositiveInt
+from pydantic import BaseModel, Field, PositiveInt
 
 
 class ProcessingJobStartResponse(BaseModel):
     job_id: PositiveInt
     status: Literal["queued"]
+
+
+class ProcessingJobStatusResponse(BaseModel):
+    job_id: PositiveInt
+    type: Annotated[str, Field(min_length=1, max_length=64)]
+    status: Literal[
+        "queued",
+        "processing",
+        "completed",
+        "failed",
+        "cancelled",
+    ]
+    progress: Annotated[int, Field(ge=0, le=100)]
+    error_message: str | None
