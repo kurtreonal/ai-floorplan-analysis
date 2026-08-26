@@ -4,9 +4,24 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Pre-development / repository foundation**
+**Implemented and verified through E4, including the E3A project-floor prerequisite.**
 
-The project documentation is prepared. Implementation should proceed incrementally through the tickets defined in `docs/FUNCTIONAL_SPEC.md`.
+The repository currently includes:
+
+- repository and environment foundations;
+- a React/Vite JavaScript frontend and FastAPI backend;
+- SQLAlchemy/PyMySQL connectivity and the five-table MySQL prototype schema;
+- OAuth 2.0/OpenID Connect authentication with signed local sessions;
+- database-authoritative `ADMIN` and `DESIGNER` roles;
+- project create, list, and detail APIs plus the project dashboard;
+- project-floor list/create APIs;
+- JPEG, PNG, and PDF validation;
+- collision-safe original-file storage and compensating cleanup;
+- the floor-plan upload API and project-workspace upload UI.
+
+Implementation must continue incrementally through the tickets in
+`docs/FUNCTIONAL_SPEC.md`; completing E4 does not imply that the downstream AI,
+geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
 
@@ -35,8 +50,12 @@ Do **not** ask Codex to build the entire system in one prompt.
 - Uvicorn
 - Pydantic
 - SQLAlchemy
-- Alembic
+- PyMySQL
 - MySQL
+
+The prototype creates missing tables explicitly through SQLAlchemy metadata.
+Alembic and production schema migrations remain deferred unless the project
+architecture is explicitly changed.
 
 ### AI / Computer Vision
 
@@ -148,25 +167,18 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 
 ---
 
-## Initial Development Order
+## Current Roadmap Position
 
-Start with the repository and development foundation:
+Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, and the E3A
+project-floor prerequisite are implemented. F1 and all later functional tickets
+remain unimplemented.
 
-```text
-A1 Repository Foundation
-  ↓
-A2 Environment Configuration
-  ↓
-A3 React + JavaScript + Vite
-  ↓
-A4 FastAPI Foundation
-```
-
-Then continue through the database, authentication, projects, uploads, processing jobs, OpenCV, YOLO, detection review, canonical geometry, 2D, 3D, routing, estimation, reporting, and testing tickets defined in `docs/FUNCTIONAL_SPEC.md`.
+The next ticket must be chosen explicitly. Do not silently add a floor-plan
+listing API or begin processing jobs as part of unrelated work.
 
 ---
 
-## Inputs That Are Not Required for Ticket A1 but Will Be Needed Later
+## Inputs Needed by Later Tickets
 
 Before the corresponding implementation stages, the project will also need real project assets/data such as:
 
@@ -195,7 +207,8 @@ The application directories established by Ticket A1 are:
 | `models/` | Local AI model artifacts and related resources. |
 | `scripts/` | Development and operational helper scripts. |
 
-The existing root-level Vite prototype is retained unchanged during this repository-foundation ticket. Moving or replacing it is outside Ticket A1.
+The active frontend is located in `frontend/`, and the active backend is located
+in `backend/`.
 
 ```text
 ved-electrical-services/
@@ -231,6 +244,21 @@ The folders that do not exist yet should be created by the appropriate developme
 - Material prices come from the database.
 - Historical estimates should preserve the price snapshot used when they were generated.
 - Generated layouts and estimates are planning outputs and still require appropriate professional validation.
+
+---
+
+## Current Limitations
+
+- `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 can show
+  successful upload responses during the current page session, but uploads do
+  not repopulate after reload.
+- Processing jobs and processing-status APIs are not implemented.
+- No OpenCV or YOLO processing pipeline is implemented.
+- Canonical geometry and the Konva 2D/Three.js 3D editors are not implemented.
+- Electrical routing, material quantification, cost estimation, and PDF reports
+  are not implemented.
+- The current Vercel deployment is frontend-only unless a separately hosted
+  HTTPS FastAPI backend is configured.
 
 ---
 

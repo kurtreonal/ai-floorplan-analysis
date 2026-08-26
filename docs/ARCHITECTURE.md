@@ -1,610 +1,330 @@
 # Implementation Architecture
 
-> **Current authority and status**
+> **Authority and status**
 >
-> This document describes the current implementation architecture. `docs/FUNCTIONAL_SPEC.md` is authoritative for ticket scope and acceptance criteria, followed by `AGENTS.md` and the implemented code. Historical thesis concepts remain only where they are explicitly labeled historical. Implemented foundations, next-ticket work, and future conceptual structures are identified separately; a table or module listed as planned does not necessarily exist yet.
+> `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
+> `AGENTS.md` owns repository-wide implementation rules. This document records
+> the architecture actually implemented through E4, including E3A, and labels
+> downstream concepts as planned or proposed.
 
-## 1. Historical Thesis Context
+## 1. Current implementation boundary
 
-The system is titled **“VED Electrical Services: AI-Driven Floor Plan Analysis and 3D Visualization System for Automated Layout and Cost Estimation.”** It addresses a manual electrical-planning workflow in which designers trace 2D blueprints, count electrical components, estimate wiring paths, and prepare material estimates.
+### Implemented
 
-The original thesis/proposal described two broad actors, User and Admin, and used a Python Flask backend. That historical architecture was approximately:
+- A1–A4: repository, environment, React/Vite, and FastAPI foundations
+- B1–B5: SQLAlchemy/PyMySQL connectivity and five-table prototype schema
+- C1–C6: OAuth/OIDC, signed sessions, current-user restoration, role checks,
+  frontend sign-in, and logout
+- D1–D4: project create/list/detail APIs and project dashboard UI
+- E1–E3: upload validation, original storage, and upload API
+- E3A: project-floor list/create API required by upload
+- E4: project-floor selection/creation and upload UI
 
-```text
-User/Admin
-   ↓
-React.js Frontend
-   ↓
-Floor Plan Input
-   ↓
-AI Image Recognition
-   ↓
-Symbol Detection and Classification
-   ↓
-Layout Generation
-   ↓
-Spatial Routing Algorithm
-   ↓
-Cost Estimation Module
-   ↓
-System Output
-   ↓
-MySQL Database
+### Planned
+
+F1 and later roadmap tickets remain unimplemented, including processing jobs,
+OpenCV/YOLO processing, detection review, canonical geometry, Konva 2D,
+Three.js 3D, routing, quantities, estimates, reports, administration, and audit
+logging.
+
+### Proposed but not approved
+
+A project floor-plan listing API has been identified as useful, but this route
+does not exist:
+
+```http
+GET /api/projects/{project_id}/floor-plans
 ```
 
-This section preserves source context only. Flask and the original authentication assumptions are not current implementation requirements.
+Adding it requires a separate approved ticket. E4 currently displays successful
+upload responses only for the active page session.
 
-## 2. Current Users and Authorization Roles
-
-| Local role | Human-readable responsibility |
-|---|---|
-| `DESIGNER` | Works on authorized electrical floor-plan projects: upload, review, correct, visualize, route, estimate, and report. |
-| `ADMIN` | Performs system-level administration such as future user-role assignment, symbol administration, material pricing, and audit review. |
-
-OAuth/OIDC establishes an external identity. A local VED role controls authorization inside the application. The external identity provider must not implicitly grant `ADMIN` or `DESIGNER`.
-
-## 3. Current System Architecture
-
-### 3.1 Application Layers
+## 2. Implemented application layers
 
 ```text
-React + JavaScript Frontend
-        ↓ HTTP / JSON / Multipart Upload
-FastAPI
+React + JavaScript/JSX
+        ↓ credentialed HTTP/JSON or multipart
+FastAPI router
         ↓
-Service Layer
+Service layer
         ↓
-Repository Layer
+Repository layer
         ↓
-SQLAlchemy
+SQLAlchemy 2.x
         ↓
 PyMySQL
         ↓
-MySQL-Compatible Database
+MySQL-compatible database
 ```
 
-The preferred Windows local-development database server is managed through XAMPP. FastAPI connects directly to that server; phpMyAdmin is optional administration tooling, and Apache/PHP are not FastAPI dependencies. XAMPP is a local-development convenience, not a production requirement.
+FastAPI routers handle request validation, authentication dependencies, HTTP
+status mapping, and response schemas. Services own domain workflow. Repositories
+own SQLAlchemy persistence queries. Upload validation and filesystem storage are
+separate from route logic.
 
-The verified local development server identifies itself as MariaDB-compatible and is accessed through the approved MySQL/PyMySQL connection path. The project target remains a MySQL-compatible database.
+The preferred Windows development database is MySQL-compatible and managed by
+XAMPP. FastAPI connects directly through PyMySQL; phpMyAdmin is optional and
+Apache/PHP are not application dependencies.
 
-### 3.2 Major Planned Application Areas
+## 3. Technology state
+
+### Frontend
+
+Implemented frontend technology is React with JavaScript/JSX and Vite. Current
+tests use Vitest, Testing Library, and jsdom. The project does not use
+TypeScript.
+
+React Router, Axios/TanStack Query, React Hook Form/Zod, Konva, and Three.js are
+required or permitted by the target architecture but are introduced only when
+their owning tickets need them. The current project workflow uses a small hash
+route and Fetch-based API modules.
+
+### Backend
+
+- Python and FastAPI/Uvicorn
+- Pydantic and Pydantic Settings
+- SQLAlchemy 2.x and PyMySQL
+- Authlib and signed Starlette sessions
+- Pillow and pypdf for current upload validation
+- Python `unittest` for the current backend suite
+
+Prototype schema creation uses an explicit development-only
+`Base.metadata.create_all()` command. Alembic and production migration tooling
+remain deferred.
+
+### AI/CV
+
+OpenCV, NumPy, Ultralytics YOLO, and PDF-to-image processing remain planned.
+No model loading, preprocessing, wall detection, symbol inference, or processing
+job exists in the implemented application.
+
+## 4. Authentication and session architecture
 
 ```text
-React Frontend
-├── OAuth/OIDC Sign-In Entry
-├── Project Workspace
-├── Floor Plan Upload
-├── Detection Review
-├── Konva 2D Editor
-├── Three.js 3D Viewer
-├── Routing Controls
-├── Estimation
-├── Reports
-└── Administration
-
-FastAPI Backend
-├── Authentication and Authorization
-├── Project and Floor-Plan APIs
-├── Processing Orchestration
-├── Detection Review
-├── Canonical Geometry
-├── Routing
-├── Materials and Estimation
-├── Reports
-└── Audit Services
-
-AI / CV Layer
-├── PDF-to-Image Conversion
-├── OpenCV Preprocessing
-├── Wall and Boundary Detection
-├── YOLO Symbol Detection
-├── Confidence Filtering
-└── Detection Normalization
+OAuth/OIDC provider
+        ↓ validated state and OIDC identity
+FastAPI callback
+        ↓ provider + subject lookup
+Local users row
+        ↓ role relationship
+Local ADMIN or DESIGNER authorization
+        ↓
+Signed HttpOnly session containing local user_id only
 ```
 
-These application areas are planned unless their tickets are already marked complete in the Functional Spec and repository history.
+The OAuth/OIDC provider is environment-configurable. The login route creates
+state and nonce values. The callback validates state and uses Authlib's OIDC
+validation before accepting the provider subject. Provider tokens and
+authorization codes are not stored in MySQL or the application session.
 
-## 4. Technology Stack
+New verified identities receive the local `DESIGNER` role. Existing local roles
+are preserved, and provider claims cannot grant `ADMIN`. `/api/auth/me` reloads
+the user and role from MySQL for each request, so the database remains
+authoritative.
 
-### 4.1 Frontend
+Session cookies are signed and HttpOnly, use `SameSite=Lax`, and are secure
+outside development. Logout clears only the local VED session. Credentialed
+CORS accepts explicit configured origins and rejects wildcard origins.
 
-| Area | Stack | Purpose |
+## 5. Authorization behavior
+
+| Action | DESIGNER | ADMIN |
 |---|---|---|
-| Main UI | React + JavaScript/JSX | Dashboard, project pages, forms, and editor screens |
-| Build tool | Vite | Frontend development and production builds |
-| Routing | React Router | Page navigation |
-| API communication | Axios and/or TanStack Query | FastAPI communication |
-| Forms and validation | React Hook Form + Zod | Runtime form validation |
-| 2D visualization | Konva.js / React-Konva | Editable floor-plan overlays |
-| 3D visualization | Three.js / React Three Fiber | Geometry-derived interactive 3D views |
+| List projects | Owned projects | All projects |
+| Read project detail | Owned project | Any project |
+| Create project | Allowed | Denied |
+| List project floors | Owned project | Any project |
+| Create project floor | Owned project | Denied |
+| Upload floor plan | Owned project/floor | Denied |
 
-The frontend uses JavaScript, not TypeScript.
+Missing authentication returns `401`. Authenticated unsupported roles return
+`403`. Designer access to another owner's project returns `404` to conceal the
+resource. Project ownership and role values are derived server-side rather than
+trusted from client input or provider claims.
 
-### 4.2 Backend
+## 6. Implemented database schema
 
-| Area | Stack | Purpose |
-|---|---|---|
-| Language | Python | Backend, geometry, routing, reporting, and AI/CV modules |
-| API framework | FastAPI | HTTP API and server-side authorization enforcement |
-| ASGI server | Uvicorn | FastAPI development/runtime server |
-| Validation/configuration | Pydantic + Pydantic Settings | Request schemas and environment-backed settings |
-| ORM | SQLAlchemy 2.x | Database engines, sessions, metadata, and ORM models |
-| MySQL driver | PyMySQL | SQLAlchemy DBAPI driver for the MySQL-compatible database |
-
-During the current prototype phase, do not introduce Alembic or a migration workflow. Production schema-migration strategy is deferred.
-
-### 4.3 AI and Computer Vision
-
-| Area | Stack | Purpose |
-|---|---|---|
-| Image processing | OpenCV, NumPy, Pillow | Normalization, filtering, thresholding, and wall detection |
-| Symbol detection | Ultralytics YOLO | Electrical-symbol inference |
-| PDF conversion | PDF-to-image processing | Convert selected PDF pages for analysis |
-| AI output | Normalized JSON/domain data | Preserve detections for review and canonical geometry |
-
-## 5. Implemented Database Foundation
-
-### 5.1 B1 — Connectivity
-
-B1 is implemented:
+The live and SQLAlchemy model table set through E4 is exactly:
 
 ```text
-Environment-backed DATABASE_URL
-        ↓
-Lazy SQLAlchemy Engine
-        ↓
-Reusable synchronous session factory
-        ↓
-PyMySQL
-        ↓
-XAMPP-managed MySQL-compatible server
-        ↓
-ved_electrical
-```
-
-Database credentials are not hard-coded. Engine creation and connectivity occur only when database functionality is invoked. Importing or starting FastAPI does not require an immediate database connection.
-
-`GET /health` is application liveness only. It does not represent database readiness; explicit database connectivity verification is separate.
-
-### 5.2 B2 — Development Schema Foundation
-
-B2 is implemented:
-
-```text
-backend/app/models/base.py
-        ↓
-Canonical DeclarativeBase
-        ↓
-Canonical SQLAlchemy metadata
-
-backend/app/core/schema.py
-        ↓
-Explicit development invocation
-        ↓
-Base.metadata.create_all()
-```
-
-Run the initializer deliberately from `backend/`:
-
-```powershell
-.\.venv\Scripts\python.exe -m app.core.schema
-```
-
-The initializer:
-
-- is available only when `APP_ENV=development`;
-- imports the `app.models` registration package;
-- uses B1's existing engine;
-- creates missing registered tables;
-- does not run during FastAPI startup;
-- does not run from `/health`;
-- does not implement drop/reset automation.
-
-After B2 alone, the canonical metadata contains zero domain tables. Successful initialization that leaves the application table set empty is expected.
-
-`Base.metadata.create_all()` is not a migration system. It creates missing registered tables but does not reliably transform existing tables when model definitions change. Any prototype reset/recreation remains manual and deliberate. No production migration guarantee is claimed.
-
-## 6. Authentication and Authorization Architecture
-
-### 6.1 Identity Flow
-
-```text
-OAuth 2.0 / OpenID Connect Provider
-        ↓
-FastAPI Authorization Callback
-        ↓
-State and Identity Validation
-        ↓
-Local VED User Mapping
-        ↓
-Local ADMIN / DESIGNER Authorization
-```
-
-Authentication is performed through a configurable external OAuth/OIDC provider. Authorization is determined by the local VED role and enforced by FastAPI. React visibility controls are only a UI convenience and are not sufficient authorization.
-
-Current security requirements:
-
-- OAuth client secrets remain server-side.
-- Provider tokens and authorization codes must not be logged.
-- OAuth state validation is required.
-- OIDC identity validation is required when the selected flow uses OIDC.
-- Provider selection remains configurable and deferred.
-- Application session mechanics are deferred to the authentication implementation ticket.
-
-There is no current local password authentication, `password_hash` requirement, or local JWT access/refresh-token architecture.
-
-### 6.2 Conceptual Authentication Routes
-
-| Endpoint | Method | Current conceptual purpose |
-|---|---|---|
-| `/api/auth/login` | GET | Start the configured OAuth/OIDC authorization flow |
-| `/api/auth/callback` | GET | Validate the callback and resolve the external identity |
-| `/api/auth/me` | GET | Return the authenticated local application user when implemented |
-
-Exact provider integration, application-session mechanics, and response details remain deferred to the authentication tickets.
-
-## 7. Database Schema Ownership
-
-### 7.1 Implemented Through B2
-
-Implemented schema infrastructure:
-
-- one canonical `DeclarativeBase`;
-- one canonical metadata registry;
-- an explicit development schema initializer;
-- zero application/domain tables.
-
-### 7.2 Next: B3 Roles and Users
-
-B3 owns the first domain tables:
-
-- `roles`
-- `users`
-
-Supported B3 facts:
-
-- Local roles are `ADMIN` and `DESIGNER`.
-- Users map a verified external OAuth/OIDC identity to a local VED authorization role.
-- A user supports an external provider identifier and provider subject/user identifier.
-- Provider plus provider subject uniquely identify an external identity.
-- Email and display name can be stored when supplied.
-- Avatar/profile image URL is optional.
-- A user references a valid local role.
-- There is no local password or `password_hash`.
-
-Exact column names, SQL types and lengths, primary-key type, timestamp/status fields, email uniqueness, role-name uniqueness, foreign-key delete behavior, additional indexes, role-seeding mechanism, provider selection, and application-session mechanics are implementation details deferred to B3 design.
-
-### 7.3 Future Ticket-Owned Tables
-
-The following are conceptual future entities and are not implemented through B2:
-
-| Area | Planned concepts |
-|---|---|
-| Projects | `projects` |
-| Floors and uploads | `project_floors`, `floor_plans` |
-| Processing | `processing_jobs`, `processed_images` |
-| Structural geometry | `rooms`, `walls`, `doors`, `windows` |
-| Symbols and review | `symbol_legends`, `detected_symbols`, `manual_corrections` |
-| Layout history | `layout_versions` |
-| Routing | `electrical_panels`, `wiring_routes`, `route_segments` |
-| Materials and pricing | `materials`, `material_prices`, `price_history` |
-| Estimation | `estimates`, `estimate_items` |
-| Reporting | `reports` |
-| Audit | `audit_logs` |
-
-Ticket ownership is defined by the Functional Spec. The conceptual list does not define unresolved columns or imply that these tables already exist.
-
-### 7.4 Project and Floor-Plan Relationship
-
-The planned hierarchy is:
-
-```text
+roles
+users
 projects
-    ↓
 project_floors
-    ↓
 floor_plans
 ```
 
-B4 owns projects. B5 owns project floors and floor-plan records. Original filename, stored filename/path, MIME type, file size, and processing status belong to the floor-plan/upload design when B5 is implemented. Original uploads must not be overwritten.
-
-There is no generic application `files` table in the current Functional Spec. File metadata belongs to the record that owns the resource, while file contents remain filesystem-backed unless a later ticket explicitly changes that architecture.
-
-### 7.5 Materials and Pricing
-
-Material definitions and prices are separate concepts:
+Relationships:
 
 ```text
-materials
-    ↓
-material_prices
-    ↓
-price_history
+roles 1 ── * users
+users 1 ── * projects
+projects 1 ── * project_floors
+project_floors 1 ── * floor_plans
 ```
 
-Material prices must come from the database. Estimate items capture the price used at estimate generation so later administrative price changes do not silently rewrite historical estimates. Precision, currency representation, and unresolved pricing columns remain deferred to their schema tickets.
+- `users` maps provider plus subject to a local role and contains no password.
+- `projects.owner_id` identifies the authoritative Designer owner.
+- `project_floors` supports multiple ordered floors per project.
+- `floor_plans` stores upload metadata and a relative storage reference.
 
-## 8. Canonical Geometry
+The required seeded role names are `ADMIN` and `DESIGNER`. Schema initialization
+and role seeding are explicit development commands and do not run at FastAPI
+startup.
 
-Verified canonical project geometry is the shared downstream source:
+## 7. Implemented API surface
+
+```http
+GET  /health
+
+GET  /api/auth/login
+GET  /api/auth/callback
+GET  /api/auth/me
+POST /api/auth/logout
+
+GET  /api/projects
+POST /api/projects
+GET  /api/projects/{project_id}
+
+GET  /api/projects/{project_id}/floors
+POST /api/projects/{project_id}/floors
+
+POST /api/projects/{project_id}/floor-plans
+```
+
+All business responses use Pydantic response schemas. Project-floor listing is
+ordered by `sort_order` then ID. The upload endpoint requires a positive
+`project_floor_id` multipart field and an uploaded file.
+
+Application-generated errors use FastAPI `HTTPException` and therefore appear
+under `detail`:
+
+```json
+{
+  "detail": {
+    "error": {
+      "code": "PROJECT_NOT_FOUND",
+      "message": "The requested project was not found.",
+      "details": {}
+    }
+  }
+}
+```
+
+Framework request-validation errors use FastAPI's standard validation-detail
+array. A globally uniform top-level error envelope has not been implemented.
+
+## 8. Project and upload frontend workflow
 
 ```text
-AI Detection
-      ↓
-Designer Verification
-      ↓
-Canonical Geometry
-      ├──→ Konva 2D
-      ├──→ Three.js 3D
-      ├──→ Electrical Routing
-      └──→ Material and Cost Calculation
+Restore signed session with /api/auth/me
+        ↓
+Load Designer-owned or Admin-visible projects
+        ↓
+Create/open a project
+        ↓
+Load project floors
+        ├── Designer may create a floor
+        └── Admin has read-only floor visibility
+        ↓
+Designer selects a floor and uploads JPEG/PNG/PDF
+        ↓
+Display returned upload metadata for this page session
 ```
 
-2D and 3D must not maintain independent authoritative geometry. Konva state and Three.js scene data are derived representations. Planned `layout_versions` may store versioned snapshots when its ticket is implemented, but its fields are not defined here.
+The dashboard and project detail views include loading, empty, error, retry,
+submission, and authorization-appropriate states. Backend responses remain
+authoritative for project status and upload metadata.
 
-Conceptual canonical geometry includes:
-
-- coordinate system and unit;
-- floor/elevation association;
-- walls;
-- rooms;
-- symbols;
-- routes.
-
-The exact shared contract belongs to the canonical-geometry ticket.
-
-## 9. End-to-End Workflow
+## 9. Validation and original storage pipeline
 
 ```text
-OAuth/OIDC Sign-In
-    ↓
-Resolve Local VED User and Role
-    ↓
-Create/Open Project
-    ↓
-Upload Original Floor Plan
-    ↓
-Validate Input
-    ↓
-Preprocess Image
-    ↓
-Detect Walls and Electrical Symbols
-    ↓
-Designer Reviews and Corrects Results
-    ↓
-Save Verified Canonical Geometry
-    ↓
-Render Synchronized 2D and 3D Views
-    ↓
-Calculate Electrical Routes
-    ↓
-Calculate Material Quantities
-    ↓
-Generate Cost Estimate
-    ↓
-Generate PDF Report
+Authenticated Designer request
+        ↓
+Owned project check
+        ↓
+Floor belongs to project check
+        ↓
+Read configured maximum + 1 byte into memory
+        ↓
+Extension + MIME + signature validation
+        ↓
+Image/PDF integrity and dimensions/pages validation
+        ↓
+Write exact bytes to <UPLOAD_DIR>/originals/<generated name>
+        ↓
+Persist relative originals/<generated name> reference
+        ↓
+Commit, or rollback and remove the new file
 ```
 
-Most workflow modules are planned future work. The completed foundation currently includes the frontend/backend foundations, B1 connectivity, and B2 schema infrastructure.
+Supported inputs are JPEG/JPG, PNG, and PDF. Encrypted or empty PDFs, corrupt
+files, disguised content, invalid image dimensions, decompression bombs, and
+oversized files are rejected. Client filename path components cannot select the
+destination path. Existing originals are never overwritten or modified.
 
-## 10. Conceptual API Areas
+The current endpoint holds the bounded upload in memory; streaming storage is
+not implemented. Derived processing artifacts must later be written outside the
+originals directory.
 
-Resource-oriented API areas include:
+## 10. Testing strategy and verified baseline
+
+- Backend: Python `unittest`, including FastAPI TestClient and live
+  MySQL-backed transactional tests
+- Frontend: Vitest, Testing Library, and jsdom
+- Static checks: frontend ESLint/build, Python compileall/pip check, environment
+  template validation, OpenAPI/metadata inspection, and Git diff checks
+
+The verified baseline through E4 is:
 
 ```text
-/api/auth
-/api/users
-/api/projects
-/api/projects/{project_id}/floors
-/api/projects/{project_id}/floor-plans
-/api/floor-plans/{floor_plan_id}/process
-/api/processing-jobs/{job_id}
-/api/floor-plans/{floor_plan_id}/detections
-/api/projects/{project_id}/layouts
-/api/projects/{project_id}/routes
-/api/materials
-/api/projects/{project_id}/estimates
-/api/projects/{project_id}/reports
-/api/admin
+E3A focused backend: 14 tests
+Full backend:         157 tests
+Frontend:              47 tests
 ```
 
-These routes are conceptual and ticket-owned unless already implemented. They must use Pydantic request/response schemas, thin route handlers, service/repository layering, and server-side authorization.
+The current Starlette TestClient/httpx combination emits a deprecation warning;
+it does not currently hide test failures. Pytest belongs to a future testing
+foundation ticket and is not installed for the current suite.
 
-## 11. AI Processing Pipeline
+## 11. Planned downstream architecture
+
+The target data flow remains:
 
 ```text
-Input Validation
-    ↓
-PDF-to-Image Conversion when needed
-    ↓
-Image Normalization
-    ↓
-Grayscale Conversion
-    ↓
-Noise Reduction / Gaussian Blur
-    ↓
-Thresholding
-    ↓
-Wall and Boundary Detection
-    ↓
-YOLO Symbol Detection
-    ↓
-Confidence Filtering
-    ↓
-Coordinate Normalization
-    ↓
-Designer Review
-    ↓
-Persist Verified Results
+Original floor plan
+        ↓
+Planned processing job and AI/CV pipeline
+        ↓
+Planned Designer review
+        ↓
+Planned verified canonical geometry
+        ├── planned Konva 2D
+        ├── planned Three.js 3D
+        ├── planned electrical routing
+        └── planned quantities and estimates
+                    ↓
+              planned PDF report
 ```
 
-The default symbol-confidence threshold is configurable and currently documented as `0.50`. Low-confidence detections remain reviewable. Original AI class and confidence should be retained when a designer corrects a detection.
+These modules are architectural commitments, not current application
+capabilities. Verified canonical geometry must eventually become the shared
+source for 2D, 3D, routing, quantities, estimates, and reports. Raw AI output,
+Konva state, and Three.js scene state must not become competing sources of
+truth.
 
-## 12. File Storage
+## 12. Current limitations and next decision
 
-Local development uses:
+- No persistent floor-plan listing/retrieval API
+- No processing-job schema or API
+- No OpenCV/YOLO pipeline
+- No detection review or canonical geometry
+- No 2D/3D editor implementation
+- No routing or multi-floor route calculation
+- No material pricing, estimates, reports, or audit logs
+- Production Vercel deployment remains frontend-only without a separately
+  deployed HTTPS FastAPI backend
 
-```text
-storage/
-├── uploads/
-│   └── originals/
-├── processed/
-├── detections/
-├── previews/
-└── reports/
-```
-
-Original uploads are preserved separately and never overwritten by preprocessing, detection, preview, layout, or report output. Database records store paths and metadata rather than binary file contents unless a later approved ticket changes that design.
-
-## 13. Routing, Materials, and Estimates
-
-Routing consumes verified canonical geometry, including panels, devices, walls, floors, elevations, and valid vertical connectors. A* or the selected spatial pathfinding implementation must not replace valid electrical-path constraints with arbitrary diagonal shortcuts.
-
-Routing output conceptually includes ordered points/segments and horizontal, vertical, and total length. Canonical route geometry—not Three.js mesh measurement—is authoritative for material quantities.
-
-Backend estimation is authoritative:
-
-```text
-line_total = quantity × captured_unit_price
-```
-
-Historical estimates retain captured prices. Generated outputs are planning and estimation results, not permit-ready or professionally approved electrical plans.
-
-## 14. Administration
-
-Planned `ADMIN` capabilities include:
-
-- local VED role assignment independently of external identity verification;
-- symbol legend administration;
-- material and price administration;
-- administrative record and audit review.
-
-Administration does not include creating password-backed accounts or managing local application passwords. Authentication remains external OAuth/OIDC identity verification, while authorization remains local FastAPI enforcement.
-
-## 15. Testing and Evaluation Plan
-
-Testing remains planned and should follow the framework choices present when each owning ticket is implemented.
-
-| Test area | Planned focus |
-|---|---|
-| Backend and API | Configuration, database connectivity, validation, authentication, authorization, uploads, projects, materials, estimates, and reports |
-| Geometry and routing | Coordinate transforms, 2D/3D alignment, A* routes, horizontal/vertical measurement, and multi-floor connections |
-| AI/CV | Symbol precision/recall, confidence handling, wall detection, and normalized output |
-| Costing | Quantities, captured prices, historical estimates, and authoritative totals |
-| Performance | Large floor plans, processing time, scene responsiveness, and database queries |
-| Usability | Upload, detection review, correction, visualization, estimation, and report workflows with VED designers |
-
-Tests must not be claimed as passing until they are actually run.
-
-## 16. Development Roadmap
-
-| State | Ticket area | Responsibility |
-|---|---|---|
-| Complete | B1 | SQLAlchemy/PyMySQL connectivity to the configured MySQL-compatible database |
-| Complete | B2 | Canonical Base and explicit development schema initializer |
-| Next | B3 | OAuth-linked users and local roles tables |
-| Planned | B4 | Projects |
-| Planned | B5 | Project floors and floor plans |
-| Planned | Later epics | Authentication, upload, processing, detection, canonical geometry, 2D/3D, routing, materials, estimation, reports, audit, and deployment |
-
-The current prototype does not maintain migration files. Future work must follow the ticket sequence and acceptance criteria in the Functional Spec.
-
-## 17. Repository Structure
-
-### 17.1 Implemented Backend Foundation
-
-```text
-backend/
-├── app/
-│   ├── main.py
-│   ├── api/
-│   │   └── routes/
-│   │       └── health.py
-│   ├── core/
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   └── schema.py
-│   └── models/
-│       ├── __init__.py
-│       └── base.py
-├── README.md
-└── requirements.txt
-```
-
-### 17.2 Planned Feature Areas
-
-```text
-backend/app/
-├── api/routes/
-├── models/
-├── schemas/
-├── repositories/
-├── services/
-├── ai/
-├── geometry/
-├── routing/
-└── reports/
-```
-
-Planned feature directories and model files are added only by their owning tickets. There is no current Alembic directory.
-
-## 18. Assumptions and Boundaries
-
-- FastAPI is the backend API framework.
-- MySQL is the required database family; XAMPP is only the preferred Windows local workflow.
-- Configuration and credentials come from environment variables.
-- Authentication is provider-configurable OAuth 2.0/OIDC.
-- Local authorization roles are `ADMIN` and `DESIGNER`.
-- Original floor plans remain unchanged.
-- Canonical verified geometry is the downstream source of truth.
-- Cost calculations remain backend-authoritative.
-- Ambiguous engineering, routing, price, schema, and provider behavior must not be guessed.
-- Reports are planning/estimation outputs and require professional review where applicable.
-
-## 19. Final Architecture Flows
-
-Application data path:
-
-```text
-React Frontend
-      ↓
-FastAPI
-      ↓
-Service / Repository Architecture
-      ↓
-SQLAlchemy
-      ↓
-PyMySQL
-      ↓
-MySQL-Compatible Database
-```
-
-Authentication and authorization:
-
-```text
-OAuth/OIDC Provider
-      ↓
-FastAPI Identity Validation
-      ↓
-Local VED User
-      ↓
-ADMIN / DESIGNER Authorization
-```
-
-Floor-plan workflow:
-
-```text
-Floor Plan
-      ↓
-Preprocessing and Detection
-      ↓
-Designer Verification
-      ↓
-Canonical Geometry
-      ├──→ 2D
-      ├──→ 3D
-      ├──→ Electrical Routing
-      └──→ Material and Cost Estimation
-```
-
-Only completed tickets should be described as implemented. All other modules remain planned until their acceptance criteria are implemented and verified.
+The next decision must explicitly select either the formal F1 processing-jobs
+ticket or a separately approved floor-plan listing ticket. Neither is implied by
+this architecture update.
