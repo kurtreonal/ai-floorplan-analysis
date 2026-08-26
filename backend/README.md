@@ -1,12 +1,12 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through F2. It
+This directory contains the FastAPI backend implemented through F3. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
-persisted processing-job records, and the owning-Designer start-processing
-endpoint. Workers, processing-status APIs, AI/CV, canonical geometry, routing,
-estimation, and reporting are not implemented.
+persisted processing-job records, the owning-Designer start-processing endpoint,
+and an ownership-aware processing-status endpoint. Workers, AI/CV, canonical
+geometry, routing, estimation, and reporting are not implemented.
 
 ## Requirements
 
@@ -188,9 +188,23 @@ before checking for an active job. The database job row is currently the
 durable queue. Failure-state persistence stores only the stable message
 `Floor-plan processing could not be started.`
 
-F2 does not provide a job-status endpoint, worker, external queue, automatic
-upload hook, cancellation endpoint, or AI/CV behavior. Job lifecycle changes do
-not modify the original upload or `floor_plans.processing_status`.
+F3 exposes:
+
+```http
+GET /api/processing-jobs/{job_id}
+```
+
+Owning Designers may read jobs beneath their projects, while Admins may read any
+job. Missing and cross-owner jobs share the same sanitized `404`; unauthenticated
+requests receive `401`, and unsupported roles receive `403`. The response is
+limited to `job_id`, `type`, `status`, `progress`, and nullable
+`error_message`. Failed jobs expose a stable generic message instead of stored
+database errors. Polling uses relationship-free read queries without row locks
+and does not modify job, floor-plan, or original-file state.
+
+F3 does not provide a worker, external queue, automatic upload hook,
+cancellation endpoint, processing UI, or AI/CV behavior. Job lifecycle changes
+do not modify the original upload or `floor_plans.processing_status`.
 
 ## Error responses
 
@@ -239,11 +253,13 @@ available:
 ```powershell
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs_api -v
+.\.venv\Scripts\python.exe -m unittest tests.test_processing_job_status_api -v
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe -m compileall -q app tests
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 15 focused F2 tests, 17 focused F1 regression
-tests, and 189 full backend tests. The existing Starlette TestClient/httpx
-deprecation warning does not by itself indicate a test failure.
+The current expected totals are 11 focused F3 tests, 15 focused F2 regression
+tests, 17 focused F1 regression tests, and 200 full backend tests. The existing
+Starlette TestClient/httpx deprecation warning does not by itself indicate a
+test failure.

@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through F2, including the E3A project-floor prerequisite.**
+**Implemented through F3, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
@@ -19,10 +19,11 @@ The repository currently includes:
 - collision-safe original-file storage and compensating cleanup;
 - the floor-plan upload API and project-workspace upload UI;
 - persisted processing-job records with constrained status and progress fields;
-- an owning-Designer start-processing API that creates a durable queued job.
+- an owning-Designer start-processing API that creates a durable queued job;
+- a read-only processing-status API for owning Designers and Admins.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing F2 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing F3 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -172,11 +173,11 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 ## Current Roadmap Position
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
-prerequisite, F1, and F2 are implemented. F3 and all later functional tickets
+prerequisite, and F1–F3 are implemented. F4 and all later functional tickets
 remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
-listing API or processing-status behavior as part of unrelated work.
+listing API or processing-worker behavior as part of unrelated work.
 
 ---
 

@@ -6,6 +6,54 @@ from sqlalchemy.orm import Session, load_only, raiseload
 from app.models import ProcessingJob
 
 
+def _processing_job_read_options():
+    return (
+        load_only(
+            ProcessingJob.id,
+            ProcessingJob.job_type,
+            ProcessingJob.status,
+            ProcessingJob.progress,
+            ProcessingJob.error_message,
+        ),
+        raiseload("*"),
+    )
+
+
+def find_processing_job_by_id(
+    database_session: Session,
+    *,
+    job_id: int,
+) -> ProcessingJob | None:
+    return database_session.scalar(
+        select(ProcessingJob)
+        .options(*_processing_job_read_options())
+        .where(ProcessingJob.id == job_id)
+        .execution_options(populate_existing=True)
+    )
+
+
+def find_processing_job_by_id_and_owner(
+    database_session: Session,
+    *,
+    job_id: int,
+    owner_id: int,
+) -> ProcessingJob | None:
+    from app.models import FloorPlan, Project, ProjectFloor
+
+    return database_session.scalar(
+        select(ProcessingJob)
+        .join(FloorPlan, ProcessingJob.floor_plan_id == FloorPlan.id)
+        .join(ProjectFloor, FloorPlan.project_floor_id == ProjectFloor.id)
+        .join(Project, ProjectFloor.project_id == Project.id)
+        .options(*_processing_job_read_options())
+        .where(
+            ProcessingJob.id == job_id,
+            Project.owner_id == owner_id,
+        )
+        .execution_options(populate_existing=True)
+    )
+
+
 def find_active_processing_job(
     database_session: Session,
     *,

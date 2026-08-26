@@ -7,15 +7,21 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import require_roles
 from app.core.database import get_db
 from app.models import User
-from app.schemas.processing_job import ProcessingJobStartResponse
+from app.schemas.processing_job import (
+    ProcessingJobStartResponse,
+    ProcessingJobStatusResponse,
+)
 from app.services.processing_job_service import (
     ActiveProcessingJobError,
     FloorPlanNotFoundError,
+    ProcessingJobNotFoundError,
+    get_accessible_processing_job,
+    get_safe_processing_error_message,
     start_floor_plan_processing,
 )
 
 
-router = APIRouter(prefix="/api/floor-plans", tags=["processing jobs"])
+router = APIRouter(tags=["processing jobs"])
 
 
 def _api_error(
@@ -38,7 +44,7 @@ def _api_error(
 
 
 @router.post(
-    "/{floor_plan_id}/process",
+    "/api/floor-plans/{floor_plan_id}/process",
     response_model=ProcessingJobStartResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
@@ -80,4 +86,43 @@ def start_floor_plan_processing_endpoint(
     return ProcessingJobStartResponse(
         job_id=processing_job.id,
         status=processing_job.status,
+    )
+
+
+@router.get(
+    "/api/processing-jobs/{job_id}",
+    response_model=ProcessingJobStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_processing_job_status_endpoint(
+    job_id: Annotated[int, Path(gt=0)],
+    current_user: User = Depends(require_roles("ADMIN", "DESIGNER")),
+    database_session: Session = Depends(get_db),
+) -> ProcessingJobStatusResponse:
+    try:
+        processing_job = get_accessible_processing_job(
+            database_session,
+            current_user=current_user,
+            job_id=job_id,
+        )
+    except ProcessingJobNotFoundError:
+        raise _api_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="PROCESSING_JOB_NOT_FOUND",
+            message="The requested processing job was not found.",
+        ) from None
+    except SQLAlchemyError:
+        database_session.rollback()
+        raise _api_error(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="PROCESSING_JOB_STATUS_FAILED",
+            message="The processing job status could not be loaded.",
+        ) from None
+
+    return ProcessingJobStatusResponse(
+        job_id=processing_job.id,
+        type=processing_job.job_type,
+        status=processing_job.status,
+        progress=processing_job.progress,
+        error_message=get_safe_processing_error_message(processing_job),
     )

@@ -29,6 +29,7 @@ from app.services.processing_job_service import (
 SESSION_COOKIE = "ved_session"
 SESSION_SECRET = "f2-automated-test-session-secret"
 PROCESS_PATH = "/api/floor-plans/{floor_plan_id}/process"
+STATUS_PATH = "/api/processing-jobs/{job_id}"
 EXISTING_OPERATIONS = {
     ("get", "/health"),
     ("get", "/api/auth/me"),
@@ -341,7 +342,7 @@ class ProcessingJobApiTests(unittest.TestCase):
             .where(ProcessingJob.floor_plan_id.in_(self.floor_plan_ids))
         )
 
-    def test_openapi_contract_adds_only_the_f2_post_operation(self) -> None:
+    def test_openapi_preserves_f2_post_with_approved_f3_get(self) -> None:
         schema = self.application.openapi()
         path = schema["paths"][PROCESS_PATH]
         self.assertEqual(set(path), {"post"})
@@ -362,9 +363,13 @@ class ProcessingJobApiTests(unittest.TestCase):
         }
         self.assertEqual(
             operations,
-            EXISTING_OPERATIONS | {("post", PROCESS_PATH)},
+            EXISTING_OPERATIONS
+            | {
+                ("post", PROCESS_PATH),
+                ("get", STATUS_PATH),
+            },
         )
-        self.assertEqual(len(operations), 12)
+        self.assertEqual(len(operations), 13)
 
     def test_owning_designer_creates_durable_queued_job(self) -> None:
         response = self._post(

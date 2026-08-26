@@ -572,8 +572,10 @@ class FloorPlanUploadApiTests(unittest.TestCase):
             "/api/floor-plans/{floor_plan_id}/process"
         ]
         self.assertEqual(set(processing_endpoint), {"post"})
-        self.assertFalse(
-            any(path.startswith("/api/processing-jobs") for path in paths)
+        status_endpoint = paths["/api/processing-jobs/{job_id}"]
+        self.assertEqual(
+            set(status_endpoint),
+            {"get"},
         )
 
 
