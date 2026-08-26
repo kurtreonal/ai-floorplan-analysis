@@ -1,11 +1,20 @@
 # VED Electrical Services API
 
-This directory contains the minimal FastAPI foundation for the VED Electrical Services API. The health endpoint is an application-liveness check only; it does not check a database, model, or storage service.
+This directory contains the FastAPI backend implemented through E3A/E4. It
+provides application liveness, OAuth/OIDC authentication with signed local
+sessions, database-authoritative role authorization, project APIs,
+project-floor APIs, and original floor-plan upload validation and storage.
+Processing jobs, AI/CV, canonical geometry, routing, estimation, and reporting
+are not implemented.
 
 ## Requirements
 
 - Python 3.13.7
-- XAMPP with its MySQL-compatible server running for local database work
+- MySQL-compatible development server (XAMPP is the preferred Windows workflow)
+- The dependencies pinned in `requirements.txt`
+
+The current automated backend suite uses Python `unittest`. Pytest is not an
+installed project dependency.
 
 ## Setup
 
@@ -16,101 +25,165 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-The application optionally reads `.env` from the repository root. Process environment variables take precedence over values in that file. The `.env` file is not required and must not be committed. If it is created from `.env.example`, replace placeholder values before use.
+The application optionally reads the ignored repository-root `.env`. Process
+environment variables take precedence. Copy public key names from
+`.env.example`, replace placeholders locally, and never commit credentials.
 
-FastAPI startup does not require authentication configuration. C1 defines provider-neutral OAuth 2.0/OpenID Connect settings, but validates them only when the authentication feature requests its configuration. This keeps `/health` available during local setup while making incomplete or placeholder authentication configuration fail clearly before an OAuth flow starts.
+## Database and prototype schema
 
-The authentication configuration uses `OAUTH_PROVIDER`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `OAUTH_REDIRECT_URI`, `OAUTH_DISCOVERY_URL`, `OAUTH_SCOPES`, and `SESSION_SECRET`. OIDC configuration must include the `openid` scope. Client and session secrets use Pydantic secret values so their representations remain redacted. C1 does not add OAuth routes, provider integration, or session middleware; those belong to later authentication tickets.
+FastAPI connects directly to the configured MySQL-compatible server through
+SQLAlchemy and PyMySQL. It does not connect through phpMyAdmin; Apache and PHP
+are not backend dependencies.
 
-C2 adds `GET /api/auth/login` and `GET /api/auth/callback`. The login route redirects through the configured provider and stores temporary state and nonce data only in the signed, HttpOnly application session. The callback requires matching state, relies on Authlib's OIDC ID-token validation, and uses only the validated `userinfo.sub` claim as the provider subject. Provider access tokens, refresh tokens, ID tokens, and authorization codes are not stored in MySQL or the application session and are not logged.
-
-After a validated callback, provider plus subject resolves the local user. An existing user's local role is preserved. A previously unseen external identity is created with the local `DESIGNER` role, which is the least-privileged current VED application role; provider claims never grant `ADMIN`. The callback stores only the local user ID in the application session and redirects to `FRONTEND_URL`. C2 does not add database tables or columns.
-
-C3 adds `GET /api/auth/me`. It reads the local user ID from the signed application session, reloads the user and current `ADMIN` or `DESIGNER` role from MySQL, and returns only the local ID, display name, email, avatar URL, and role. Missing, malformed, or stale session identities return `401 Unauthorized`; a stale user ID is removed from the session. The endpoint does not contact the OAuth provider and does not return provider subjects, provider tokens, authorization codes, or secrets.
-
-C4 adds the reusable `require_roles(...)` FastAPI dependency factory. It builds on `get_current_user`, compares allowed role names with the user's current MySQL role, returns `401 Unauthorized` for missing authentication, and returns `403 Forbidden` when an authenticated user lacks an allowed role. Routes can require `ADMIN` or allow both `ADMIN` and `DESIGNER` without trusting client input, provider claims, session role values, or numeric role IDs. C4 does not add production routes, permissions, tables, or schema changes.
-
-C6 adds idempotent `POST /api/auth/logout`. It clears the signed local VED application session and returns `{"status": "ok"}` whether or not the caller was already signed out. Subsequent calls to `/api/auth/me` and role-protected routes require authentication again. Logout does not contact the external OAuth/OIDC provider, revoke provider tokens, or modify the provider account; it ends only the local VED session.
-
-Credentialed CORS uses the comma-separated `CORS_ALLOWED_ORIGINS` setting so approved browser origins can call FastAPI with the signed application session cookie. Entries are trimmed and deduplicated, and wildcard origins are rejected because credentials are enabled. The local template allows `http://localhost:5173`; production origins must be configured explicitly. CORS does not change the session cookie's HttpOnly, SameSite, Secure, path, or lifetime behavior.
-
-## XAMPP database setup
-
-XAMPP is a local-development convenience. FastAPI connects directly to the MySQL-compatible server through SQLAlchemy and PyMySQL; it does not connect through phpMyAdmin. Apache and PHP are not required by FastAPI.
-
-1. Open the XAMPP Control Panel and start MySQL.
-2. Create the `ved_electrical` database manually if it does not exist. phpMyAdmin may be used to create or inspect it.
-3. Create an ignored `.env` file in the repository root.
-4. Configure `DATABASE_URL` in that file using the `mysql+pymysql` driver. Use `.env.example` as the public template, and keep real credentials only in `.env`.
-5. From `backend/`, install the requirements:
-
-   ```powershell
-   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-   ```
-
-6. Verify database connectivity explicitly:
+1. Start the existing XAMPP MySQL service.
+2. Create the development database manually if it does not exist.
+3. Configure `DATABASE_URL` in the ignored root `.env` with the
+   `mysql+pymysql` driver.
+4. Verify connectivity from `backend/`:
 
    ```powershell
    .\.venv\Scripts\python.exe -c "from app.core.database import verify_database_connection; verify_database_connection(); print('Database connection verified.')"
    ```
 
-7. Start FastAPI separately using the command in the next section.
+The connection is lazy: importing FastAPI and calling `/health` do not test
+database readiness.
 
-The database connection is initialized lazily, so importing or starting FastAPI does not contact MySQL. The `/health` endpoint remains an application-liveness check only.
-
-B1 provides connectivity and session management only. It does not create tables, run `create_all()`, or include migration tooling.
-
-## Development schema initialization
-
-B2 provides one canonical SQLAlchemy `Base` and an explicit development-only schema initializer. Run it deliberately from `backend/`:
+The explicit development-only schema command is:
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.core.schema
 ```
 
-The command loads every model registered through `app.models` and calls `Base.metadata.create_all()` to create missing tables. It is blocked unless `APP_ENV=development`, and it does not run automatically when FastAPI starts or when `/health` is requested.
+It imports registered models and calls `Base.metadata.create_all()` to create
+missing tables. It does not run during startup and is not a migration system.
+The current prototype has these five application tables:
 
-During B2 alone there are no domain models, so a successful command reports zero registered application tables and leaves the database without application tables. B3 and later model tickets will register their tables with the same canonical `Base`.
-
-`create_all()` is not a migration system. It creates missing tables but does not reliably alter existing tables when model definitions change. A deliberate development reset/recreation may therefore be necessary while the prototype schema is experimental. Any destructive reset must be performed manually and intentionally after confirming the development target; this project does not provide an automatic reset command. No production schema-migration guarantee is provided during the prototype phase.
-
-## OAuth user and role schema
-
-B3 registers the `roles` and `users` models with the canonical SQLAlchemy `Base`. The user record maps an external OAuth/OIDC provider identity to a local VED role; it does not store a local password, JWT, provider token, or application session.
-
-Create the registered development tables with the existing explicit initializer:
-
-```powershell
-.\.venv\Scripts\python.exe -m app.core.schema
+```text
+roles
+users
+projects
+project_floors
+floor_plans
 ```
 
-Then seed the required local authorization roles explicitly:
+Alembic and production schema migrations remain deferred. Never run schema
+initialization as an automatic repair step against an unexpected database.
+
+Seed the required local roles deliberately in development:
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.core.seed
 ```
 
-The seed command is development-only and idempotently ensures that `ADMIN` and `DESIGNER` exist. It does not seed users and does not run automatically during FastAPI startup or schema creation.
+The idempotent seed ensures `ADMIN` and `DESIGNER` exist; it does not seed
+users.
+
+## Authentication, sessions, and authorization
+
+`GET /api/auth/login` starts a provider-configurable OAuth 2.0/OIDC flow. The
+callback validates state and relies on Authlib for OIDC identity-token
+validation. A verified provider plus subject resolves a local user. New users
+receive `DESIGNER`; provider claims never grant local `ADMIN` authority.
+
+The signed, HttpOnly application session stores only the local user ID.
+`GET /api/auth/me` reloads the user and current role from MySQL. Logout clears
+only the local VED session. Provider tokens, authorization codes, client
+secrets, and provider subjects are not returned by `/api/auth/me` or stored in
+the session.
+
+Authorization behavior:
+
+- `DESIGNER` can create projects, create floors for owned projects, and upload
+  floor plans to owned project floors.
+- `DESIGNER` project access is owner-scoped; cross-owner access returns `404`
+  to conceal resource existence.
+- `ADMIN` can list and inspect all projects and list their floors.
+- `ADMIN` cannot create projects, create floors, or upload floor plans through
+  the current API.
+- Missing authentication returns `401`; an authenticated unsupported role
+  returns `403`.
+
+Credentialed CORS accepts only explicitly configured origins. Wildcard origins
+are rejected while credentials are enabled.
+
+## Implemented API
+
+```http
+GET  /health
+
+GET  /api/auth/login
+GET  /api/auth/callback
+GET  /api/auth/me
+POST /api/auth/logout
+
+GET  /api/projects
+POST /api/projects
+GET  /api/projects/{project_id}
+
+GET  /api/projects/{project_id}/floors
+POST /api/projects/{project_id}/floors
+
+POST /api/projects/{project_id}/floor-plans
+```
+
+`GET /api/projects/{project_id}/floor-plans` does not exist. The E4 frontend
+shows successful uploads returned during the current page session, but upload
+history cannot repopulate after reload. Persistent history requires a separate
+approved ticket.
+
+## Floor-plan validation and original storage
+
+The upload API accepts JPEG/JPG, PNG, and PDF multipart uploads with a positive
+`project_floor_id`. Before storage it verifies:
+
+- extension and declared MIME type;
+- MIME/extension agreement and content signature;
+- configurable maximum size;
+- image integrity and dimensions, including decompression-bomb protection;
+- PDF integrity, encryption status, and at least one accessible page.
+
+The endpoint currently reads at most the configured size plus one byte into
+memory, so uploads are validated and stored in-memory rather than streamed to
+the final file.
+
+Original bytes are stored under `<UPLOAD_DIR>/originals` with collision-safe
+generated names. User path components are removed, existing originals are not
+overwritten, and `floor_plans.storage_path` contains a relative POSIX reference
+such as `originals/<generated-name>.png`, not an absolute filesystem path.
+
+The E2 storage service owns the database commit/rollback boundary. If record
+persistence fails, it rolls back and removes the newly written file as a
+compensating cleanup action. Later processing must write separate derived files
+and must never modify the stored original.
+
+## Error responses
+
+Application-generated errors currently use FastAPI `HTTPException`, which
+produces this response shape:
+
+```json
+{
+  "detail": {
+    "error": {
+      "code": "PROJECT_NOT_FOUND",
+      "message": "The requested project was not found.",
+      "details": {}
+    }
+  }
+}
+```
+
+FastAPI request-validation failures use the framework's standard validation
+detail array. The API therefore does not yet have one globally uniform top-level
+error envelope.
 
 ## Run
-
-Start Uvicorn:
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Stop the local server with `Ctrl+C`.
-
-## Health endpoint
-
-Request:
-
-```http
-GET /health
-```
-
-Successful response (`200 OK`):
+`GET /health` returns:
 
 ```json
 {
@@ -119,4 +192,21 @@ Successful response (`200 OK`):
 }
 ```
 
-Interactive OpenAPI documentation is available at `/docs` while the local server is running.
+Interactive OpenAPI documentation is available at `/docs` while the local
+server is running.
+
+## Verification
+
+Run from `backend/` with the configured MySQL service and seeded roles
+available:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest tests.test_project_floors -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m compileall -q app tests
+.\.venv\Scripts\python.exe -m pip check
+```
+
+The current expected totals are 14 focused E3A tests and 157 full backend
+tests. The existing Starlette TestClient/httpx deprecation warning does not by
+itself indicate a test failure.

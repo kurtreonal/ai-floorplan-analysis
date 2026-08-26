@@ -53,6 +53,34 @@ For the current prototype/development phase:
 
 XAMPP is a local-development convenience, not a production architecture requirement. A later deployment may use another MySQL host without changing the application's SQLAlchemy domain model.
 
+## Current Implementation Status
+
+The repository is implemented and verified through E4, including the E3A
+project-floor prerequisite introduced between E3 and E4.
+
+Completed ticket areas:
+
+```text
+A1–A4
+B1–B5
+C1–C6
+D1–D4
+E1–E4
+E3A — Project Floor API
+```
+
+The implemented application includes authentication and signed sessions,
+database-authoritative roles, project and project-floor workflows, upload
+validation and original storage, the upload API, and the project upload UI.
+F1 and later tickets remain unimplemented. In particular, there are no
+processing jobs, AI/CV pipeline, detection review, canonical geometry, 2D/3D
+editors, routing, estimation, or reports.
+
+`GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
+successful uploads returned during the current page session; records cannot
+repopulate after reload until a separate floor-plan listing ticket is approved
+and implemented.
+
 ---
 
 # 2. Important Development Rule
@@ -1202,19 +1230,25 @@ REPORT_GENERATED
 
 # 32. Error Handling
 
-All APIs should return a consistent error structure.
-
-Example:
+The implemented API does not yet have one globally uniform top-level error
+envelope. Application-generated errors raised with FastAPI `HTTPException`
+currently use:
 
 ```json
 {
-  "error": {
-    "code": "INVALID_FLOOR_PLAN",
-    "message": "The uploaded floor plan does not meet processing requirements.",
-    "details": {}
+  "detail": {
+    "error": {
+      "code": "INVALID_FLOOR_PLAN",
+      "message": "The uploaded floor plan does not meet processing requirements.",
+      "details": {}
+    }
   }
 }
 ```
+
+FastAPI request-validation failures use the framework's standard validation
+detail array. A future error-contract ticket may unify these shapes, but current
+documentation and clients must reflect the implemented responses.
 
 Do not expose:
 
@@ -1526,6 +1560,22 @@ Do not calculate current prices again while downloading an old report.
 ---
 
 # 46. Testing Requirements
+
+Current implemented tooling:
+
+```text
+Backend:  Python unittest
+Frontend: Vitest + Testing Library + jsdom
+```
+
+Run the current backend suite from `backend/` with:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+Pytest is not currently installed. Ticket S1 below describes a future testing
+foundation and must not be read as a claim about the current environment.
 
 The thesis specifies:
 
@@ -2293,11 +2343,31 @@ scripts/
 
 ---
 
+### TICKET E3A — Project Floor API
+
+**Goal:** List and create the project floors required by the upload workflow.
+
+**Dependencies:** B5, C4, D3, E3.
+
+**Acceptance Criteria:**
+
+- [ ] `GET /api/projects/{project_id}/floors` exists.
+- [ ] `POST /api/projects/{project_id}/floors` exists.
+- [ ] A Designer can list and create floors only for an owned project.
+- [ ] Cross-owner Designer access returns `404`.
+- [ ] An Admin can list project floors but cannot create them.
+- [ ] An accessible project with no floors returns an empty array.
+- [ ] Requests and responses use typed Pydantic schemas.
+- [ ] Floor listing order is deterministic by `sort_order`, then ID.
+- [ ] The ticket introduces no database schema change.
+
+---
+
 ### TICKET E4 — Build Floor Plan Upload UI
 
 **Goal:** Allow users to upload floor plans from the project workspace.
 
-**Dependencies:** E3.
+**Dependencies:** E3, E3A.
 
 **Acceptance Criteria:**
 
@@ -3404,7 +3474,7 @@ C6 after C2/C3 (logout)
 
 D1 → D2 → D3 → D4
 
-E1 → E2 → E3 → E4
+E1 → E2 → E3 → E3A → E4
 
 F1 → F2 → F3 → F4
 
@@ -3551,4 +3621,3 @@ A ticket is appropriately sized when:
 - It can normally be reviewed in one focused code-review pass.
 
 If a ticket contains several independent outputs, split it again before implementation.
-
