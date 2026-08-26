@@ -55,8 +55,8 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented and verified through E4, including the E3A
-project-floor prerequisite introduced between E3 and E4.
+The repository is implemented through F1, including the E3A project-floor
+prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
 
@@ -67,14 +67,16 @@ C1–C6
 D1–D4
 E1–E4
 E3A — Project Floor API
+F1 — Create Processing Jobs Table
 ```
 
 The implemented application includes authentication and signed sessions,
 database-authoritative roles, project and project-floor workflows, upload
-validation and original storage, the upload API, and the project upload UI.
-F1 and later tickets remain unimplemented. In particular, there are no
-processing jobs, AI/CV pipeline, detection review, canonical geometry, 2D/3D
-editors, routing, estimation, or reports.
+validation and original storage, the upload API, the project upload UI, and
+persisted processing-job records. F2 and later tickets remain unimplemented. In
+particular, there is no processing endpoint, worker, queue, AI/CV pipeline,
+detection review, canonical geometry, 2D/3D editor, routing, estimation, or
+report implementation.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
 successful uploads returned during the current page session; records cannot
@@ -2387,6 +2389,27 @@ scripts/
 **Goal:** Track long-running analysis operations.
 
 **Dependencies:** B5.
+
+**Implementation status:** Complete. F1 persists job records only; F2 owns
+start-processing behavior.
+
+Implemented database contract:
+
+- `processing_jobs.floor_plan_id` is an indexed required foreign key to
+  `floor_plans.id`.
+- The database column `type` is exposed as the Python attribute `job_type` and
+  remains open to future job types.
+- `status` defaults to `queued` and is constrained by
+  `ck_processing_jobs_status`.
+- `progress` defaults to `0` and is constrained to 0–100 inclusive by
+  `ck_processing_jobs_progress`.
+- `error_message` is nullable; `created_at` and `updated_at` are
+  server-generated.
+- `FloorPlan.processing_jobs` and `ProcessingJob.floor_plan` form the
+  bidirectional relationship.
+
+No processing API, automatic upload hook, background worker, queue, or AI/CV
+operation is part of F1.
 
 **Acceptance Criteria:**
 
