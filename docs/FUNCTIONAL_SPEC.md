@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through G1, including the E3A project-floor
+The repository is implemented through G2, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -72,6 +72,7 @@ F2 — Create Start Processing Endpoint
 F3 — Create Processing Status Endpoint
 F4 — Build Processing Status UI
 G1 — Implement PDF-to-Image Conversion
+G2 — Implement Image Normalization
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -79,9 +80,10 @@ database-authoritative roles, project and project-floor workflows, upload
 validation and original storage, the upload API, the project upload UI, and
 persisted processing-job records, an owning-Designer endpoint that creates a
 durable queued job, an ownership-aware read-only status endpoint, and a
-current-session Designer processing UI, and a backend-only PDF-to-PNG conversion
-service. G2 and later tickets remain unimplemented. In particular, there is no
-worker, external queue, normalization or OpenCV/YOLO pipeline, detection review,
+current-session Designer processing UI, a backend-only PDF-to-PNG conversion
+service, and Pillow-based image normalization. G3 and later tickets remain
+unimplemented. In particular, there is no worker, external queue, OpenCV/YOLO
+pipeline, detection review,
 canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
@@ -2599,6 +2601,37 @@ remains unimplemented.
 **Goal:** Normalize image orientation and processing dimensions.
 
 **Dependencies:** G1 for PDFs; E3 for image inputs.
+
+**Implementation status:** Complete. G2 adds a Pillow-only backend service with
+a filesystem/scalar low-level boundary and a database-aware processing-job
+wrapper. No FastAPI route or worker invokes it.
+
+Implemented behavior:
+
+- Uploaded JPEG/PNG originals are resolved beneath `<UPLOAD_DIR>/originals`.
+  PDF input requires a matching G1 `ConvertedPdfPage` or strictly validated
+  portable reference beneath the same floor-plan/job directory.
+- Content is fully decoded and must match its MIME type and extension. Traversal,
+  absolute paths, missing files, directories, symlink escapes, corrupt/truncated
+  content, and decompression-bomb dimensions fail safely.
+- EXIF orientation is applied without portrait/landscape guessing. Transparency
+  is composited onto white, supported modes are converted to RGB, and source
+  EXIF/unrelated metadata is removed from the derived PNG.
+- Images are never upscaled. The longest oriented edge is reduced to 4096 pixels
+  only when necessary, preserving aspect ratio with LANCZOS resampling.
+- `NormalizedImage` records encoded, oriented, and final dimensions plus
+  orientation/resizing flags, MIME types, IDs, reference, and byte size.
+- Output is created exclusively at
+  `normalized/floor-plan-<id>/job-<id>/image.png` beneath `PROCESSED_DIR`.
+  Existing results are not overwritten and partial writes are removed safely.
+- Queued and already-processing jobs are accepted. Progress remains unchanged;
+  success leaves the broader job `processing`. Failure persists only
+  `Floor-plan image normalization failed.`
+- Floor-plan metadata, original uploads, and G1 pages remain unchanged. No
+  `processed_images` table, new column, sidecar, API, worker, OpenCV behavior, or
+  automatic F2/G1/G2 orchestration is added.
+
+G3 remains unimplemented.
 
 **Acceptance Criteria:**
 
