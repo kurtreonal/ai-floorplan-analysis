@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through F3, including E3A, and labels
+> the architecture actually implemented through F4, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -22,11 +22,13 @@
 - F1: persisted processing-job model and sixth prototype table
 - F2: owning-Designer start-processing API with durable queued jobs
 - F3: ownership-aware, read-only processing-job status API
+- F4: Designer processing controls and sequential, abortable status polling for
+  current-session upload cards
 
 ### Planned
 
-F4 and later roadmap tickets remain unimplemented, including the processing UI,
-workers, OpenCV/YOLO processing, detection review, canonical geometry, Konva
+G1 and later roadmap tickets remain unimplemented, including workers,
+OpenCV/YOLO processing, detection review, canonical geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
 
@@ -256,11 +258,22 @@ Load project floors
 Designer selects a floor and uploads JPEG/PNG/PDF
         ↓
 Display returned upload metadata for this page session
+        ↓
+Designer starts a durable processing job
+        ↓
+Poll public job status sequentially until a terminal state
 ```
 
 The dashboard and project detail views include loading, empty, error, retry,
 submission, and authorization-appropriate states. Backend responses remain
-authoritative for project status and upload metadata.
+authoritative for project status, upload metadata, and job progress. Processing
+controls appear only on Designer upload cards returned during the current page
+session; Admins retain read-only floor visibility. Polling uses one abortable
+request at a time and schedules the next request only after the prior response.
+It stops for terminal states, authentication/authorization failures, unmounts,
+and non-retryable lookup errors. Temporary monitoring failures preserve the job
+ID and require an explicit status retry. Completed status does not imply that
+AI results or the later detection-review workflow exist.
 
 ## 9. Validation and original storage pipeline
 
@@ -301,14 +314,16 @@ originals directory.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through F3 is:
+The verified baseline through F4 is:
 
 ```text
 F3 focused backend:    11 tests
 F2 focused regression: 15 tests
 F1 focused regression: 17 tests
 Full backend:          200 tests
-Frontend baseline:      47 tests
+F4 API client:           21 tests
+F4 component:            35 tests
+Full frontend:          103 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;

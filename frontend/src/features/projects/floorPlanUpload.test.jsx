@@ -298,6 +298,7 @@ describe('floor plan upload form', () => {
     expect(screen.getByText(UPLOAD.processing_status)).toBeTruthy()
     expect(screen.getAllByText('Ground Floor')).toHaveLength(2)
     expect(screen.getByText(String(UPLOAD.id))).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Start processing' })).toBeTruthy()
     expect(screen.queryByText(/Selected:/)).toBeNull()
     expect(input.value).toBe('')
   })

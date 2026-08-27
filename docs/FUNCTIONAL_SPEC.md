@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through F3, including the E3A project-floor
+The repository is implemented through F4, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -70,15 +70,17 @@ E3A — Project Floor API
 F1 — Create Processing Jobs Table
 F2 — Create Start Processing Endpoint
 F3 — Create Processing Status Endpoint
+F4 — Build Processing Status UI
 ```
 
 The implemented application includes authentication and signed sessions,
 database-authoritative roles, project and project-floor workflows, upload
 validation and original storage, the upload API, the project upload UI, and
 persisted processing-job records, an owning-Designer endpoint that creates a
-durable queued job, and an ownership-aware read-only status endpoint. F4 and
-later tickets remain unimplemented. In particular, there is no processing-status
-UI, worker, external queue, AI/CV pipeline, detection review, canonical geometry,
+durable queued job, an ownership-aware read-only status endpoint, and a
+current-session Designer processing UI. G1 and later tickets remain
+unimplemented. In particular, there is no worker, external queue, AI/CV
+pipeline, detection review, canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
@@ -2502,6 +2504,30 @@ automatic upload hook, AI/CV behavior, or floor-plan listing endpoint.
 **Goal:** Show AI processing progress in React.
 
 **Dependencies:** F3.
+
+**Implementation status:** Complete. F4 adds frontend controls for starting and
+monitoring jobs associated with upload responses retained in the current page
+session. It adds no backend or OpenAPI operation.
+
+Implemented behavior:
+
+- Designer upload cards can start one F2 request at a time. Admins receive no
+  processing controls.
+- A valid F2 active-job conflict is adopted using only its positive integer job
+  ID; malformed conflicts require an explicit new attempt.
+- Queued and processing jobs show the exact F3 progress. Polling uses a
+  sequential, abortable two-second timeout and never overlaps status requests.
+- Polling stops on terminal states, unmount, session expiry, authorization or
+  lookup failures, and temporary errors. Temporary failures preserve the job
+  ID and offer an explicit status retry instead of retrying indefinitely.
+- Completed jobs state that analysis review is a later feature. Failed and
+  cancelled jobs offer a new F2 attempt; failed output uses only F3's sanitized
+  nullable error message or a generic fallback.
+
+F4 does not add persistent upload discovery, local storage, a worker, external
+queue, cancellation endpoint, AI/CV processing, or result/review behavior.
+Because no floor-plan listing endpoint exists, controls do not repopulate after
+reload.
 
 **Acceptance Criteria:**
 

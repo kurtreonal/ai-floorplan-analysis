@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through F3, including the E3A project-floor prerequisite.**
+**Implemented through F4, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
@@ -20,10 +20,12 @@ The repository currently includes:
 - the floor-plan upload API and project-workspace upload UI;
 - persisted processing-job records with constrained status and progress fields;
 - an owning-Designer start-processing API that creates a durable queued job;
-- a read-only processing-status API for owning Designers and Admins.
+- a read-only processing-status API for owning Designers and Admins; and
+- a Designer processing-status UI with sequential, abortable polling and safe
+  terminal-state retry paths for uploads returned during the current session.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing F3 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing F4 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -173,7 +175,7 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 ## Current Roadmap Position
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
-prerequisite, and F1–F3 are implemented. F4 and all later functional tickets
+prerequisite, and F1–F4 are implemented. G1 and all later functional tickets
 remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
@@ -255,9 +257,10 @@ The folders that do not exist yet should be created by the appropriate developme
 - `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 can show
   successful upload responses during the current page session, but uploads do
   not repopulate after reload.
-- `POST /api/floor-plans/{floor_plan_id}/process` creates a durable queued job,
-  but no job-status endpoint, worker, external queue, cancellation workflow, or
-  automatic job creation exists.
+- Current-session upload cards can start processing and poll the job-status
+  endpoint, but no worker, external queue, cancellation workflow, automatic job
+  creation, or AI result/review UI exists. Without a worker, queued jobs do not
+  advance automatically.
 - No OpenCV or YOLO processing pipeline is implemented.
 - Canonical geometry and the Konva 2D/Three.js 3D editors are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports

@@ -203,8 +203,10 @@ database errors. Polling uses relationship-free read queries without row locks
 and does not modify job, floor-plan, or original-file state.
 
 F3 does not provide a worker, external queue, automatic upload hook,
-cancellation endpoint, processing UI, or AI/CV behavior. Job lifecycle changes
-do not modify the original upload or `floor_plans.processing_status`.
+cancellation endpoint, or AI/CV behavior. F4's frontend can start and poll jobs
+for uploads returned during the current page session, but it adds no backend
+operation and cannot advance job lifecycle state. Job lifecycle changes do not
+modify the original upload or `floor_plans.processing_status`.
 
 ## Error responses
 

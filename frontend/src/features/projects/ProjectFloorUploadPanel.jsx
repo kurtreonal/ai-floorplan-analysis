@@ -6,6 +6,7 @@ import {
 } from '../../api/projectFloors.js'
 import { CreateProjectFloorForm } from './CreateProjectFloorForm.jsx'
 import { FloorPlanUploadForm } from './FloorPlanUploadForm.jsx'
+import { ProcessingJobPanel } from './ProcessingJobPanel.jsx'
 
 
 function getFloorListError(error) {
@@ -184,6 +185,12 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                       <div><dt>Status</dt><dd>{upload.processing_status}</dd></div>
                       <div><dt>Floor-plan ID</dt><dd>{upload.id}</dd></div>
                     </dl>
+                    {isDesigner && (
+                      <ProcessingJobPanel
+                        floorPlanId={upload.id}
+                        originalFilename={upload.original_filename}
+                      />
+                    )}
                   </article>
                 ))}
               </div>
