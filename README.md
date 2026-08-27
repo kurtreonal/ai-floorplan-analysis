@@ -281,7 +281,12 @@ The folders that do not exist yet should be created by the appropriate developme
   binary image using Canny edges and a probabilistic Hough transform. Results
   use top-left-origin pixel coordinates and deterministic IDs, but are not
   persisted, scaled, merged into walls, or rendered in the UI.
-- Canonical geometry and the Konva 2D/Three.js 3D editors are not implemented.
+- H2 can convert those raw candidates into meters when a caller explicitly
+  supplies `pixels_per_meter`. Raw pixels remain attached for overlay alignment;
+  the scale is never inferred from PDF DPI. These remain machine candidates,
+  not verified or persisted project geometry.
+- Complete K1 canonical project geometry and the Konva 2D/Three.js 3D editors
+  are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports
   are not implemented.
 - The current Vercel deployment is frontend-only unless a separately hosted
