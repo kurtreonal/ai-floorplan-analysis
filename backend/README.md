@@ -1,13 +1,14 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through G1. It
+This directory contains the FastAPI backend implemented through G2. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
 persisted processing-job records, the owning-Designer start-processing endpoint,
 and an ownership-aware processing-status endpoint. A backend-only PDF-to-PNG
-service is also implemented. Workers, OpenCV/YOLO processing, canonical geometry,
-routing, estimation, and reporting are not implemented.
+and a backend-only image-normalization service are also implemented. Workers,
+OpenCV/YOLO processing, canonical geometry, routing, estimation, and reporting
+are not implemented.
 
 ## Requirements
 
@@ -240,8 +241,39 @@ stage and does not imply complete analysis. A conversion failure commits only
 paths, stack traces, and SQL are not persisted or exposed.
 
 No worker invokes G1 automatically, and F2 remains a job-creation endpoint only.
-G2 normalization, raster-image handling, OpenCV, AI inference, and schema
-expansion remain unimplemented.
+G2 consumes either G1 output or uploaded raster input through a separate callable;
+OpenCV, AI inference, and schema expansion remain unimplemented.
+
+## Image normalization
+
+G2 adds `app.services.image_normalization`. Its low-level boundary uses only
+filesystem paths and scalar values; its higher-level boundary validates an
+existing floor plan and processing job. It accepts uploaded JPEG/PNG originals
+or a strictly validated G1 `ConvertedPdfPage`/portable reference. G2 loads G1
+output but never invokes G1 automatically.
+
+Normalization fully decodes JPEG/PNG data, treats decompression-bomb conditions
+as safe failures, applies only declared EXIF orientation, composites transparent
+pixels onto white, converts supported modes to RGB, and strips source EXIF and
+unrelated metadata. Images are never upscaled. An oriented image whose longest
+edge exceeds 4096 pixels is resized proportionally with Pillow LANCZOS.
+
+Normalized output is written exclusively without overwriting to:
+
+```text
+<PROCESSED_DIR>/normalized/floor-plan-<floor_plan_id>/job-<processing_job_id>/image.png
+```
+
+The returned `NormalizedImage` records encoded, orientation-corrected, and final
+dimensions plus orientation/resizing flags and output size. No
+`processed_images` table or existing database column stores this result yet.
+Original uploads and G1-rendered pages remain unchanged.
+
+A queued job becomes `processing`; an already-processing job remains so. G2
+preserves progress and leaves the job `processing` after success. Failure stores
+only `Floor-plan image normalization failed.` and never persists Pillow errors,
+paths, SQL, or stack traces. No API or worker invokes G2, and G3 OpenCV
+preprocessing remains unimplemented.
 
 ## Error responses
 
@@ -292,13 +324,14 @@ available:
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_job_status_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_pdf_conversion -v
+.\.venv\Scripts\python.exe -m unittest tests.test_image_normalization -v
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe -m compileall -q app tests
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 38 focused G1 tests, 11 focused F3 tests,
-15 focused F2 regression tests, 17 focused F1 regression tests, and 238 full
-backend tests. The existing
+The current expected totals are 38 focused G2 tests, 38 focused G1 tests,
+11 focused F3 tests, 15 focused F2 regression tests, 17 focused F1 regression
+tests, and 276 full backend tests. The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a
 test failure.

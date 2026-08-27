@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through G1, including the E3A project-floor prerequisite.**
+**Implemented through G2, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
@@ -24,10 +24,12 @@ The repository currently includes:
 - a Designer processing-status UI with sequential, abortable polling and safe
   terminal-state retry paths for uploads returned during the current session;
 - a backend-only PDF-to-PNG conversion service using bundled PDFium through
-  `pypdfium2`, with safe job-failure persistence and separate derived storage.
+  `pypdfium2`, with safe job-failure persistence and separate derived storage;
+- a Pillow-based image-normalization service for uploaded JPEG/PNG images and
+  G1-rendered pages, producing metadata-free RGB PNG input for later G3 work.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing G1 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing G2 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -177,8 +179,8 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 ## Current Roadmap Position
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
-prerequisite, F1–F4, and G1 are implemented. G2 and all later functional tickets
-remain unimplemented.
+prerequisite, F1–F4, and G1–G2 are implemented. G3 and all later functional
+tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -266,6 +268,11 @@ The folders that do not exist yet should be created by the appropriate developme
 - G1 can convert one selected PDF page to a separate PNG when called directly by
   backend code, but F2 does not invoke it automatically. Page numbers are
   one-based, page 1 is the default, and the default resolution is 150 DPI.
+- G2 can normalize uploaded JPEG/PNG images or a validated G1 page when called
+  directly. It applies EXIF orientation, composites transparency onto white,
+  converts to RGB PNG, never upscales, and limits the longest edge to 4096
+  pixels. No worker invokes it automatically and no processed-image metadata is
+  persisted yet.
 - No OpenCV or YOLO processing pipeline is implemented.
 - Canonical geometry and the Konva 2D/Three.js 3D editors are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports

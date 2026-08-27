@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through G1, including E3A, and labels
+> the architecture actually implemented through G2, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -26,10 +26,12 @@
   current-session upload cards
 - G1: isolated one-page PDF-to-PNG conversion with safe derived storage and job
   failure-state persistence
+- G2: Pillow-based orientation, RGB conversion, transparency compositing, and
+  bounded no-upscale normalization for raster and G1 inputs
 
 ### Planned
 
-G2 and later roadmap tickets remain unimplemented, including workers,
+G3 and later roadmap tickets remain unimplemented, including workers,
 OpenCV/YOLO processing, detection review, canonical geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
@@ -102,11 +104,12 @@ remain deferred.
 
 ### AI/CV
 
-G1 PDF-to-image conversion is implemented as a directly callable backend
-service. OpenCV, NumPy, Ultralytics YOLO, normalization, model loading, wall
-detection, and symbol inference remain planned. Processing-job persistence and
-the F2/F3 job APIs exist, but no worker invokes G1. A queued job therefore does
-not mean analysis is executing.
+G1 PDF-to-image conversion and G2 image normalization are directly callable
+backend services. G2 applies EXIF orientation, white transparency compositing,
+RGB conversion, metadata stripping, and a no-upscale 4096-pixel longest-edge
+limit. OpenCV, NumPy, Ultralytics YOLO, model loading, wall detection, and symbol
+inference remain planned. No worker invokes G1 or G2, so a queued job does not
+mean analysis is executing.
 
 ## 4. Authentication and session architecture
 
@@ -321,6 +324,18 @@ table. Successful conversion leaves the broader job `processing`; a conversion
 failure persists only the safe failed-state message. G1 is not connected to F2
 automatically because no worker exists.
 
+G2 accepts either an uploaded JPEG/PNG resolved beneath originals or a validated
+G1 page for the same floor plan and job. Its separate output contract is:
+
+```text
+<PROCESSED_DIR>/normalized/floor-plan-<id>/job-<id>/image.png
+```
+
+The typed result records encoded source, oriented, and normalized dimensions.
+No `processed_images` table or sidecar manifest exists. Success leaves the job
+`processing` with unchanged progress; failure persists only the stable safe
+normalization message. Uploaded originals and G1 pages are never modified.
+
 ## 10. Testing strategy and verified baseline
 
 - Backend: Python `unittest`, including FastAPI TestClient and live
@@ -329,14 +344,15 @@ automatically because no worker exists.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through G1 is:
+The verified baseline through G2 is:
 
 ```text
 F3 focused backend:    11 tests
 F2 focused regression: 15 tests
 F1 focused regression: 17 tests
 G1 focused backend:     38 tests
-Full backend:          238 tests
+G2 focused backend:     38 tests
+Full backend:          276 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
@@ -378,8 +394,10 @@ truth.
 - Start-processing creates a durable queued database row and status polling is
   read-only, but no worker, external queue, cancellation endpoint, or automatic
   upload hook exists
-- G1 is callable by backend code but is not automatically invoked by F2; G2
-  normalization remains unimplemented
+- G1 and G2 are callable by backend code but are not automatically orchestrated
+  from F2
+- G2 produces a typed normalized result, but G3 preprocessing and persistent
+  processed-image metadata remain unimplemented
 - No OpenCV/YOLO pipeline
 - No detection review or canonical geometry
 - No 2D/3D editor implementation
@@ -388,5 +406,5 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next roadmap dependency is G2 image normalization. A persistent floor-plan
-listing API remains a separate proposed ticket and is not implied by G1.
+The next roadmap dependency is G3 OpenCV preprocessing. A persistent floor-plan
+listing API remains a separate proposed ticket and is not implied by G2.
