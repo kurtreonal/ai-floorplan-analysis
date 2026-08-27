@@ -391,7 +391,35 @@ reported explicitly. Empty detections are successful empty results.
 These candidates remain unverified image-space suggestions. H1 has no file I/O,
 preview drawing, persistence, API, worker, job-state mutation, scale conversion,
 wall thickness/pairing, room construction, frontend overlay, or YOLO behavior.
-H2 will define coordinate normalization separately.
+
+H2 adds `app.geometry` as the first shared, renderer-independent metric geometry
+boundary. It consumes H1's typed result without executing OpenCV and requires an
+explicit positive finite `pixels_per_meter` for every conversion. No default or
+scale inference exists, and PDF DPI is never treated as architectural scale.
+The `100 pixels_per_meter` specification sample is illustrative only.
+
+The canonical wall-candidate plane is:
+
+```text
+unit: meter
+origin: normalized image top-left
+x direction: right
+y direction: down
+```
+
+Each candidate preserves its H1 ID, order, raw endpoints, raw length, raw angle,
+and truncation provenance. Canonical endpoints divide pixel coordinates by the
+explicit scale; metric length is derived from those endpoints. Immutable
+objects retain full floating-point precision, while JSON-ready metric values
+round to nine decimal places and normalize negative zero.
+
+Future adapters branch from this one coordinate model: canonical x maps to
+Three.js x, canonical y maps to Three.js z, and floor elevation maps to Three.js
+y. This is documentation only; H2 contains neither Konva nor Three.js state.
+H2 outputs remain machine candidates rather than verified authoritative walls.
+It adds no persistence, database schema, project/floor association, API, worker,
+scale calibration, merging, snapping, thickness, rooms, or renderer. H3 remains
+the persistence ticket, while K1 owns the full cross-domain geometry schema.
 
 ## 10. Testing strategy and verified baseline
 
@@ -401,7 +429,7 @@ H2 will define coordinate normalization separately.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through G3 is:
+The verified baseline through H2 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -411,7 +439,8 @@ G1 focused backend:     38 tests
 G2 focused backend:     38 tests
 G3 focused backend:     37 tests
 H1 focused backend:     32 tests
-Full backend:          345 tests
+H2 focused backend:     30 tests
+Full backend:          375 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests

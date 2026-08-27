@@ -363,7 +363,75 @@ H1 candidates are unverified image-space suggestions, not confirmed walls. The
 detector reads and writes no files, draws no previews, mutates no processing
 state, and requires no FastAPI, SQLAlchemy, MySQL, API, schema, worker, or UI.
 It does not infer wall thickness, pair or merge lines, convert scale, create
-rooms, or persist geometry. H2 coordinate normalization is the next ticket.
+rooms, or persist geometry.
+
+## Wall-coordinate normalization
+
+H2 adds the pure `app.geometry` layer. It validates a complete H1 result and
+converts each raw pixel endpoint with an explicit caller-supplied scale:
+
+```text
+meters_per_pixel = 1 / pixels_per_meter
+metric_coordinate = pixel_coordinate / pixels_per_meter
+```
+
+There is no default scale. `pixels_per_meter` must be an ordinary positive,
+finite integer or float for every conversion. The value `100` in examples is
+illustrative only and is not measured project data. PDF rendering DPI is not an
+architectural scale and is never used to infer one; a floor-plan calibration
+workflow remains unimplemented.
+
+The shared planar coordinate model uses meters, the normalized image's top-left
+origin, x increasing right, and y increasing down. This preserves exact image
+overlay alignment. Raw H1 endpoints, lengths, angles, candidate IDs, order, and
+the source truncation flag remain attached unchanged. Metric endpoints are
+converted from pixels, and metric length is derived from those endpoints.
+Internal immutable objects keep full floating-point values; serialized metric
+coordinates and lengths round to nine decimal places and normalize negative
+zero. Output remains deterministic and JSON-serializable.
+
+Illustrative serialized candidate at 100 pixels per meter:
+
+```json
+{
+  "coordinate_system": {
+    "unit": "meter",
+    "origin": "image_top_left",
+    "x_direction": "right",
+    "y_direction": "down",
+    "pixels_per_meter": 100.0,
+    "image_width_pixels": 640,
+    "image_height_pixels": 480,
+    "width_meters": 6.4,
+    "height_meters": 4.8
+  },
+  "source_truncated": false,
+  "walls": [{
+    "candidate_id": 1,
+    "raw_pixels": {
+      "start": {"x": 20, "y": 35},
+      "end": {"x": 220, "y": 35},
+      "length_pixels": 200.0,
+      "angle_degrees": 0.0
+    },
+    "canonical": {
+      "start": {"x": 0.2, "y": 0.35},
+      "end": {"x": 2.2, "y": 0.35},
+      "length_meters": 2.0,
+      "angle_degrees": 0.0
+    }
+  }]
+}
+```
+
+Future Konva and Three.js adapters must consume this same coordinate source. The
+conceptual Three.js mapping is canonical x to Three.js x, canonical y to
+Three.js z, and floor elevation to Three.js y; H2 implements no renderer or
+adapter. H2 candidates remain unverified machine suggestions. It adds no OpenCV
+execution, API, filesystem I/O, database table, persistence, scale inference,
+wall merging/snapping/thickness, room geometry, worker, or job-state behavior.
+H3 persistence remains unimplemented, and K1 still owns the complete
+cross-domain canonical project geometry schema.
 
 ## Error responses
 

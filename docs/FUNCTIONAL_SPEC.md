@@ -2751,6 +2751,41 @@ H2 coordinate normalization is the next roadmap ticket.
 
 **Dependencies:** H1.
 
+**Implementation status:** Complete. H2 adds a pure, immutable `app.geometry`
+contract that validates H1 output and converts its raw image-space candidates
+into a shared metric plane. It executes no OpenCV and has no API, filesystem,
+database, worker, model, job-state, or frontend dependency.
+
+Implemented behavior:
+
+- Every conversion requires an explicit positive finite `pixels_per_meter`.
+  There is no default. Booleans, zero, negatives, strings, NaN, infinity, and
+  missing values fail through a sanitized error contract.
+- Physical scale is never inferred from PDF rendering DPI. The specification's
+  `100 pixels_per_meter` example is illustrative, not calibrated project data.
+- Canonical coordinates use meters, the normalized image's top-left origin,
+  x increasing right, and y increasing down, preserving image overlay alignment.
+- H1 candidate IDs and deterministic order, raw integer endpoints, raw lengths,
+  raw angles, and source truncation are preserved exactly. Empty H1 results
+  remain valid empty geometry.
+- Canonical endpoints use `pixel_coordinate / pixels_per_meter`; metric length
+  is derived from the canonical endpoints rather than trusting raw length.
+- Internal immutable values retain full floating-point precision. Serialized
+  metric coordinates and lengths round to nine decimal places, normalize
+  negative zero, remain numeric, and contain only ordinary Python/JSON values.
+- Complete H1 metadata, dimensions, IDs, candidate order, endpoint bounds,
+  length, and angle contracts are validated before conversion. No NumPy scalar
+  value escapes into the geometry result.
+- H2 does not merge, snap, extend, filter, or deduplicate H1 candidates again.
+  It does not implement wall thickness, rooms, persistence, or scale detection.
+- Future Konva and Three.js adapters must consume the same canonical coordinates.
+  Conceptually canonical x maps to Three.js x, canonical y to Three.js z, and
+  floor elevation to Three.js y; no adapter or renderer is implemented in H2.
+
+H2 output remains unverified machine-candidate geometry. H3 persistence remains
+unimplemented, and K1 still owns the complete cross-domain project geometry
+schema.
+
 **Acceptance Criteria:**
 
 - [ ] Raw pixel coordinates are preserved where needed.
