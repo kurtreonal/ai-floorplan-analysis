@@ -273,7 +273,10 @@ The folders that do not exist yet should be created by the appropriate developme
   converts to RGB PNG, never upscales, and limits the longest edge to 4096
   pixels. No worker invokes it automatically and no processed-image metadata is
   persisted yet.
-- No OpenCV or YOLO processing pipeline is implemented.
+- G3 can run grayscale, median denoising, optional Gaussian blur, and Otsu or
+  fixed binary thresholding on a validated G2 normalized PNG. Debug images are
+  optional and isolated beneath `storage/processed/preprocessed`; no worker
+  invokes G3 automatically. G3 does not perform wall detection or YOLO inference.
 - Canonical geometry and the Konva 2D/Three.js 3D editors are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports
   are not implemented.
