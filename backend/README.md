@@ -1,18 +1,23 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through F3. It
+This directory contains the FastAPI backend implemented through G1. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
 persisted processing-job records, the owning-Designer start-processing endpoint,
-and an ownership-aware processing-status endpoint. Workers, AI/CV, canonical
-geometry, routing, estimation, and reporting are not implemented.
+and an ownership-aware processing-status endpoint. A backend-only PDF-to-PNG
+service is also implemented. Workers, OpenCV/YOLO processing, canonical geometry,
+routing, estimation, and reporting are not implemented.
 
 ## Requirements
 
 - Python 3.13.7
 - MySQL-compatible development server (XAMPP is the preferred Windows workflow)
 - The dependencies pinned in `requirements.txt`
+
+PDF rendering uses `pypdfium2==5.13.0`, installed from its Windows wheel with
+bundled PDFium. It requires no Poppler, Ghostscript, Java, or separate rendering
+executable. The package is available under Apache-2.0/BSD-3-Clause licensing.
 
 The current automated backend suite uses Python `unittest`. Pytest is not an
 installed project dependency.
@@ -208,6 +213,36 @@ for uploads returned during the current page session, but it adds no backend
 operation and cannot advance job lifecycle state. Job lifecycle changes do not
 modify the original upload or `floor_plans.processing_status`.
 
+## PDF-to-image conversion
+
+G1 adds `app.services.pdf_conversion`, a callable backend service that is
+independent from FastAPI and HTTP. Each call renders exactly one PDF page to an
+RGB PNG. Page numbers are one-based, default to page `1`, and may select another
+page explicitly through an internal call. The default resolution is 150 DPI;
+validated internal callers and tests may request another DPI.
+
+Derived pages are stored without overwriting beneath:
+
+```text
+<PROCESSED_DIR>/pdf-pages/floor-plan-<floor_plan_id>/job-<processing_job_id>/page-<page_number padded to four digits>.png
+```
+
+The service returns a portable forward-slash reference plus the rendered page
+metadata. It does not store that derived reference in a new database table. The
+configured processed directory must remain outside `<UPLOAD_DIR>/originals`, and
+source resolution accepts only a persisted relative PDF reference beneath that
+originals directory. Original PDF bytes and floor-plan metadata remain unchanged.
+
+Before conversion, the higher-level callable commits the job as `processing`.
+Success leaves the broader analysis job in `processing`, because G1 is only one
+stage and does not imply complete analysis. A conversion failure commits only
+`Floor-plan PDF conversion failed.` and marks the job `failed`; renderer details,
+paths, stack traces, and SQL are not persisted or exposed.
+
+No worker invokes G1 automatically, and F2 remains a job-creation endpoint only.
+G2 normalization, raster-image handling, OpenCV, AI inference, and schema
+expansion remain unimplemented.
+
 ## Error responses
 
 Application-generated errors currently use FastAPI `HTTPException`, which
@@ -256,12 +291,14 @@ available:
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_job_status_api -v
+.\.venv\Scripts\python.exe -m unittest tests.test_pdf_conversion -v
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe -m compileall -q app tests
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 11 focused F3 tests, 15 focused F2 regression
-tests, 17 focused F1 regression tests, and 200 full backend tests. The existing
+The current expected totals are 38 focused G1 tests, 11 focused F3 tests,
+15 focused F2 regression tests, 17 focused F1 regression tests, and 238 full
+backend tests. The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a
 test failure.

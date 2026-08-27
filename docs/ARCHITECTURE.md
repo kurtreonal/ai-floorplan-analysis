@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through F4, including E3A, and labels
+> the architecture actually implemented through G1, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -24,10 +24,12 @@
 - F3: ownership-aware, read-only processing-job status API
 - F4: Designer processing controls and sequential, abortable status polling for
   current-session upload cards
+- G1: isolated one-page PDF-to-PNG conversion with safe derived storage and job
+  failure-state persistence
 
 ### Planned
 
-G1 and later roadmap tickets remain unimplemented, including workers,
+G2 and later roadmap tickets remain unimplemented, including workers,
 OpenCV/YOLO processing, detection review, canonical geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
@@ -90,7 +92,8 @@ route and Fetch-based API modules.
 - Pydantic and Pydantic Settings
 - SQLAlchemy 2.x and PyMySQL
 - Authlib and signed Starlette sessions
-- Pillow and pypdf for current upload validation
+- Pillow and pypdf for upload validation
+- `pypdfium2` with bundled PDFium for G1 PDF page rendering
 - Python `unittest` for the current backend suite
 
 Prototype schema creation uses an explicit development-only
@@ -99,10 +102,11 @@ remain deferred.
 
 ### AI/CV
 
-OpenCV, NumPy, Ultralytics YOLO, and PDF-to-image processing remain planned.
-Processing-job persistence and the F2/F3 job APIs exist, but no worker,
-preprocessing, model loading, wall detection, or symbol inference exists. A
-queued job therefore does not mean analysis is executing.
+G1 PDF-to-image conversion is implemented as a directly callable backend
+service. OpenCV, NumPy, Ultralytics YOLO, normalization, model loading, wall
+detection, and symbol inference remain planned. Processing-job persistence and
+the F2/F3 job APIs exist, but no worker invokes G1. A queued job therefore does
+not mean analysis is executing.
 
 ## 4. Authentication and session architecture
 
@@ -303,8 +307,19 @@ oversized files are rejected. Client filename path components cannot select the
 destination path. Existing originals are never overwritten or modified.
 
 The current endpoint holds the bounded upload in memory; streaming storage is
-not implemented. Derived processing artifacts must later be written outside the
-originals directory.
+not implemented. G1 resolves only persisted PDF references confined beneath
+`<UPLOAD_DIR>/originals`, preserves their bytes, and writes exactly one selected
+page to a collision-safe RGB PNG beneath:
+
+```text
+<PROCESSED_DIR>/pdf-pages/floor-plan-<id>/job-<id>/page-<NNNN>.png
+```
+
+Page selection is one-based and defaults to page 1. Rendering defaults to 150
+DPI. The output reference is returned by the service and is not stored in a new
+table. Successful conversion leaves the broader job `processing`; a conversion
+failure persists only the safe failed-state message. G1 is not connected to F2
+automatically because no worker exists.
 
 ## 10. Testing strategy and verified baseline
 
@@ -314,13 +329,14 @@ originals directory.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through F4 is:
+The verified baseline through G1 is:
 
 ```text
 F3 focused backend:    11 tests
 F2 focused regression: 15 tests
 F1 focused regression: 17 tests
-Full backend:          200 tests
+G1 focused backend:     38 tests
+Full backend:          238 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
@@ -360,8 +376,10 @@ truth.
 
 - No persistent floor-plan listing/retrieval API
 - Start-processing creates a durable queued database row and status polling is
-  read-only, but no worker, external queue, cancellation endpoint, processing UI,
-  or automatic upload hook exists
+  read-only, but no worker, external queue, cancellation endpoint, or automatic
+  upload hook exists
+- G1 is callable by backend code but is not automatically invoked by F2; G2
+  normalization remains unimplemented
 - No OpenCV/YOLO pipeline
 - No detection review or canonical geometry
 - No 2D/3D editor implementation
@@ -370,6 +388,5 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next decision must explicitly select either the formal F4 processing-status
-UI ticket or a separately approved floor-plan listing ticket. Neither is implied
-by F3.
+The next roadmap dependency is G2 image normalization. A persistent floor-plan
+listing API remains a separate proposed ticket and is not implied by G1.

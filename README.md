@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through F4, including the E3A project-floor prerequisite.**
+**Implemented through G1, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
@@ -22,10 +22,12 @@ The repository currently includes:
 - an owning-Designer start-processing API that creates a durable queued job;
 - a read-only processing-status API for owning Designers and Admins; and
 - a Designer processing-status UI with sequential, abortable polling and safe
-  terminal-state retry paths for uploads returned during the current session.
+  terminal-state retry paths for uploads returned during the current session;
+- a backend-only PDF-to-PNG conversion service using bundled PDFium through
+  `pypdfium2`, with safe job-failure persistence and separate derived storage.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing F4 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing G1 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -175,7 +177,7 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 ## Current Roadmap Position
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
-prerequisite, and F1–F4 are implemented. G1 and all later functional tickets
+prerequisite, F1–F4, and G1 are implemented. G2 and all later functional tickets
 remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
@@ -261,6 +263,9 @@ The folders that do not exist yet should be created by the appropriate developme
   endpoint, but no worker, external queue, cancellation workflow, automatic job
   creation, or AI result/review UI exists. Without a worker, queued jobs do not
   advance automatically.
+- G1 can convert one selected PDF page to a separate PNG when called directly by
+  backend code, but F2 does not invoke it automatically. Page numbers are
+  one-based, page 1 is the default, and the default resolution is 150 DPI.
 - No OpenCV or YOLO processing pipeline is implemented.
 - Canonical geometry and the Konva 2D/Three.js 3D editors are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports

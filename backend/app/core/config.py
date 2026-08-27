@@ -24,6 +24,10 @@ class UploadDirectoryConfigurationError(RuntimeError):
     """Raised when file storage lacks a usable upload-directory setting."""
 
 
+class ProcessedDirectoryConfigurationError(RuntimeError):
+    """Raised when derived-file storage lacks a safe processed directory."""
+
+
 class OAuthOIDCConfiguration(BaseModel):
     provider: str
     client_id: str
@@ -108,6 +112,44 @@ def get_upload_directory(settings: Settings | None = None) -> Path:
         raise UploadDirectoryConfigurationError(
             "UPLOAD_DIR could not be resolved safely."
         ) from None
+
+
+def get_processed_directory(settings: Settings | None = None) -> Path:
+    source = settings or get_settings()
+    if source.processed_dir is None or source.processed_dir == Path("."):
+        raise ProcessedDirectoryConfigurationError(
+            "PROCESSED_DIR is required when derived-file storage is used."
+        )
+
+    try:
+        configured_path = source.processed_dir
+        processed_directory = (
+            configured_path.resolve(strict=False)
+            if configured_path.is_absolute()
+            else (REPOSITORY_ROOT / configured_path).resolve(strict=False)
+        )
+        upload_directory = get_upload_directory(source)
+        originals_directory = (upload_directory / "originals").resolve(
+            strict=False
+        )
+    except (
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ):
+        raise ProcessedDirectoryConfigurationError(
+            "PROCESSED_DIR could not be resolved safely."
+        ) from None
+
+    if (
+        processed_directory == originals_directory
+        or processed_directory.is_relative_to(originals_directory)
+    ):
+        raise ProcessedDirectoryConfigurationError(
+            "PROCESSED_DIR must remain separate from original uploads."
+        )
+    return processed_directory
 
 
 def get_cors_allowed_origins(settings: Settings | None = None) -> tuple[str, ...]:
