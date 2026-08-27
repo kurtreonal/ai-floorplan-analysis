@@ -277,6 +277,10 @@ The folders that do not exist yet should be created by the appropriate developme
   fixed binary thresholding on a validated G2 normalized PNG. Debug images are
   optional and isolated beneath `storage/processed/preprocessed`; no worker
   invokes G3 automatically. G3 does not perform wall detection or YOLO inference.
+- H1 can detect unverified straight wall-line candidates from G3's in-memory
+  binary image using Canny edges and a probabilistic Hough transform. Results
+  use top-left-origin pixel coordinates and deterministic IDs, but are not
+  persisted, scaled, merged into walls, or rendered in the UI.
 - Canonical geometry and the Konva 2D/Three.js 3D editors are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports
   are not implemented.

@@ -364,6 +364,35 @@ only `Floor-plan preprocessing failed.` No FastAPI route or worker invokes G3,
 and no schema or manifest persists its output. G3 ends at binary thresholding;
 wall detection begins separately in H1.
 
+H1 implements that first detection step in `app.ai.wall_detection` without
+changing G3 or reopening any derived file:
+
+```text
+PreprocessedImage.thresholded
+    -> Canny
+    -> HoughLinesP
+    -> canonical pixel endpoints
+    -> exact deduplication
+    -> deterministic candidate tuple
+```
+
+The coordinate space is raw pixels with a top-left origin, x increasing right,
+and y increasing down. Endpoint order is topmost first and then leftmost for a
+tie. Candidate order is start y, start x, end y, end x; one-based IDs are
+assigned only after sorting. Length and normalized `[0, 180)` angle values are
+rounded to six decimal places. Exact segments are deduplicated, but H1 does not
+merge or pair nearby/collinear detections.
+
+Central prototype defaults are Canny 50/200 with aperture 3 and probabilistic
+Hough rho 1.0, theta 1.0 degree, 50 votes, 50-pixel minimum length, 10-pixel
+maximum gap, and a 2000-candidate limit. Deterministic overflow truncation is
+reported explicitly. Empty detections are successful empty results.
+
+These candidates remain unverified image-space suggestions. H1 has no file I/O,
+preview drawing, persistence, API, worker, job-state mutation, scale conversion,
+wall thickness/pairing, room construction, frontend overlay, or YOLO behavior.
+H2 will define coordinate normalization separately.
+
 ## 10. Testing strategy and verified baseline
 
 - Backend: Python `unittest`, including FastAPI TestClient and live
@@ -381,7 +410,8 @@ F1 focused regression: 17 tests
 G1 focused backend:     38 tests
 G2 focused backend:     38 tests
 G3 focused backend:     37 tests
-Full backend:          313 tests
+H1 focused backend:     32 tests
+Full backend:          345 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests

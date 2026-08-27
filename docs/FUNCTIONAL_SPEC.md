@@ -2704,6 +2704,37 @@ Implemented behavior:
 
 **Dependencies:** G3.
 
+**Implementation status:** Complete. H1 adds an isolated in-memory candidate
+detector using Canny edge detection followed by OpenCV's probabilistic Hough
+transform. It consumes only G3's thresholded array and does not reopen or write
+any image file.
+
+Implemented behavior:
+
+- `WallDetectionParameters` centralizes strictly validated prototype defaults:
+  Canny 50/200 with aperture 3; Hough rho 1.0, theta 1.0 degree, vote threshold
+  50, minimum length 50, maximum gap 10, and maximum 2000 candidates.
+- Input is either a G3 `PreprocessedImage` or an isolated two-dimensional binary
+  `uint8` array. Dimensions must be positive and no edge may exceed 4096 pixels.
+  G3 width/height must match the thresholded array, and input bytes are not
+  mutated.
+- Candidate coordinates are ordinary Python integers in raw pixel space with a
+  top-left origin, x increasing right, and y increasing down. The topmost
+  endpoint is first; the leftmost endpoint breaks horizontal ties.
+- Angles are normalized to `[0, 180)`, and public angle and pixel-length values
+  are rounded to six decimal places.
+- Exact canonical duplicates are removed. Nearby or collinear segments are not
+  merged. Candidates sort by start y, start x, end y, then end x before one-based
+  IDs are assigned, producing stable JSON-serializable output.
+- Unique results above the configured maximum are deterministically capped and
+  return `truncated=true`. Empty, all-white, all-black, and no-line inputs return
+  an empty candidate tuple and `truncated=false` without error.
+- Candidates are raw, unverified wall suggestions. H1 does not add persistence,
+  walls tables, previews, scale conversion, thickness/pairing, rooms, APIs,
+  workers, job-state changes, frontend overlays, YOLO, or symbol detection.
+
+H2 coordinate normalization is the next roadmap ticket.
+
 **Acceptance Criteria:**
 
 - [ ] Hough Line Transform or the selected OpenCV method is isolated in a wall-detection module.

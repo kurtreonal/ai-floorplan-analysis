@@ -326,6 +326,45 @@ and marks the job failed. No API, worker, or automatic F2/G2 invocation exists.
 G3 deliberately excludes morphology, edges, contours, Hough transforms, wall
 detection, YOLO, and geometry work. H1 is the next roadmap ticket.
 
+## Wall-line detection prototype
+
+H1 adds `app.ai.wall_detection`, an in-memory detector that consumes only G3's
+`PreprocessedImage.thresholded` array. The prototype method is:
+
+```text
+G3 binary image
+    -> Canny edge detection
+    -> probabilistic Hough transform
+    -> endpoint canonicalization
+    -> exact-duplicate removal
+    -> deterministic sorting and IDs
+```
+
+`WallDetectionParameters` is frozen and strictly validated. Prototype defaults
+are Canny thresholds 50 and 200 with aperture 3; Hough rho 1.0 pixel, theta 1.0
+degree, vote threshold 50, minimum line length 50 pixels, maximum gap 10 pixels,
+and at most 2000 candidates. These values are evaluation defaults, not
+electrical or architectural engineering conclusions.
+
+Candidates use raw image coordinates: unit `pixel`, origin `top_left`, positive
+x to the right, and positive y downward. Each segment's topmost endpoint comes
+first, with the leftmost endpoint breaking a tie. Angles are normalized into
+`[0, 180)`, public lengths and angles are rounded to six decimal places, and
+coordinates are ordinary Python integers within the image bounds.
+
+Exact canonical duplicates are removed without merging nearby or collinear
+segments. Candidates sort by start y, start x, end y, and end x before receiving
+one-based IDs. When unique results exceed `maximum_candidates`, only the first
+deterministically sorted candidates are returned and `truncated` is true. Empty,
+all-white, all-black, and no-line input validly return an empty tuple with
+`truncated` false.
+
+H1 candidates are unverified image-space suggestions, not confirmed walls. The
+detector reads and writes no files, draws no previews, mutates no processing
+state, and requires no FastAPI, SQLAlchemy, MySQL, API, schema, worker, or UI.
+It does not infer wall thickness, pair or merge lines, convert scale, create
+rooms, or persist geometry. H2 coordinate normalization is the next ticket.
+
 ## Error responses
 
 Application-generated errors currently use FastAPI `HTTPException`, which
