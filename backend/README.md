@@ -272,8 +272,59 @@ Original uploads and G1-rendered pages remain unchanged.
 A queued job becomes `processing`; an already-processing job remains so. G2
 preserves progress and leaves the job `processing` after success. Failure stores
 only `Floor-plan image normalization failed.` and never persists Pillow errors,
-paths, SQL, or stack traces. No API or worker invokes G2, and G3 OpenCV
-preprocessing remains unimplemented.
+paths, SQL, or stack traces. No API or worker invokes G2.
+
+## OpenCV preprocessing
+
+G3 adds `app.ai.preprocessing`, separate from FastAPI routes and the G2 service.
+It uses `opencv-python-headless==4.14.0.94` and `numpy==2.5.2`; no GUI, CUDA,
+Java, or system OpenCV dependency is required. Only the headless OpenCV wheel is
+installed.
+
+The exact stage order is:
+
+```text
+Normalized RGB PNG
+    -> grayscale
+    -> median noise reduction
+    -> optional Gaussian blur
+    -> binary threshold
+```
+
+`PreprocessingParameters` is a frozen, validated parameter contract. Defaults
+are a median kernel of 3, Gaussian enabled with kernel 3 and sigma 0.0, Otsu
+thresholding, fixed-threshold fallback value 127, no inversion, and no debug
+output. Kernels must be odd integers from 3 through 31. Threshold mode may be
+`otsu` or `fixed`; fixed values range from 0 through 255. Otsu records the
+threshold selected from the image, while fixed mode records the configured
+value. Inversion is opt-in.
+
+The filesystem boundary accepts only a matching G2 `NormalizedImage` or exact
+portable reference at:
+
+```text
+normalized/floor-plan-<id>/job-<id>/image.png
+```
+
+It validates IDs, PNG content, three-channel `uint8` data, dimensions, absolute
+path agreement, and confinement beneath `PROCESSED_DIR`. The G2 image is read
+without modification. Debug output is disabled by default. When enabled, each
+single-channel stage is created exclusively beneath:
+
+```text
+<PROCESSED_DIR>/preprocessed/floor-plan-<id>/job-<id>/
+```
+
+The directory contains `grayscale.png`, `denoised.png`, optional `blurred.png`,
+and `thresholded.png`. Existing artifacts are never overwritten, and a failed
+multi-file write removes newly created G3 files.
+
+The optional job wrapper requires an already-`processing`
+`floor_plan_analysis` job. Success preserves status and progress because later
+detection has not run. Failure stores only `Floor-plan preprocessing failed.`
+and marks the job failed. No API, worker, or automatic F2/G2 invocation exists.
+G3 deliberately excludes morphology, edges, contours, Hough transforms, wall
+detection, YOLO, and geometry work. H1 is the next roadmap ticket.
 
 ## Error responses
 

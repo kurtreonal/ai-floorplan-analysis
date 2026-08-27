@@ -2582,8 +2582,8 @@ Implemented behavior:
   is returned to later orchestration and is not stored in a new table.
 
 G1 is not automatically invoked by F2 because no worker exists. It adds no API,
-schema, normalization, OpenCV, AI inference, or raster-input processing. G2
-remains unimplemented.
+schema, normalization, OpenCV, AI inference, or raster-input processing. G2 is
+implemented as a separate downstream callable.
 
 **Acceptance Criteria:**
 
@@ -2631,7 +2631,7 @@ Implemented behavior:
   `processed_images` table, new column, sidecar, API, worker, OpenCV behavior, or
   automatic F2/G1/G2 orchestration is added.
 
-G3 remains unimplemented.
+G3 is implemented separately and consumes only G2 normalized output.
 
 **Acceptance Criteria:**
 
@@ -2649,6 +2649,40 @@ G3 remains unimplemented.
 **Goal:** Produce processed images for wall and symbol detection.
 
 **Dependencies:** G2.
+
+**Implementation status:** Complete. G3 adds the isolated
+`app.ai.preprocessing` package using `opencv-python-headless==4.14.0.94` and
+`numpy==2.5.2`. It has no FastAPI route and is not invoked automatically by F2
+or G2 because no worker exists.
+
+Implemented behavior:
+
+- A pure array boundary consumes three-channel normalized RGB `uint8` data and
+  returns typed stage arrays without HTTP, filesystem, or database requirements.
+- Stage order is grayscale, median noise reduction, optional Gaussian blur,
+  then binary thresholding. Dimensions and `uint8` dtype are preserved; the
+  final image contains only 0 and 255.
+- Otsu thresholding is the default and records the selected threshold. Fixed
+  threshold mode uses an explicit 0-through-255 value. Binary inversion is
+  disabled unless configured.
+- Frozen `PreprocessingParameters` defaults to median kernel 3, Gaussian enabled
+  with kernel 3 and sigma 0.0, Otsu mode, fixed value 127, no inversion, and no
+  debug writes. Kernels are validated odd integers from 3 through 31; Boolean
+  numeric values, non-finite sigma, unknown modes, and unknown fields fail safely.
+- The filesystem boundary accepts only a matching G2 `NormalizedImage` or exact
+  `normalized/floor-plan-<id>/job-<id>/image.png` reference beneath
+  `PROCESSED_DIR`. IDs, absolute/portable path agreement, symlink confinement,
+  PNG format, three-channel content, and dimensions are validated. G2 bytes are
+  never modified.
+- Optional debug artifacts are exclusive single-channel PNGs beneath
+  `preprocessed/floor-plan-<id>/job-<id>/`: `grayscale.png`, `denoised.png`,
+  optional `blurred.png`, and `thresholded.png`. Existing files are not
+  overwritten and partial writes receive compensating cleanup.
+- The optional database wrapper requires a matching already-`processing`
+  `floor_plan_analysis` job. Success preserves status and progress; failure
+  persists only `Floor-plan preprocessing failed.`
+- G3 adds no schema, manifest, processed-image row, worker, API, morphology,
+  Canny, Hough, contour, wall-detection, YOLO, or geometry behavior. H1 is next.
 
 **Acceptance Criteria:**
 

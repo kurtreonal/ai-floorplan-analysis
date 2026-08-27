@@ -336,6 +336,34 @@ No `processed_images` table or sidecar manifest exists. Success leaves the job
 `processing` with unchanged progress; failure persists only the stable safe
 normalization message. Uploaded originals and G1 pages are never modified.
 
+G3 consumes only that normalized G2 PNG through the isolated
+`app.ai.preprocessing` package. The pure array pipeline is:
+
+```text
+RGB uint8 -> grayscale -> median filter -> optional Gaussian blur
+          -> Otsu or fixed binary threshold
+```
+
+The implementation uses the server-oriented `opencv-python-headless==4.14.0.94`
+wheel with `numpy==2.5.2`, without OpenCV GUI or system-library dependencies.
+Central frozen parameters default to 3x3 median filtering, enabled 3x3 Gaussian
+blur with automatic sigma, Otsu threshold selection, no inversion, and no debug
+writes. Fixed thresholding and inversion are explicit alternatives.
+
+The filesystem boundary accepts only
+`normalized/floor-plan-<id>/job-<id>/image.png` beneath `PROCESSED_DIR`, verifies
+the matching G2 IDs and dimensions, and decodes a three-channel PNG from bounded
+bytes. It never changes the G2 file. Optional evaluation artifacts use portable
+references beneath
+`preprocessed/floor-plan-<id>/job-<id>/` and are exclusive, single-channel
+`uint8` PNGs. Partial artifact creation receives compensating cleanup.
+
+The database-aware wrapper requires the matching analysis job to already be
+`processing`; success changes neither status nor progress, while failure stores
+only `Floor-plan preprocessing failed.` No FastAPI route or worker invokes G3,
+and no schema or manifest persists its output. G3 ends at binary thresholding;
+wall detection begins separately in H1.
+
 ## 10. Testing strategy and verified baseline
 
 - Backend: Python `unittest`, including FastAPI TestClient and live
@@ -344,7 +372,7 @@ normalization message. Uploaded originals and G1 pages are never modified.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through G2 is:
+The verified baseline through G3 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -352,7 +380,8 @@ F2 focused regression: 15 tests
 F1 focused regression: 17 tests
 G1 focused backend:     38 tests
 G2 focused backend:     38 tests
-Full backend:          276 tests
+G3 focused backend:     37 tests
+Full backend:          313 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
