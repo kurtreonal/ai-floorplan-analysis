@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through F4, including the E3A project-floor
+The repository is implemented through G1, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -71,6 +71,7 @@ F1 — Create Processing Jobs Table
 F2 — Create Start Processing Endpoint
 F3 — Create Processing Status Endpoint
 F4 — Build Processing Status UI
+G1 — Implement PDF-to-Image Conversion
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -78,9 +79,10 @@ database-authoritative roles, project and project-floor workflows, upload
 validation and original storage, the upload API, the project upload UI, and
 persisted processing-job records, an owning-Designer endpoint that creates a
 durable queued job, an ownership-aware read-only status endpoint, and a
-current-session Designer processing UI. G1 and later tickets remain
-unimplemented. In particular, there is no worker, external queue, AI/CV
-pipeline, detection review, canonical geometry,
+current-session Designer processing UI, and a backend-only PDF-to-PNG conversion
+service. G2 and later tickets remain unimplemented. In particular, there is no
+worker, external queue, normalization or OpenCV/YOLO pipeline, detection review,
+canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
@@ -2546,6 +2548,40 @@ reload.
 **Goal:** Convert supported PDF pages into processable raster images.
 
 **Dependencies:** F2.
+
+**Implementation status:** Complete. G1 adds an isolated backend service using
+`pypdfium2==5.13.0` with bundled PDFium. It is callable without FastAPI, HTTP, or
+a database connection at its low-level boundary.
+
+Implemented behavior:
+
+- Each call converts exactly one page to an RGB PNG. Page numbers are one-based,
+  default to page 1, and reject zero, negative, or out-of-range values.
+- Rendering defaults to 150 DPI. Validated internal callers may supply another
+  DPI; neither page nor DPI selection is exposed through HTTP in G1.
+- Output uses
+  `pdf-pages/floor-plan-<id>/job-<id>/page-<NNNN>.png` beneath
+  `PROCESSED_DIR`, and the returned reference uses forward slashes.
+- Persisted source references must remain relative and resolve beneath
+  `<UPLOAD_DIR>/originals`. The source must be a regular PDF with
+  `application/pdf` metadata. Traversal, absolute paths, symlink escapes, and
+  raster inputs are rejected.
+- Rendering enforces a pre-allocation pixel limit, honors effective page
+  rotation, encodes in memory, and writes exclusively without silently
+  overwriting an existing derived page. Partial output is removed where safe.
+- The higher-level callable commits the job as `processing` before conversion.
+  Success leaves the broader job `processing`; it does not mark analysis
+  complete or alter `floor_plans.processing_status`.
+- Conversion failure commits `failed` with only
+  `Floor-plan PDF conversion failed.` Raw renderer errors, paths, SQL, and stack
+  traces are not persisted. Persistence failure is reported separately and
+  safely.
+- Original PDF bytes and floor-plan metadata remain unchanged. The derived path
+  is returned to later orchestration and is not stored in a new table.
+
+G1 is not automatically invoked by F2 because no worker exists. It adds no API,
+schema, normalization, OpenCV, AI inference, or raster-input processing. G2
+remains unimplemented.
 
 **Acceptance Criteria:**
 
