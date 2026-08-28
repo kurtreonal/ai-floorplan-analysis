@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through I2, including the E3A project-floor prerequisite.**
+**Implemented through I3, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
@@ -35,7 +35,7 @@ The repository currently includes:
   binary images.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing I2 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing I3 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -308,7 +308,15 @@ The folders that do not exist yet should be created by the appropriate developme
   and derived center. Empty inference is successful, and reaching the cap is
   explicit. Success leaves a processing job unchanged; failure stores only
   `Floor-plan symbol inference failed.` I2 adds no confidence filtering,
-  detection persistence, route, worker, UI, or automatic pipeline; I3 is next.
+  detection persistence, route, worker, UI, or automatic pipeline; I3 owns the
+  separate confidence classification described below.
+- I3 classifies every immutable I2 prediction with the configured application
+  confidence threshold, which defaults to `0.50`. Confidence equal to the
+  threshold becomes `detected`; lower confidence becomes `needs_review` and is
+  retained. Prediction order, exact confidence, class/geometry data, image
+  dimensions, and detection-limit metadata remain unchanged. I3 is in-memory
+  only and adds no persistence, job transition, API, worker, or review UI; I4
+  remains the next ticket.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.
