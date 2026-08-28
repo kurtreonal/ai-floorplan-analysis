@@ -18,6 +18,7 @@ from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.floor_plan import FloorPlan
+    from app.models.wall import Wall
 
 
 PROCESSING_JOB_STATUSES = (
@@ -89,3 +90,4 @@ class ProcessingJob(Base):
     floor_plan: Mapped["FloorPlan"] = relationship(
         back_populates="processing_jobs"
     )
+    walls: Mapped[list["Wall"]] = relationship(back_populates="processing_job")
