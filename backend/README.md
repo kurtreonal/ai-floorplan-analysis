@@ -1,14 +1,15 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through G2. It
+This directory contains the FastAPI backend implemented through I2. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
 persisted processing-job records, the owning-Designer start-processing endpoint,
 and an ownership-aware processing-status endpoint. A backend-only PDF-to-PNG
-and a backend-only image-normalization service are also implemented. Workers,
-YOLO inference, canonical geometry, routing, estimation, and reporting
-are not implemented.
+image normalization, OpenCV preprocessing, wall detection/normalization/
+persistence, configured YOLO model loading, and isolated symbol inference are
+also implemented. Workers, confidence filtering, symbol persistence, complete
+canonical geometry, routing, estimation, and reporting are not implemented.
 
 ## Requirements
 
@@ -473,8 +474,30 @@ Successful loads are held in a bounded, thread-safe process-local cache keyed by
 canonical path. Class names are discovered from `model.names`; application code
 does not assume a fixed electrical class set. Missing, invalid, or unloadable
 models produce stable sanitized loader errors and do not crash FastAPI import.
-I1 does not run inference, filter confidence, persist detections, update jobs, or
-connect to a worker or HTTP route. Those remain future work beginning with I2.
+I1 itself does not run inference, filter confidence, persist detections, update
+jobs, or connect to a worker or HTTP route. I2 uses the loaded model only through
+the isolated inference boundary below.
+
+## Symbol inference
+
+I2 accepts only a valid G3 `PreprocessedImage` and consumes its two-dimensional
+binary `thresholded` array. It passes YOLO a separate contiguous three-channel
+copy, never a file path or shared writable G3 memory. Prediction explicitly uses
+`conf=0.0`, `max_det=300`, `verbose=False`, `save=False`, and `stream=False`.
+The zero confidence floor preserves all finite model confidences for I3 instead
+of applying `YOLO_CONFIDENCE_THRESHOLD` prematurely.
+
+Validated immutable output remains in processed-image pixels with a top-left
+origin and contains image dimensions, dynamic class ID/name, original
+confidence, `x_min/y_min/x_max/y_max`, and a derived center. Empty detections are
+successful. Exactly 300 results set `detection_limit_reached` so the cap is not
+silent. A successful processing-job wrapper leaves status, progress, and error
+unchanged; model or inference failure stores only
+`Floor-plan symbol inference failed.`
+
+I2 creates no detection rows or artifacts and adds no API, worker, drawing,
+confidence classification, or automatic F2 orchestration. I3 is the next
+ticket.
 
 `ultralytics-opencv-headless==8.4.131` is offered under AGPL-3.0, with a separate
 Enterprise license available. Complete a licensing review before commercial or
@@ -535,8 +558,10 @@ available:
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 38 focused G2 tests, 38 focused G1 tests,
-11 focused F3 tests, 15 focused F2 regression tests, 17 focused F1 regression
-tests, and 276 full backend tests. The existing
+The current expected totals are 25 focused I2 tests, 21 focused I1 tests,
+21 focused H3 tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3
+tests, 38 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15
+focused F2 regression tests, 17 focused F1 regression tests, and 442 full
+backend tests. The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a
 test failure.

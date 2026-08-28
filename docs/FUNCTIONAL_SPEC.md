@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through G2, including the E3A project-floor
+The repository is implemented through I2, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -73,6 +73,12 @@ F3 — Create Processing Status Endpoint
 F4 — Build Processing Status UI
 G1 — Implement PDF-to-Image Conversion
 G2 — Implement Image Normalization
+G3 — Implement OpenCV Preprocessing Pipeline
+H1 — Implement Wall-Line Detection Prototype
+H2 — Normalize Wall Coordinates
+H3 — Persist Wall Geometry
+I1 — Implement YOLO Model Loader
+I2 — Implement Symbol Inference Service
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -81,9 +87,11 @@ validation and original storage, the upload API, the project upload UI, and
 persisted processing-job records, an owning-Designer endpoint that creates a
 durable queued job, an ownership-aware read-only status endpoint, and a
 current-session Designer processing UI, a backend-only PDF-to-PNG conversion
-service, and Pillow-based image normalization. G3 and later tickets remain
-unimplemented. In particular, there is no worker, external queue, OpenCV/YOLO
-pipeline, detection review,
+service, Pillow-based image normalization, OpenCV preprocessing, wall candidate
+detection/normalization/persistence, configured YOLO loading, and isolated
+symbol inference. I3 and later tickets remain unimplemented. In particular,
+there is no worker, external queue, automatic OpenCV/YOLO pipeline, confidence
+filtering, detection persistence/review,
 canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
@@ -1585,8 +1593,12 @@ Run the current backend suite from `backend/` with:
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Pytest is not currently installed. Ticket S1 below describes a future testing
-foundation and must not be read as a claim about the current environment.
+`pytest` is not declared as a direct project dependency in
+`backend/requirements.txt`, although it may be present in a resolved development
+environment through installed tooling or transitive dependencies. The current
+suite remains `unittest`-style, and the documented canonical command uses
+`unittest`. Ticket S1 below describes a future explicit pytest testing
+foundation and must not be read as a claim about the current dependency file.
 
 The thesis specifies:
 
@@ -2892,6 +2904,39 @@ Implemented behavior:
 **Goal:** Run YOLO on a processed floor plan.
 
 **Dependencies:** I1, G3.
+
+**Implementation status:** Complete. I2 is an isolated in-memory inference
+boundary and processing-job failure wrapper. It adds no route, worker,
+automatic orchestration, output image, schema table, or detected-symbol
+persistence.
+
+Implemented behavior:
+
+- The primary boundary accepts only a valid G3 `PreprocessedImage` and consumes
+  `thresholded`. The source must be a nonempty two-dimensional `uint8` array,
+  match the declared dimensions, contain only 0/255, and remain within the
+  existing 4096-pixel limit.
+- YOLO receives a separate contiguous three-channel binary copy, so prediction
+  cannot mutate or share writable memory with G3 output. It receives no path,
+  URL, camera identifier, or save destination.
+- Prediction arguments are exactly `conf=0.0`, `max_det=300`, `verbose=False`,
+  `save=False`, and `stream=False`. The zero confidence floor deliberately
+  leaves threshold ownership to I3 and preserves detections below 0.50.
+- Exactly one single-image detection result is required. Tensor-like and NumPy
+  output is converted into immutable, ordered `SymbolPrediction` records with
+  dynamically resolved class ID/name, original finite confidence, validated
+  `x_min/y_min/x_max/y_max`, and a derived center. Coordinates use processed
+  pixels with a top-left origin, positive X right, and positive Y down.
+- Empty boxes are successful. Exactly 300 detections set
+  `detection_limit_reached=True`; malformed or excess output fails instead of
+  being clipped or silently accepted.
+- The job wrapper requires a matching positive floor-plan/job association, job
+  type `floor_plan_analysis`, and status `processing`. Success leaves status,
+  progress, and error unchanged. Model loading, prediction, or result conversion
+  failure marks the job failed with only `Floor-plan symbol inference failed.`;
+  persistence failure rolls back and surfaces a sanitized error.
+- I2 performs no I3 confidence classification/filtering and no I4 database
+  persistence. I3 is the next ticket.
 
 **Acceptance Criteria:**
 
