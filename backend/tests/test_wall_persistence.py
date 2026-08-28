@@ -333,10 +333,19 @@ class WallPersistenceTests(unittest.TestCase):
         self.assertIsNotNone(table.c.updated_at.server_default)
         self.assertIsNotNone(table.c.updated_at.onupdate)
 
-    def test_live_schema_has_exactly_seven_tables(self) -> None:
+    def test_live_schema_has_expected_application_tables(self) -> None:
         self.assertEqual(
             set(self.inspector.get_table_names()),
-            {"roles", "users", "projects", "project_floors", "floor_plans", "processing_jobs", "walls"},
+            {
+                "roles",
+                "users",
+                "projects",
+                "project_floors",
+                "floor_plans",
+                "processing_jobs",
+                "walls",
+                "detected_symbols",
+            },
         )
 
     def test_named_constraints_foreign_keys_indexes_and_uniqueness(self) -> None:

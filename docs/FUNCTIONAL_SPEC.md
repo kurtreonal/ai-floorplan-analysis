@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through I3, including the E3A project-floor
+The repository is implemented through I4, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -80,6 +80,7 @@ H3 — Persist Wall Geometry
 I1 — Implement YOLO Model Loader
 I2 — Implement Symbol Inference Service
 I3 — Implement Confidence Filtering
+I4 — Persist Detected Symbols
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -90,9 +91,10 @@ durable queued job, an ownership-aware read-only status endpoint, and a
 current-session Designer processing UI, a backend-only PDF-to-PNG conversion
 service, Pillow-based image normalization, OpenCV preprocessing, wall candidate
 detection/normalization/persistence, configured YOLO loading, isolated symbol
-inference, and in-memory confidence classification. I4 and later tickets remain
-unimplemented. In particular, there is no worker, external queue, automatic
-OpenCV/YOLO pipeline, detection persistence/review,
+inference, in-memory confidence classification, and processing-job-versioned
+machine detection persistence. J1 and later tickets remain unimplemented. In
+particular, there is no worker, external queue, automatic OpenCV/YOLO pipeline,
+detection API/review,
 canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
@@ -2994,6 +2996,36 @@ Implemented behavior:
 **Goal:** Save detection results independently from later manual edits.
 
 **Dependencies:** I3.
+
+**Implementation status:** Complete. I4 adds the eighth prototype table,
+`detected_symbols`, with backend-only transactional persistence and immutable
+retrieval. It adds no route, worker, job completion, Designer review action,
+symbol-legend integration, or canonical geometry.
+
+Implemented behavior:
+
+- Each row stores floor-plan and processing-job foreign keys, a one-based source
+  prediction index, I3 machine status/threshold, original I1/I2 class and
+  confidence, processed-image dimensions, original bounding box and center,
+  detection maximum/cap provenance, and timestamps. Original fields are
+  explicit snapshots for later auditable correction work.
+- Only `detected` and `needs_review` are accepted, and status must agree with the
+  stored original confidence and threshold. Complete input validation rejects
+  malformed, nonfinite, out-of-bounds, inconsistent, oversized, or mutable I3
+  results before database mutation.
+- Processing jobs are machine-result versions. Same-job persistence locks the
+  floor plan and atomically replaces only that job's rows. A newer job preserves
+  older versions. Empty results clear only the selected job. A named unique
+  constraint prevents duplicate job/prediction indexes.
+- Persistence requires a matching `floor_plan_analysis` job in `processing` and
+  commits once. Any read, deletion, insertion, flush, or commit failure rolls
+  back the entire replacement and exposes only a sanitized error.
+- Retrieval requires floor-plan and processing-job identity, orders by
+  prediction index then row ID, returns immutable JSON-compatible records, and
+  executes no model loading, inference, confidence classification, OpenCV, or
+  filesystem operation.
+- Successful persistence leaves processing-job status/progress/error and
+  floor-plan processing status unchanged. J1 is the next normal ticket.
 
 **Acceptance Criteria:**
 
