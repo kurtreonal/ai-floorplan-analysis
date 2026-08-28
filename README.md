@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through H3, including the E3A project-floor prerequisite.**
+**Implemented through I1, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
@@ -33,7 +33,7 @@ The repository currently includes:
   geometry with floor-plan and processing-job provenance.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing H3 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing I1 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -293,6 +293,17 @@ The folders that do not exist yet should be created by the appropriate developme
   a floor plan without rerunning OpenCV. It rejects truncated geometry and will
   not overwrite verified walls. H3 adds no HTTP API, review UI, status-transition
   workflow, worker integration, room geometry, or complete K1 project geometry.
+- I1 can lazily load and cache a configured local `.pt` detection model through
+  `YOLO_MODEL_PATH`. Relative paths resolve from the repository root; the
+  default example is `models/yolo/electrical-symbols.pt`. The repository does
+  not include trained model weights, and a missing or invalid model produces a
+  controlled, sanitized loader error rather than preventing application startup.
+  Classes come from trained-model metadata; none are hard-coded. I1 performs no
+  inference, confidence filtering, detection persistence, worker execution, or
+  automatic pipeline integration; I2 owns inference.
+- `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
+  Enterprise license option. Licensing must be reviewed before commercial or
+  production deployment.
 - Complete K1 canonical project geometry and the Konva 2D/Three.js 3D editors
   are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports
