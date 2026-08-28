@@ -7,7 +7,7 @@ project-floor APIs, original floor-plan upload validation and storage, and
 persisted processing-job records, the owning-Designer start-processing endpoint,
 and an ownership-aware processing-status endpoint. A backend-only PDF-to-PNG
 and a backend-only image-normalization service are also implemented. Workers,
-OpenCV/YOLO processing, canonical geometry, routing, estimation, and reporting
+YOLO inference, canonical geometry, routing, estimation, and reporting
 are not implemented.
 
 ## Requirements
@@ -459,6 +459,26 @@ conversion. Successful persistence deliberately leaves both the processing job
 and floor-plan processing status unchanged because later analysis stages remain
 incomplete. H3 adds no route, HTTP wall API, review UI, confirmation/editing
 service, worker connection, room/symbol persistence, or complete K1 geometry.
+
+## YOLO model loading
+
+I1 adds an isolated, lazy model loader under `app/ai/symbol_detection`. It reads
+only `YOLO_MODEL_PATH`, resolves relative values from the repository root,
+requires a readable local `.pt` file, and loads it through the official
+`YOLO(model_path)` API. The example configuration points to
+`models/yolo/electrical-symbols.pt`, but no trained model is included in this
+repository.
+
+Successful loads are held in a bounded, thread-safe process-local cache keyed by
+canonical path. Class names are discovered from `model.names`; application code
+does not assume a fixed electrical class set. Missing, invalid, or unloadable
+models produce stable sanitized loader errors and do not crash FastAPI import.
+I1 does not run inference, filter confidence, persist detections, update jobs, or
+connect to a worker or HTTP route. Those remain future work beginning with I2.
+
+`ultralytics-opencv-headless==8.4.131` is offered under AGPL-3.0, with a separate
+Enterprise license available. Complete a licensing review before commercial or
+production use.
 
 ## Error responses
 

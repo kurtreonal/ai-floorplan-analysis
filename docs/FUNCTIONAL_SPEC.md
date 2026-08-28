@@ -2850,6 +2850,33 @@ Implemented behavior:
 
 **Dependencies:** A2.
 
+**Implementation status:** Complete. I1 adds an isolated lazy loader for a
+configured local `.pt` model. `YOLO_MODEL_PATH` is the only model-location
+setting; relative values resolve from the repository root and the maintained
+example is `models/yolo/electrical-symbols.pt`. No trained model is committed to
+the repository.
+
+Implemented behavior:
+
+- Local path, extension, file type, existence, and readability are validated
+  before the official `YOLO(model_path)` constructor is called, preventing model
+  shorthand from triggering an automatic download.
+- Absolute local paths are supported, while URLs, directories, malformed paths,
+  unsupported extensions, and missing files fail with stable sanitized errors.
+- Class names are normalized dynamically from list- or dictionary-shaped
+  `model.names` metadata. No electrical class names are assumed in code.
+- Successful loads use a bounded, thread-safe process-local cache by canonical
+  path. Concurrent first callers load once, failures remain retryable, and tests
+  can explicitly reset the cache or inject a fake model factory.
+- Importing FastAPI does not load a model. Missing or invalid weights therefore
+  cause a controlled loader/processing error only when the loader is called,
+  rather than an application-wide startup crash.
+- I1 invokes no prediction or preprocessing, persists no detections, changes no
+  processing jobs, and adds no API or worker integration. I2 remains the future
+  inference ticket.
+- `ultralytics-opencv-headless==8.4.131` uses AGPL-3.0 or a separately obtained
+  Enterprise license. Commercial or production use requires licensing review.
+
 **Acceptance Criteria:**
 
 - [ ] Model path comes from configuration.

@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through H3, including E3A, and labels
+> the architecture actually implemented through I1, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -32,11 +32,13 @@
 - H1: deterministic probabilistic-Hough wall-line candidate detection
 - H2: immutable explicit-scale conversion from pixels to canonical meters
 - H3: transactional persistence and read-only retrieval of wall geometry
+- I1: validated local YOLO model loading with dynamic metadata and a bounded,
+  thread-safe process cache
 
 ### Planned
 
-I1 and later roadmap tickets remain unimplemented, including workers,
-YOLO processing, detection review UI, complete K1 geometry, Konva
+I2 and later roadmap tickets remain unimplemented, including workers,
+YOLO inference, detection review UI, complete K1 geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
 
@@ -100,6 +102,9 @@ route and Fetch-based API modules.
 - Authlib and signed Starlette sessions
 - Pillow and pypdf for upload validation
 - `pypdfium2` with bundled PDFium for G1 PDF page rendering
+- `ultralytics-opencv-headless==8.4.131` for lazy I1 model loading; the resolved
+  environment uses `torch==2.13.0`, `torchvision==0.28.0`, and the existing
+  `opencv-python-headless==4.14.0.94`
 - Python `unittest` for the current backend suite
 
 Prototype schema creation uses an explicit development-only
@@ -108,12 +113,19 @@ remain deferred.
 
 ### AI/CV
 
-G1 PDF-to-image conversion and G2 image normalization are directly callable
-backend services. G2 applies EXIF orientation, white transparency compositing,
-RGB conversion, metadata stripping, and a no-upscale 4096-pixel longest-edge
-limit. OpenCV, NumPy, Ultralytics YOLO, model loading, wall detection, and symbol
-inference remain planned. No worker invokes G1 or G2, so a queued job does not
-mean analysis is executing.
+G1 PDF-to-image conversion, G2 image normalization, G3 preprocessing, H1 wall
+detection, H2 coordinate conversion, and H3 wall persistence are directly
+callable backend services. I1 lazily loads a readable local `.pt` model from
+`YOLO_MODEL_PATH`, using `models/yolo/electrical-symbols.pt` as the example
+relative path. No trained model is stored in the repository. Loads are cached by
+canonical path, and class metadata comes dynamically from `model.names`.
+Invalid or missing models produce a controlled sanitized loader error without
+breaking FastAPI startup. No worker invokes the pipeline, and I1 performs no
+inference, confidence filtering, detection persistence, or job-state changes;
+I2 owns inference.
+
+Ultralytics is available under AGPL-3.0 and a separate Enterprise license.
+Commercial or production deployment requires a licensing review.
 
 ## 4. Authentication and session architecture
 
@@ -452,7 +464,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through H3 is:
+The verified baseline through I1 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -464,7 +476,8 @@ G3 focused backend:     37 tests
 H1 focused backend:     32 tests
 H2 focused backend:     30 tests
 H3 focused backend:     21 tests
-Full backend:          396 tests
+I1 focused backend:     21 tests
+Full backend:          417 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
@@ -506,11 +519,10 @@ truth.
 - Start-processing creates a durable queued database row and status polling is
   read-only, but no worker, external queue, cancellation endpoint, or automatic
   upload hook exists
-- G1 and G2 are callable by backend code but are not automatically orchestrated
-  from F2
-- G2 produces a typed normalized result, but G3 preprocessing and persistent
-  processed-image metadata remain unimplemented
-- No OpenCV/YOLO pipeline
+- G1 through H3 are callable by backend code but are not automatically
+  orchestrated from F2; persistent processed-image metadata remains unimplemented
+- I1 loads configured local YOLO weights, but the repository has no trained
+  model and no inference or automatic OpenCV/YOLO pipeline exists
 - No detection review or canonical geometry
 - No 2D/3D editor implementation
 - No routing or multi-floor route calculation
