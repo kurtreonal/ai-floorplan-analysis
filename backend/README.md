@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through I2. It
+This directory contains the FastAPI backend implemented through I3. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -496,8 +496,25 @@ unchanged; model or inference failure stores only
 `Floor-plan symbol inference failed.`
 
 I2 creates no detection rows or artifacts and adds no API, worker, drawing,
-confidence classification, or automatic F2 orchestration. I3 is the next
-ticket.
+confidence classification, or automatic F2 orchestration. I3 owns the separate
+classification boundary below.
+
+## Symbol confidence classification
+
+I3 applies the existing `YOLO_CONFIDENCE_THRESHOLD` application setting to a
+validated I2 result without rerunning inference. The default is exactly `0.50`.
+Each prediction at or above the selected threshold is wrapped with status
+`detected`; each lower-confidence prediction is wrapped with `needs_review`.
+Low-confidence predictions are preserved rather than discarded.
+
+The result is immutable and retains every original `SymbolPrediction` object in
+model order, including exact confidence, dynamic class metadata, bounding box,
+and center. Image dimensions, the maximum-detection value, and the detection-cap
+flag are copied unchanged. The pure boundary accepts an explicit threshold; a
+configuration-aware boundary supports injected settings for tests.
+
+I3 performs no database write, job transition, API operation, worker action,
+Designer confirmation, or I4 detected-symbol persistence. I4 is next.
 
 `ultralytics-opencv-headless==8.4.131` is offered under AGPL-3.0, with a separate
 Enterprise license available. Complete a licensing review before commercial or

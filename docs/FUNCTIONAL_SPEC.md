@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through I2, including the E3A project-floor
+The repository is implemented through I3, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -79,6 +79,7 @@ H2 — Normalize Wall Coordinates
 H3 — Persist Wall Geometry
 I1 — Implement YOLO Model Loader
 I2 — Implement Symbol Inference Service
+I3 — Implement Confidence Filtering
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -88,10 +89,10 @@ persisted processing-job records, an owning-Designer endpoint that creates a
 durable queued job, an ownership-aware read-only status endpoint, and a
 current-session Designer processing UI, a backend-only PDF-to-PNG conversion
 service, Pillow-based image normalization, OpenCV preprocessing, wall candidate
-detection/normalization/persistence, configured YOLO loading, and isolated
-symbol inference. I3 and later tickets remain unimplemented. In particular,
-there is no worker, external queue, automatic OpenCV/YOLO pipeline, confidence
-filtering, detection persistence/review,
+detection/normalization/persistence, configured YOLO loading, isolated symbol
+inference, and in-memory confidence classification. I4 and later tickets remain
+unimplemented. In particular, there is no worker, external queue, automatic
+OpenCV/YOLO pipeline, detection persistence/review,
 canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
@@ -2936,7 +2937,7 @@ Implemented behavior:
   failure marks the job failed with only `Floor-plan symbol inference failed.`;
   persistence failure rolls back and surfaces a sanitized error.
 - I2 performs no I3 confidence classification/filtering and no I4 database
-  persistence. I3 is the next ticket.
+  persistence. I3 remains the separate stage implemented below.
 
 **Acceptance Criteria:**
 
@@ -2953,6 +2954,30 @@ Implemented behavior:
 **Goal:** Apply the source-defined confidence threshold.
 
 **Dependencies:** I2.
+
+**Implementation status:** Complete. I3 classifies every validated I2
+prediction using the application confidence threshold. It is an immutable,
+in-memory transformation and neither invokes YOLO nor mutates a processing job.
+
+Implemented behavior:
+
+- The configuration-aware boundary reads the existing
+  `Settings.yolo_confidence_threshold`, whose default is exactly `0.50`, and
+  supports injected settings for isolated tests. The pure boundary accepts an
+  explicit finite numeric threshold from `0.0` through `1.0`; Boolean, textual,
+  non-finite, and out-of-range values fail with a sanitized error.
+- Confidence equal to or greater than the threshold receives `detected`.
+  Confidence below the threshold receives `needs_review`; it is never dropped
+  or treated as confirmed.
+- Each immutable classified record contains the original `SymbolPrediction`
+  object unchanged. Model order, exact confidence, dynamic class metadata,
+  bounding box, center, image dimensions, maximum-detection value, and
+  detection-limit flag are preserved.
+- Empty I2 results are valid. Malformed I2 containers, predictions, confidence,
+  geometry, and inconsistent detection-limit metadata fail safely.
+- I3 adds no table, detected-symbol persistence, API, worker, orchestration, job
+  transition, Designer confirmation/correction, or frontend behavior. I4 is the
+  next ticket.
 
 **Acceptance Criteria:**
 

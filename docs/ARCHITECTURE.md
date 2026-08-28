@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through I2, including E3A, and labels
+> the architecture actually implemented through I3, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -35,11 +35,12 @@
 - I1: validated local YOLO model loading with dynamic metadata and a bounded,
   thread-safe process cache
 - I2: isolated, validated in-memory symbol inference over copied G3 binary data
+- I3: immutable in-memory confidence classification with configured threshold
 
 ### Planned
 
-I3 and later roadmap tickets remain unimplemented, including workers,
-confidence filtering, detection persistence/review UI, complete K1 geometry, Konva
+I4 and later roadmap tickets remain unimplemented, including workers,
+detection persistence/review UI, complete K1 geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
 
@@ -129,6 +130,13 @@ application threshold to I3 and reports when the 300-result bound is reached.
 Empty inference succeeds. A successful job wrapper leaves the job processing;
 failure stores only the safe I2 message. No worker invokes the pipeline, and I2
 adds no detection persistence, API, artifacts, UI, or automatic orchestration.
+
+I3 consumes that immutable I2 result without invoking YOLO. It uses the existing
+configured threshold, default `0.50`, classifies equality and higher confidence
+as `detected`, and classifies lower confidence as `needs_review`. It preserves
+all original prediction objects and result metadata in order. I3 has no database
+or processing-job side effects and does not implement I4 persistence or Designer
+confirmation.
 
 Ultralytics is available under AGPL-3.0 and a separate Enterprise license.
 Commercial or production deployment requires a licensing review.
@@ -470,7 +478,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through I2 is:
+The verified baseline through I3 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -484,7 +492,8 @@ H2 focused backend:     30 tests
 H3 focused backend:     21 tests
 I1 focused backend:     21 tests
 I2 focused backend:     25 tests
-Full backend:          442 tests
+I3 focused backend:     13 tests
+Full backend:          455 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
@@ -528,9 +537,10 @@ truth.
   upload hook exists
 - G1 through H3 are callable by backend code but are not automatically
   orchestrated from F2; persistent processed-image metadata remains unimplemented
-- I1/I2 can load configured local YOLO weights and run isolated inference, but
+- I1-I3 can load configured local YOLO weights, run isolated inference, and
+  classify confidence, but
   the repository has no trained model and no automatic OpenCV/YOLO pipeline
-  exists; confidence filtering and detection persistence remain unimplemented
+  exists; detection persistence remains unimplemented
 - No detection review or canonical geometry
 - No 2D/3D editor implementation
 - No routing or multi-floor route calculation
@@ -538,5 +548,6 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next roadmap ticket is I3 confidence filtering. A persistent floor-plan
-listing API remains a separate proposed ticket and is not implied by I2.
+The next roadmap ticket is I4 detected-symbol persistence. A persistent
+floor-plan listing API remains a separate proposed ticket and is not implied by
+I3.
