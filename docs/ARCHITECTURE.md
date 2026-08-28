@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through I1, including E3A, and labels
+> the architecture actually implemented through I2, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -34,11 +34,12 @@
 - H3: transactional persistence and read-only retrieval of wall geometry
 - I1: validated local YOLO model loading with dynamic metadata and a bounded,
   thread-safe process cache
+- I2: isolated, validated in-memory symbol inference over copied G3 binary data
 
 ### Planned
 
-I2 and later roadmap tickets remain unimplemented, including workers,
-YOLO inference, detection review UI, complete K1 geometry, Konva
+I3 and later roadmap tickets remain unimplemented, including workers,
+confidence filtering, detection persistence/review UI, complete K1 geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
 
@@ -120,9 +121,14 @@ callable backend services. I1 lazily loads a readable local `.pt` model from
 relative path. No trained model is stored in the repository. Loads are cached by
 canonical path, and class metadata comes dynamically from `model.names`.
 Invalid or missing models produce a controlled sanitized loader error without
-breaking FastAPI startup. No worker invokes the pipeline, and I1 performs no
-inference, confidence filtering, detection persistence, or job-state changes;
-I2 owns inference.
+breaking FastAPI startup. I2 consumes only G3's validated two-dimensional
+`uint8` binary threshold array, gives YOLO a separate contiguous three-channel
+copy, and converts one prediction result into immutable processed-pixel class,
+confidence, bounding-box, and center records. It uses `conf=0.0` to defer the
+application threshold to I3 and reports when the 300-result bound is reached.
+Empty inference succeeds. A successful job wrapper leaves the job processing;
+failure stores only the safe I2 message. No worker invokes the pipeline, and I2
+adds no detection persistence, API, artifacts, UI, or automatic orchestration.
 
 Ultralytics is available under AGPL-3.0 and a separate Enterprise license.
 Commercial or production deployment requires a licensing review.
@@ -464,7 +470,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through I1 is:
+The verified baseline through I2 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -477,7 +483,8 @@ H1 focused backend:     32 tests
 H2 focused backend:     30 tests
 H3 focused backend:     21 tests
 I1 focused backend:     21 tests
-Full backend:          417 tests
+I2 focused backend:     25 tests
+Full backend:          442 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
@@ -521,8 +528,9 @@ truth.
   upload hook exists
 - G1 through H3 are callable by backend code but are not automatically
   orchestrated from F2; persistent processed-image metadata remains unimplemented
-- I1 loads configured local YOLO weights, but the repository has no trained
-  model and no inference or automatic OpenCV/YOLO pipeline exists
+- I1/I2 can load configured local YOLO weights and run isolated inference, but
+  the repository has no trained model and no automatic OpenCV/YOLO pipeline
+  exists; confidence filtering and detection persistence remain unimplemented
 - No detection review or canonical geometry
 - No 2D/3D editor implementation
 - No routing or multi-floor route calculation
@@ -530,5 +538,5 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next roadmap dependency is G3 OpenCV preprocessing. A persistent floor-plan
-listing API remains a separate proposed ticket and is not implied by G2.
+The next roadmap ticket is I3 confidence filtering. A persistent floor-plan
+listing API remains a separate proposed ticket and is not implied by I2.

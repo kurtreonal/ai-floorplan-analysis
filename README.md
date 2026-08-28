@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through I1, including the E3A project-floor prerequisite.**
+**Implemented through I2, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
@@ -30,10 +30,12 @@ The repository currently includes:
 - isolated OpenCV preprocessing and deterministic wall-line detection;
 - explicit pixel-to-meter wall-coordinate normalization; and
 - atomic persistence and read-only retrieval of detected or verified wall
-  geometry with floor-plan and processing-job provenance.
+  geometry with floor-plan and processing-job provenance; and
+- isolated YOLO model loading plus validated in-memory symbol inference from G3
+  binary images.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing I1 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing I2 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -183,8 +185,8 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 ## Current Roadmap Position
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
-prerequisite, F1–F4, and G1–G2 are implemented. G3 and all later functional
-tickets remain unimplemented.
+prerequisite, F1–F4, G1–G3, H1–H3, and I1–I2 are implemented. I3 and all
+later functional tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -298,9 +300,15 @@ The folders that do not exist yet should be created by the appropriate developme
   default example is `models/yolo/electrical-symbols.pt`. The repository does
   not include trained model weights, and a missing or invalid model produces a
   controlled, sanitized loader error rather than preventing application startup.
-  Classes come from trained-model metadata; none are hard-coded. I1 performs no
-  inference, confidence filtering, detection persistence, worker execution, or
-  automatic pipeline integration; I2 owns inference.
+  Classes come from trained-model metadata; none are hard-coded.
+- I2 consumes `PreprocessedImage.thresholded`, validates its binary pixel
+  contract, and passes a separate contiguous three-channel copy to YOLO with
+  `conf=0.0` and `max_det=300`. Immutable predictions retain processed-image
+  pixel coordinates, dynamic class ID/name, original confidence, bounding box,
+  and derived center. Empty inference is successful, and reaching the cap is
+  explicit. Success leaves a processing job unchanged; failure stores only
+  `Floor-plan symbol inference failed.` I2 adds no confidence filtering,
+  detection persistence, route, worker, UI, or automatic pipeline; I3 is next.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.
