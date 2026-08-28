@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through I3, including E3A, and labels
+> the architecture actually implemented through I4, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -36,11 +36,13 @@
   thread-safe process cache
 - I2: isolated, validated in-memory symbol inference over copied G3 binary data
 - I3: immutable in-memory confidence classification with configured threshold
+- I4: processing-job-versioned persistence and retrieval of original symbol AI
+  provenance
 
 ### Planned
 
-I4 and later roadmap tickets remain unimplemented, including workers,
-detection persistence/review UI, complete K1 geometry, Konva
+J1 and later roadmap tickets remain unimplemented, including workers,
+detection API/review UI, complete K1 geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
 
@@ -134,9 +136,15 @@ adds no detection persistence, API, artifacts, UI, or automatic orchestration.
 I3 consumes that immutable I2 result without invoking YOLO. It uses the existing
 configured threshold, default `0.50`, classifies equality and higher confidence
 as `detected`, and classifies lower confidence as `needs_review`. It preserves
-all original prediction objects and result metadata in order. I3 has no database
-or processing-job side effects and does not implement I4 persistence or Designer
+all original prediction objects and result metadata in order. I3 itself has no
+database or processing-job side effects and does not perform Designer
 confirmation.
+
+I4 validates the complete I3 result before mutation, locks the parent floor
+plan, and atomically replaces only the selected processing job's detection rows.
+Other jobs remain preserved as earlier machine-result versions. Retrieval is
+ordered and relationship-isolated and does not execute I1-I3. Successful I4
+persistence leaves job and floor-plan state unchanged.
 
 Ultralytics is available under AGPL-3.0 and a separate Enterprise license.
 Commercial or production deployment requires a licensing review.
@@ -188,7 +196,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set through H3 is exactly:
+The live and SQLAlchemy model table set through I4 is exactly:
 
 ```text
 roles
@@ -198,6 +206,7 @@ project_floors
 floor_plans
 processing_jobs
 walls
+detected_symbols
 ```
 
 Relationships:
@@ -210,6 +219,8 @@ project_floors 1 ── * floor_plans
 floor_plans 1 ── * processing_jobs
 floor_plans 1 ── * walls
 processing_jobs 1 ── * walls
+floor_plans 1 ── * detected_symbols
+processing_jobs 1 ── * detected_symbols
 ```
 
 - `users` maps provider plus subject to a local role and contains no password.
@@ -218,6 +229,10 @@ processing_jobs 1 ── * walls
 - `floor_plans` stores upload metadata and a relative storage reference.
 - `processing_jobs` stores a job type, constrained lifecycle status, bounded
   progress, a safe nullable error message, and timestamps for one floor plan.
+- `detected_symbols` snapshots original I1/I2 output plus I3 classification and
+  uses processing jobs as immutable machine-result version identifiers. A
+  unique job/prediction index retains source order without duplicating project
+  or project-floor identifiers.
 - `walls` stores the current detected or later-verified wall geometry with raw
   pixel values, canonical meter values, scale, and processing provenance.
 
@@ -478,7 +493,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through I3 is:
+The verified baseline through I4 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -493,7 +508,8 @@ H3 focused backend:     21 tests
 I1 focused backend:     21 tests
 I2 focused backend:     25 tests
 I3 focused backend:     13 tests
-Full backend:          455 tests
+I4 focused backend:     13 tests
+Full backend:          468 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
@@ -537,10 +553,10 @@ truth.
   upload hook exists
 - G1 through H3 are callable by backend code but are not automatically
   orchestrated from F2; persistent processed-image metadata remains unimplemented
-- I1-I3 can load configured local YOLO weights, run isolated inference, and
-  classify confidence, but
+- I1-I4 can load configured local YOLO weights, run isolated inference,
+  classify confidence, and persist versioned machine output, but
   the repository has no trained model and no automatic OpenCV/YOLO pipeline
-  exists; detection persistence remains unimplemented
+  exists; the detection API and review workflow remain unimplemented
 - No detection review or canonical geometry
 - No 2D/3D editor implementation
 - No routing or multi-floor route calculation
@@ -548,6 +564,6 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next roadmap ticket is I4 detected-symbol persistence. A persistent
+The next roadmap ticket is J1 detection results API. A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
-I3.
+I4.

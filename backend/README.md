@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through I3. It
+This directory contains the FastAPI backend implemented through I4. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -513,8 +513,28 @@ and center. Image dimensions, the maximum-detection value, and the detection-cap
 flag are copied unchanged. The pure boundary accepts an explicit threshold; a
 configuration-aware boundary supports injected settings for tests.
 
-I3 performs no database write, job transition, API operation, worker action,
-Designer confirmation, or I4 detected-symbol persistence. I4 is next.
+I3 performs no database write, job transition, API operation, worker action, or
+Designer confirmation. I4 owns the separate persistence boundary below.
+
+## Detected-symbol persistence
+
+I4 adds the eighth prototype table, `detected_symbols`, and backend-only
+repository/service boundaries. Each row snapshots the original dynamic model
+class, unrounded Python confidence, I3 threshold/status, processed-pixel box and
+center, image dimensions, tuple order, detection maximum/cap flag, floor plan,
+and processing-job provenance. No symbol-legend foreign key exists yet.
+
+Processing jobs are machine-result versions. Repeating one job validates the
+complete result, locks its floor plan, deletes only that job's rows, inserts the
+complete replacement, and commits once. A newer job preserves older job rows;
+a valid empty result clears only its own version. Retrieval requires both floor
+plan and job, returns immutable records ordered by one-based prediction index,
+and does not rerun model loading, inference, or classification.
+
+Success leaves floor-plan and processing-job state unchanged. Failures roll back
+the whole replacement and expose only stable sanitized errors. I4 adds no API,
+worker, job completion, confirmation/correction, symbol legend, or review UI.
+J1 is the next normal ticket.
 
 `ultralytics-opencv-headless==8.4.131` is offered under AGPL-3.0, with a separate
 Enterprise license available. Complete a licensing review before commercial or

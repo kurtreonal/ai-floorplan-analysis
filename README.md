@@ -4,13 +4,13 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through I3, including the E3A project-floor prerequisite.**
+**Implemented through I4, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the seven-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the eight-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -28,14 +28,16 @@ The repository currently includes:
 - a Pillow-based image-normalization service for uploaded JPEG/PNG images and
   G1-rendered pages, producing metadata-free RGB PNG input for later G3 work;
 - isolated OpenCV preprocessing and deterministic wall-line detection;
-- explicit pixel-to-meter wall-coordinate normalization; and
+- explicit pixel-to-meter wall-coordinate normalization;
 - atomic persistence and read-only retrieval of detected or verified wall
   geometry with floor-plan and processing-job provenance; and
 - isolated YOLO model loading plus validated in-memory symbol inference from G3
-  binary images.
+  binary images; and
+- immutable confidence classification and processing-job-versioned detected
+  symbol persistence.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing I3 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing I4 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -315,8 +317,14 @@ The folders that do not exist yet should be created by the appropriate developme
   threshold becomes `detected`; lower confidence becomes `needs_review` and is
   retained. Prediction order, exact confidence, class/geometry data, image
   dimensions, and detection-limit metadata remain unchanged. I3 is in-memory
-  only and adds no persistence, job transition, API, worker, or review UI; I4
-  remains the next ticket.
+  only and adds no job transition, API, worker, or review UI.
+- I4 persists complete classified machine results in `detected_symbols`, keyed
+  by processing job as an analysis version. Same-job reruns replace atomically,
+  newer jobs preserve older versions, and empty results clear only their own
+  job. Original class, confidence, pixel geometry, threshold, order, image, and
+  detection-limit provenance remain retrievable without rerunning I1-I3. I4
+  adds no API, correction workflow, job completion, worker, or review UI; J1 is
+  next.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.

@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.detected_symbol import DetectedSymbol
 from app.models.floor_plan import FloorPlan
 from app.models.processing_job import ProcessingJob
 from app.models.project import Project
@@ -10,6 +11,7 @@ from app.models.wall import Wall
 
 __all__ = (
     "Base",
+    "DetectedSymbol",
     "FloorPlan",
     "ProcessingJob",
     "Project",
