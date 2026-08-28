@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through G2, including E3A, and labels
+> the architecture actually implemented through H3, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -28,11 +28,15 @@
   failure-state persistence
 - G2: Pillow-based orientation, RGB conversion, transparency compositing, and
   bounded no-upscale normalization for raster and G1 inputs
+- G3: isolated OpenCV grayscale, denoising, blur, and threshold preprocessing
+- H1: deterministic probabilistic-Hough wall-line candidate detection
+- H2: immutable explicit-scale conversion from pixels to canonical meters
+- H3: transactional persistence and read-only retrieval of wall geometry
 
 ### Planned
 
-G3 and later roadmap tickets remain unimplemented, including workers,
-OpenCV/YOLO processing, detection review, canonical geometry, Konva
+I1 and later roadmap tickets remain unimplemented, including workers,
+YOLO processing, detection review UI, complete K1 geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
 
@@ -158,7 +162,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set through F2 remains exactly:
+The live and SQLAlchemy model table set through H3 is exactly:
 
 ```text
 roles
@@ -167,6 +171,7 @@ projects
 project_floors
 floor_plans
 processing_jobs
+walls
 ```
 
 Relationships:
@@ -177,6 +182,8 @@ users 1 ── * projects
 projects 1 ── * project_floors
 project_floors 1 ── * floor_plans
 floor_plans 1 ── * processing_jobs
+floor_plans 1 ── * walls
+processing_jobs 1 ── * walls
 ```
 
 - `users` maps provider plus subject to a local role and contains no password.
@@ -185,6 +192,8 @@ floor_plans 1 ── * processing_jobs
 - `floor_plans` stores upload metadata and a relative storage reference.
 - `processing_jobs` stores a job type, constrained lifecycle status, bounded
   progress, a safe nullable error message, and timestamps for one floor plan.
+- `walls` stores the current detected or later-verified wall geometry with raw
+  pixel values, canonical meter values, scale, and processing provenance.
 
 Processing-job status is restricted by `ck_processing_jobs_status` to `queued`,
 `processing`, `completed`, `failed`, or `cancelled`. Progress is restricted by
@@ -418,8 +427,22 @@ Three.js x, canonical y maps to Three.js z, and floor elevation maps to Three.js
 y. This is documentation only; H2 contains neither Konva nor Three.js state.
 H2 outputs remain machine candidates rather than verified authoritative walls.
 It adds no persistence, database schema, project/floor association, API, worker,
-scale calibration, merging, snapping, thickness, rooms, or renderer. H3 remains
-the persistence ticket, while K1 owns the full cross-domain geometry schema.
+scale calibration, merging, snapping, thickness, rooms, or renderer.
+
+H3 persists that H2 contract without rerunning OpenCV. `walls.floor_plan_id`
+and `walls.processing_job_id` are indexed foreign keys; the floor chain remains
+`Wall -> FloorPlan -> ProjectFloor`. Numeric geometry crosses the persistence
+boundary as fixed-scale `Decimal` values. Machine writes always use `detected`,
+while the database contract also supports `verified` for later review work.
+
+Replacement locks the floor-plan row with `SELECT ... FOR UPDATE`, validates a
+matching `floor_plan_analysis` job in `processing`, rejects truncated geometry,
+and refuses to overwrite verified rows. Otherwise it deletes the prior detected
+set and inserts the complete replacement with one commit. Empty geometry is a
+valid empty replacement, and any failure rolls back deletion and insertion.
+Read-only retrieval is ordered, immutable, relationship-isolated, and performs
+no OpenCV or H2 conversion. H3 adds no API, review transition, editing, worker,
+rooms, symbols, or full K1 project geometry.
 
 ## 10. Testing strategy and verified baseline
 
@@ -429,7 +452,7 @@ the persistence ticket, while K1 owns the full cross-domain geometry schema.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through H2 is:
+The verified baseline through H3 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -440,15 +463,16 @@ G2 focused backend:     38 tests
 G3 focused backend:     37 tests
 H1 focused backend:     32 tests
 H2 focused backend:     30 tests
-Full backend:          375 tests
+H3 focused backend:     21 tests
+Full backend:          396 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
-it does not currently hide test failures. Pytest belongs to a future testing
-foundation ticket and is not installed for the current suite.
+it does not currently hide test failures. The backend suite runs with pytest
+while retaining its existing `unittest`-style test classes.
 
 ## 11. Planned downstream architecture
 

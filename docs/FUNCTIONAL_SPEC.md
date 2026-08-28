@@ -2782,9 +2782,8 @@ Implemented behavior:
   Conceptually canonical x maps to Three.js x, canonical y to Three.js z, and
   floor elevation to Three.js y; no adapter or renderer is implemented in H2.
 
-H2 output remains unverified machine-candidate geometry. H3 persistence remains
-unimplemented, and K1 still owns the complete cross-domain project geometry
-schema.
+H2 output remains unverified machine-candidate geometry. H3 persists that
+contract, while K1 still owns the complete cross-domain project geometry schema.
 
 **Acceptance Criteria:**
 
@@ -2801,6 +2800,37 @@ schema.
 **Goal:** Save detected/verified walls.
 
 **Dependencies:** H2.
+
+**Implementation status:** Complete. H3 adds the seventh prototype table,
+`walls`, plus repository and service boundaries for transactional detected-wall
+replacement and read-only retrieval. It does not connect H1/H2 to a worker or
+HTTP route.
+
+Implemented behavior:
+
+- Every wall retains indexed floor-plan and processing-job foreign keys. Its
+  project-floor association is reached through `Wall -> FloorPlan ->
+  ProjectFloor`; no redundant project-floor key is stored.
+- Raw pixel endpoints/length, canonical meter endpoints/length, the explicit
+  pixels-per-meter scale, candidate ID, angle, status, and timestamps are stored.
+  Fixed-scale `Decimal` columns preserve the persistence boundary.
+- Status is constrained to `detected` or `verified`. H3 machine persistence
+  writes only `detected`; it does not add a verification transition or editor.
+- Persistence requires exact, complete, nontruncated H2 geometry and a matching
+  `floor_plan_analysis` job whose status remains `processing`.
+- Replacement locks the floor-plan row, protects verified walls, deletes the
+  current detected set, inserts the complete replacement, and commits once.
+  Identical reruns do not accumulate duplicates, newer jobs replace older
+  detected rows, fewer candidates remove stale rows, and empty geometry clears
+  the detected set.
+- Any database read, delete, insertion, flush, or commit failure rolls back the
+  replacement and surfaces only a stable sanitized error. Job progress/status,
+  floor-plan processing status, and stored image files are not changed.
+- Retrieval returns an immutable candidate-ordered tuple with exact internal
+  `Decimal` values and an optional JSON-compatible serializer. It loads no
+  relationships and executes neither OpenCV nor H2 conversion.
+- H3 adds no HTTP wall API, review UI, manual editing, room/door/window/symbol
+  persistence, worker, layout versioning, I1 behavior, or complete K1 geometry.
 
 **Acceptance Criteria:**
 

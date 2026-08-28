@@ -63,7 +63,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype has these six application tables:
+The current prototype has these seven application tables:
 
 ```text
 roles
@@ -72,6 +72,7 @@ projects
 project_floors
 floor_plans
 processing_jobs
+walls
 ```
 
 Alembic and production schema migrations remain deferred. Never run schema
@@ -430,8 +431,34 @@ Three.js z, and floor elevation to Three.js y; H2 implements no renderer or
 adapter. H2 candidates remain unverified machine suggestions. It adds no OpenCV
 execution, API, filesystem I/O, database table, persistence, scale inference,
 wall merging/snapping/thickness, room geometry, worker, or job-state behavior.
-H3 persistence remains unimplemented, and K1 still owns the complete
-cross-domain canonical project geometry schema.
+K1 still owns the complete cross-domain canonical project geometry schema.
+
+## Wall-geometry persistence
+
+H3 adds the `walls` table and the backend-only wall persistence service. Each
+row stores exact `Decimal` values for the explicit pixels-per-meter scale, raw
+pixel endpoints and length, canonical meter endpoints and length, and the
+normalized angle. Required indexed foreign keys retain both floor-plan and
+processing-job provenance. The floor association remains
+`Wall -> FloorPlan -> ProjectFloor`; `walls` does not duplicate a project-floor
+identifier.
+
+Machine output is inserted only with status `detected`; the model also accepts
+`verified` for later review work. Replacement locks the target floor plan,
+validates that its `floor_plan_analysis` job is still `processing`, rejects
+truncated or malformed H2 geometry, and protects any verified wall set. If no
+verified rows exist, it deletes the prior detected set and inserts the complete
+new set in one transaction. Repeating a result therefore replaces rather than
+duplicates it, a newer job replaces older detected rows, and valid empty
+geometry clears the detected set. Any database failure rolls back the whole
+replacement.
+
+Read-only retrieval returns immutable records ordered by candidate ID and row
+ID, retaining `Decimal` values internally without executing OpenCV or H2
+conversion. Successful persistence deliberately leaves both the processing job
+and floor-plan processing status unchanged because later analysis stages remain
+incomplete. H3 adds no route, HTTP wall API, review UI, confirmation/editing
+service, worker connection, room/symbol persistence, or complete K1 geometry.
 
 ## Error responses
 

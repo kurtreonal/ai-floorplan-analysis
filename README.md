@@ -4,13 +4,13 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through G2, including the E3A project-floor prerequisite.**
+**Implemented through H3, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the six-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the seven-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -26,10 +26,14 @@ The repository currently includes:
 - a backend-only PDF-to-PNG conversion service using bundled PDFium through
   `pypdfium2`, with safe job-failure persistence and separate derived storage;
 - a Pillow-based image-normalization service for uploaded JPEG/PNG images and
-  G1-rendered pages, producing metadata-free RGB PNG input for later G3 work.
+  G1-rendered pages, producing metadata-free RGB PNG input for later G3 work;
+- isolated OpenCV preprocessing and deterministic wall-line detection;
+- explicit pixel-to-meter wall-coordinate normalization; and
+- atomic persistence and read-only retrieval of detected or verified wall
+  geometry with floor-plan and processing-job provenance.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing G2 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing H3 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -284,7 +288,11 @@ The folders that do not exist yet should be created by the appropriate developme
 - H2 can convert those raw candidates into meters when a caller explicitly
   supplies `pixels_per_meter`. Raw pixels remain attached for overlay alignment;
   the scale is never inferred from PDF DPI. These remain machine candidates,
-  not verified or persisted project geometry.
+  not automatically verified project geometry.
+- H3 can atomically replace and later retrieve the current detected wall set for
+  a floor plan without rerunning OpenCV. It rejects truncated geometry and will
+  not overwrite verified walls. H3 adds no HTTP API, review UI, status-transition
+  workflow, worker integration, room geometry, or complete K1 project geometry.
 - Complete K1 canonical project geometry and the Konva 2D/Three.js 3D editors
   are not implemented.
 - Electrical routing, material quantification, cost estimation, and PDF reports
