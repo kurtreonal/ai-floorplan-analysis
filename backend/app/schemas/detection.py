@@ -1,0 +1,88 @@
+from datetime import datetime
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+NonNegativeFloat = Annotated[float, Field(ge=0, allow_inf_nan=False)]
+Confidence = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False)]
+DatabaseId = Annotated[int, Field(gt=0, le=9_223_372_036_854_775_807)]
+NonNegativeInt = Annotated[int, Field(ge=0, le=2_147_483_647)]
+PositivePixelDimension = Annotated[int, Field(gt=0, le=4096)]
+
+
+class DetectionPointResponse(BaseModel):
+    x: NonNegativeFloat
+    y: NonNegativeFloat
+
+
+class DetectionPixelPointResponse(BaseModel):
+    x: NonNegativeInt
+    y: NonNegativeInt
+
+
+class DetectionBoundingBoxResponse(BaseModel):
+    x_min: NonNegativeFloat
+    y_min: NonNegativeFloat
+    x_max: NonNegativeFloat
+    y_max: NonNegativeFloat
+
+
+class RawWallDetectionResponse(BaseModel):
+    start: DetectionPixelPointResponse
+    end: DetectionPixelPointResponse
+    length_pixels: NonNegativeFloat
+    angle_degrees: Annotated[float, Field(ge=0, lt=180, allow_inf_nan=False)]
+
+
+class CanonicalWallDetectionResponse(BaseModel):
+    start: DetectionPointResponse
+    end: DetectionPointResponse
+    length_meters: NonNegativeFloat
+    angle_degrees: Annotated[float, Field(ge=0, lt=180, allow_inf_nan=False)]
+
+
+class WallDetectionResponse(BaseModel):
+    id: DatabaseId
+    floor_plan_id: DatabaseId
+    processing_job_id: DatabaseId
+    candidate_id: Annotated[int, Field(gt=0, le=2_147_483_647)]
+    status: Literal["detected", "verified"]
+    pixels_per_meter: Annotated[float, Field(gt=0, allow_inf_nan=False)]
+    raw_pixels: RawWallDetectionResponse
+    canonical: CanonicalWallDetectionResponse
+    created_at: datetime
+    updated_at: datetime
+
+
+class SymbolClassResponse(BaseModel):
+    id: NonNegativeInt
+    name: Annotated[str, Field(min_length=1, max_length=255)]
+
+
+class SymbolDetectionResponse(BaseModel):
+    id: DatabaseId
+    floor_plan_id: DatabaseId
+    processing_job_id: DatabaseId
+    prediction_index: Annotated[int, Field(gt=0, le=300)]
+    status: Literal["detected", "needs_review"]
+    original_class: SymbolClassResponse
+    original_confidence: Confidence
+    confidence_threshold: Confidence
+    image_width_pixels: PositivePixelDimension
+    image_height_pixels: PositivePixelDimension
+    bounding_box: DetectionBoundingBoxResponse
+    center: DetectionPointResponse
+    maximum_detections: Literal[300]
+    detection_limit_reached: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class DetectionResultsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    floor_plan_id: DatabaseId
+    symbol_processing_job_id: DatabaseId
+    walls: list[WallDetectionResponse]
+    symbols: list[SymbolDetectionResponse]

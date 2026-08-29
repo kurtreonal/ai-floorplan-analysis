@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through I4, including E3A, and labels
+> the architecture actually implemented through J1, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -38,11 +38,13 @@
 - I3: immutable in-memory confidence classification with configured threshold
 - I4: processing-job-versioned persistence and retrieval of original symbol AI
   provenance
+- J1: ownership-aware read-only detection-results API with explicit symbol-job
+  version selection and current H3 wall retrieval
 
 ### Planned
 
-J1 and later roadmap tickets remain unimplemented, including workers,
-detection API/review UI, complete K1 geometry, Konva
+J2 and later roadmap tickets remain unimplemented, including workers,
+detection review mutations/UI, complete K1 geometry, Konva
 2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
 audit logging.
 
@@ -145,6 +147,14 @@ plan, and atomically replaces only the selected processing job's detection rows.
 Other jobs remain preserved as earlier machine-result versions. Retrieval is
 ordered and relationship-isolated and does not execute I1-I3. Successful I4
 persistence leaves job and floor-plan state unchanged.
+
+J1 adds a read-only service/repository flow. It authorizes an exact
+`floor_plan_analysis` job by joining processing job, floor plan, project floor,
+and project without relationship lazy loading or row locks. Designers are
+filtered by database-owned project ownership; Admins may read any matching
+context. Symbols are selected only for the required query job, while walls are
+the current H3 floor-plan set and expose their own processing-job provenance.
+The route executes no AI/CV stage and performs no commit, flush, or state change.
 
 Ultralytics is available under AGPL-3.0 and a separate Enterprise license.
 Commercial or production deployment requires a licensing review.
@@ -267,7 +277,13 @@ POST /api/projects/{project_id}/floor-plans
 
 POST /api/floor-plans/{floor_plan_id}/process
 GET  /api/processing-jobs/{job_id}
+GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 ```
+
+The API has 14 OpenAPI operations through J1. Detection retrieval requires a
+positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
+authorized matching context that has no stored walls or symbols. Symbols are
+job-versioned, whereas walls remain the current floor-plan wall set.
 
 All business responses use Pydantic response schemas. Project-floor listing is
 ordered by `sort_order` then ID. The upload endpoint requires a positive
@@ -493,7 +509,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through I4 is:
+The verified baseline through J1 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -509,7 +525,8 @@ I1 focused backend:     21 tests
 I2 focused backend:     25 tests
 I3 focused backend:     13 tests
 I4 focused backend:     13 tests
-Full backend:          468 tests
+J1 focused backend:     15 tests
+Full backend:          483 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
@@ -556,14 +573,16 @@ truth.
 - I1-I4 can load configured local YOLO weights, run isolated inference,
   classify confidence, and persist versioned machine output, but
   the repository has no trained model and no automatic OpenCV/YOLO pipeline
-  exists; the detection API and review workflow remain unimplemented
-- No detection review or canonical geometry
+  exists
+- J1 can retrieve stored walls and an explicitly selected symbol-job version,
+  but no detection review canvas or mutation workflow exists
+- No interactive detection review or canonical geometry
 - No 2D/3D editor implementation
 - No routing or multi-floor route calculation
 - No material pricing, estimates, reports, or audit logs
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next roadmap ticket is J1 detection results API. A persistent
+The next roadmap ticket is J2 detection review canvas. A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
-I4.
+J1.

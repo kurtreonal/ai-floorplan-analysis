@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through I4. It
+This directory contains the FastAPI backend implemented through J1. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -8,8 +8,10 @@ persisted processing-job records, the owning-Designer start-processing endpoint,
 and an ownership-aware processing-status endpoint. A backend-only PDF-to-PNG
 image normalization, OpenCV preprocessing, wall detection/normalization/
 persistence, configured YOLO model loading, and isolated symbol inference are
-also implemented. Workers, confidence filtering, symbol persistence, complete
-canonical geometry, routing, estimation, and reporting are not implemented.
+also implemented, together with confidence filtering, versioned symbol
+persistence, and read-only detection-result retrieval. Workers, Designer review
+mutations, complete canonical geometry, routing, estimation, and reporting are
+not implemented.
 
 ## Requirements
 
@@ -134,6 +136,10 @@ GET  /api/projects/{project_id}/floors
 POST /api/projects/{project_id}/floors
 
 POST /api/projects/{project_id}/floor-plans
+
+POST /api/floor-plans/{floor_plan_id}/process
+GET  /api/processing-jobs/{job_id}
+GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 ```
 
 `GET /api/projects/{project_id}/floor-plans` does not exist. The E4 frontend
@@ -534,7 +540,32 @@ and does not rerun model loading, inference, or classification.
 Success leaves floor-plan and processing-job state unchanged. Failures roll back
 the whole replacement and expose only stable sanitized errors. I4 adds no API,
 worker, job completion, confirmation/correction, symbol legend, or review UI.
-J1 is the next normal ticket.
+J1 exposes the persisted results through the read-only endpoint documented
+below. J2 remains the next normal ticket.
+
+## Detection results API
+
+```http
+GET /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
+```
+
+The positive `processing_job_id` query parameter is required. Symbols come only
+from that exact `floor_plan_analysis` job version; an empty requested version
+returns `"symbols": []` and never falls back to older rows. Walls are H3's
+current floor-plan wall set rather than a version selected by the query, and
+each wall includes its own `processing_job_id` so differing provenance remains
+visible.
+
+Owning Designers may retrieve their projects, while Admins may retrieve any
+project. Missing, mismatched, wrong-type, and cross-owner floor-plan/job
+contexts share a sanitized `404`. Valid contexts with no stored results return
+HTTP 200 with empty arrays. Database failures return a sanitized `503`.
+
+The response contains nested raw-pixel and canonical-meter wall geometry plus
+the original symbol class, confidence, I3 threshold/status, processed-pixel box
+and center, image dimensions, detection-cap metadata, and timestamps. The route
+does not expose storage/model paths, rerun OpenCV or YOLO, classify confidence,
+write files, or mutate floor-plan, job, wall, or symbol state.
 
 `ultralytics-opencv-headless==8.4.131` is offered under AGPL-3.0, with a separate
 Enterprise license available. Complete a licensing review before commercial or
@@ -585,6 +616,8 @@ Run from `backend/` with the configured MySQL service and seeded roles
 available:
 
 ```powershell
+.\.venv\Scripts\python.exe -m unittest tests.test_detection_results_api -v
+.\.venv\Scripts\python.exe -m unittest tests.test_symbol_persistence -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_job_status_api -v
@@ -595,10 +628,11 @@ available:
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 25 focused I2 tests, 21 focused I1 tests,
-21 focused H3 tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3
-tests, 38 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15
-focused F2 regression tests, 17 focused F1 regression tests, and 442 full
-backend tests. The existing
+The current expected totals are 15 focused J1 tests, 13 focused I4 tests,
+13 focused I3 tests, 25 focused I2 tests, 21 focused I1 tests, 21 focused H3
+tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
+focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
+regression tests, 17 focused F1 regression tests, and 483 full backend tests.
+The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a
 test failure.
