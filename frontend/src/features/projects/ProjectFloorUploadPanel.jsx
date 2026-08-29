@@ -187,6 +187,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                     </dl>
                     {isDesigner && (
                       <ProcessingJobPanel
+                        projectId={projectId}
                         floorPlanId={upload.id}
                         originalFilename={upload.original_filename}
                       />

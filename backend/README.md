@@ -542,7 +542,8 @@ Success leaves floor-plan and processing-job state unchanged. Failures roll back
 the whole replacement and expose only stable sanitized errors. I4 adds no API,
 worker, job completion, confirmation/correction, symbol legend, or review UI.
 J1 exposes the persisted results through the read-only endpoint documented
-below. J1A provides the aligned blueprint reference; J2 remains next.
+below. J1A provides the aligned blueprint reference consumed by the J2
+frontend; J3 remains the next roadmap ticket.
 
 ## Detection results API
 

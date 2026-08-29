@@ -1,0 +1,25 @@
+.detection-review-page { width: min(1240px, 100%); margin: 0 auto; color: #18212b; }
+.detection-back-link { display: inline-block; margin-bottom: 1rem; color: #1d4f68; font-weight: 700; }
+.detection-review-header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.detection-review-header h1 { margin: .25rem 0 0; }
+.detection-state, .detection-limit-warning { padding: 1rem; border: 1px solid #c9d3dc; background: #fff; }
+.detection-error, .detection-limit-warning { border-color: #d9a441; background: #fff8e8; }
+.detection-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; font-size: .9rem; }
+.detection-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.detection-legend i { width: 1.2rem; height: .35rem; background: #146c94; }
+.detection-legend .legend-needs_review { background: repeating-linear-gradient(90deg, #b54708 0 7px, transparent 7px 11px); }
+.detection-legend .legend-verified { background: #297a4a; }
+.detection-canvas-card, .detection-inspector { background: #fff; border: 1px solid #d5dde4; padding: 1rem; margin-bottom: 1rem; }
+.detection-canvas-wrap { overflow: auto; display: grid; place-items: center; min-height: 280px; background: #e9edf0; }
+.detection-canvas-note { margin: .75rem 0 0; font-size: .88rem; color: #52616e; }
+.detection-table-scroll { overflow-x: auto; }
+.detection-inspector table { width: 100%; border-collapse: collapse; }
+.detection-inspector th, .detection-inspector td { padding: .65rem; border-bottom: 1px solid #dbe2e8; text-align: left; }
+.detection-inspector td button { border: 0; padding: 0; background: none; color: #155878; text-decoration: underline; cursor: pointer; font: inherit; font-weight: 700; }
+.detection-inspector tr.is-selected { background: #edf6fa; }
+.detection-details { margin-top: 1.25rem; }
+.detection-details dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .75rem; }
+.detection-details dl div { padding: .65rem; background: #f3f6f8; }
+.detection-details dt { font-size: .78rem; text-transform: uppercase; color: #60717f; }
+.detection-details dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .detection-review-header { align-items: start; flex-direction: column; } }

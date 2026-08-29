@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through J1A, including E3A, and labels
+> the architecture actually implemented through J2, including E3A and J1A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -42,13 +42,14 @@
   version selection and current H3 wall retrieval
 - J1A: ownership-aware read-only serving of the existing G2 normalized RGB PNG
   as the aligned blueprint reference
+- J2: protected React-Konva detection review with separate blueprint, current
+  wall, selected-job symbol, and selection layers plus accessible DOM inspection
 
 ### Planned
 
-J2 and later roadmap tickets remain unimplemented, including workers,
-detection review mutations/UI, complete K1 geometry, Konva
-2D, Three.js 3D, routing, quantities, estimates, reports, administration, and
-audit logging.
+J3 and later roadmap tickets remain unimplemented, including detection-review
+mutations, complete K1 canonical geometry, editable Konva 2D, Three.js 3D,
+routing, quantities, estimates, reports, administration, and audit logging.
 
 ### Proposed but not approved
 
@@ -518,7 +519,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through J1A is:
+The verified baseline through J2 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -539,7 +540,7 @@ J1A focused backend:    10 tests
 Full backend:          493 tests
 F4 API client:           21 tests
 F4 component:            35 tests
-Full frontend:          103 tests
+Full frontend:          121 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -584,16 +585,16 @@ truth.
   classify confidence, and persist versioned machine output, but
   the repository has no trained model and no automatic OpenCV/YOLO pipeline
   exists
-- J1/J1A can retrieve stored walls, an explicitly selected symbol-job version,
-  and its aligned normalized blueprint reference, but no detection review
-  canvas or mutation workflow exists
-- No interactive detection review or canonical geometry
+- J1/J1A/J2 retrieve and display stored walls, an explicitly selected symbol-job
+  version, and its aligned normalized blueprint reference, but no mutation
+  workflow exists
+- Detection review is read-only; canonical geometry is not implemented
 - No 2D/3D editor implementation
 - No routing or multi-floor route calculation
 - No material pricing, estimates, reports, or audit logs
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next roadmap ticket is J2 detection review canvas. A persistent
+The next roadmap ticket is J3 confirm or reject detection. A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
 J1A.

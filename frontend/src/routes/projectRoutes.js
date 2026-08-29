@@ -3,6 +3,21 @@ export function parseProjectRoute(route) {
     return { view: 'dashboard', projectId: null }
   }
 
+  const reviewMatch = route.match(
+    /^\/app\/projects\/([^/]+)\/floor-plans\/([^/]+)\/detections\/([^/]+)$/,
+  )
+  if (reviewMatch) {
+    const identifiers = reviewMatch.slice(1)
+    if (!identifiers.every((value) => /^[1-9]\d*$/.test(value))) {
+      return { view: 'invalid', projectId: null }
+    }
+    const [projectId, floorPlanId, processingJobId] = identifiers.map(Number)
+    if (![projectId, floorPlanId, processingJobId].every(Number.isSafeInteger)) {
+      return { view: 'invalid', projectId: null }
+    }
+    return { view: 'detection-review', projectId, floorPlanId, processingJobId }
+  }
+
   const match = route.match(/^\/app\/projects\/([^/]+)$/)
   if (!match || !/^[1-9]\d*$/.test(match[1])) {
     return { view: 'invalid', projectId: null }
@@ -17,5 +32,13 @@ export function parseProjectRoute(route) {
 }
 
 export function getProjectHref(projectId) {
+  if (!Number.isSafeInteger(projectId) || projectId <= 0) throw new Error('Invalid project ID.')
   return `#/app/projects/${projectId}`
+}
+
+export function getDetectionReviewHref(projectId, floorPlanId, processingJobId) {
+  if (![projectId, floorPlanId, processingJobId].every(
+    (value) => Number.isSafeInteger(value) && value > 0,
+  )) throw new Error('Invalid detection review route identifiers.')
+  return `#/app/projects/${projectId}/floor-plans/${floorPlanId}/detections/${processingJobId}`
 }

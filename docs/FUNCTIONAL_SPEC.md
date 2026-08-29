@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through J1A, including the E3A project-floor
+The repository is implemented through J2, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -83,6 +83,7 @@ I3 — Implement Confidence Filtering
 I4 — Persist Detected Symbols
 J1 — Create Detection Results API
 J1A — Create Detection Review Image API
+J2 — Build Detection Review Canvas
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -95,8 +96,8 @@ service, Pillow-based image normalization, OpenCV preprocessing, wall candidate
 detection/normalization/persistence, configured YOLO loading, isolated symbol
 inference, in-memory confidence classification, and processing-job-versioned
 machine detection persistence, plus read-only detection-result retrieval and
-authenticated serving of the aligned G2 normalized review image. J2
-and later tickets remain unimplemented. In
+authenticated serving of the aligned G2 normalized review image, and the
+read-only React-Konva review canvas. J3 and later tickets remain unimplemented. In
 particular, there is no worker, external queue, automatic OpenCV/YOLO pipeline,
 detection review canvas or mutation workflow,
 canonical geometry,
@@ -3078,7 +3079,8 @@ Implemented behavior:
   ordering, no row locks, and no writes. J1 performs no commit, AI inference,
   confidence filtering, persistence, filesystem access, or state transition.
 - J1 adds no schema, dependency, configuration, worker, frontend, review
-  mutation, or canonical geometry. J2 remains next.
+  mutation, or canonical geometry. J1A and J2 now provide the read-only review
+  image and canvas; mutations remain deferred to J3.
 
 **Acceptance Criteria:**
 
@@ -3123,13 +3125,27 @@ state.
 
 **Dependencies:** J1, J1A.
 
+**Implementation status:** Complete. J2 adds the strict detection JSON and
+review-image clients, a protected positive-safe-integer hash route, a completed
+job review link, and a dedicated read-only React-Konva feature. The canvas uses
+four layers for the normalized blueprint, current walls, selected-job symbols,
+and selection highlighting. All overlays share one responsive source-pixel
+scale and never mutate backend coordinates.
+
+The page handles loading, empty, capped, missing, authorization, temporary,
+session-expired, malformed-data, retry, abort, and object-URL cleanup states.
+An accessible DOM table and details panel expose original class/confidence,
+threshold, status, geometry, detection ID, order, and job provenance. J2 adds no
+editing or persistence action. Current-session upload cards expose completed
+jobs; direct review URLs remain valid when identifiers are known.
+
 **Acceptance Criteria:**
 
-- [ ] Original blueprint displays as a non-destructive background/reference.
-- [ ] Detected walls are visually overlaid.
-- [ ] Detected electrical symbols are visually overlaid.
-- [ ] Confidence/status can be inspected.
-- [ ] Canvas uses data from the backend rather than hard-coded sample components.
+- [x] Normalized blueprint displays as a non-destructive background/reference.
+- [x] Detected walls are visually overlaid.
+- [x] Detected electrical symbols are visually overlaid.
+- [x] Confidence/status can be inspected.
+- [x] Canvas uses J1/J1A backend data rather than hard-coded sample components.
 
 ---
 
