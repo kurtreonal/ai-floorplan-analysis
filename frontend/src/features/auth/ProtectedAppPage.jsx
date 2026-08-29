@@ -5,6 +5,7 @@ import { getProtectedRouteRedirect } from '../../routes/authRoutes.js'
 import { parseProjectRoute } from '../../routes/projectRoutes.js'
 import { ProjectDashboardPage } from '../projects/ProjectDashboardPage.jsx'
 import { ProjectDetailPage } from '../projects/ProjectDetailPage.jsx'
+import { DetectionReviewPage } from '../detection-review/DetectionReviewPage.jsx'
 import '../projects/projects.css'
 
 
@@ -78,6 +79,14 @@ export function ProtectedAppPage({ route, session }) {
         {projectRoute.view === 'dashboard' && <ProjectDashboardPage session={session} />}
         {projectRoute.view === 'project' && (
           <ProjectDetailPage projectId={projectRoute.projectId} session={session} />
+        )}
+        {projectRoute.view === 'detection-review' && (
+          <DetectionReviewPage
+            key={`${projectRoute.projectId}-${projectRoute.floorPlanId}-${projectRoute.processingJobId}`}
+            projectId={projectRoute.projectId}
+            floorPlanId={projectRoute.floorPlanId}
+            processingJobId={projectRoute.processingJobId}
+          />
         )}
         {projectRoute.view === 'invalid' && (
           <ProjectDetailPage projectId={null} session={session} />

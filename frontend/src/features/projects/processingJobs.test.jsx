@@ -25,6 +25,7 @@ vi.mock('../../api/processingJobs.js', async () => {
 
 const FLOOR_PLAN_ID = 42
 const JOB_ID = 31
+const PROJECT_ID = 15
 
 function job(status, progress = 0, errorMessage = null) {
   return {
@@ -39,6 +40,7 @@ function job(status, progress = 0, errorMessage = null) {
 function renderPanel() {
   return render(
     <ProcessingJobPanel
+      projectId={PROJECT_ID}
       floorPlanId={FLOOR_PLAN_ID}
       originalFilename="house-plan.png"
     />,
@@ -189,14 +191,17 @@ describe('processing job panel', () => {
     expect(fetchProcessingJob).toHaveBeenCalledTimes(1)
   })
 
-  it('explains that completed analysis review is a later feature', async () => {
+  it('links only completed jobs to the detection review route', async () => {
     vi.useFakeTimers()
     fetchProcessingJob.mockResolvedValueOnce(job('completed', 100))
     renderPanel()
     await startJob()
     await runNextPoll()
 
-    expect(screen.getByText(/Analysis review and results will be available in a later feature/)).toBeTruthy()
+    const link = screen.getByRole('link', { name: 'Review detections' })
+    expect(link.getAttribute('href')).toBe(
+      `#/app/projects/${PROJECT_ID}/floor-plans/${FLOOR_PLAN_ID}/detections/${JOB_ID}`,
+    )
   })
 
   it('shows only the sanitized failed-job message', async () => {
