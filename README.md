@@ -4,13 +4,15 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through J3, including the E3A and J1A prerequisites.**
+**Implemented through J3A, including the E3A and J1A prerequisites.**
+
+The current backend surface contains 17 OpenAPI operations.
 
 The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the nine-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the ten-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -43,10 +45,13 @@ The repository currently includes:
   blueprint, wall, symbol, and selection layers plus accessible inspection; and
 - append-only, owner-scoped Designer confirmation/rejection decisions with
   immutable machine provenance, persisted latest-review retrieval, and a
-  distinct visible rejected state.
+  distinct visible rejected state; and
+- a database-backed, active-only approved symbol legend catalog exposed through
+  an authenticated read-only API. No production VED classes are guessed or
+  seeded, so an unpopulated catalog validly returns an empty array.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing J3 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing J3A does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -197,7 +202,8 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
 prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
-prerequisite, J2, and J3 are implemented. J4 and all later tickets remain unimplemented.
+prerequisite, J2, J3, and the J3A approved-symbol-legend prerequisite are
+implemented. J4 and all later tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -279,9 +285,10 @@ The folders that do not exist yet should be created by the appropriate developme
   successful upload responses during the current page session, but uploads do
   not repopulate after reload.
 - Current-session upload cards can start processing and poll the job-status
-  endpoint, but no worker, external queue, cancellation workflow, automatic job
-  creation, or AI result/review UI exists. Without a worker, queued jobs do not
-  advance automatically.
+  endpoint, but no worker, external queue, cancellation workflow, or automatic
+  job creation exists. Without a worker, queued jobs do not advance
+  automatically. Persisted results can be reviewed through the J2/J3 UI when a
+  completed job and its normalized review image already exist.
 - G1 can convert one selected PDF page to a separate PNG when called directly by
   backend code, but F2 does not invoke it automatically. Page numbers are
   one-based, page 1 is the default, and the default resolution is 150 DPI.
@@ -352,7 +359,12 @@ The folders that do not exist yet should be created by the appropriate developme
   `confirmed` or `deleted` decisions; identical repeats are idempotent and
   reversals append a new sequence. J1 returns only the latest review while the
   original machine status, class, confidence, geometry, and timestamps remain
-  unchanged. Reviewed same-job I4 results cannot be replaced. J4 is next.
+  unchanged. Reviewed same-job I4 results cannot be replaced.
+- J3A adds the tenth prototype table, `symbol_legends`, and authenticated
+  `GET /api/symbol-legends` access for Designers and Admins. Only active rows
+  are returned in deterministic class order. The repository contains no
+  approved production VED class values, so the live catalog may remain empty;
+  P3 still owns future Admin catalog management. J4 correction is next.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.

@@ -55,8 +55,12 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through J3, including the E3A project-floor
+The repository is implemented through J3A, including the E3A project-floor
 prerequisite introduced between E3 and E4.
+
+The current verified prototype contract contains ten SQLAlchemy/MySQL tables
+and 17 OpenAPI operations. The tenth table is the empty-safe J3A
+`symbol_legends` catalog.
 
 Completed ticket areas:
 
@@ -85,6 +89,7 @@ J1 — Create Detection Results API
 J1A — Create Detection Review Image API
 J2 — Build Detection Review Canvas
 J3 — Confirm or Reject Detection
+J3A — Approved Symbol Legend Foundation
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -98,8 +103,9 @@ detection/normalization/persistence, configured YOLO loading, isolated symbol
 inference, in-memory confidence classification, and processing-job-versioned
 machine detection persistence, plus read-only detection-result retrieval and
 authenticated serving of the aligned G2 normalized review image, and the
-read-only React-Konva review canvas, and append-only owning-Designer confirmation
-or rejection decisions. J4 and later tickets remain unimplemented. In
+read-only React-Konva review canvas, append-only owning-Designer confirmation
+or rejection decisions, and the database-backed active-only approved symbol
+legend catalog required by J4. J4 and later tickets remain unimplemented. In
 particular, there is no worker, external queue, automatic OpenCV/YOLO pipeline,
 classification-correction or manual-symbol workflow,
 canonical geometry,
@@ -3200,11 +3206,43 @@ Implemented behavior:
 
 ---
 
+### TICKET J3A — Approved Symbol Legend Foundation
+
+**Goal:** Provide the stable approved symbol-class source required by J4 without
+inventing or seeding production VED classes.
+
+**Dependencies:** J3.
+
+**Implementation status:** Complete. J3A adds `symbol_legends` as the tenth
+prototype table and exposes authenticated, read-only active legend retrieval.
+
+Implemented behavior:
+
+- `GET /api/symbol-legends` permits authenticated Designers and Admins.
+- Active records are ordered by model class ID then database ID; inactive rows
+  are excluded and an empty catalog returns HTTP 200 with `[]`.
+- Class IDs and normalized names are unique. Names use a deliberate
+  case-sensitive `utf8mb4_bin` MySQL collation.
+- Retrieval performs no model loading, inference, filesystem access, database
+  mutation, flush, commit, or row lock.
+- No approved production VED values were supplied, so J3A seeds none. P3 still
+  owns future Admin catalog management.
+
+**Acceptance Criteria:**
+
+- [x] `symbol_legends` is registered and creatable through SQLAlchemy metadata.
+- [x] Active approved classes have a typed read-only API.
+- [x] Designer and Admin retrieval authorization is enforced.
+- [x] Empty-catalog behavior is explicit and safe.
+- [x] No guessed production symbol class is committed or seeded.
+
+---
+
 ### TICKET J4 — Correct Symbol Classification
 
 **Goal:** Change an incorrectly classified detected symbol.
 
-**Dependencies:** J3.
+**Dependencies:** J3, J3A.
 
 **Acceptance Criteria:**
 
@@ -4015,7 +4053,7 @@ H1 → H2 → H3
 
 I1 → I2 → I3 → I4
 
-J1 → J2 → J3 → J4 → J5
+J1 → J2 → J3 → J3A → J4 → J5
 
 K1 → K2 → K3 → K4 → K5
 

@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through J3. It
+This directory contains the FastAPI backend implemented through J3A. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -10,8 +10,9 @@ image normalization, OpenCV preprocessing, wall detection/normalization/
 persistence, configured YOLO model loading, and isolated symbol inference are
 also implemented, together with confidence filtering, versioned symbol
 persistence, read-only detection-result retrieval, authenticated serving of
-the existing normalized review image, and append-only Designer confirmation or
-rejection decisions. Workers, classification correction, manual symbol
+the existing normalized review image, append-only Designer confirmation or
+rejection decisions, and an active-only approved symbol legend API. Workers,
+classification correction, manual symbol
 creation, complete canonical geometry, routing, estimation, and reporting are
 not implemented.
 
@@ -68,7 +69,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype has these seven application tables:
+The current prototype has these ten application tables:
 
 ```text
 roles
@@ -78,6 +79,9 @@ project_floors
 floor_plans
 processing_jobs
 walls
+detected_symbols
+detection_reviews
+symbol_legends
 ```
 
 Alembic and production schema migrations remain deferred. Never run schema
@@ -142,7 +146,16 @@ POST /api/projects/{project_id}/floor-plans
 POST /api/floor-plans/{floor_plan_id}/process
 GET  /api/processing-jobs/{job_id}
 GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
+GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
+PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
+GET  /api/symbol-legends
 ```
+
+The API has 17 OpenAPI operations through J3A. `GET /api/symbol-legends`
+permits authenticated Designers and Admins, returns active records ordered by
+model class ID then row ID, and returns `[]` when the catalog is empty. No
+official VED class values are committed or seeded; P3 remains responsible for
+future Admin management of the catalog.
 
 `GET /api/projects/{project_id}/floor-plans` does not exist. The E4 frontend
 shows successful uploads returned during the current page session, but upload
@@ -551,6 +564,16 @@ J1 exposes the persisted results through the read-only endpoint documented
 below. J1A provides the aligned blueprint reference consumed by the J2
 frontend; J3 adds the review-decision boundary documented below.
 
+## Approved symbol legend foundation
+
+J3A adds `symbol_legends` as the tenth prototype table. Each row has a unique
+nonnegative model/dataset `class_id`, a unique normalized name using the
+case-sensitive `utf8mb4_bin` collation, an active flag, and timestamps. The
+active/class/ID index supports deterministic read-only retrieval. J3A adds no
+Admin mutation endpoint, production seed, model loading, inference, or
+classification correction. An empty catalog is valid until approved VED class
+data is supplied.
+
 ## Detection results API
 
 ```http
@@ -672,12 +695,12 @@ available:
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 10 focused J1A tests, 15 focused J1 tests, 9 focused J3 tests,
+The current expected totals include the focused J3A symbol-legend tests, 10 focused J1A tests, 15 focused J1 tests, 9 focused J3 tests,
 14 focused I4 tests,
 13 focused I3 tests, 25 focused I2 tests, 21 focused I1 tests, 21 focused H3
 tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
-regression tests, 17 focused F1 regression tests, and 503 full backend tests.
+regression tests, 17 focused F1 regression tests, and 512 full backend tests.
 The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a
 test failure.
