@@ -60,6 +60,14 @@ class SymbolClassResponse(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=255)]
 
 
+class DetectionReviewSummaryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["confirmed", "deleted"]
+    sequence_number: Annotated[int, Field(gt=0, le=2_147_483_647)]
+    reviewed_at: datetime
+
+
 class SymbolDetectionResponse(BaseModel):
     id: DatabaseId
     floor_plan_id: DatabaseId
@@ -75,6 +83,7 @@ class SymbolDetectionResponse(BaseModel):
     center: DetectionPointResponse
     maximum_detections: Literal[300]
     detection_limit_reached: bool
+    review: DetectionReviewSummaryResponse | None
     created_at: datetime
     updated_at: datetime
 
@@ -86,3 +95,20 @@ class DetectionResultsResponse(BaseModel):
     symbol_processing_job_id: DatabaseId
     walls: list[WallDetectionResponse]
     symbols: list[SymbolDetectionResponse]
+
+
+class DetectionReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["confirmed", "deleted"]
+
+
+class DetectionReviewResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    detected_symbol_id: DatabaseId
+    floor_plan_id: DatabaseId
+    processing_job_id: DatabaseId
+    decision: Literal["confirmed", "deleted"]
+    sequence_number: Annotated[int, Field(gt=0, le=2_147_483_647)]
+    reviewed_at: datetime

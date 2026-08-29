@@ -12,10 +12,18 @@ from app.schemas.detection import (
     DetectionPixelPointResponse,
     DetectionPointResponse,
     DetectionResultsResponse,
+    DetectionReviewRequest,
+    DetectionReviewResponse,
+    DetectionReviewSummaryResponse,
     RawWallDetectionResponse,
     SymbolClassResponse,
     SymbolDetectionResponse,
     WallDetectionResponse,
+)
+from app.services.detection_review_service import (
+    DetectionReviewRecord,
+    DetectionReviewServiceError,
+    review_detection,
 )
 from app.services.detection_result_service import (
     DetectionResults,
@@ -105,6 +113,15 @@ def _response(result: DetectionResults) -> DetectionResultsResponse:
             ),
             maximum_detections=symbol.maximum_detections,
             detection_limit_reached=symbol.detection_limit_reached,
+            review=(
+                DetectionReviewSummaryResponse(
+                    decision=result.latest_reviews[symbol.id].decision,
+                    sequence_number=result.latest_reviews[symbol.id].sequence_number,
+                    reviewed_at=result.latest_reviews[symbol.id].reviewed_at,
+                )
+                if symbol.id in result.latest_reviews
+                else None
+            ),
             created_at=symbol.created_at,
             updated_at=symbol.updated_at,
         )
@@ -165,3 +182,63 @@ def get_detection_results(
         ) from None
 
     return _response(result)
+
+
+def _review_response(review: DetectionReviewRecord) -> DetectionReviewResponse:
+    return DetectionReviewResponse(
+        detected_symbol_id=review.detected_symbol_id,
+        floor_plan_id=review.floor_plan_id,
+        processing_job_id=review.processing_job_id,
+        decision=review.decision,
+        sequence_number=review.sequence_number,
+        reviewed_at=review.created_at,
+    )
+
+
+@router.put(
+    "/{floor_plan_id}/detections/{detected_symbol_id}/review",
+    response_model=DetectionReviewResponse,
+    status_code=status.HTTP_200_OK,
+)
+def put_detection_review(
+    payload: DetectionReviewRequest,
+    floor_plan_id: Annotated[int, Path(gt=0)],
+    detected_symbol_id: Annotated[int, Path(gt=0)],
+    processing_job_id: Annotated[int, Query(gt=0)],
+    current_user: User = Depends(require_roles("DESIGNER")),
+    database_session: Session = Depends(get_db),
+) -> DetectionReviewResponse:
+    try:
+        review = review_detection(
+            database_session,
+            current_user=current_user,
+            floor_plan_id=floor_plan_id,
+            processing_job_id=processing_job_id,
+            detected_symbol_id=detected_symbol_id,
+            decision=payload.decision,
+        )
+    except DetectionReviewServiceError as error:
+        status_code = {
+            "AUTHORIZATION_DENIED": status.HTTP_403_FORBIDDEN,
+            "DETECTION_NOT_FOUND": status.HTTP_404_NOT_FOUND,
+        }.get(error.code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        code = (
+            error.code
+            if error.code in {
+                "AUTHORIZATION_DENIED",
+                "DETECTION_NOT_FOUND",
+                "REVIEW_PERSISTENCE_FAILED",
+            }
+            else "REVIEW_PERSISTENCE_FAILED"
+        )
+        message = (
+            error.message
+            if code == error.code
+            else "The detection review could not be saved."
+        )
+        raise _api_error(
+            status_code=status_code,
+            code=code,
+            message=message,
+        ) from None
+    return _review_response(review)

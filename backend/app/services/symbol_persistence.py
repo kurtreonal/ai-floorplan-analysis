@@ -27,6 +27,7 @@ from app.repositories.detected_symbol_repository import (
     find_processing_job,
     list_detected_symbols,
     lock_floor_plan,
+    processing_job_has_reviews,
 )
 from app.services.processing_job_service import FLOOR_PLAN_ANALYSIS_JOB_TYPE
 
@@ -277,6 +278,11 @@ def replace_detected_symbols(
             raise _error("INVALID_PROCESSING_JOB_TYPE")
         if processing_job.status != "processing":
             raise _error("INVALID_PROCESSING_JOB_STATUS")
+        if processing_job_has_reviews(
+            database_session,
+            processing_job_id=processing_job_id,
+        ):
+            raise _error("SYMBOL_PERSISTENCE_FAILED")
         delete_processing_job_detections(
             database_session,
             processing_job_id=processing_job_id,

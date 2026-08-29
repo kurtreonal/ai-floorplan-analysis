@@ -3,6 +3,7 @@ import { API_BASE_URL } from './auth.js'
 const GENERIC_ERROR = 'Detection results could not be loaded.'
 const WALL_STATUSES = new Set(['detected', 'verified'])
 const SYMBOL_STATUSES = new Set(['detected', 'needs_review'])
+const REVIEW_DECISIONS = new Set(['confirmed', 'deleted'])
 
 export class DetectionApiError extends Error {
   constructor(message = GENERIC_ERROR, status = 0, code = null) {
@@ -23,6 +24,16 @@ function finite(value, minimum = 0) {
 
 function point(value) {
   return value && finite(value.x) && finite(value.y)
+}
+
+function validReview(review) {
+  if (review === null) return true
+  return review && JSON.stringify(Object.keys(review).sort())
+    === JSON.stringify(['decision', 'reviewed_at', 'sequence_number'])
+    && REVIEW_DECISIONS.has(review.decision)
+    && positiveId(review.sequence_number)
+    && typeof review.reviewed_at === 'string'
+    && Number.isFinite(Date.parse(review.reviewed_at))
 }
 
 function validWall(wall, floorPlanId) {
@@ -59,6 +70,8 @@ function validSymbol(symbol, floorPlanId, jobId) {
     && symbol.center.y >= box.y_min && symbol.center.y <= box.y_max
     && symbol.maximum_detections === 300
     && typeof symbol.detection_limit_reached === 'boolean'
+    && Object.hasOwn(symbol, 'review')
+    && validReview(symbol.review)
 }
 
 function validate(payload, floorPlanId, jobId) {

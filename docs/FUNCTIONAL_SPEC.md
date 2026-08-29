@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through J2, including the E3A project-floor
+The repository is implemented through J3, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -84,6 +84,7 @@ I4 — Persist Detected Symbols
 J1 — Create Detection Results API
 J1A — Create Detection Review Image API
 J2 — Build Detection Review Canvas
+J3 — Confirm or Reject Detection
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -97,9 +98,10 @@ detection/normalization/persistence, configured YOLO loading, isolated symbol
 inference, in-memory confidence classification, and processing-job-versioned
 machine detection persistence, plus read-only detection-result retrieval and
 authenticated serving of the aligned G2 normalized review image, and the
-read-only React-Konva review canvas. J3 and later tickets remain unimplemented. In
+read-only React-Konva review canvas, and append-only owning-Designer confirmation
+or rejection decisions. J4 and later tickets remain unimplemented. In
 particular, there is no worker, external queue, automatic OpenCV/YOLO pipeline,
-detection review canvas or mutation workflow,
+classification-correction or manual-symbol workflow,
 canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
@@ -3022,6 +3024,9 @@ Implemented behavior:
   floor plan and atomically replaces only that job's rows. A newer job preserves
   older versions. Empty results clear only the selected job. A named unique
   constraint prevents duplicate job/prediction indexes.
+- After J3, same-job replacement is rejected before deletion when any existing
+  detection has review history. Unreviewed same-job and different-job versions
+  preserve I4's original behavior.
 - Persistence requires a matching `floor_plan_analysis` job in `processing` and
   commits once. Any read, deletion, insertion, flush, or commit failure rolls
   back the entire replacement and exposes only a sanitized error.
@@ -3072,15 +3077,17 @@ Implemented behavior:
 - Explicit nested Pydantic schemas expose raw-pixel and canonical-meter walls,
   original symbol class/confidence, I3 threshold/status, pixel geometry, image
   dimensions, detection-cap metadata, and timestamps.
+- Each symbol includes nullable latest-review decision, sequence, and timestamp
+  loaded with one deterministic bulk query. Its I3 machine status is unchanged.
 - Valid contexts with no stored records return HTTP 200 with empty arrays.
   Database failures return a sanitized `503`; FastAPI validation retains its
   standard response shape.
 - Repository reads use scoped joins, `load_only`, `raiseload("*")`, deterministic
   ordering, no row locks, and no writes. J1 performs no commit, AI inference,
   confidence filtering, persistence, filesystem access, or state transition.
-- J1 adds no schema, dependency, configuration, worker, frontend, review
-  mutation, or canonical geometry. J1A and J2 now provide the read-only review
-  image and canvas; mutations remain deferred to J3.
+- J1 itself adds no schema, dependency, configuration, worker, frontend, review
+  mutation, or canonical geometry. J1A and J2 provide the review image/canvas;
+  J3 extends only the response with the persisted latest decision.
 
 **Acceptance Criteria:**
 
@@ -3155,13 +3162,41 @@ jobs; direct review URLs remain valid when identifiers are known.
 
 **Dependencies:** J2.
 
+**Implementation status:** Complete. J3 adds the ninth prototype table,
+`detection_reviews`, and an owning-Designer review mutation while retaining the
+complete I4 machine result unchanged.
+
+Implemented behavior:
+
+- `PUT /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review`
+  requires the exact positive `processing_job_id` and a strict body containing
+  only `confirmed` or `deleted`.
+- Reviewer identity and ownership come from the authenticated local database
+  user. Admins and unsupported roles receive `403`; missing, mismatched, and
+  cross-owner resources share a non-disclosing `404`.
+- Review events are append-only. The first decision uses sequence one, an
+  identical repeat creates no event, and a reversal appends the next sequence.
+  The selected detection is row-locked during sequence allocation.
+- J1 returns only the latest review in a nullable nested object through one bulk
+  query. It does not lock or mutate retrieval state.
+- `detected_symbols.status`, original class/confidence/threshold, pixel geometry,
+  prediction/job provenance, and timestamps remain immutable during review.
+- I4 rejects same-job replacement once any detection in that version has review
+  history. Unreviewed and different-job replacement behavior is preserved.
+- J2's canvas now labels machine status separately from pending/confirmed/deleted
+  Designer decisions. Confirm/reject actions are disabled in flight, announce
+  success/errors accessibly, preserve selection, and keep rejected detections
+  visible in a muted presentation.
+- J3 adds no J4 classification correction, J5 manual placement, dragging,
+  resizing, canonical geometry, worker, dependency, or model class.
+
 **Acceptance Criteria:**
 
-- [ ] User can confirm a detection.
-- [ ] User can mark a detection as incorrect/deleted.
-- [ ] Changes persist after page reload.
-- [ ] Original AI result remains auditable.
-- [ ] User cannot modify another user's project without authorization.
+- [x] User can confirm a detection.
+- [x] User can mark a detection as incorrect/deleted.
+- [x] Changes persist after page reload.
+- [x] Original AI result remains auditable.
+- [x] User cannot modify another user's project without authorization.
 
 ---
 

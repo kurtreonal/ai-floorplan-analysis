@@ -26,3 +26,16 @@ export const STATUS_PRESENTATION = Object.freeze({
   needs_review: { label: 'Needs review — below threshold', color: '#b54708', dash: [8, 4] },
   verified: { label: 'Verified', color: '#297a4a', dash: [] },
 })
+
+export const REVIEW_PRESENTATION = Object.freeze({
+  pending: { label: 'Pending Designer decision', color: null, dash: null },
+  confirmed: { label: 'Confirmed by Designer', color: '#297a4a', dash: [] },
+  deleted: { label: 'Rejected by Designer', color: '#6b7280', dash: [5, 4] },
+})
+
+export function symbolPresentation(symbol) {
+  const decision = symbol.review?.decision || 'pending'
+  const reviewStyle = REVIEW_PRESENTATION[decision]
+  if (!reviewStyle) throw new Error('Symbol review decision is invalid.')
+  return decision === 'pending' ? STATUS_PRESENTATION[symbol.status] : reviewStyle
+}

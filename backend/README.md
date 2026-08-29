@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through J1A. It
+This directory contains the FastAPI backend implemented through J3. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -9,9 +9,10 @@ and an ownership-aware processing-status endpoint. A backend-only PDF-to-PNG
 image normalization, OpenCV preprocessing, wall detection/normalization/
 persistence, configured YOLO model loading, and isolated symbol inference are
 also implemented, together with confidence filtering, versioned symbol
-persistence, read-only detection-result retrieval, and authenticated serving of
-the existing normalized review image. Workers, Designer review
-mutations, complete canonical geometry, routing, estimation, and reporting are
+persistence, read-only detection-result retrieval, authenticated serving of
+the existing normalized review image, and append-only Designer confirmation or
+rejection decisions. Workers, classification correction, manual symbol
+creation, complete canonical geometry, routing, estimation, and reporting are
 not implemented.
 
 ## Requirements
@@ -531,19 +532,24 @@ class, unrounded Python confidence, I3 threshold/status, processed-pixel box and
 center, image dimensions, tuple order, detection maximum/cap flag, floor plan,
 and processing-job provenance. No symbol-legend foreign key exists yet.
 
-Processing jobs are machine-result versions. Repeating one job validates the
+Processing jobs are machine-result versions. Repeating an unreviewed job validates the
 complete result, locks its floor plan, deletes only that job's rows, inserts the
 complete replacement, and commits once. A newer job preserves older job rows;
 a valid empty result clears only its own version. Retrieval requires both floor
 plan and job, returns immutable records ordered by one-based prediction index,
 and does not rerun model loading, inference, or classification.
 
+Once any row in a job version has an associated J3 review event, I4 rejects
+same-job replacement with a sanitized persistence error. This prevents the
+append-only review history from being erased. Other processing-job versions
+remain independently persistable.
+
 Success leaves floor-plan and processing-job state unchanged. Failures roll back
 the whole replacement and expose only stable sanitized errors. I4 adds no API,
-worker, job completion, confirmation/correction, symbol legend, or review UI.
+worker, job completion, classification correction, symbol legend, or manual-symbol UI.
 J1 exposes the persisted results through the read-only endpoint documented
 below. J1A provides the aligned blueprint reference consumed by the J2
-frontend; J3 remains the next roadmap ticket.
+frontend; J3 adds the review-decision boundary documented below.
 
 ## Detection results API
 
@@ -565,9 +571,31 @@ HTTP 200 with empty arrays. Database failures return a sanitized `503`.
 
 The response contains nested raw-pixel and canonical-meter wall geometry plus
 the original symbol class, confidence, I3 threshold/status, processed-pixel box
-and center, image dimensions, detection-cap metadata, and timestamps. The route
+and center, image dimensions, detection-cap metadata, timestamps, and a nullable
+latest `review` containing decision, sequence, and review timestamp. The route
 does not expose storage/model paths, rerun OpenCV or YOLO, classify confidence,
 write files, or mutate floor-plan, job, wall, or symbol state.
+
+## Detection review decisions API
+
+```http
+PUT /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
+Content-Type: application/json
+
+{"decision":"confirmed"}
+```
+
+Only the owning Designer may submit `confirmed` or `deleted`; Admins and other
+roles receive `403`, while missing, mismatched, and cross-owner resources share
+a non-disclosing `404`. Repeating the current decision returns it without a new
+event. Reversing a decision appends the next positive sequence. The selected
+detection is locked while sequence numbers are allocated and the transaction is
+committed atomically. Failures roll back and return a sanitized `503`.
+
+`detection_reviews` is the ninth prototype table. Its events are immutable and
+reference both the original detected symbol and authenticated reviewer. Review
+actions never overwrite `detected_symbols.status` or any original class,
+confidence, threshold, geometry, timestamp, job, floor-plan, or file state.
 
 ## Detection review image API
 
@@ -632,6 +660,7 @@ available:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest tests.test_detection_results_api -v
+.\.venv\Scripts\python.exe -m unittest tests.test_detection_reviews_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_symbol_persistence -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs_api -v
@@ -643,11 +672,12 @@ available:
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 10 focused J1A tests, 15 focused J1 tests, 13 focused I4 tests,
+The current expected totals are 10 focused J1A tests, 15 focused J1 tests, 9 focused J3 tests,
+14 focused I4 tests,
 13 focused I3 tests, 25 focused I2 tests, 21 focused I1 tests, 21 focused H3
 tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
-regression tests, 17 focused F1 regression tests, and 493 full backend tests.
+regression tests, 17 focused F1 regression tests, and 503 full backend tests.
 The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a
 test failure.

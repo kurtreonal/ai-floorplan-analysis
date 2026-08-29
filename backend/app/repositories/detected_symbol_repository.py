@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, load_only, raiseload
 
-from app.models import DetectedSymbol, FloorPlan, ProcessingJob
+from app.models import DetectedSymbol, DetectionReview, FloorPlan, ProcessingJob
 
 
 def lock_floor_plan(
@@ -50,6 +50,25 @@ def delete_processing_job_detections(
         delete(DetectedSymbol).where(
             DetectedSymbol.processing_job_id == processing_job_id
         )
+    )
+
+
+def processing_job_has_reviews(
+    database_session: Session,
+    *,
+    processing_job_id: int,
+) -> bool:
+    return (
+        database_session.scalar(
+            select(DetectionReview.id)
+            .join(
+                DetectedSymbol,
+                DetectionReview.detected_symbol_id == DetectedSymbol.id,
+            )
+            .where(DetectedSymbol.processing_job_id == processing_job_id)
+            .limit(1)
+        )
+        is not None
     )
 
 

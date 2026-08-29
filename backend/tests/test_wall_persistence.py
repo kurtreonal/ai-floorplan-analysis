@@ -345,6 +345,7 @@ class WallPersistenceTests(unittest.TestCase):
                 "processing_jobs",
                 "walls",
                 "detected_symbols",
+                "detection_reviews",
             },
         )
 
@@ -602,7 +603,7 @@ class WallPersistenceTests(unittest.TestCase):
             for method in methods
             if method.casefold() in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 15)
+        self.assertEqual(operations, 16)
 
 
 if __name__ == "__main__":
