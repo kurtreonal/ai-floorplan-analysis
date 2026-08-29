@@ -41,6 +41,7 @@ SESSION_COOKIE = "ved_session"
 PATH = "/api/floor-plans/{floor_plan_id}/detections"
 TABLES = (
     "detected_symbols",
+    "detection_class_corrections",
     "detection_reviews",
     "floor_plans",
     "processing_jobs",
@@ -752,7 +753,7 @@ class DetectionResultsApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 17)
+        self.assertEqual(len(operations), 18)
 
     def test_schema_and_storage_remain_stable(self) -> None:
         self.assertEqual(tuple(sorted(Wall.metadata.tables)), TABLES)

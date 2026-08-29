@@ -14,6 +14,9 @@ from app.repositories.detection_result_repository import (
     list_versioned_symbols,
 )
 from app.repositories.detection_review_repository import list_latest_reviews
+from app.repositories.detection_class_correction_repository import (
+    list_latest_class_corrections,
+)
 from app.services.symbol_persistence import PersistedDetectedSymbolRecord
 from app.services.wall_persistence import PersistedWallRecord
 
@@ -43,6 +46,7 @@ class DetectionResults:
     walls: tuple[PersistedWallRecord, ...]
     symbols: tuple[PersistedDetectedSymbolRecord, ...]
     latest_reviews: Mapping[int, "LatestDetectionReview"]
+    latest_corrections: Mapping[int, "LatestDetectionClassCorrection"]
 
 
 @dataclass(frozen=True)
@@ -50,6 +54,16 @@ class LatestDetectionReview:
     decision: str
     sequence_number: int
     reviewed_at: datetime
+
+
+@dataclass(frozen=True)
+class LatestDetectionClassCorrection:
+    sequence_number: int
+    old_class_id: int
+    old_class_name: str
+    new_class_id: int
+    new_class_name: str
+    corrected_at: datetime
 
 
 def _positive_identifier(value: object, code: str) -> int:
@@ -145,6 +159,22 @@ def retrieve_detection_results(
                 )
             }
         )
+        latest_corrections = MappingProxyType(
+            {
+                correction.detected_symbol_id: LatestDetectionClassCorrection(
+                    sequence_number=correction.sequence_number,
+                    old_class_id=correction.old_class_id,
+                    old_class_name=correction.old_class_name,
+                    new_class_id=correction.new_class_id,
+                    new_class_name=correction.new_class_name,
+                    corrected_at=correction.created_at,
+                )
+                for correction in list_latest_class_corrections(
+                    database_session,
+                    detected_symbol_ids=tuple(symbol.id for symbol in symbols),
+                )
+            }
+        )
     except DetectionResultServiceError:
         raise
     except SQLAlchemyError:
@@ -159,4 +189,5 @@ def retrieve_detection_results(
         walls=walls,
         symbols=symbols,
         latest_reviews=latest_reviews,
+        latest_corrections=latest_corrections,
     )

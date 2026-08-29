@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through J3A, including E3A and J1A, and labels
+> the architecture actually implemented through J4, including E3A, J1A, and J3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -48,11 +48,13 @@
   immutable machine detection provenance and persisted latest-review display
 - J3A: database-backed approved symbol legend records and authenticated,
   active-only read-only retrieval
+- J4: append-only owner-scoped Designer classification corrections with
+  immutable original AI provenance and latest-authoritative retrieval
 
 ### Planned
 
-J4 and later roadmap tickets remain unimplemented, including classification
-correction, manual symbol creation, complete K1 canonical geometry, editable Konva 2D, Three.js 3D,
+J5 and later roadmap tickets remain unimplemented, including manual symbol
+creation, complete K1 canonical geometry, editable Konva 2D, Three.js 3D,
 routing, quantities, estimates, reports, administration, and audit logging.
 
 ### Proposed but not approved
@@ -184,6 +186,15 @@ ordered by class ID then row ID. The catalog may be empty, and no production
 VED classes are inferred from detections or seeded without approved source
 data. P3 still owns future Admin catalog management.
 
+J4 adds a separate Designer-only mutation flow. The service locks the exact
+owner-scoped detection, resolves the latest effective class, locks the requested
+active legend, and appends an immutable old/new snapshot only for a real change.
+Selecting the current class is idempotent; selecting the original class restores
+it as authoritative without deleting history. J1 retrieves latest corrections
+with one separate deterministic bulk query. J3 review decisions remain
+independent, and I4 refuses same-job replacement when either review or
+classification-correction history exists.
+
 Ultralytics is available under AGPL-3.0 and a separate Enterprise license.
 Commercial or production deployment requires a licensing review.
 
@@ -234,7 +245,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set through J3A is exactly:
+The live and SQLAlchemy model table set through J4 is exactly:
 
 ```text
 roles
@@ -247,6 +258,7 @@ walls
 detected_symbols
 detection_reviews
 symbol_legends
+detection_class_corrections
 ```
 
 Relationships:
@@ -261,6 +273,9 @@ floor_plans 1 ── * walls
 processing_jobs 1 ── * walls
 floor_plans 1 ── * detected_symbols
 processing_jobs 1 ── * detected_symbols
+detected_symbols 1 ── * detection_class_corrections
+users 1 ── * detection_class_corrections
+symbol_legends 1 ── * detection_class_corrections (old/new nullable references)
 ```
 
 - `users` maps provider plus subject to a local role and contains no password.
@@ -278,6 +293,8 @@ processing_jobs 1 ── * detected_symbols
 - `detection_reviews` stores immutable Designer confirmation/rejection events.
 - `symbol_legends` stores the active/inactive approved class catalog. No
   production legend records are seeded by J3A.
+- `detection_class_corrections` stores append-only old/new class snapshots and
+  reviewer provenance; it has no mutable timestamp or delete cascade.
 
 Processing-job status is restricted by `ck_processing_jobs_status` to `queued`,
 `processing`, `completed`, `failed`, or `cancelled`. Progress is restricted by
@@ -314,9 +331,10 @@ GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
 GET  /api/symbol-legends
+PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classification?processing_job_id={job_id}
 ```
 
-The API has 17 OpenAPI operations through J3A. Detection retrieval requires a
+The API has 18 OpenAPI operations through J4. Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Symbols are
 job-versioned, whereas walls remain the current floor-plan wall set.
@@ -545,7 +563,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through J3A is:
+The verified baseline through J4 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -560,16 +578,18 @@ H3 focused backend:     21 tests
 I1 focused backend:     21 tests
 I2 focused backend:     25 tests
 I3 focused backend:     13 tests
-I4 focused backend:     14 tests
+I4 focused backend:     15 tests
 J1 focused backend:     15 tests
 J1A focused backend:    10 tests
 J3 focused backend:      9 tests
 J3A focused backend:     9 tests
-Full backend:          512 tests
+J4 focused backend:     11 tests
+Full backend:          524 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
-Full frontend:          134 tests
+J4 focused frontend:    18 tests
+Full frontend:          152 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -617,8 +637,8 @@ truth.
 - J1/J1A/J2 retrieve and display stored walls, an explicitly selected symbol-job
   version, and its aligned normalized blueprint reference; J3 persists
   confirmation/rejection decisions without changing machine provenance
-- Detection review does not yet support J4 classification correction or J5
-  manual symbol creation; canonical geometry is not implemented
+- Detection review supports J4 approved-catalog classification correction but
+  not J5 manual symbol creation; canonical geometry is not implemented
 - J3A exposes an empty-safe approved legend catalog, but no approved production
   VED class values or Admin catalog-management operations have been supplied
 - No 2D/3D editor implementation
@@ -627,7 +647,7 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next roadmap ticket is J4 correct symbol classification, using J3A's active
-approved legend catalog. A persistent
+The next roadmap ticket is J5 manual symbol creation. It has not been started.
+A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
 J1A.

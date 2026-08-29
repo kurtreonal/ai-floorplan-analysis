@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react'
 
 import { DetectionApiError, fetchDetectionResults } from '../../api/detections.js'
+import {
+  DetectionClassificationApiError,
+  putDetectionClassification,
+} from '../../api/detectionClassifications.js'
 import { DetectionReviewApiError, putDetectionReview } from '../../api/detectionReviews.js'
 import { fetchReviewImage, ReviewImageApiError } from '../../api/reviewImages.js'
+import { fetchSymbolLegends, SymbolLegendApiError } from '../../api/symbolLegends.js'
 import { getProjectHref } from '../../routes/projectRoutes.js'
 import { DetectionInspector } from './DetectionInspector.jsx'
 import { DetectionReviewCanvas } from './DetectionReviewCanvas.jsx'
@@ -24,14 +29,16 @@ function safeMessage(error) {
   if (error?.status === 422) return 'The detection review address is invalid.'
   if (error instanceof DetectionApiError) return 'Detection results could not be loaded safely.'
   if (error instanceof ReviewImageApiError) return 'The aligned blueprint reference is temporarily unavailable.'
+  if (error instanceof SymbolLegendApiError) return 'The approved symbol classes could not be loaded safely.'
   return 'Detection review is temporarily unavailable.'
 }
 
 export function DetectionReviewPage({ projectId, floorPlanId, processingJobId }) {
   const [attempt, setAttempt] = useState(0)
-  const [state, setState] = useState({ status: 'loading', results: null, image: null, error: null })
+  const [state, setState] = useState({ status: 'loading', results: null, image: null, legends: null, error: null })
   const [selectedId, setSelectedId] = useState(null)
   const [reviewState, setReviewState] = useState({ status: 'idle', message: null })
+  const [classificationState, setClassificationState] = useState({ status: 'idle', message: null })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -39,9 +46,10 @@ export function DetectionReviewPage({ projectId, floorPlanId, processingJobId })
     let active = true
     async function load() {
       try {
-        const [results, blob] = await Promise.all([
+        const [results, blob, legends] = await Promise.all([
           fetchDetectionResults(floorPlanId, processingJobId, { signal: controller.signal }),
           fetchReviewImage(floorPlanId, processingJobId, { signal: controller.signal }),
+          fetchSymbolLegends({ signal: controller.signal }),
         ])
         objectUrl = URL.createObjectURL(blob)
         const image = await decodeImage(objectUrl)
@@ -50,7 +58,7 @@ export function DetectionReviewPage({ projectId, floorPlanId, processingJobId })
           results.symbols[0].image_width_pixels !== image.naturalWidth
           || results.symbols[0].image_height_pixels !== image.naturalHeight
         )) throw new DetectionApiError()
-        setState({ status: 'ready', results, image, error: null })
+        setState({ status: 'ready', results, image, legends, error: null })
       } catch (error) {
         if (!active || error.name === 'AbortError') return
         if (error?.status === 401) {
@@ -61,7 +69,7 @@ export function DetectionReviewPage({ projectId, floorPlanId, processingJobId })
           URL.revokeObjectURL(objectUrl)
           objectUrl = null
         }
-        setState({ status: 'error', results: null, image: null, error: safeMessage(error) })
+        setState({ status: 'error', results: null, image: null, legends: null, error: safeMessage(error) })
       }
     }
     load()
@@ -77,8 +85,10 @@ export function DetectionReviewPage({ projectId, floorPlanId, processingJobId })
   const imageHeight = results?.symbols[0]?.image_height_pixels || state.image?.naturalHeight
 
   function retry() {
-    setState({ status: 'loading', results: null, image: null, error: null })
+    setState({ status: 'loading', results: null, image: null, legends: null, error: null })
     setSelectedId(null)
+    setReviewState({ status: 'idle', message: null })
+    setClassificationState({ status: 'idle', message: null })
     setAttempt((value) => value + 1)
   }
 
@@ -132,6 +142,63 @@ export function DetectionReviewPage({ projectId, floorPlanId, processingJobId })
     }
   }
 
+  async function submitClassification(symbolLegendId) {
+    if (classificationState.status === 'saving' || !selectedId) return
+    setClassificationState({ status: 'saving', message: 'Saving corrected classification...' })
+    try {
+      const response = await putDetectionClassification(
+        floorPlanId,
+        processingJobId,
+        selectedId,
+        symbolLegendId,
+      )
+      setState((current) => ({
+        ...current,
+        results: {
+          ...current.results,
+          symbols: current.results.symbols.map((symbol) => (
+            symbol.id === selectedId
+              ? {
+                  ...symbol,
+                  authoritative_class: {
+                    id: response.authoritative_class.id,
+                    name: response.authoritative_class.name,
+                  },
+                  correction: response.sequence_number === null ? null : {
+                    sequence_number: response.sequence_number,
+                    old_class: { id: response.old_class.id, name: response.old_class.name },
+                    new_class: { id: response.new_class.id, name: response.new_class.name },
+                    corrected_at: response.corrected_at,
+                  },
+                }
+              : symbol
+          )),
+        },
+      }))
+      setClassificationState({
+        status: 'success',
+        message: response.sequence_number === null
+          ? 'The original AI classification is authoritative again.'
+          : `Classification corrected to ${response.authoritative_class.name}.`,
+      })
+    } catch (error) {
+      if (error?.status === 401) {
+        window.location.replace('#/signin?reason=session-expired')
+        return
+      }
+      const message = error instanceof DetectionClassificationApiError && error.status === 403
+        ? 'You are not authorized to correct this detection.'
+        : error instanceof DetectionClassificationApiError && error.status === 404
+          ? 'The selected detection is no longer available.'
+          : error instanceof DetectionClassificationApiError && error.status === 409
+            ? 'That approved symbol class is no longer available. Reload and choose another class.'
+            : error instanceof DetectionClassificationApiError && error.status === 422
+              ? 'The classification request was invalid. Choose an approved class and try again.'
+              : 'The classification correction could not be saved. Please try again.'
+      setClassificationState({ status: 'error', message })
+    }
+  }
+
   return (
     <div className="detection-review-page">
       <a className="detection-back-link" href={getProjectHref(projectId)}>← Back to project</a>
@@ -155,7 +222,8 @@ export function DetectionReviewPage({ projectId, floorPlanId, processingJobId })
           </div>
           <DetectionReviewCanvas image={state.image} imageWidth={imageWidth} imageHeight={imageHeight} walls={results.walls} symbols={results.symbols} selectedId={selectedId} onSelect={setSelectedId} />
           <div className={`detection-review-announcement is-${reviewState.status}`} role={reviewState.status === 'error' ? 'alert' : 'status'} aria-live="polite">{reviewState.message}</div>
-          <DetectionInspector symbols={results.symbols} selectedId={selectedId} onSelect={setSelectedId} onReview={submitReview} reviewStatus={reviewState.status} />
+          <div className={`detection-review-announcement is-${classificationState.status}`} role={classificationState.status === 'error' ? 'alert' : 'status'} aria-live="polite">{classificationState.message}</div>
+          <DetectionInspector symbols={results.symbols} legends={state.legends} selectedId={selectedId} onSelect={setSelectedId} onReview={submitReview} reviewStatus={reviewState.status} onClassification={submitClassification} classificationStatus={classificationState.status} />
         </>
       )}
     </div>

@@ -15,12 +15,14 @@ function payload() {
     symbols: [{
       id: 4, floor_plan_id: 2, processing_job_id: 3, prediction_index: 1,
       status: 'needs_review', original_class: { id: 7, name: 'outlet' },
+      authoritative_class: { id: 7, name: 'outlet' },
       original_confidence: 0.49, confidence_threshold: 0.5,
       image_width_pixels: 100, image_height_pixels: 80,
       bounding_box: { x_min: 10, y_min: 20, x_max: 30, y_max: 40 },
       center: { x: 20, y: 30 }, maximum_detections: 300,
       detection_limit_reached: false,
       review: null,
+      correction: null,
     }],
   }
 }
@@ -48,6 +50,9 @@ describe('detection results API', () => {
       (value) => { value.symbols[0].review = { decision: 'confirmed', sequence_number: 0, reviewed_at: '2026-08-29T12:00:00' } },
       (value) => { delete value.symbols[0].review },
       (value) => { value.symbols[0].review = { decision: 'confirmed', sequence_number: 1, reviewed_at: '2026-08-29T12:00:00', reviewer: 'private' } },
+      (value) => { delete value.symbols[0].authoritative_class },
+      (value) => { delete value.symbols[0].correction },
+      (value) => { value.symbols[0].correction = { sequence_number: 1, old_class: { id: 7, name: 'outlet' }, new_class: { id: 2, name: 'light' }, corrected_at: 'invalid' } },
     ]) {
       const value = payload(); mutate(value)
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => value }))
@@ -59,6 +64,19 @@ describe('detection results API', () => {
     const value = payload()
     value.symbols[0].review = {
       decision: 'deleted', sequence_number: 2, reviewed_at: '2026-08-29T12:00:00',
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => value }))
+    await expect(fetchDetectionResults(2, 3)).resolves.toEqual(value)
+  })
+
+  it('accepts a distinct authoritative class and latest correction snapshot', async () => {
+    const value = payload()
+    value.symbols[0].authoritative_class = { id: 2, name: 'light' }
+    value.symbols[0].correction = {
+      sequence_number: 2,
+      old_class: { id: 7, name: 'outlet' },
+      new_class: { id: 2, name: 'light' },
+      corrected_at: '2026-08-30T12:00:00',
     }
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => value }))
     await expect(fetchDetectionResults(2, 3)).resolves.toEqual(value)

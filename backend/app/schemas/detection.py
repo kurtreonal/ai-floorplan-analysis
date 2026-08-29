@@ -68,6 +68,15 @@ class DetectionReviewSummaryResponse(BaseModel):
     reviewed_at: datetime
 
 
+class DetectionClassCorrectionSummaryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sequence_number: Annotated[int, Field(gt=0, le=2_147_483_647)]
+    old_class: SymbolClassResponse
+    new_class: SymbolClassResponse
+    corrected_at: datetime
+
+
 class SymbolDetectionResponse(BaseModel):
     id: DatabaseId
     floor_plan_id: DatabaseId
@@ -75,6 +84,7 @@ class SymbolDetectionResponse(BaseModel):
     prediction_index: Annotated[int, Field(gt=0, le=300)]
     status: Literal["detected", "needs_review"]
     original_class: SymbolClassResponse
+    authoritative_class: SymbolClassResponse
     original_confidence: Confidence
     confidence_threshold: Confidence
     image_width_pixels: PositivePixelDimension
@@ -84,6 +94,7 @@ class SymbolDetectionResponse(BaseModel):
     maximum_detections: Literal[300]
     detection_limit_reached: bool
     review: DetectionReviewSummaryResponse | None
+    correction: DetectionClassCorrectionSummaryResponse | None
     created_at: datetime
     updated_at: datetime
 
@@ -112,3 +123,30 @@ class DetectionReviewResponse(BaseModel):
     decision: Literal["confirmed", "deleted"]
     sequence_number: Annotated[int, Field(gt=0, le=2_147_483_647)]
     reviewed_at: datetime
+
+
+class DetectionClassificationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    symbol_legend_id: DatabaseId
+
+
+class ClassificationSnapshotResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    symbol_legend_id: DatabaseId | None
+    id: NonNegativeInt
+    name: Annotated[str, Field(min_length=1, max_length=255)]
+
+
+class DetectionClassificationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    detected_symbol_id: DatabaseId
+    floor_plan_id: DatabaseId
+    processing_job_id: DatabaseId
+    sequence_number: Annotated[int, Field(gt=0, le=2_147_483_647)] | None
+    old_class: ClassificationSnapshotResponse
+    new_class: ClassificationSnapshotResponse
+    authoritative_class: ClassificationSnapshotResponse
+    corrected_at: datetime | None

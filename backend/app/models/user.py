@@ -7,6 +7,7 @@ from app.models.base import Base
 
 
 if TYPE_CHECKING:
+    from app.models.detection_class_correction import DetectionClassCorrection
     from app.models.detection_review import DetectionReview
     from app.models.project import Project
     from app.models.role import Role
@@ -57,5 +58,8 @@ class User(Base):
     role: Mapped["Role"] = relationship(back_populates="users")
     projects: Mapped[list["Project"]] = relationship(back_populates="owner")
     detection_reviews: Mapped[list["DetectionReview"]] = relationship(
+        back_populates="reviewer"
+    )
+    detection_class_corrections: Mapped[list["DetectionClassCorrection"]] = relationship(
         back_populates="reviewer"
     )

@@ -55,12 +55,13 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through J3A, including the E3A project-floor
+The repository is implemented through J4, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
-The current verified prototype contract contains ten SQLAlchemy/MySQL tables
-and 17 OpenAPI operations. The tenth table is the empty-safe J3A
-`symbol_legends` catalog.
+The current verified prototype contract contains eleven SQLAlchemy/MySQL tables
+and 18 OpenAPI operations. J4 adds the append-only
+`detection_class_corrections` table after the empty-safe J3A `symbol_legends`
+catalog.
 
 Completed ticket areas:
 
@@ -90,6 +91,7 @@ J1A — Create Detection Review Image API
 J2 — Build Detection Review Canvas
 J3 — Confirm or Reject Detection
 J3A — Approved Symbol Legend Foundation
+J4 — Correct Symbol Classification
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -105,9 +107,10 @@ machine detection persistence, plus read-only detection-result retrieval and
 authenticated serving of the aligned G2 normalized review image, and the
 read-only React-Konva review canvas, append-only owning-Designer confirmation
 or rejection decisions, and the database-backed active-only approved symbol
-legend catalog required by J4. J4 and later tickets remain unimplemented. In
+legend catalog and append-only owning-Designer classification correction. J5
+and later tickets remain unimplemented. In
 particular, there is no worker, external queue, automatic OpenCV/YOLO pipeline,
-classification-correction or manual-symbol workflow,
+manual-symbol workflow,
 canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
@@ -3244,13 +3247,43 @@ Implemented behavior:
 
 **Dependencies:** J3, J3A.
 
+**Implementation status:** Complete. J4 adds the eleventh prototype table,
+`detection_class_corrections`, a Designer-only classification mutation, latest
+authoritative-class retrieval, and approved-catalog controls in the J2/J3
+review UI.
+
+Implemented behavior:
+
+- The strict PUT route requires the exact positive floor-plan, processing-job,
+  detection, and `symbol_legend_id` values. Ownership and reviewer identity are
+  derived from the authenticated local database user.
+- Only an active database legend may be selected. Missing/inactive choices
+  return a sanitized `409`; Admins and unsupported roles receive `403`; missing,
+  mismatched, and cross-owner detection contexts share `404`.
+- Each real correction appends an immutable positive sequence with old/new
+  class ID/name snapshots and nullable legend references. Identical selection
+  is idempotent. Returning to the original AI class restores its authority
+  without deleting prior correction history.
+- J1 returns immutable `original_class`, latest `authoritative_class`, and a
+  nullable latest correction summary loaded through one separate bulk query.
+- J3 confirmation/rejection remains independent: correction does not change a
+  review decision, and review does not change classification history.
+- I4 same-job replacement is rejected when review or correction history exists,
+  including an attempted empty replacement. Other job versions remain isolated.
+- The frontend loads the active legend catalog, presents loading/error/empty
+  states, disables no-op and duplicate saves, preserves selection and geometry,
+  keeps rejected results visible, and announces safe outcomes accessibly.
+- J4 adds no production legend seed, Admin catalog mutation, J5 manual symbol,
+  dragging, canonical geometry, worker orchestration, model run, or new
+  dependency. P3 still owns Admin legend management.
+
 **Acceptance Criteria:**
 
-- [ ] User can choose a valid symbol class from the approved legend library.
-- [ ] Corrected class persists.
-- [ ] Correction records old and new values.
-- [ ] The corrected value becomes the authoritative layout value.
-- [ ] Original AI class remains available for accuracy evaluation.
+- [x] User can choose a valid symbol class from the approved legend library.
+- [x] Corrected class persists.
+- [x] Correction records old and new values.
+- [x] The corrected value becomes the authoritative review value for later layout work.
+- [x] Original AI class remains available for accuracy evaluation.
 
 ---
 

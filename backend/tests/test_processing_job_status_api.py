@@ -562,9 +562,10 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
                 ("get", REVIEW_IMAGE_PATH),
                 ("put", DETECTION_REVIEW_PATH),
                 ("get", "/api/symbol-legends"),
+                ("put", "/api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classification"),
             },
         )
-        self.assertEqual(len(operations), 17)
+        self.assertEqual(len(operations), 18)
 
 
 if __name__ == "__main__":
