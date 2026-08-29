@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.detections import router as detections_router
 from app.api.routes.floor_plans import router as floor_plans_router
 from app.api.routes.health import router as health_router
 from app.api.routes.processing import router as processing_router
@@ -60,6 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(project_floors_router)
     application.include_router(floor_plans_router)
     application.include_router(processing_router)
+    application.include_router(detections_router)
     return application
 
 

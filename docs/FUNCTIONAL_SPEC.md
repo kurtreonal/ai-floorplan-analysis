@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through I4, including the E3A project-floor
+The repository is implemented through J1, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -81,6 +81,7 @@ I1 — Implement YOLO Model Loader
 I2 — Implement Symbol Inference Service
 I3 — Implement Confidence Filtering
 I4 — Persist Detected Symbols
+J1 — Create Detection Results API
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -92,9 +93,10 @@ current-session Designer processing UI, a backend-only PDF-to-PNG conversion
 service, Pillow-based image normalization, OpenCV preprocessing, wall candidate
 detection/normalization/persistence, configured YOLO loading, isolated symbol
 inference, in-memory confidence classification, and processing-job-versioned
-machine detection persistence. J1 and later tickets remain unimplemented. In
+machine detection persistence, plus read-only detection-result retrieval. J2
+and later tickets remain unimplemented. In
 particular, there is no worker, external queue, automatic OpenCV/YOLO pipeline,
-detection API/review,
+detection review canvas or mutation workflow,
 canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
@@ -1133,7 +1135,7 @@ status = completed
           ↓
 
 GET
-/api/floor-plans/81/detections
+/api/floor-plans/81/detections?processing_job_id=103
 
           ↓
 
@@ -3046,6 +3048,35 @@ Implemented behavior:
 **Goal:** Return structural and symbol results for review.
 
 **Dependencies:** H3, I4.
+
+**Implementation status:** Complete. J1 adds an ownership-aware, read-only API
+for persisted H3/I4 results without rerunning AI/CV or changing database state.
+
+Implemented behavior:
+
+- `GET /api/floor-plans/{floor_plan_id}/detections` requires a positive
+  `processing_job_id` query parameter identifying the exact
+  `floor_plan_analysis` symbol-result version.
+- Owning Designers may read their own project results; Admins may read any
+  matching floor-plan/job context. Missing, mismatched, wrong-type, and
+  cross-owner contexts share the same sanitized `404`.
+- Symbols come only from the requested job and remain ordered by prediction
+  index then row ID. Empty versions return an empty array and never fall back to
+  an older job.
+- Walls remain H3's current floor-plan wall set, ordered by candidate then row
+  ID. Each wall includes its own processing-job provenance because the wall and
+  symbol job versions may differ.
+- Explicit nested Pydantic schemas expose raw-pixel and canonical-meter walls,
+  original symbol class/confidence, I3 threshold/status, pixel geometry, image
+  dimensions, detection-cap metadata, and timestamps.
+- Valid contexts with no stored records return HTTP 200 with empty arrays.
+  Database failures return a sanitized `503`; FastAPI validation retains its
+  standard response shape.
+- Repository reads use scoped joins, `load_only`, `raiseload("*")`, deterministic
+  ordering, no row locks, and no writes. J1 performs no commit, AI inference,
+  confidence filtering, persistence, filesystem access, or state transition.
+- J1 adds no schema, dependency, configuration, worker, frontend, review
+  mutation, or canonical geometry. J2 remains next.
 
 **Acceptance Criteria:**
 

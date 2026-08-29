@@ -30,6 +30,7 @@ from app.services.processing_job_service import (
 SESSION_COOKIE = "ved_session"
 SESSION_SECRET = "f3-automated-test-session-secret"
 STATUS_PATH = "/api/processing-jobs/{job_id}"
+DETECTION_PATH = "/api/floor-plans/{floor_plan_id}/detections"
 F2_OPERATIONS = {
     ("get", "/health"),
     ("get", "/api/auth/me"),
@@ -550,9 +551,13 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
         }
         self.assertEqual(
             operations,
-            F2_OPERATIONS | {("get", STATUS_PATH)},
+            F2_OPERATIONS
+            | {
+                ("get", STATUS_PATH),
+                ("get", DETECTION_PATH),
+            },
         )
-        self.assertEqual(len(operations), 13)
+        self.assertEqual(len(operations), 14)
 
 
 if __name__ == "__main__":
