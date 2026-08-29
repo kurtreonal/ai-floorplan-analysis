@@ -9,6 +9,10 @@ from app.models import User
 from app.schemas.detection import (
     CanonicalWallDetectionResponse,
     DetectionBoundingBoxResponse,
+    ClassificationSnapshotResponse,
+    DetectionClassificationRequest,
+    DetectionClassificationResponse,
+    DetectionClassCorrectionSummaryResponse,
     DetectionPixelPointResponse,
     DetectionPointResponse,
     DetectionResultsResponse,
@@ -19,6 +23,12 @@ from app.schemas.detection import (
     SymbolClassResponse,
     SymbolDetectionResponse,
     WallDetectionResponse,
+)
+from app.services.detection_classification_service import (
+    ClassificationSnapshot,
+    DetectionClassificationRecord,
+    DetectionClassificationServiceError,
+    correct_detection_classification,
 )
 from app.services.detection_review_service import (
     DetectionReviewRecord,
@@ -97,6 +107,18 @@ def _response(result: DetectionResults) -> DetectionResultsResponse:
                 id=symbol.original_class_id,
                 name=symbol.original_class_name,
             ),
+            authoritative_class=SymbolClassResponse(
+                id=(
+                    result.latest_corrections[symbol.id].new_class_id
+                    if symbol.id in result.latest_corrections
+                    else symbol.original_class_id
+                ),
+                name=(
+                    result.latest_corrections[symbol.id].new_class_name
+                    if symbol.id in result.latest_corrections
+                    else symbol.original_class_name
+                ),
+            ),
             original_confidence=symbol.original_confidence,
             confidence_threshold=symbol.confidence_threshold,
             image_width_pixels=symbol.image_width_pixels,
@@ -120,6 +142,26 @@ def _response(result: DetectionResults) -> DetectionResultsResponse:
                     reviewed_at=result.latest_reviews[symbol.id].reviewed_at,
                 )
                 if symbol.id in result.latest_reviews
+                else None
+            ),
+            correction=(
+                DetectionClassCorrectionSummaryResponse(
+                    sequence_number=(
+                        result.latest_corrections[symbol.id].sequence_number
+                    ),
+                    old_class=SymbolClassResponse(
+                        id=result.latest_corrections[symbol.id].old_class_id,
+                        name=result.latest_corrections[symbol.id].old_class_name,
+                    ),
+                    new_class=SymbolClassResponse(
+                        id=result.latest_corrections[symbol.id].new_class_id,
+                        name=result.latest_corrections[symbol.id].new_class_name,
+                    ),
+                    corrected_at=(
+                        result.latest_corrections[symbol.id].corrected_at
+                    ),
+                )
+                if symbol.id in result.latest_corrections
                 else None
             ),
             created_at=symbol.created_at,
@@ -242,3 +284,82 @@ def put_detection_review(
             message=message,
         ) from None
     return _review_response(review)
+
+
+def _classification_snapshot_response(
+    snapshot: ClassificationSnapshot,
+) -> ClassificationSnapshotResponse:
+    return ClassificationSnapshotResponse(
+        symbol_legend_id=snapshot.symbol_legend_id,
+        id=snapshot.class_id,
+        name=snapshot.class_name,
+    )
+
+
+def _classification_response(
+    correction: DetectionClassificationRecord,
+) -> DetectionClassificationResponse:
+    return DetectionClassificationResponse(
+        detected_symbol_id=correction.detected_symbol_id,
+        floor_plan_id=correction.floor_plan_id,
+        processing_job_id=correction.processing_job_id,
+        sequence_number=correction.sequence_number,
+        old_class=_classification_snapshot_response(correction.old_class),
+        new_class=_classification_snapshot_response(correction.new_class),
+        authoritative_class=_classification_snapshot_response(
+            correction.authoritative_class
+        ),
+        corrected_at=correction.corrected_at,
+    )
+
+
+@router.put(
+    "/{floor_plan_id}/detections/{detected_symbol_id}/classification",
+    response_model=DetectionClassificationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def put_detection_classification(
+    payload: DetectionClassificationRequest,
+    floor_plan_id: Annotated[int, Path(gt=0)],
+    detected_symbol_id: Annotated[int, Path(gt=0)],
+    processing_job_id: Annotated[int, Query(gt=0)],
+    current_user: User = Depends(require_roles("DESIGNER")),
+    database_session: Session = Depends(get_db),
+) -> DetectionClassificationResponse:
+    try:
+        correction = correct_detection_classification(
+            database_session,
+            current_user=current_user,
+            floor_plan_id=floor_plan_id,
+            processing_job_id=processing_job_id,
+            detected_symbol_id=detected_symbol_id,
+            symbol_legend_id=payload.symbol_legend_id,
+        )
+    except DetectionClassificationServiceError as error:
+        status_code = {
+            "AUTHORIZATION_DENIED": status.HTTP_403_FORBIDDEN,
+            "DETECTION_NOT_FOUND": status.HTTP_404_NOT_FOUND,
+            "SYMBOL_LEGEND_UNAVAILABLE": status.HTTP_409_CONFLICT,
+        }.get(error.code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        code = (
+            error.code
+            if error.code
+            in {
+                "AUTHORIZATION_DENIED",
+                "DETECTION_NOT_FOUND",
+                "SYMBOL_LEGEND_UNAVAILABLE",
+                "CLASSIFICATION_PERSISTENCE_FAILED",
+            }
+            else "CLASSIFICATION_PERSISTENCE_FAILED"
+        )
+        message = (
+            error.message
+            if code == error.code
+            else "The symbol classification correction could not be saved."
+        )
+        raise _api_error(
+            status_code=status_code,
+            code=code,
+            message=message,
+        ) from None
+    return _classification_response(correction)

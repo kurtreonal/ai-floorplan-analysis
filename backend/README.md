@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through J3A. It
+This directory contains the FastAPI backend implemented through J4. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -11,8 +11,8 @@ persistence, configured YOLO model loading, and isolated symbol inference are
 also implemented, together with confidence filtering, versioned symbol
 persistence, read-only detection-result retrieval, authenticated serving of
 the existing normalized review image, append-only Designer confirmation or
-rejection decisions, and an active-only approved symbol legend API. Workers,
-classification correction, manual symbol
+rejection decisions, an active-only approved symbol legend API, and append-only
+Designer classification correction. Workers, manual symbol
 creation, complete canonical geometry, routing, estimation, and reporting are
 not implemented.
 
@@ -149,9 +149,10 @@ GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
 GET  /api/symbol-legends
+PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classification?processing_job_id={job_id}
 ```
 
-The API has 17 OpenAPI operations through J3A. `GET /api/symbol-legends`
+The API has 18 OpenAPI operations through J4. `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
 official VED class values are committed or seeded; P3 remains responsible for
@@ -552,14 +553,15 @@ a valid empty result clears only its own version. Retrieval requires both floor
 plan and job, returns immutable records ordered by one-based prediction index,
 and does not rerun model loading, inference, or classification.
 
-Once any row in a job version has an associated J3 review event, I4 rejects
+Once any row in a job version has an associated J3 review event or J4 class
+correction, I4 rejects
 same-job replacement with a sanitized persistence error. This prevents the
 append-only review history from being erased. Other processing-job versions
 remain independently persistable.
 
 Success leaves floor-plan and processing-job state unchanged. Failures roll back
 the whole replacement and expose only stable sanitized errors. I4 adds no API,
-worker, job completion, classification correction, symbol legend, or manual-symbol UI.
+worker, job completion, or manual-symbol creation.
 J1 exposes the persisted results through the read-only endpoint documented
 below. J1A provides the aligned blueprint reference consumed by the J2
 frontend; J3 adds the review-decision boundary documented below.
@@ -573,6 +575,30 @@ active/class/ID index supports deterministic read-only retrieval. J3A adds no
 Admin mutation endpoint, production seed, model loading, inference, or
 classification correction. An empty catalog is valid until approved VED class
 data is supplied.
+
+## Detection classification corrections API
+
+```http
+PUT /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classification?processing_job_id={job_id}
+Content-Type: application/json
+
+{"symbol_legend_id": 12}
+```
+
+J4 adds `detection_class_corrections` as the eleventh prototype table. Only the
+owning Designer may choose an active class returned by the approved legend
+catalog. Each real change appends a positive sequence with immutable old/new
+class ID and name snapshots plus their nullable legend references. Repeating
+the authoritative class is idempotent. Choosing the original AI class makes it
+authoritative again without deleting prior correction events.
+
+The original class, confidence, geometry, machine status, and timestamps in
+`detected_symbols` never change. J3 confirmation/rejection state is separate
+and survives corrections. J1 bulk-loads the latest correction independently
+from the latest review and returns both `original_class` and
+`authoritative_class` plus a nullable correction summary. Missing, mismatched,
+and cross-owner detections use a non-disclosing `404`; unavailable/inactive
+legend choices use `409`; storage failures use a sanitized `503`.
 
 ## Detection results API
 
@@ -593,9 +619,10 @@ contexts share a sanitized `404`. Valid contexts with no stored results return
 HTTP 200 with empty arrays. Database failures return a sanitized `503`.
 
 The response contains nested raw-pixel and canonical-meter wall geometry plus
-the original symbol class, confidence, I3 threshold/status, processed-pixel box
+the original and authoritative symbol classes, confidence, I3 threshold/status, processed-pixel box
 and center, image dimensions, detection-cap metadata, timestamps, and a nullable
-latest `review` containing decision, sequence, and review timestamp. The route
+latest `review` containing decision, sequence, and review timestamp, plus a
+nullable latest `correction` containing old/new snapshots and correction time. The route
 does not expose storage/model paths, rerun OpenCV or YOLO, classify confidence,
 write files, or mutate floor-plan, job, wall, or symbol state.
 
@@ -684,6 +711,7 @@ available:
 ```powershell
 .\.venv\Scripts\python.exe -m unittest tests.test_detection_results_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_detection_reviews_api -v
+.\.venv\Scripts\python.exe -m unittest tests.test_detection_classifications_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_symbol_persistence -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs -v
 .\.venv\Scripts\python.exe -m unittest tests.test_processing_jobs_api -v
@@ -695,12 +723,13 @@ available:
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals include the focused J3A symbol-legend tests, 10 focused J1A tests, 15 focused J1 tests, 9 focused J3 tests,
-14 focused I4 tests,
+The current expected totals include 11 focused J4 classification-correction
+tests, 9 focused J3A symbol-legend tests, 10 focused J1A tests, 15 focused J1
+tests, 9 focused J3 tests, 15 focused I4 tests,
 13 focused I3 tests, 25 focused I2 tests, 21 focused I1 tests, 21 focused H3
 tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
-regression tests, 17 focused F1 regression tests, and 512 full backend tests.
+regression tests, 17 focused F1 regression tests, and 524 full backend tests.
 The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a
 test failure.

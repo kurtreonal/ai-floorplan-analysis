@@ -27,12 +27,14 @@ from app.core.database import get_engine
 from app.models import (
     Base,
     DetectedSymbol,
+    DetectionClassCorrection,
     DetectionReview,
     FloorPlan,
     ProcessingJob,
     Project,
     ProjectFloor,
     Role,
+    SymbolLegend,
     User,
     Wall,
 )
@@ -113,7 +115,9 @@ class SymbolPersistenceTests(unittest.TestCase):
             ProcessingJob,
             Wall,
             DetectedSymbol,
+            DetectionClassCorrection,
             DetectionReview,
+            SymbolLegend,
         )
         with Session(cls.engine) as session:
             cls.baseline_counts = {
@@ -203,6 +207,13 @@ class SymbolPersistenceTests(unittest.TestCase):
                     )
                     if detection_ids:
                         session.execute(
+                            delete(DetectionClassCorrection).where(
+                                DetectionClassCorrection.detected_symbol_id.in_(
+                                    detection_ids
+                                )
+                            )
+                        )
+                        session.execute(
                             delete(DetectionReview).where(
                                 DetectionReview.detected_symbol_id.in_(detection_ids)
                             )
@@ -248,7 +259,9 @@ class SymbolPersistenceTests(unittest.TestCase):
                     ProcessingJob,
                     Wall,
                     DetectedSymbol,
+                    DetectionClassCorrection,
                     DetectionReview,
+                    SymbolLegend,
                 )
                 current = {
                     model.__tablename__: session.scalar(
@@ -277,6 +290,11 @@ class SymbolPersistenceTests(unittest.TestCase):
             )
         )
         if detection_ids:
+            self.session.execute(
+                delete(DetectionClassCorrection).where(
+                    DetectionClassCorrection.detected_symbol_id.in_(detection_ids)
+                )
+            )
             self.session.execute(
                 delete(DetectionReview).where(
                     DetectionReview.detected_symbol_id.in_(detection_ids)
@@ -364,8 +382,8 @@ class SymbolPersistenceTests(unittest.TestCase):
         self.assertTrue(table.c.processing_job_id.index)
         self.assertEqual(DETECTED_SYMBOL_STATUSES, ("detected", "needs_review"))
         self.assertIn("detected_symbols", Base.metadata.tables)
-        self.assertEqual(len(Base.metadata.tables), 10)
-        self.assertEqual(len(inspect(self.engine).get_table_names()), 10)
+        self.assertEqual(len(Base.metadata.tables), 11)
+        self.assertEqual(len(inspect(self.engine).get_table_names()), 11)
         self.assertEqual(
             DetectedSymbol.floor_plan.property.back_populates,
             "detected_symbols",
@@ -526,6 +544,81 @@ class SymbolPersistenceTests(unittest.TestCase):
             ),
             side_effects_before,
         )
+
+    def test_corrected_same_job_and_empty_replacement_are_rejected(self):
+        original = replace_detected_symbols(
+            self.session,
+            self.floor_plan_id,
+            self.job_id,
+            classified_result((prediction(0.8, class_id=41, class_name="machine"),)),
+        )
+        legend = SymbolLegend(
+            class_id=1_900_000_000,
+            name=f"i4-j4-test-{self.marker}",
+            is_active=True,
+        )
+        self.session.add(legend)
+        self.session.flush()
+        correction = DetectionClassCorrection(
+            detected_symbol_id=original[0].id,
+            reviewer_user_id=self.created_ids["user"],
+            sequence_number=1,
+            old_symbol_legend_id=None,
+            old_class_id=41,
+            old_class_name="machine",
+            new_symbol_legend_id=legend.id,
+            new_class_id=legend.class_id,
+            new_class_name=legend.name,
+        )
+        self.session.add(correction)
+        self.session.commit()
+        try:
+            for replacement in (
+                classified_result((prediction(0.7, class_id=42),)),
+                classified_result(),
+            ):
+                self.assert_error(
+                    "SYMBOL_PERSISTENCE_FAILED",
+                    lambda selected=replacement: replace_detected_symbols(
+                        self.session,
+                        self.floor_plan_id,
+                        self.job_id,
+                        selected,
+                    ),
+                )
+            self.assertEqual(
+                retrieve_detected_symbols(
+                    self.session,
+                    self.floor_plan_id,
+                    self.job_id,
+                ),
+                original,
+            )
+            self.assertEqual(
+                self.session.scalar(
+                    select(func.count())
+                    .select_from(DetectionClassCorrection)
+                    .where(
+                        DetectionClassCorrection.detected_symbol_id == original[0].id
+                    )
+                ),
+                1,
+            )
+            other_version = replace_detected_symbols(
+                self.session,
+                self.floor_plan_id,
+                self.second_job_id,
+                classified_result((prediction(0.6, class_id=43),)),
+            )
+            self.assertEqual(len(other_version), 1)
+        finally:
+            self.session.execute(
+                delete(DetectionClassCorrection).where(
+                    DetectionClassCorrection.detected_symbol_id == original[0].id
+                )
+            )
+            self.session.execute(delete(SymbolLegend).where(SymbolLegend.id == legend.id))
+            self.session.commit()
 
     def test_retrieval_is_ordered_immutable_json_compatible_and_relationship_free(self):
         replace_detected_symbols(
@@ -791,7 +884,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             if method.casefold()
             in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 17)
+        self.assertEqual(operations, 18)
 
 
 if __name__ == "__main__":

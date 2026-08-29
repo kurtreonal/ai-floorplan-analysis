@@ -19,6 +19,7 @@ from app.models.base import Base
 
 
 if TYPE_CHECKING:
+    from app.models.detection_class_correction import DetectionClassCorrection
     from app.models.detection_review import DetectionReview
     from app.models.floor_plan import FloorPlan
     from app.models.processing_job import ProcessingJob
@@ -155,5 +156,8 @@ class DetectedSymbol(Base):
         back_populates="detected_symbols"
     )
     reviews: Mapped[list["DetectionReview"]] = relationship(
+        back_populates="detected_symbol"
+    )
+    class_corrections: Mapped[list["DetectionClassCorrection"]] = relationship(
         back_populates="detected_symbol"
     )

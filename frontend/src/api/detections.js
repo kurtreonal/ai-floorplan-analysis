@@ -36,6 +36,28 @@ function validReview(review) {
     && Number.isFinite(Date.parse(review.reviewed_at))
 }
 
+function validClass(value) {
+  return value
+    && JSON.stringify(Object.keys(value).sort()) === JSON.stringify(['id', 'name'])
+    && Number.isInteger(value.id)
+    && value.id >= 0
+    && typeof value.name === 'string'
+    && value.name.length > 0
+    && value.name.length <= 255
+}
+
+function validCorrection(correction) {
+  if (correction === null) return true
+  return correction
+    && JSON.stringify(Object.keys(correction).sort())
+      === JSON.stringify(['corrected_at', 'new_class', 'old_class', 'sequence_number'])
+    && positiveId(correction.sequence_number)
+    && validClass(correction.old_class)
+    && validClass(correction.new_class)
+    && typeof correction.corrected_at === 'string'
+    && Number.isFinite(Date.parse(correction.corrected_at))
+}
+
 function validWall(wall, floorPlanId) {
   return wall && positiveId(wall.id) && wall.floor_plan_id === floorPlanId
     && positiveId(wall.processing_job_id) && positiveId(wall.candidate_id)
@@ -57,8 +79,8 @@ function validSymbol(symbol, floorPlanId, jobId) {
   return symbol && positiveId(symbol.id) && symbol.floor_plan_id === floorPlanId
     && symbol.processing_job_id === jobId && positiveId(symbol.prediction_index)
     && symbol.prediction_index <= 300 && SYMBOL_STATUSES.has(symbol.status)
-    && Number.isInteger(symbol.original_class?.id) && symbol.original_class.id >= 0
-    && typeof symbol.original_class?.name === 'string' && symbol.original_class.name.length > 0
+    && validClass(symbol.original_class)
+    && validClass(symbol.authoritative_class)
     && finite(symbol.original_confidence) && symbol.original_confidence <= 1
     && finite(symbol.confidence_threshold) && symbol.confidence_threshold <= 1
     && Number.isInteger(width) && width > 0 && width <= 4096
@@ -72,6 +94,8 @@ function validSymbol(symbol, floorPlanId, jobId) {
     && typeof symbol.detection_limit_reached === 'boolean'
     && Object.hasOwn(symbol, 'review')
     && validReview(symbol.review)
+    && Object.hasOwn(symbol, 'correction')
+    && validCorrection(symbol.correction)
 }
 
 function validate(payload, floorPlanId, jobId) {

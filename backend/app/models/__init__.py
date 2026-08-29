@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.detection_class_correction import DetectionClassCorrection
 from app.models.detected_symbol import DetectedSymbol
 from app.models.detection_review import DetectionReview
 from app.models.floor_plan import FloorPlan
@@ -13,6 +14,7 @@ from app.models.wall import Wall
 
 __all__ = (
     "Base",
+    "DetectionClassCorrection",
     "DetectedSymbol",
     "DetectionReview",
     "FloorPlan",

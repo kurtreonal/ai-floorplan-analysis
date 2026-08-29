@@ -4,15 +4,15 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through J3A, including the E3A and J1A prerequisites.**
+**Implemented through J4, including the E3A, J1A, and J3A prerequisites.**
 
-The current backend surface contains 17 OpenAPI operations.
+The current backend surface contains 18 OpenAPI operations.
 
 The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the ten-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the eleven-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -48,10 +48,13 @@ The repository currently includes:
   distinct visible rejected state; and
 - a database-backed, active-only approved symbol legend catalog exposed through
   an authenticated read-only API. No production VED classes are guessed or
-  seeded, so an unpopulated catalog validly returns an empty array.
+  seeded, so an unpopulated catalog validly returns an empty array; and
+- append-only, owner-scoped Designer classification corrections selected from
+  that approved catalog, with original AI provenance retained and the latest
+  corrected class returned as authoritative for review.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing J3A does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing J4 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -202,8 +205,8 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
 prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
-prerequisite, J2, J3, and the J3A approved-symbol-legend prerequisite are
-implemented. J4 and all later tickets remain unimplemented.
+prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, and J4 are
+implemented. J5 and all later tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -339,7 +342,7 @@ The folders that do not exist yet should be created by the appropriate developme
   newer jobs preserve older versions, and empty results clear only their own
   job. Original class, confidence, pixel geometry, threshold, order, image, and
   detection-limit provenance remain retrievable without rerunning I1-I3. I4
-  adds no correction workflow, job completion, worker, or review UI.
+  does not itself add a correction workflow, job completion, worker, or review UI.
 - J1 exposes stored results through
   `GET /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}`.
   Owning Designers and Admins may read the exact requested symbol-job version;
@@ -364,7 +367,16 @@ The folders that do not exist yet should be created by the appropriate developme
   `GET /api/symbol-legends` access for Designers and Admins. Only active rows
   are returned in deterministic class order. The repository contains no
   approved production VED class values, so the live catalog may remain empty;
-  P3 still owns future Admin catalog management. J4 correction is next.
+  P3 still owns future Admin catalog management.
+- J4 adds the eleventh prototype table, `detection_class_corrections`, and a
+  Designer-only classification PUT endpoint. Corrections append old/new class
+  snapshots, preserve the original AI class, and are independent from J3
+  confirmation/rejection. J1 returns the latest correction and authoritative
+  class. Selecting the current class is idempotent; returning to the original
+  class removes no history and makes the original authoritative again.
+  Correction history also blocks same-job I4 replacement. The review UI loads
+  active legend values and safely disables correction when the catalog is empty.
+  J5 manual symbol placement remains unimplemented.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.

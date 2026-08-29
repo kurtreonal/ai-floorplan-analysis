@@ -56,6 +56,7 @@ class SymbolLegendModelTests(unittest.TestCase):
     def test_model_registration_and_live_schema_match_exactly(self) -> None:
         expected = {
             "detected_symbols",
+            "detection_class_corrections",
             "detection_reviews",
             "floor_plans",
             "processing_jobs",
@@ -68,7 +69,7 @@ class SymbolLegendModelTests(unittest.TestCase):
         }
         self.assertEqual(set(Base.metadata.tables), expected)
         self.assertEqual(set(inspect(self.engine).get_table_names()), expected)
-        self.assertEqual(len(Base.metadata.tables), 10)
+        self.assertEqual(len(Base.metadata.tables), 11)
 
 
 class SymbolLegendApiTests(unittest.TestCase):
@@ -341,7 +342,7 @@ class SymbolLegendApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 17)
+        self.assertEqual(len(operations), 18)
 
 
 if __name__ == "__main__":

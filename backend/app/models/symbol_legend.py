@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     BigInteger,
@@ -11,9 +12,13 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.models.base import Base
+
+
+if TYPE_CHECKING:
+    from app.models.detection_class_correction import DetectionClassCorrection
 
 
 MAXIMUM_SYMBOL_LEGEND_NAME_LENGTH = 255
@@ -71,6 +76,15 @@ class SymbolLegend(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    corrections_as_old: Mapped[list["DetectionClassCorrection"]] = relationship(
+        foreign_keys="DetectionClassCorrection.old_symbol_legend_id",
+        back_populates="old_symbol_legend",
+    )
+    corrections_as_new: Mapped[list["DetectionClassCorrection"]] = relationship(
+        foreign_keys="DetectionClassCorrection.new_symbol_legend_id",
+        back_populates="new_symbol_legend",
     )
 
     @validates("name")
