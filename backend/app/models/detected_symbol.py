@@ -19,6 +19,7 @@ from app.models.base import Base
 
 
 if TYPE_CHECKING:
+    from app.models.detection_review import DetectionReview
     from app.models.floor_plan import FloorPlan
     from app.models.processing_job import ProcessingJob
 
@@ -152,4 +153,7 @@ class DetectedSymbol(Base):
     )
     processing_job: Mapped["ProcessingJob"] = relationship(
         back_populates="detected_symbols"
+    )
+    reviews: Mapped[list["DetectionReview"]] = relationship(
+        back_populates="detected_symbol"
     )

@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through J2, including E3A and J1A, and labels
+> the architecture actually implemented through J3, including E3A and J1A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -44,11 +44,13 @@
   as the aligned blueprint reference
 - J2: protected React-Konva detection review with separate blueprint, current
   wall, selected-job symbol, and selection layers plus accessible DOM inspection
+- J3: append-only, owning-Designer confirmation/rejection decisions with
+  immutable machine detection provenance and persisted latest-review display
 
 ### Planned
 
-J3 and later roadmap tickets remain unimplemented, including detection-review
-mutations, complete K1 canonical geometry, editable Konva 2D, Three.js 3D,
+J4 and later roadmap tickets remain unimplemented, including classification
+correction, manual symbol creation, complete K1 canonical geometry, editable Konva 2D, Three.js 3D,
 routing, quantities, estimates, reports, administration, and audit logging.
 
 ### Proposed but not approved
@@ -158,6 +160,14 @@ filtered by database-owned project ownership; Admins may read any matching
 context. Symbols are selected only for the required query job, while walls are
 the current H3 floor-plan set and expose their own processing-job provenance.
 The route executes no AI/CV stage and performs no commit, flush, or state change.
+
+J3 adds a Designer-only mutation flow from the existing detection route through
+a review service and repository. It locks the exact owner-scoped detected-symbol
+row, reads the latest sequence, treats identical decisions idempotently, and
+appends reversals. `detection_reviews` has no mutable timestamp or delete
+cascade. J1 obtains all latest reviews with one deterministic bulk query and
+keeps its machine status unchanged. I4 explicitly rejects replacement of a job
+version once any of its detections has review history.
 
 J1A reuses that authorization context and resolves only the deterministic G2
 `normalized/floor-plan-<id>/job-<id>/image.png` artifact beneath the processed
@@ -288,9 +298,10 @@ POST /api/floor-plans/{floor_plan_id}/process
 GET  /api/processing-jobs/{job_id}
 GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
+PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
 ```
 
-The API has 15 OpenAPI operations through J1A. Detection retrieval requires a
+The API has 16 OpenAPI operations through J3. Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Symbols are
 job-versioned, whereas walls remain the current floor-plan wall set.
@@ -519,7 +530,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through J2 is:
+The verified baseline through J3 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -534,13 +545,15 @@ H3 focused backend:     21 tests
 I1 focused backend:     21 tests
 I2 focused backend:     25 tests
 I3 focused backend:     13 tests
-I4 focused backend:     13 tests
+I4 focused backend:     14 tests
 J1 focused backend:     15 tests
 J1A focused backend:    10 tests
-Full backend:          493 tests
+J3 focused backend:      9 tests
+Full backend:          503 tests
 F4 API client:           21 tests
 F4 component:            35 tests
-Full frontend:          121 tests
+J3 focused frontend:    25 tests
+Full frontend:          134 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -556,7 +569,7 @@ Original floor plan
         ↓
 Durable queued processing job with planned worker and AI/CV pipeline
         ↓
-Planned Designer review
+Persisted Designer confirmation/rejection review
         ↓
 Planned verified canonical geometry
         ├── planned Konva 2D
@@ -586,15 +599,16 @@ truth.
   the repository has no trained model and no automatic OpenCV/YOLO pipeline
   exists
 - J1/J1A/J2 retrieve and display stored walls, an explicitly selected symbol-job
-  version, and its aligned normalized blueprint reference, but no mutation
-  workflow exists
-- Detection review is read-only; canonical geometry is not implemented
+  version, and its aligned normalized blueprint reference; J3 persists
+  confirmation/rejection decisions without changing machine provenance
+- Detection review does not yet support J4 classification correction or J5
+  manual symbol creation; canonical geometry is not implemented
 - No 2D/3D editor implementation
 - No routing or multi-floor route calculation
 - No material pricing, estimates, reports, or audit logs
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next roadmap ticket is J3 confirm or reject detection. A persistent
+The next roadmap ticket is J4 correct symbol classification. A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
 J1A.

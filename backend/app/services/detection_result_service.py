@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+from datetime import datetime
+from types import MappingProxyType
+from typing import Mapping
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -10,6 +13,7 @@ from app.repositories.detection_result_repository import (
     list_current_walls,
     list_versioned_symbols,
 )
+from app.repositories.detection_review_repository import list_latest_reviews
 from app.services.symbol_persistence import PersistedDetectedSymbolRecord
 from app.services.wall_persistence import PersistedWallRecord
 
@@ -38,6 +42,14 @@ class DetectionResults:
     symbol_processing_job_id: int
     walls: tuple[PersistedWallRecord, ...]
     symbols: tuple[PersistedDetectedSymbolRecord, ...]
+    latest_reviews: Mapping[int, "LatestDetectionReview"]
+
+
+@dataclass(frozen=True)
+class LatestDetectionReview:
+    decision: str
+    sequence_number: int
+    reviewed_at: datetime
 
 
 def _positive_identifier(value: object, code: str) -> int:
@@ -120,6 +132,19 @@ def retrieve_detection_results(
                 processing_job_id=processing_job_id,
             )
         )
+        latest_reviews = MappingProxyType(
+            {
+                review.detected_symbol_id: LatestDetectionReview(
+                    decision=review.decision,
+                    sequence_number=review.sequence_number,
+                    reviewed_at=review.created_at,
+                )
+                for review in list_latest_reviews(
+                    database_session,
+                    detected_symbol_ids=tuple(symbol.id for symbol in symbols),
+                )
+            }
+        )
     except DetectionResultServiceError:
         raise
     except SQLAlchemyError:
@@ -133,4 +158,5 @@ def retrieve_detection_results(
         symbol_processing_job_id=processing_job_id,
         walls=walls,
         symbols=symbols,
+        latest_reviews=latest_reviews,
     )

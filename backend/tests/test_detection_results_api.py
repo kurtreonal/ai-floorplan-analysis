@@ -41,6 +41,7 @@ SESSION_COOKIE = "ved_session"
 PATH = "/api/floor-plans/{floor_plan_id}/detections"
 TABLES = (
     "detected_symbols",
+    "detection_reviews",
     "floor_plans",
     "processing_jobs",
     "project_floors",
@@ -436,6 +437,7 @@ class DetectionResultsApiTests(unittest.TestCase):
         self.assertEqual(body["symbols"][0]["center"], {"x": 30.0, "y": 40.0})
         self.assertEqual(body["symbols"][0]["maximum_detections"], 300)
         self.assertFalse(body["symbols"][0]["detection_limit_reached"])
+        self.assertIsNone(body["symbols"][0]["review"])
 
     def test_admin_can_read_another_project_without_mutation(self) -> None:
         before = (self.other_job.status, self.other_floor_plan.processing_status)
@@ -704,6 +706,7 @@ class DetectionResultsApiTests(unittest.TestCase):
             "find_owned_detection_context",
             "list_current_walls",
             "list_versioned_symbols",
+            "list_latest_reviews",
         )
         for target in targets:
             with self.subTest(target=target), patch(
@@ -748,7 +751,7 @@ class DetectionResultsApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 15)
+        self.assertEqual(len(operations), 16)
 
     def test_schema_and_storage_remain_stable(self) -> None:
         self.assertEqual(tuple(sorted(Wall.metadata.tables)), TABLES)

@@ -345,8 +345,8 @@ class ReviewImageApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 15)
-        self.assertEqual(len(__import__("sqlalchemy").inspect(self.engine).get_table_names()), 8)
+        self.assertEqual(len(operations), 16)
+        self.assertEqual(len(__import__("sqlalchemy").inspect(self.engine).get_table_names()), 9)
 
 
 if __name__ == "__main__":

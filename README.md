@@ -4,13 +4,13 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through J2, including the E3A and J1A prerequisites.**
+**Implemented through J3, including the E3A and J1A prerequisites.**
 
 The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the eight-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the nine-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -40,10 +40,13 @@ The repository currently includes:
 - an authenticated, read-only review-image API that serves the existing G2
   normalized RGB PNG aligned with wall and symbol pixel coordinates; and
 - a protected, read-only React-Konva detection-review canvas with separate
-  blueprint, wall, symbol, and selection layers plus accessible inspection.
+  blueprint, wall, symbol, and selection layers plus accessible inspection; and
+- append-only, owner-scoped Designer confirmation/rejection decisions with
+  immutable machine provenance, persisted latest-review retrieval, and a
+  distinct visible rejected state.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing J2 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing J3 does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -194,7 +197,7 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
 prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
-prerequisite and J2 are implemented. J3 and all later tickets remain unimplemented.
+prerequisite, J2, and J3 are implemented. J4 and all later tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -343,7 +346,13 @@ The folders that do not exist yet should be created by the appropriate developme
 - J2 uses `konva` and `react-konva` to display that blueprint with current H3
   walls and the explicit J1 symbol-job version. It supports read-only selection,
   status/confidence inspection, an accessible DOM table, responsive shared
-  scaling, safe retries, and request/object-URL cleanup. J3 is next.
+  scaling, safe retries, and request/object-URL cleanup.
+- J3 adds `PUT /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review`
+  with the required `processing_job_id` query. Owning Designers can append
+  `confirmed` or `deleted` decisions; identical repeats are idempotent and
+  reversals append a new sequence. J1 returns only the latest review while the
+  original machine status, class, confidence, geometry, and timestamps remain
+  unchanged. Reviewed same-job I4 results cannot be replaced. J4 is next.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.

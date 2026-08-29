@@ -22,4 +22,10 @@
 .detection-details dl div { padding: .65rem; background: #f3f6f8; }
 .detection-details dt { font-size: .78rem; text-transform: uppercase; color: #60717f; }
 .detection-details dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+.detection-review-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.detection-review-actions button:disabled { cursor: wait; opacity: .62; }
+.detection-reject-button { border: 1px solid #8d3b3b; color: #7c2929; background: #fff; }
+.detection-review-announcement { min-height: 1.5rem; margin: 0 0 .75rem; }
+.detection-review-announcement.is-success { color: #23643e; }
+.detection-review-announcement.is-error { color: #8b2f2f; }
 @media (max-width: 700px) { .detection-review-header { align-items: start; flex-direction: column; } }

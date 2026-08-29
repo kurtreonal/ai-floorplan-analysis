@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { fitCanvas, symbolRectangle, wallLinePoints } from './detectionCanvasGeometry.js'
+import { fitCanvas, symbolPresentation, symbolRectangle, wallLinePoints } from './detectionCanvasGeometry.js'
 
 describe('detection canvas geometry', () => {
   it('fits without changing aspect ratio', () => {
     expect(fitCanvas(1000, 500, 500, 500)).toEqual({ scale: 0.5, width: 500, height: 250 })
     expect(fitCanvas(1000, 500, 2000, 600)).toEqual({ scale: 1.2, width: 1200, height: 600 })
+  })
+
+  it('keeps pending machine styling and distinguishes confirmed and deleted reviews', () => {
+    expect(symbolPresentation({ status: 'needs_review', review: null }).color).toBe('#b54708')
+    expect(symbolPresentation({ status: 'detected', review: { decision: 'confirmed' } }).color).toBe('#297a4a')
+    expect(symbolPresentation({ status: 'detected', review: { decision: 'deleted' } }).color).toBe('#6b7280')
   })
 
   it('returns source-coordinate wall and symbol geometry unchanged', () => {

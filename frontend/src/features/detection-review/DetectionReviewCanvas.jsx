@@ -5,6 +5,7 @@ import {
   fitCanvas,
   STATUS_PRESENTATION,
   symbolRectangle,
+  symbolPresentation,
   wallLinePoints,
 } from './detectionCanvasGeometry.js'
 
@@ -48,10 +49,11 @@ export function DetectionReviewCanvas({ image, imageWidth, imageHeight, walls, s
           <Layer>
             {symbols.map((symbol) => {
               const rectangle = symbolRectangle(symbol)
-              const style = STATUS_PRESENTATION[symbol.status]
+              const style = symbolPresentation(symbol)
+              const isDeleted = symbol.review?.decision === 'deleted'
               return (
                 <Group key={symbol.id} onClick={() => onSelect(symbol.id)} onTap={() => onSelect(symbol.id)}>
-                  <Rect {...rectangle} stroke={style.color} strokeWidth={3 / stage.scale} dash={style.dash} fill="rgba(255,255,255,0.08)" />
+                  <Rect {...rectangle} stroke={style.color} strokeWidth={3 / stage.scale} dash={style.dash} fill={isDeleted ? 'rgba(107,114,128,0.22)' : 'rgba(255,255,255,0.08)'} opacity={isDeleted ? 0.72 : 1} />
                   <Circle x={symbol.center.x} y={symbol.center.y} radius={4 / stage.scale} fill={style.color} />
                 </Group>
               )

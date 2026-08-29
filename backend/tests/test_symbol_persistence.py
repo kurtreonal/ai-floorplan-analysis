@@ -27,6 +27,7 @@ from app.core.database import get_engine
 from app.models import (
     Base,
     DetectedSymbol,
+    DetectionReview,
     FloorPlan,
     ProcessingJob,
     Project,
@@ -112,6 +113,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             ProcessingJob,
             Wall,
             DetectedSymbol,
+            DetectionReview,
         )
         with Session(cls.engine) as session:
             cls.baseline_counts = {
@@ -192,6 +194,19 @@ class SymbolPersistenceTests(unittest.TestCase):
                 jobs = tuple(ids.get("jobs", ()))
                 floors = tuple(ids.get("floor_plans", ()))
                 if jobs:
+                    detection_ids = tuple(
+                        session.scalars(
+                            select(DetectedSymbol.id).where(
+                                DetectedSymbol.processing_job_id.in_(jobs)
+                            )
+                        )
+                    )
+                    if detection_ids:
+                        session.execute(
+                            delete(DetectionReview).where(
+                                DetectionReview.detected_symbol_id.in_(detection_ids)
+                            )
+                        )
                     session.execute(
                         delete(DetectedSymbol).where(
                             DetectedSymbol.processing_job_id.in_(jobs)
@@ -233,6 +248,7 @@ class SymbolPersistenceTests(unittest.TestCase):
                     ProcessingJob,
                     Wall,
                     DetectedSymbol,
+                    DetectionReview,
                 )
                 current = {
                     model.__tablename__: session.scalar(
@@ -253,6 +269,19 @@ class SymbolPersistenceTests(unittest.TestCase):
         self.session = Session(self.engine, expire_on_commit=False)
         self.floor_plan_id, self.other_floor_plan_id = self.created_ids["floor_plans"]
         self.job_id, self.second_job_id, self.other_job_id = self.created_ids["jobs"]
+        detection_ids = tuple(
+            self.session.scalars(
+                select(DetectedSymbol.id).where(
+                    DetectedSymbol.processing_job_id.in_(self.created_ids["jobs"])
+                )
+            )
+        )
+        if detection_ids:
+            self.session.execute(
+                delete(DetectionReview).where(
+                    DetectionReview.detected_symbol_id.in_(detection_ids)
+                )
+            )
         self.session.execute(
             delete(DetectedSymbol).where(
                 DetectedSymbol.processing_job_id.in_(self.created_ids["jobs"])
@@ -335,8 +364,8 @@ class SymbolPersistenceTests(unittest.TestCase):
         self.assertTrue(table.c.processing_job_id.index)
         self.assertEqual(DETECTED_SYMBOL_STATUSES, ("detected", "needs_review"))
         self.assertIn("detected_symbols", Base.metadata.tables)
-        self.assertEqual(len(Base.metadata.tables), 8)
-        self.assertEqual(len(inspect(self.engine).get_table_names()), 8)
+        self.assertEqual(len(Base.metadata.tables), 9)
+        self.assertEqual(len(inspect(self.engine).get_table_names()), 9)
         self.assertEqual(
             DetectedSymbol.floor_plan.property.back_populates,
             "detected_symbols",
@@ -345,6 +374,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             DetectedSymbol.processing_job.property.back_populates,
             "detected_symbols",
         )
+        self.assertEqual(DetectedSymbol.reviews.property.back_populates, "detected_symbol")
 
     def test_mixed_predictions_round_trip_all_original_provenance_exactly(self):
         high = prediction(
@@ -431,6 +461,70 @@ class SymbolPersistenceTests(unittest.TestCase):
                 self.session, self.floor_plan_id, self.second_job_id
             ),
             second,
+        )
+
+    def test_reviewed_same_job_replacement_is_rejected_but_other_job_isolated(self):
+        original = replace_detected_symbols(
+            self.session,
+            self.floor_plan_id,
+            self.job_id,
+            classified_result((prediction(0.8, class_id=1),)),
+        )
+        review = DetectionReview(
+            detected_symbol_id=original[0].id,
+            reviewer_user_id=self.created_ids["user"],
+            sequence_number=1,
+            decision="confirmed",
+        )
+        self.session.add(review)
+        self.session.commit()
+        job_before = self.session.get(ProcessingJob, self.job_id)
+        floor_before = self.session.get(FloorPlan, self.floor_plan_id)
+        side_effects_before = (
+            job_before.status,
+            job_before.progress,
+            job_before.error_message,
+            floor_before.processing_status,
+        )
+
+        self.assert_error(
+            "SYMBOL_PERSISTENCE_FAILED",
+            lambda: replace_detected_symbols(
+                self.session,
+                self.floor_plan_id,
+                self.job_id,
+                classified_result((prediction(0.7, class_id=2),)),
+            ),
+        )
+        self.assertEqual(
+            retrieve_detected_symbols(self.session, self.floor_plan_id, self.job_id),
+            original,
+        )
+        self.assertEqual(
+            self.session.scalar(
+                select(func.count())
+                .select_from(DetectionReview)
+                .where(DetectionReview.detected_symbol_id == original[0].id)
+            ),
+            1,
+        )
+        other_version = replace_detected_symbols(
+            self.session,
+            self.floor_plan_id,
+            self.second_job_id,
+            classified_result((prediction(0.6, class_id=3),)),
+        )
+        self.assertEqual(len(other_version), 1)
+        self.session.refresh(job_before)
+        self.session.refresh(floor_before)
+        self.assertEqual(
+            (
+                job_before.status,
+                job_before.progress,
+                job_before.error_message,
+                floor_before.processing_status,
+            ),
+            side_effects_before,
         )
 
     def test_retrieval_is_ordered_immutable_json_compatible_and_relationship_free(self):
@@ -697,7 +791,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             if method.casefold()
             in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 15)
+        self.assertEqual(operations, 16)
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ function payload() {
       bounding_box: { x_min: 10, y_min: 20, x_max: 30, y_max: 40 },
       center: { x: 20, y: 30 }, maximum_detections: 300,
       detection_limit_reached: false,
+      review: null,
     }],
   }
 }
@@ -43,11 +44,24 @@ describe('detection results API', () => {
       (value) => { value.symbols[0].processing_job_id = 8 },
       (value) => { value.symbols[0].bounding_box.x_max = 101 },
       (value) => { value.symbols.push({ ...value.symbols[0], id: 5, image_width_pixels: 101 }) },
+      (value) => { value.symbols[0].review = { decision: 'corrected', sequence_number: 1, reviewed_at: '2026-08-29T12:00:00' } },
+      (value) => { value.symbols[0].review = { decision: 'confirmed', sequence_number: 0, reviewed_at: '2026-08-29T12:00:00' } },
+      (value) => { delete value.symbols[0].review },
+      (value) => { value.symbols[0].review = { decision: 'confirmed', sequence_number: 1, reviewed_at: '2026-08-29T12:00:00', reviewer: 'private' } },
     ]) {
       const value = payload(); mutate(value)
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => value }))
       await expect(fetchDetectionResults(2, 3)).rejects.toBeInstanceOf(DetectionApiError)
     }
+  })
+
+  it('accepts the persisted latest nested review', async () => {
+    const value = payload()
+    value.symbols[0].review = {
+      decision: 'deleted', sequence_number: 2, reviewed_at: '2026-08-29T12:00:00',
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => value }))
+    await expect(fetchDetectionResults(2, 3)).resolves.toEqual(value)
   })
 
   it('preserves safe HTTP status/code and abort behavior', async () => {
