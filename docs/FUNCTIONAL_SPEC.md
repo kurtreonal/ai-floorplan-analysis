@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through J1, including the E3A project-floor
+The repository is implemented through J1A, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 Completed ticket areas:
@@ -82,6 +82,7 @@ I2 — Implement Symbol Inference Service
 I3 — Implement Confidence Filtering
 I4 — Persist Detected Symbols
 J1 — Create Detection Results API
+J1A — Create Detection Review Image API
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -93,7 +94,8 @@ current-session Designer processing UI, a backend-only PDF-to-PNG conversion
 service, Pillow-based image normalization, OpenCV preprocessing, wall candidate
 detection/normalization/persistence, configured YOLO loading, isolated symbol
 inference, in-memory confidence classification, and processing-job-versioned
-machine detection persistence, plus read-only detection-result retrieval. J2
+machine detection persistence, plus read-only detection-result retrieval and
+authenticated serving of the aligned G2 normalized review image. J2
 and later tickets remain unimplemented. In
 particular, there is no worker, external queue, automatic OpenCV/YOLO pipeline,
 detection review canvas or mutation workflow,
@@ -3088,11 +3090,38 @@ Implemented behavior:
 
 ---
 
+### TICKET J1A — Create Detection Review Image API
+
+**Goal:** Securely serve the existing normalized blueprint reference required
+for pixel-aligned detection review.
+
+**Dependencies:** G2, J1.
+
+**Implementation status:** Complete. J1A adds
+`GET /api/floor-plans/{floor_plan_id}/review-image` with a required positive
+`processing_job_id`. Owning Designers and Admins can retrieve only the existing
+G2 RGB PNG for an exact `floor_plan_analysis` floor-plan/job context.
+
+The endpoint validates deterministic containment beneath `PROCESSED_DIR`,
+symlink safety, PNG content, RGB mode, bounded bytes, and G2 dimensions. It
+returns private, non-cacheable `image/png` bytes and never invokes G1/G2/G3,
+creates an artifact, exposes a path, changes the original, or writes database
+state.
+
+**Acceptance Criteria:**
+
+- [x] Authorized users can retrieve the exact existing normalized RGB PNG.
+- [x] Missing, inaccessible, mismatched, and unsafe resources fail safely.
+- [x] Private cache and content-sniffing headers are present.
+- [x] No file generation, original mutation, or database write occurs.
+
+---
+
 ### TICKET J2 — Build Detection Review Canvas
 
 **Goal:** Display AI results over the original plan.
 
-**Dependencies:** J1.
+**Dependencies:** J1, J1A.
 
 **Acceptance Criteria:**
 

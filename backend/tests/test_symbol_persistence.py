@@ -697,7 +697,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             if method.casefold()
             in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 14)
+        self.assertEqual(operations, 15)
 
 
 if __name__ == "__main__":
