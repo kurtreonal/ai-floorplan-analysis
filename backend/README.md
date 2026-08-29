@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through J1. It
+This directory contains the FastAPI backend implemented through J1A. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -9,7 +9,8 @@ and an ownership-aware processing-status endpoint. A backend-only PDF-to-PNG
 image normalization, OpenCV preprocessing, wall detection/normalization/
 persistence, configured YOLO model loading, and isolated symbol inference are
 also implemented, together with confidence filtering, versioned symbol
-persistence, and read-only detection-result retrieval. Workers, Designer review
+persistence, read-only detection-result retrieval, and authenticated serving of
+the existing normalized review image. Workers, Designer review
 mutations, complete canonical geometry, routing, estimation, and reporting are
 not implemented.
 
@@ -541,7 +542,7 @@ Success leaves floor-plan and processing-job state unchanged. Failures roll back
 the whole replacement and expose only stable sanitized errors. I4 adds no API,
 worker, job completion, confirmation/correction, symbol legend, or review UI.
 J1 exposes the persisted results through the read-only endpoint documented
-below. J2 remains the next normal ticket.
+below. J1A provides the aligned blueprint reference; J2 remains next.
 
 ## Detection results API
 
@@ -566,6 +567,19 @@ the original symbol class, confidence, I3 threshold/status, processed-pixel box
 and center, image dimensions, detection-cap metadata, and timestamps. The route
 does not expose storage/model paths, rerun OpenCV or YOLO, classify confidence,
 write files, or mutate floor-plan, job, wall, or symbol state.
+
+## Detection review image API
+
+```http
+GET /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
+```
+
+J1A serves only the existing G2 normalized RGB PNG beneath `PROCESSED_DIR` for
+an authorized exact floor-plan/job context. It validates containment, symlink
+safety, PNG content, RGB mode, byte size, and G2 dimensions. Responses use
+`image/png`, `Cache-Control: private, no-store`, and
+`X-Content-Type-Options: nosniff`. It never runs G1/G2/G3, generates a missing
+artifact, exposes a path, changes the original, or mutates database state.
 
 `ultralytics-opencv-headless==8.4.131` is offered under AGPL-3.0, with a separate
 Enterprise license available. Complete a licensing review before commercial or
@@ -628,11 +642,11 @@ available:
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-The current expected totals are 15 focused J1 tests, 13 focused I4 tests,
+The current expected totals are 10 focused J1A tests, 15 focused J1 tests, 13 focused I4 tests,
 13 focused I3 tests, 25 focused I2 tests, 21 focused I1 tests, 21 focused H3
 tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
-regression tests, 17 focused F1 regression tests, and 483 full backend tests.
+regression tests, 17 focused F1 regression tests, and 493 full backend tests.
 The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a
 test failure.

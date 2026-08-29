@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through J1, including the E3A project-floor prerequisite.**
+**Implemented through J1A, including the E3A project-floor prerequisite.**
 
 The repository currently includes:
 
@@ -36,10 +36,12 @@ The repository currently includes:
 - immutable confidence classification and processing-job-versioned detected
   symbol persistence; and
 - an ownership-aware, read-only detection-results API with explicit symbol-job
-  version selection and current persisted wall geometry.
+  version selection and current persisted wall geometry; and
+- an authenticated, read-only review-image API that serves the existing G2
+  normalized RGB PNG aligned with wall and symbol pixel coordinates.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing J1 does not imply that the downstream AI,
+`docs/FUNCTIONAL_SPEC.md`; completing J1A does not imply that the downstream AI,
 geometry, routing, estimation, or reporting pipeline exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -189,8 +191,8 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 ## Current Roadmap Position
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
-prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, and J1 are implemented. J2 and all
-later functional tickets remain unimplemented.
+prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
+prerequisite are implemented. J2 and all later tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -331,7 +333,11 @@ The folders that do not exist yet should be created by the appropriate developme
   Owning Designers and Admins may read the exact requested symbol-job version;
   walls remain H3's current floor-plan wall set and retain their own job
   provenance. Empty stored results return empty arrays. J1 performs no AI rerun,
-  filesystem write, state mutation, or Designer review action; J2 is next.
+  filesystem write, state mutation, or Designer review action.
+- J1A serves the existing G2 normalized blueprint reference through
+  `GET /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}`.
+  It validates the authorized job and RGB PNG without generating or changing a
+  file. J2 is next.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.

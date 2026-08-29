@@ -31,6 +31,7 @@ SESSION_COOKIE = "ved_session"
 SESSION_SECRET = "f3-automated-test-session-secret"
 STATUS_PATH = "/api/processing-jobs/{job_id}"
 DETECTION_PATH = "/api/floor-plans/{floor_plan_id}/detections"
+REVIEW_IMAGE_PATH = "/api/floor-plans/{floor_plan_id}/review-image"
 F2_OPERATIONS = {
     ("get", "/health"),
     ("get", "/api/auth/me"),
@@ -555,9 +556,10 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
             | {
                 ("get", STATUS_PATH),
                 ("get", DETECTION_PATH),
+                ("get", REVIEW_IMAGE_PATH),
             },
         )
-        self.assertEqual(len(operations), 14)
+        self.assertEqual(len(operations), 15)
 
 
 if __name__ == "__main__":

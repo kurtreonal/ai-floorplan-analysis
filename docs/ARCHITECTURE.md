@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through J1, including E3A, and labels
+> the architecture actually implemented through J1A, including E3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -40,6 +40,8 @@
   provenance
 - J1: ownership-aware read-only detection-results API with explicit symbol-job
   version selection and current H3 wall retrieval
+- J1A: ownership-aware read-only serving of the existing G2 normalized RGB PNG
+  as the aligned blueprint reference
 
 ### Planned
 
@@ -155,6 +157,12 @@ filtered by database-owned project ownership; Admins may read any matching
 context. Symbols are selected only for the required query job, while walls are
 the current H3 floor-plan set and expose their own processing-job provenance.
 The route executes no AI/CV stage and performs no commit, flush, or state change.
+
+J1A reuses that authorization context and resolves only the deterministic G2
+`normalized/floor-plan-<id>/job-<id>/image.png` artifact beneath the processed
+root. It validates containment, symlink safety, PNG content, RGB mode, byte
+size, and G2 dimensions before returning private, non-cacheable bytes. It does
+not generate missing images or mutate original files or database state.
 
 Ultralytics is available under AGPL-3.0 and a separate Enterprise license.
 Commercial or production deployment requires a licensing review.
@@ -278,9 +286,10 @@ POST /api/projects/{project_id}/floor-plans
 POST /api/floor-plans/{floor_plan_id}/process
 GET  /api/processing-jobs/{job_id}
 GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
+GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
 ```
 
-The API has 14 OpenAPI operations through J1. Detection retrieval requires a
+The API has 15 OpenAPI operations through J1A. Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Symbols are
 job-versioned, whereas walls remain the current floor-plan wall set.
@@ -509,7 +518,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through J1 is:
+The verified baseline through J1A is:
 
 ```text
 F3 focused backend:    11 tests
@@ -526,7 +535,8 @@ I2 focused backend:     25 tests
 I3 focused backend:     13 tests
 I4 focused backend:     13 tests
 J1 focused backend:     15 tests
-Full backend:          483 tests
+J1A focused backend:    10 tests
+Full backend:          493 tests
 F4 API client:           21 tests
 F4 component:            35 tests
 Full frontend:          103 tests
@@ -574,8 +584,9 @@ truth.
   classify confidence, and persist versioned machine output, but
   the repository has no trained model and no automatic OpenCV/YOLO pipeline
   exists
-- J1 can retrieve stored walls and an explicitly selected symbol-job version,
-  but no detection review canvas or mutation workflow exists
+- J1/J1A can retrieve stored walls, an explicitly selected symbol-job version,
+  and its aligned normalized blueprint reference, but no detection review
+  canvas or mutation workflow exists
 - No interactive detection review or canonical geometry
 - No 2D/3D editor implementation
 - No routing or multi-floor route calculation
@@ -585,4 +596,4 @@ truth.
 
 The next roadmap ticket is J2 detection review canvas. A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
-J1.
+J1A.

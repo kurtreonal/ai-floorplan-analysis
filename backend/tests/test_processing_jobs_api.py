@@ -31,6 +31,7 @@ SESSION_SECRET = "f2-automated-test-session-secret"
 PROCESS_PATH = "/api/floor-plans/{floor_plan_id}/process"
 STATUS_PATH = "/api/processing-jobs/{job_id}"
 DETECTION_PATH = "/api/floor-plans/{floor_plan_id}/detections"
+REVIEW_IMAGE_PATH = "/api/floor-plans/{floor_plan_id}/review-image"
 EXISTING_OPERATIONS = {
     ("get", "/health"),
     ("get", "/api/auth/me"),
@@ -369,9 +370,10 @@ class ProcessingJobApiTests(unittest.TestCase):
                 ("post", PROCESS_PATH),
                 ("get", STATUS_PATH),
                 ("get", DETECTION_PATH),
+                ("get", REVIEW_IMAGE_PATH),
             },
         )
-        self.assertEqual(len(operations), 14)
+        self.assertEqual(len(operations), 15)
 
     def test_owning_designer_creates_durable_queued_job(self) -> None:
         response = self._post(

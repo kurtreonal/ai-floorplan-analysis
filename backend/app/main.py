@@ -9,6 +9,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.processing import router as processing_router
 from app.api.routes.project_floors import router as project_floors_router
 from app.api.routes.projects import router as projects_router
+from app.api.routes.review_images import router as review_images_router
 from app.core.config import (
     OAuthOIDCConfigurationError,
     Settings,
@@ -62,6 +63,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(floor_plans_router)
     application.include_router(processing_router)
     application.include_router(detections_router)
+    application.include_router(review_images_router)
     return application
 
 
