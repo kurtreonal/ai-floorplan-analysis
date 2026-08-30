@@ -10,6 +10,13 @@
 .detection-legend .legend-needs_review { background: repeating-linear-gradient(90deg, #b54708 0 7px, transparent 7px 11px); }
 .detection-legend .legend-verified { background: #297a4a; }
 .detection-canvas-card, .detection-inspector { background: #fff; border: 1px solid #d5dde4; padding: 1rem; margin-bottom: 1rem; }
+.manual-placement-controls { background: #fff; border: 1px solid #d5dde4; padding: 1rem; margin-bottom: 1rem; }
+.manual-placement-controls h2 { margin-top: 0; }
+.manual-placement-controls label { display: block; margin-bottom: .4rem; font-weight: 700; }
+.manual-placement-controls select { min-width: min(100%, 22rem); padding: .6rem; margin: 0 .75rem .75rem 0; }
+.manual-placement-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: .75rem; }
+.manual-placement-actions p { flex-basis: 100%; margin: 0; }
+.manual-placement-controls button:disabled { cursor: not-allowed; opacity: .62; }
 .detection-canvas-wrap { overflow: auto; display: grid; place-items: center; min-height: 280px; background: #e9edf0; }
 .detection-canvas-note { margin: .75rem 0 0; font-size: .88rem; color: #52616e; }
 .detection-table-scroll { overflow-x: auto; }

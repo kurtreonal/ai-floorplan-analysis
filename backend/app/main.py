@@ -6,6 +6,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.detections import router as detections_router
 from app.api.routes.floor_plans import router as floor_plans_router
 from app.api.routes.health import router as health_router
+from app.api.routes.manual_symbols import router as manual_symbols_router
 from app.api.routes.processing import router as processing_router
 from app.api.routes.project_floors import router as project_floors_router
 from app.api.routes.projects import router as projects_router
@@ -64,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(floor_plans_router)
     application.include_router(processing_router)
     application.include_router(detections_router)
+    application.include_router(manual_symbols_router)
     application.include_router(review_images_router)
     application.include_router(symbol_legends_router)
     return application

@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through J4. It
+This directory contains the FastAPI backend implemented through J5. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -12,8 +12,8 @@ also implemented, together with confidence filtering, versioned symbol
 persistence, read-only detection-result retrieval, authenticated serving of
 the existing normalized review image, append-only Designer confirmation or
 rejection decisions, an active-only approved symbol legend API, and append-only
-Designer classification correction. Workers, manual symbol
-creation, complete canonical geometry, routing, estimation, and reporting are
+Designer classification correction, and owner-scoped manual symbol placement.
+Workers, complete canonical geometry, routing, estimation, and reporting are
 not implemented.
 
 ## Requirements
@@ -69,7 +69,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype has these ten application tables:
+The current prototype has these twelve application tables:
 
 ```text
 roles
@@ -82,6 +82,8 @@ walls
 detected_symbols
 detection_reviews
 symbol_legends
+detection_class_corrections
+manual_symbols
 ```
 
 Alembic and production schema migrations remain deferred. Never run schema
@@ -150,9 +152,10 @@ GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
 GET  /api/symbol-legends
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classification?processing_job_id={job_id}
+POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 18 OpenAPI operations through J4. `GET /api/symbol-legends`
+The API has 19 OpenAPI operations through J5. `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
 official VED class values are committed or seeded; P3 remains responsible for
@@ -553,15 +556,15 @@ a valid empty result clears only its own version. Retrieval requires both floor
 plan and job, returns immutable records ordered by one-based prediction index,
 and does not rerun model loading, inference, or classification.
 
-Once any row in a job version has an associated J3 review event or J4 class
-correction, I4 rejects
+Once a job version has an associated J3 review event, J4 class correction, or
+J5 manual symbol, I4 rejects
 same-job replacement with a sanitized persistence error. This prevents the
 append-only review history from being erased. Other processing-job versions
 remain independently persistable.
 
 Success leaves floor-plan and processing-job state unchanged. Failures roll back
 the whole replacement and expose only stable sanitized errors. I4 adds no API,
-worker, job completion, or manual-symbol creation.
+worker or job completion.
 J1 exposes the persisted results through the read-only endpoint documented
 below. J1A provides the aligned blueprint reference consumed by the J2
 frontend; J3 adds the review-decision boundary documented below.
@@ -600,6 +603,23 @@ from the latest review and returns both `original_class` and
 and cross-owner detections use a non-disclosing `404`; unavailable/inactive
 legend choices use `409`; storage failures use a sanitized `503`.
 
+## Manual symbol placement API
+
+J5 adds `manual_symbols` as the twelfth prototype table and
+`POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}`.
+Only the owning Designer may place an active approved legend. The strict body
+contains a client UUID, legend ID, and source-pixel center; class, status,
+creator, and image dimensions are server-authoritative. The exact existing J1A
+RGB PNG supplies trusted dimensions and is never generated or modified during
+placement. Identical UUID retries return the existing record with HTTP 200;
+new rows return 201 and conflicting reuse returns 409.
+
+J1 returns manual records in a separate `manual_symbols` array. Persisted class
+snapshots survive later legend changes. A renderer-independent service hands
+confirmed detections (using J4's authoritative class) plus all manual symbols
+to K1 in source pixels, excluding pending and deleted detections. K1 canonical
+geometry and actual 3D, routing, and quantity work remain unimplemented.
+
 ## Detection results API
 
 ```http
@@ -608,7 +628,7 @@ GET /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 
 The positive `processing_job_id` query parameter is required. Symbols come only
 from that exact `floor_plan_analysis` job version; an empty requested version
-returns `"symbols": []` and never falls back to older rows. Walls are H3's
+returns `"symbols": []` and `"manual_symbols": []` and never falls back to older rows. Walls are H3's
 current floor-plan wall set rather than a version selected by the query, and
 each wall includes its own `processing_job_id` so differing provenance remains
 visible.

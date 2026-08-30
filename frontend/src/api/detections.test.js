@@ -24,6 +24,7 @@ function payload() {
       review: null,
       correction: null,
     }],
+    manual_symbols: [],
   }
 }
 
@@ -53,11 +54,26 @@ describe('detection results API', () => {
       (value) => { delete value.symbols[0].authoritative_class },
       (value) => { delete value.symbols[0].correction },
       (value) => { value.symbols[0].correction = { sequence_number: 1, old_class: { id: 7, name: 'outlet' }, new_class: { id: 2, name: 'light' }, corrected_at: 'invalid' } },
+      (value) => { delete value.manual_symbols },
     ]) {
       const value = payload(); mutate(value)
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => value }))
       await expect(fetchDetectionResults(2, 3)).rejects.toBeInstanceOf(DetectionApiError)
     }
+  })
+
+  it('accepts strict, bounded manual symbols and rejects malformed records', async () => {
+    const value = payload()
+    value.manual_symbols = [{
+      id: 4, floor_plan_id: 2, processing_job_id: 3,
+      status: 'manually_added', authoritative_class: { id: 9, name: 'switch' },
+      center: { x: 50.5, y: 40.25 }, image_width_pixels: 100,
+      image_height_pixels: 80, created_at: '2026-08-30T12:00:00',
+    }]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => value }))
+    await expect(fetchDetectionResults(2, 3)).resolves.toEqual(value)
+    value.manual_symbols[0].center.x = 101
+    await expect(fetchDetectionResults(2, 3)).rejects.toBeInstanceOf(DetectionApiError)
   })
 
   it('accepts the persisted latest nested review', async () => {

@@ -377,9 +377,10 @@ class ProcessingJobApiTests(unittest.TestCase):
                 ("put", DETECTION_REVIEW_PATH),
                 ("get", "/api/symbol-legends"),
                 ("put", "/api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classification"),
+                ("post", "/api/floor-plans/{floor_plan_id}/manual-symbols"),
             },
         )
-        self.assertEqual(len(operations), 18)
+        self.assertEqual(len(operations), 19)
 
     def test_owning_designer_creates_durable_queued_job(self) -> None:
         response = self._post(
