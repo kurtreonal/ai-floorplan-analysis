@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through J5, including E3A, J1A, and J3A, and labels
+> the architecture actually implemented through K1, including E3A, J1A, and J3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -52,11 +52,13 @@
   immutable original AI provenance and latest-authoritative retrieval
 - J5: owner-scoped, retry-idempotent manual symbol placement using trusted J1A
   image dimensions, separate J1 retrieval, and a source-pixel K1 handoff
+- K1: strict canonical geometry schema v1 plus pure H2-wall and J5-symbol
+  adapters shared with a renderer-independent JavaScript normalizer
 
 ### Planned
 
-K1 and later roadmap tickets remain unimplemented, including complete canonical
-geometry, editable Konva 2D, Three.js 3D,
+K2 and later roadmap tickets remain unimplemented, including layout persistence,
+geometry editing, editable Konva 2D, Three.js 3D,
 routing, quantities, estimates, reports, administration, and audit logging.
 
 ### Proposed but not approved
@@ -345,7 +347,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 19 OpenAPI operations through J5. Detection retrieval requires a
+The API has 19 OpenAPI operations through K1. Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Machine and
 manual symbols are returned in separate arrays. Symbols are
@@ -565,7 +567,8 @@ set and inserts the complete replacement with one commit. Empty geometry is a
 valid empty replacement, and any failure rolls back deletion and insertion.
 Read-only retrieval is ordered, immutable, relationship-isolated, and performs
 no OpenCV or H2 conversion. H3 adds no API, review transition, editing, worker,
-rooms, symbols, or full K1 project geometry.
+rooms or symbols. K1 composes H2 walls and J5 authoritative symbols into the
+document described by `geometry.md` without changing H2 persistence.
 
 ## 10. Testing strategy and verified baseline
 
@@ -575,7 +578,7 @@ rooms, symbols, or full K1 project geometry.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The current verification baseline through J5 is:
+The verified baseline through K1 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -598,13 +601,17 @@ J3A focused backend:     9 tests
 J4 focused backend:     11 tests
 J5 focused backend:      8 tests
 J5 backend regressions: 90 tests
-Full backend:          532 tests
+K1 focused backend:     39 tests
+K1 required regressions: 85 tests + 63 subtests
+Full backend:          571 tests + 426 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
 J4 focused frontend:    18 tests
 J5 focused frontend:    49 tests
-Full frontend:          168 tests
+K1 focused frontend:    21 tests
+K1 J2/J5 regressions:   43 tests
+Full frontend:          189 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -653,7 +660,7 @@ truth.
   version, and its aligned normalized blueprint reference; J3 persists
   confirmation/rejection decisions without changing machine provenance
 - Detection review supports J4 approved-catalog classification correction and
-  J5 manual symbol creation; canonical geometry is not implemented
+  J5 manual symbol creation; K1 geometry is now an in-memory contract only
 - J3A exposes an empty-safe approved legend catalog, but no approved production
   VED class values or Admin catalog-management operations have been supplied
 - No 2D/3D editor implementation
@@ -662,7 +669,10 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-The next roadmap ticket is K1 canonical geometry. It has not been started.
+K1 is implemented without database/API changes. Floor elevation is required by
+the contract but is not a `project_floors` column and is never inferred. The
+next roadmap ticket is K2 layout snapshot/version persistence; it has not been
+started.
 A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
 J1A.

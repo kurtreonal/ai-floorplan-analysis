@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through J5, including the E3A, J1A, and J3A prerequisites.**
+**Implemented through K1, including the E3A, J1A, and J3A prerequisites.**
 
 The current backend surface contains 19 OpenAPI operations.
 
@@ -54,11 +54,14 @@ The repository currently includes:
   corrected class returned as authoritative for review; and
 - owner-scoped, idempotent placement of missing symbols from the approved
   catalog on the normalized review image, with separate manual provenance,
-  J1 retrieval, and a source-pixel authoritative-symbol handoff for K1.
+  J1 retrieval, and a source-pixel authoritative-symbol handoff; and
+- a versioned, renderer-independent canonical geometry contract with strict
+  Python and JavaScript validation, pure H2-wall/J5-symbol adapters, explicit
+  floor elevation, and one shared cross-runtime fixture.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing J5 does not imply that the downstream AI,
-geometry, routing, estimation, or reporting pipeline exists.
+`docs/FUNCTIONAL_SPEC.md`; completing K1 does not imply that canonical geometry
+is persisted or that editable layout, 3D, routing, estimation, or reporting exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
 
@@ -208,8 +211,8 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
 prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
-prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, J4, and J5
-are implemented. K1 and all later tickets remain unimplemented.
+prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, J4, J5, and
+K1 are implemented. K2 and all later tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -388,11 +391,15 @@ The folders that do not exist yet should be created by the appropriate developme
   `manual_symbols` array. Confirmed detections with J4 authoritative classes
   and all manual records feed a renderer-independent source-pixel handoff for
   K1. No production classes are seeded, so an empty catalog disables placement.
+- K1 defines canonical schema version 1 for one project floor, with shared
+  walls, rooms, authoritative symbols, routes, coordinate metadata, and an
+  explicit non-inferred floor elevation. It adds pure backend/frontend adapters
+  but no API, database column, renderer, or persistence. See `docs/geometry.md`.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.
-- Complete K1 canonical project geometry and the Konva 2D/Three.js 3D editors
-  are not implemented.
+- K2 layout snapshots and the editable Konva 2D/Three.js 3D editors are not
+  implemented. `project_floors` does not yet persist elevation.
 - Electrical routing, material quantification, cost estimation, and PDF reports
   are not implemented.
 - The current Vercel deployment is frontend-only unless a separately hosted

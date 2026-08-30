@@ -55,13 +55,13 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through J5, including the E3A project-floor
+The repository is implemented through K1, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 The current verified prototype contract contains twelve SQLAlchemy/MySQL tables
 and 19 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
-catalog.
+catalog. K1 changes neither count.
 
 Completed ticket areas:
 
@@ -93,6 +93,7 @@ J3 — Confirm or Reject Detection
 J3A — Approved Symbol Legend Foundation
 J4 — Correct Symbol Classification
 J5 — Add Missing Symbol Manually
+K1 — Define Canonical Geometry Schema
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -110,9 +111,8 @@ read-only React-Konva review canvas, append-only owning-Designer confirmation
 or rejection decisions, and the database-backed active-only approved symbol
 legend catalog, append-only owning-Designer classification correction, and
 owner-scoped idempotent manual placement using trusted review-image dimensions.
-K1 and later tickets remain unimplemented. In
-particular, there is no worker, external queue, automatic OpenCV/YOLO pipeline,
-canonical geometry,
+K2 and later tickets remain unimplemented. In particular, there is no worker,
+external queue, automatic OpenCV/YOLO pipeline, canonical persistence,
 2D/3D editor, routing, estimation, or report implementation.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
@@ -3328,16 +3328,25 @@ quantities, estimates, or reports.
 
 **Dependencies:** H2, J5.
 
+**Implementation status:** Complete. K1 defines immutable schema version 1 for
+one project floor and its source-plan coordinate plane. Pure backend and
+frontend validators agree through one shared JSON fixture. H2 canonical walls
+and ordered J5 authoritative symbols map into the document; rooms and minimal
+elevated route points are representable. Floor elevation is supplied explicitly
+and is not inferred or stored in `project_floors`. See `docs/geometry.md`.
+K1 adds no API operation or table, layout snapshot, editor, renderer, routing
+algorithm, quantity, estimate, or report implementation. K2 remains next.
+
 **Acceptance Criteria:**
 
-- [ ] Schema defines coordinate system and unit.
-- [ ] Walls are represented.
-- [ ] Rooms can be represented.
-- [ ] Symbols are represented.
-- [ ] Routes can be represented.
-- [ ] Floor/elevation association is represented.
-- [ ] Schema is documented in `docs/geometry.md`.
-- [ ] Frontend and backend agree on field names/types.
+- [x] Schema defines coordinate system and unit.
+- [x] Walls are represented.
+- [x] Rooms can be represented.
+- [x] Symbols are represented.
+- [x] Routes can be represented.
+- [x] Floor/elevation association is represented.
+- [x] Schema is documented in `docs/geometry.md`.
+- [x] Frontend and backend agree on field names/types.
 
 ---
 
