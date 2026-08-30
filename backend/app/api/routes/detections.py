@@ -20,6 +20,7 @@ from app.schemas.detection import (
     DetectionReviewResponse,
     DetectionReviewSummaryResponse,
     RawWallDetectionResponse,
+    ManualSymbolDetectionResponse,
     SymbolClassResponse,
     SymbolDetectionResponse,
     WallDetectionResponse,
@@ -169,11 +170,32 @@ def _response(result: DetectionResults) -> DetectionResultsResponse:
         )
         for symbol in result.symbols
     ]
+    manual_symbols = [
+        ManualSymbolDetectionResponse(
+            id=symbol.id,
+            floor_plan_id=symbol.floor_plan_id,
+            processing_job_id=symbol.processing_job_id,
+            status="manually_added",
+            authoritative_class=SymbolClassResponse(
+                id=symbol.class_id,
+                name=symbol.class_name,
+            ),
+            center=DetectionPointResponse(
+                x=symbol.center_x_pixels,
+                y=symbol.center_y_pixels,
+            ),
+            image_width_pixels=symbol.image_width_pixels,
+            image_height_pixels=symbol.image_height_pixels,
+            created_at=symbol.created_at,
+        )
+        for symbol in result.manual_symbols
+    ]
     return DetectionResultsResponse(
         floor_plan_id=result.floor_plan_id,
         symbol_processing_job_id=result.symbol_processing_job_id,
         walls=walls,
         symbols=symbols,
+        manual_symbols=manual_symbols,
     )
 
 

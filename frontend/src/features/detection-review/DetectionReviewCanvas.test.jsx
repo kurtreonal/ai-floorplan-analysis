@@ -30,14 +30,27 @@ describe('detection review canvas', () => {
       bounding_box: { x_min: 2, y_min: 3, x_max: 8, y_max: 9 },
     }]
     const { container } = render(
-      <DetectionReviewCanvas image={{}} imageWidth={100} imageHeight={80} walls={walls} symbols={symbols} selectedId={4} onSelect={onSelect} />,
+      <DetectionReviewCanvas image={{}} imageWidth={100} imageHeight={80} walls={walls} symbols={symbols} manualSymbols={[]} selectedKey="detected:4" onSelect={onSelect} />,
     )
     expect(container.querySelectorAll('[data-konva="Layer"]')).toHaveLength(4)
     expect(container.querySelectorAll('[data-konva="Line"]')).toHaveLength(2)
     expect(container.querySelectorAll('[data-konva="Rect"]')).toHaveLength(2)
     fireEvent.click(container.querySelector('[data-konva="Group"]'))
-    expect(onSelect).toHaveBeenCalledWith(4)
+    expect(onSelect).toHaveBeenCalledWith('detected:4')
     expect(screen.getByText(/source pixel coordinates/)).toBeTruthy()
     expect(container.querySelector('[draggable]')).toBeNull()
+  })
+
+  it('renders persisted and draft manual markers without detected-ID collisions', () => {
+    const { container } = render(
+      <DetectionReviewCanvas
+        image={{}} imageWidth={100} imageHeight={80} walls={[]}
+        symbols={[{ id: 4, status: 'detected', review: null, center: { x: 5, y: 5 }, bounding_box: { x_min: 1, y_min: 1, x_max: 9, y_max: 9 } }]}
+        manualSymbols={[{ id: 4, status: 'manually_added', center: { x: 20, y: 30 } }]}
+        selectedKey="manual:4" onSelect={() => {}} placementMode draft={{ x: 40, y: 50 }}
+      />,
+    )
+    expect(container.querySelectorAll('[data-konva="Group"]')).toHaveLength(2)
+    expect(container.querySelectorAll('[data-konva="Circle"]').length).toBeGreaterThanOrEqual(4)
   })
 })

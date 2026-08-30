@@ -98,17 +98,44 @@ function validSymbol(symbol, floorPlanId, jobId) {
     && validCorrection(symbol.correction)
 }
 
+function validManualSymbol(symbol, floorPlanId, jobId) {
+  const width = symbol?.image_width_pixels
+  const height = symbol?.image_height_pixels
+  return symbol
+    && JSON.stringify(Object.keys(symbol).sort()) === JSON.stringify([
+      'authoritative_class', 'center', 'created_at', 'floor_plan_id', 'id',
+      'image_height_pixels', 'image_width_pixels', 'processing_job_id', 'status',
+    ])
+    && positiveId(symbol.id) && symbol.floor_plan_id === floorPlanId
+    && symbol.processing_job_id === jobId && symbol.status === 'manually_added'
+    && validClass(symbol.authoritative_class)
+    && Number.isInteger(width) && width > 0 && width <= 4096
+    && Number.isInteger(height) && height > 0 && height <= 4096
+    && point(symbol.center) && symbol.center.x <= width && symbol.center.y <= height
+    && typeof symbol.created_at === 'string'
+    && Number.isFinite(Date.parse(symbol.created_at))
+}
+
 function validate(payload, floorPlanId, jobId) {
   if (!payload || payload.floor_plan_id !== floorPlanId
     || payload.symbol_processing_job_id !== jobId
     || !Array.isArray(payload.walls) || !Array.isArray(payload.symbols)
+    || !Array.isArray(payload.manual_symbols)
     || !payload.walls.every((wall) => validWall(wall, floorPlanId))
-    || !payload.symbols.every((symbol) => validSymbol(symbol, floorPlanId, jobId))) {
+    || !payload.symbols.every((symbol) => validSymbol(symbol, floorPlanId, jobId))
+    || !payload.manual_symbols.every((symbol) => validManualSymbol(symbol, floorPlanId, jobId))) {
     throw new DetectionApiError()
   }
   if (payload.symbols.length > 1) {
     const [{ image_width_pixels: width, image_height_pixels: height }] = payload.symbols
     if (!payload.symbols.every((symbol) => (
+      symbol.image_width_pixels === width && symbol.image_height_pixels === height
+    ))) throw new DetectionApiError()
+  }
+  const dimensioned = [...payload.symbols, ...payload.manual_symbols]
+  if (dimensioned.length > 1) {
+    const [{ image_width_pixels: width, image_height_pixels: height }] = dimensioned
+    if (!dimensioned.every((symbol) => (
       symbol.image_width_pixels === width && symbol.image_height_pixels === height
     ))) throw new DetectionApiError()
   }

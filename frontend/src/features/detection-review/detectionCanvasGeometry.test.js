@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { fitCanvas, symbolPresentation, symbolRectangle, wallLinePoints } from './detectionCanvasGeometry.js'
+import { fitCanvas, stagePointToSource, symbolPresentation, symbolRectangle, wallLinePoints } from './detectionCanvasGeometry.js'
 
 describe('detection canvas geometry', () => {
   it('fits without changing aspect ratio', () => {
@@ -22,5 +22,11 @@ describe('detection canvas geometry', () => {
   it('rejects invalid dimensions and coordinates', () => {
     expect(() => fitCanvas(0, 1, 1, 1)).toThrow()
     expect(() => symbolRectangle({ bounding_box: { x_min: 3, y_min: 0, x_max: 2, y_max: 1 } })).toThrow()
+  })
+
+  it('converts responsive stage coordinates to deterministic source pixels', () => {
+    expect(stagePointToSource({ x: 125.125, y: 50.25 }, 0.5, 1000, 800)).toEqual({ x: 250.25, y: 100.5 })
+    expect(() => stagePointToSource(null, 1, 100, 80)).toThrow()
+    expect(() => stagePointToSource({ x: 101, y: 1 }, 1, 100, 80)).toThrow()
   })
 })

@@ -136,6 +136,26 @@ def _read_and_validate_png(image_path: Path) -> ReviewImage:
     return ReviewImage(content=content, width=width, height=height)
 
 
+def validate_review_image(
+    processed_directory: Path,
+    *,
+    floor_plan_id: int,
+    processing_job_id: int,
+) -> ReviewImage:
+    """Load the exact existing J1A image without authorization or generation."""
+    floor_plan_id = _positive_identifier(floor_plan_id, "INVALID_FLOOR_PLAN_ID")
+    processing_job_id = _positive_identifier(
+        processing_job_id,
+        "INVALID_PROCESSING_JOB_ID",
+    )
+    image_path = _resolve_review_image_path(
+        processed_directory,
+        floor_plan_id=floor_plan_id,
+        processing_job_id=processing_job_id,
+    )
+    return _read_and_validate_png(image_path)
+
+
 def retrieve_review_image(
     database_session: Session,
     *,
@@ -179,9 +199,8 @@ def retrieve_review_image(
     if context is None:
         raise ReviewImageServiceError("REVIEW_IMAGE_NOT_FOUND")
 
-    image_path = _resolve_review_image_path(
+    return validate_review_image(
         processed_directory,
         floor_plan_id=floor_plan_id,
         processing_job_id=processing_job_id,
     )
-    return _read_and_validate_png(image_path)

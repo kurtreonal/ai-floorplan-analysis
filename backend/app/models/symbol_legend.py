@@ -19,6 +19,7 @@ from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.detection_class_correction import DetectionClassCorrection
+    from app.models.manual_symbol import ManualSymbol
 
 
 MAXIMUM_SYMBOL_LEGEND_NAME_LENGTH = 255
@@ -85,6 +86,9 @@ class SymbolLegend(Base):
     corrections_as_new: Mapped[list["DetectionClassCorrection"]] = relationship(
         foreign_keys="DetectionClassCorrection.new_symbol_legend_id",
         back_populates="new_symbol_legend",
+    )
+    manual_symbols: Mapped[list["ManualSymbol"]] = relationship(
+        back_populates="symbol_legend"
     )
 
     @validates("name")

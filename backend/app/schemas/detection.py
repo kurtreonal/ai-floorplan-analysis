@@ -99,6 +99,20 @@ class SymbolDetectionResponse(BaseModel):
     updated_at: datetime
 
 
+class ManualSymbolDetectionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: DatabaseId
+    floor_plan_id: DatabaseId
+    processing_job_id: DatabaseId
+    status: Literal["manually_added"]
+    authoritative_class: SymbolClassResponse
+    center: DetectionPointResponse
+    image_width_pixels: PositivePixelDimension
+    image_height_pixels: PositivePixelDimension
+    created_at: datetime
+
+
 class DetectionResultsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -106,6 +120,7 @@ class DetectionResultsResponse(BaseModel):
     symbol_processing_job_id: DatabaseId
     walls: list[WallDetectionResponse]
     symbols: list[SymbolDetectionResponse]
+    manual_symbols: list[ManualSymbolDetectionResponse]
 
 
 class DetectionReviewRequest(BaseModel):

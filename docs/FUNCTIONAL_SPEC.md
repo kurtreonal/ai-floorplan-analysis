@@ -55,12 +55,12 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through J4, including the E3A project-floor
+The repository is implemented through J5, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
-The current verified prototype contract contains eleven SQLAlchemy/MySQL tables
-and 18 OpenAPI operations. J4 adds the append-only
-`detection_class_corrections` table after the empty-safe J3A `symbol_legends`
+The current verified prototype contract contains twelve SQLAlchemy/MySQL tables
+and 19 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
+`detection_class_corrections` table and the empty-safe J3A `symbol_legends`
 catalog.
 
 Completed ticket areas:
@@ -92,6 +92,7 @@ J2 — Build Detection Review Canvas
 J3 — Confirm or Reject Detection
 J3A — Approved Symbol Legend Foundation
 J4 — Correct Symbol Classification
+J5 — Add Missing Symbol Manually
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -107,10 +108,10 @@ machine detection persistence, plus read-only detection-result retrieval and
 authenticated serving of the aligned G2 normalized review image, and the
 read-only React-Konva review canvas, append-only owning-Designer confirmation
 or rejection decisions, and the database-backed active-only approved symbol
-legend catalog and append-only owning-Designer classification correction. J5
-and later tickets remain unimplemented. In
+legend catalog, append-only owning-Designer classification correction, and
+owner-scoped idempotent manual placement using trusted review-image dimensions.
+K1 and later tickets remain unimplemented. In
 particular, there is no worker, external queue, automatic OpenCV/YOLO pipeline,
-manual-symbol workflow,
 canonical geometry,
 2D/3D editor, routing, estimation, or report implementation.
 
@@ -3293,13 +3294,29 @@ Implemented behavior:
 
 **Dependencies:** J2.
 
+**Implementation status:** Complete. J5 adds the twelfth prototype table,
+`manual_symbols`, and an owner-scoped Designer POST endpoint. Manual placement
+uses an active approved legend and stores its immutable class snapshot,
+authenticated creator provenance, `manually_added` status, and a source-pixel
+center validated against the exact existing J1A normalized RGB PNG. A
+client-generated UUID makes retries idempotent, while conflicting reuse is
+rejected. J1 returns manual records separately from AI detections, and I4
+protects a job version containing manual symbols from replacement. A tested
+renderer-independent handoff combines confirmed detections using their J4
+authoritative classes with manual symbols for K1. The approved catalog remains
+empty until VED supplies production class data; the UI disables placement in
+that state. J5 does not implement K1 canonical geometry, 3D, routing,
+quantities, estimates, or reports.
+
 **Acceptance Criteria:**
 
-- [ ] User can choose a valid symbol class.
-- [ ] User can place the symbol on the 2D plan.
-- [ ] Manual symbol is marked as manually added.
-- [ ] Symbol persists after reload.
-- [ ] Manually added symbols participate in later 3D, routing, and quantity calculations.
+- [x] User can choose a valid symbol class.
+- [x] User can place the symbol on the 2D plan.
+- [x] Manual symbol is marked as manually added.
+- [x] Symbol persists after reload.
+- [x] Manual symbols enter the authoritative K1 handoff for later 3D, routing,
+  and quantity work. Actual downstream modules remain unimplemented and were
+  not executed by J5.
 
 ---
 

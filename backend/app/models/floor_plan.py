@@ -8,6 +8,7 @@ from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.detected_symbol import DetectedSymbol
+    from app.models.manual_symbol import ManualSymbol
     from app.models.processing_job import ProcessingJob
     from app.models.project_floor import ProjectFloor
     from app.models.wall import Wall
@@ -57,6 +58,9 @@ class FloorPlan(Base):
         back_populates="floor_plan"
     )
     detected_symbols: Mapped[list["DetectedSymbol"]] = relationship(
+        back_populates="floor_plan"
+    )
+    manual_symbols: Mapped[list["ManualSymbol"]] = relationship(
         back_populates="floor_plan"
     )
     walls: Mapped[list["Wall"]] = relationship(back_populates="floor_plan")

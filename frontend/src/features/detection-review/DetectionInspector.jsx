@@ -1,6 +1,12 @@
 import { useState } from 'react'
 
-import { REVIEW_PRESENTATION, STATUS_PRESENTATION } from './detectionCanvasGeometry.js'
+import {
+  detectedSelectionKey,
+  manualSelectionKey,
+  MANUAL_PRESENTATION,
+  REVIEW_PRESENTATION,
+  STATUS_PRESENTATION,
+} from './detectionCanvasGeometry.js'
 
 function coordinates(symbol) {
   const box = symbol.bounding_box
@@ -45,15 +51,21 @@ function ClassificationControls({
 
 export function DetectionInspector({
   symbols,
+  manualSymbols,
   legends,
-  selectedId,
+  selectedKey,
   onSelect,
   onReview,
   reviewStatus,
   onClassification,
   classificationStatus,
 }) {
-  const selected = symbols.find((symbol) => symbol.id === selectedId) || null
+  const selected = symbols.find(
+    (symbol) => detectedSelectionKey(symbol.id) === selectedKey,
+  ) || null
+  const selectedManual = manualSymbols.find(
+    (symbol) => manualSelectionKey(symbol.id) === selectedKey,
+  ) || null
   return (
     <section className="detection-inspector" aria-labelledby="detection-list-title">
       <h2 id="detection-list-title">Electrical symbol detections</h2>
@@ -65,8 +77,8 @@ export function DetectionInspector({
             <thead><tr><th>Class</th><th>Machine status</th><th>Designer decision</th><th>Confidence</th><th>Threshold</th><th>Center</th></tr></thead>
             <tbody>
               {symbols.map((symbol) => (
-                <tr key={symbol.id} className={symbol.id === selectedId ? 'is-selected' : undefined}>
-                  <td><button type="button" onClick={() => onSelect(symbol.id)}>{symbol.authoritative_class.name}</button></td>
+                <tr key={symbol.id} className={detectedSelectionKey(symbol.id) === selectedKey ? 'is-selected' : undefined}>
+                  <td><button type="button" onClick={() => onSelect(detectedSelectionKey(symbol.id))}>{symbol.authoritative_class.name}</button></td>
                   <td>{STATUS_PRESENTATION[symbol.status].label}</td>
                   <td>{REVIEW_PRESENTATION[symbol.review?.decision || 'pending'].label}</td>
                   <td>{(symbol.original_confidence * 100).toFixed(1)}%</td>
@@ -78,9 +90,29 @@ export function DetectionInspector({
           </table>
         </div>
       )}
+      <h2>Manually added symbols</h2>
+      {manualSymbols.length === 0 ? (
+        <p>No manual symbols are saved for this processing job.</p>
+      ) : (
+        <div className="detection-table-scroll">
+          <table>
+            <thead><tr><th>Class</th><th>Status</th><th>Center</th><th>Created</th></tr></thead>
+            <tbody>
+              {manualSymbols.map((symbol) => (
+                <tr key={symbol.id} className={manualSelectionKey(symbol.id) === selectedKey ? 'is-selected' : undefined}>
+                  <td><button type="button" onClick={() => onSelect(manualSelectionKey(symbol.id))}>{symbol.authoritative_class.name}</button></td>
+                  <td>{MANUAL_PRESENTATION.label}</td>
+                  <td>{symbol.center.x}, {symbol.center.y}</td>
+                  <td>{symbol.created_at}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="detection-details" aria-live="polite">
-        <h3>Selected detection</h3>
-        {!selected ? <p>Select a symbol box or table row to inspect it.</p> : (
+        <h3>Selected symbol</h3>
+        {!selected && !selectedManual ? <p>Select a symbol marker or table row to inspect it.</p> : selected ? (
           <dl>
             <div><dt>Original class</dt><dd>{selected.original_class.id} — {selected.original_class.name}</dd></div>
             <div><dt>Authoritative class</dt><dd>{selected.authoritative_class.id} — {selected.authoritative_class.name}</dd></div>
@@ -95,6 +127,16 @@ export function DetectionInspector({
             <div><dt>Detection ID</dt><dd>{selected.id}</dd></div>
             <div><dt>Prediction index</dt><dd>{selected.prediction_index}</dd></div>
             <div><dt>Processing-job ID</dt><dd>{selected.processing_job_id}</dd></div>
+          </dl>
+        ) : (
+          <dl>
+            <div><dt>Authoritative class</dt><dd>{selectedManual.authoritative_class.id} â€” {selectedManual.authoritative_class.name}</dd></div>
+            <div><dt>Status</dt><dd>{MANUAL_PRESENTATION.label}</dd></div>
+            <div><dt>Center</dt><dd>{selectedManual.center.x}, {selectedManual.center.y}</dd></div>
+            <div><dt>Image dimensions</dt><dd>{selectedManual.image_width_pixels} Ã— {selectedManual.image_height_pixels} px</dd></div>
+            <div><dt>Manual-symbol ID</dt><dd>{selectedManual.id}</dd></div>
+            <div><dt>Processing-job ID</dt><dd>{selectedManual.processing_job_id}</dd></div>
+            <div><dt>Created</dt><dd>{selectedManual.created_at}</dd></div>
           </dl>
         )}
         {selected && (

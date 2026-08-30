@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from app.models.detection_class_correction import DetectionClassCorrection
     from app.models.detection_review import DetectionReview
     from app.models.project import Project
+    from app.models.manual_symbol import ManualSymbol
     from app.models.role import Role
 
 
@@ -62,4 +63,7 @@ class User(Base):
     )
     detection_class_corrections: Mapped[list["DetectionClassCorrection"]] = relationship(
         back_populates="reviewer"
+    )
+    manual_symbols: Mapped[list["ManualSymbol"]] = relationship(
+        back_populates="creator"
     )

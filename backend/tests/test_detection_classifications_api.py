@@ -91,8 +91,8 @@ class DetectionClassCorrectionModelTests(unittest.TestCase):
                 "ix_detection_class_corrections_new_symbol_legend_id",
             },
         )
-        self.assertEqual(len(Base.metadata.tables), 11)
-        self.assertEqual(len(inspect(self.engine).get_table_names()), 11)
+        self.assertEqual(len(Base.metadata.tables), 12)
+        self.assertEqual(len(inspect(self.engine).get_table_names()), 12)
         self.assertEqual(
             DetectedSymbol.class_corrections.property.back_populates,
             "detected_symbol",
@@ -753,7 +753,7 @@ class DetectionClassificationApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 18)
+        self.assertEqual(len(operations), 19)
 
 
 if __name__ == "__main__":

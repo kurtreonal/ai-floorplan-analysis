@@ -14,10 +14,12 @@ from app.repositories.detection_result_repository import (
     list_versioned_symbols,
 )
 from app.repositories.detection_review_repository import list_latest_reviews
+from app.repositories.manual_symbol_repository import list_manual_symbols
 from app.repositories.detection_class_correction_repository import (
     list_latest_class_corrections,
 )
 from app.services.symbol_persistence import PersistedDetectedSymbolRecord
+from app.services.manual_symbol_service import ManualSymbolRecord, manual_symbol_record
 from app.services.wall_persistence import PersistedWallRecord
 
 
@@ -45,6 +47,7 @@ class DetectionResults:
     symbol_processing_job_id: int
     walls: tuple[PersistedWallRecord, ...]
     symbols: tuple[PersistedDetectedSymbolRecord, ...]
+    manual_symbols: tuple[ManualSymbolRecord, ...]
     latest_reviews: Mapping[int, "LatestDetectionReview"]
     latest_corrections: Mapping[int, "LatestDetectionClassCorrection"]
 
@@ -146,6 +149,14 @@ def retrieve_detection_results(
                 processing_job_id=processing_job_id,
             )
         )
+        manual_symbols = tuple(
+            manual_symbol_record(symbol)
+            for symbol in list_manual_symbols(
+                database_session,
+                floor_plan_id=floor_plan_id,
+                processing_job_id=processing_job_id,
+            )
+        )
         latest_reviews = MappingProxyType(
             {
                 review.detected_symbol_id: LatestDetectionReview(
@@ -188,6 +199,7 @@ def retrieve_detection_results(
         symbol_processing_job_id=processing_job_id,
         walls=walls,
         symbols=symbols,
+        manual_symbols=manual_symbols,
         latest_reviews=latest_reviews,
         latest_corrections=latest_corrections,
     )

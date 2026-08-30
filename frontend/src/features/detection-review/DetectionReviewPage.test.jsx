@@ -10,6 +10,7 @@ import {
 } from '../../api/detectionClassifications.js'
 import { DetectionReviewApiError, putDetectionReview } from '../../api/detectionReviews.js'
 import { fetchReviewImage, ReviewImageApiError } from '../../api/reviewImages.js'
+import { postManualSymbol } from '../../api/manualSymbols.js'
 import { fetchSymbolLegends, SymbolLegendApiError } from '../../api/symbolLegends.js'
 import { DetectionReviewPage } from './DetectionReviewPage.jsx'
 
@@ -33,10 +34,21 @@ vi.mock('../../api/symbolLegends.js', async () => {
   const actual = await vi.importActual('../../api/symbolLegends.js')
   return { ...actual, fetchSymbolLegends: vi.fn() }
 })
+vi.mock('../../api/manualSymbols.js', async () => {
+  const actual = await vi.importActual('../../api/manualSymbols.js')
+  return {
+    ...actual,
+    createPlacementRequestId: () => '123e4567-e89b-42d3-a456-426614174000',
+    postManualSymbol: vi.fn(),
+  }
+})
 vi.mock('./DetectionReviewCanvas.jsx', () => ({
-  DetectionReviewCanvas: ({ walls, symbols, onSelect }) => (
-    <div data-testid="canvas">{walls.length} walls / {symbols.length} symbols
-      {symbols.map((symbol) => <button key={symbol.id} type="button" onClick={() => onSelect(symbol.id)}>Canvas symbol {symbol.id} {symbol.review?.decision || 'pending'}</button>)}
+  DetectionReviewCanvas: ({ walls, symbols, manualSymbols, onSelect, placementMode, onPlace, draft }) => (
+    <div data-testid="canvas">{walls.length} walls / {symbols.length} symbols / {manualSymbols.length} manual
+      {symbols.map((symbol) => <button key={symbol.id} type="button" onClick={() => onSelect(`detected:${symbol.id}`)}>Canvas symbol {symbol.id} {symbol.review?.decision || 'pending'}</button>)}
+      {manualSymbols.map((symbol) => <button key={symbol.id} type="button" onClick={() => onSelect(`manual:${symbol.id}`)}>Canvas manual {symbol.id}</button>)}
+      {placementMode && <button type="button" onClick={() => onPlace({ x: 25.5, y: 30.25 })}>Place draft</button>}
+      {draft && <span>Mock draft {draft.x}, {draft.y}</span>}
     </div>
   ),
 }))
@@ -55,6 +67,7 @@ function results({ symbols = true, limit = false } = {}) {
       review: null,
       correction: null,
     }] : [],
+    manual_symbols: [],
   }
 }
 
@@ -70,6 +83,7 @@ beforeEach(() => {
   putDetectionReview.mockReset()
   putDetectionClassification.mockReset()
   fetchSymbolLegends.mockReset()
+  postManualSymbol.mockReset()
   vi.stubGlobal('Image', LoadedImage)
   URL.createObjectURL = vi.fn(() => 'blob:review')
   URL.revokeObjectURL = vi.fn()
@@ -90,6 +104,12 @@ beforeEach(() => {
     new_class: { symbol_legend_id: 10, id: 2, name: 'Wall light' },
     authoritative_class: { symbol_legend_id: 10, id: 2, name: 'Wall light' },
     corrected_at: '2026-08-30T12:00:00',
+  })
+  postManualSymbol.mockResolvedValue({
+    id: 4, floor_plan_id: 2, processing_job_id: 3,
+    status: 'manually_added', authoritative_class: { id: 2, name: 'Wall light' },
+    center: { x: 25.5, y: 30.25 }, image_width_pixels: 100,
+    image_height_pixels: 80, created_at: '2026-08-30T12:00:00',
   })
   window.location.hash = '#/app'
 })
@@ -313,5 +333,73 @@ describe('detection review page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'outlet' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirm detection' }))
     await waitFor(() => expect(window.location.hash).toBe('#/signin?reason=session-expired'))
+  })
+
+  it('places, saves, appends, and selects a manual symbol with composite identity', async () => {
+    render(<DetectionReviewPage projectId={1} floorPlanId={2} processingJobId={3} />)
+    await screen.findByTestId('canvas')
+    fireEvent.change(screen.getByLabelText('Approved class for manual symbol'), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add missing symbol' }))
+    expect(screen.getByText(/Placement mode active/)).toBeTruthy()
+    expect(screen.getByText(/Draft coordinates: Not placed/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Place draft' }))
+    expect(screen.getByText(/Draft coordinates: 25.5, 30.25/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save symbol' }))
+    expect(await screen.findByText('Manual symbol saved successfully.')).toBeTruthy()
+    expect(postManualSymbol).toHaveBeenCalledWith(
+      2, 3, '123e4567-e89b-42d3-a456-426614174000', 10,
+      { x: 25.5, y: 30.25 },
+    )
+    expect(screen.getByRole('button', { name: 'Canvas manual 4' })).toBeTruthy()
+    expect(screen.getAllByText('Manually added').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText(/100.*80 px/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Confirm detection' })).toBeNull()
+  })
+
+  it('retains a failed draft and reuses its placement request ID on retry', async () => {
+    postManualSymbol.mockRejectedValueOnce(new Error('network'))
+    render(<DetectionReviewPage projectId={1} floorPlanId={2} processingJobId={3} />)
+    await screen.findByTestId('canvas')
+    fireEvent.change(screen.getByLabelText('Approved class for manual symbol'), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add missing symbol' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Place draft' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save symbol' }))
+    expect(await screen.findByText(/retry this draft/i)).toBeTruthy()
+    expect(screen.getByText(/Draft coordinates: 25.5, 30.25/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save symbol' }))
+    expect(await screen.findByText('Manual symbol saved successfully.')).toBeTruthy()
+    expect(postManualSymbol.mock.calls[0][2]).toBe(postManualSymbol.mock.calls[1][2])
+  })
+
+  it('cancels placement without persisting the draft', async () => {
+    render(<DetectionReviewPage projectId={1} floorPlanId={2} processingJobId={3} />)
+    await screen.findByTestId('canvas')
+    fireEvent.change(screen.getByLabelText('Approved class for manual symbol'), { target: { value: '10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add missing symbol' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Place draft' }))
+    expect(screen.getByText(/Mock draft 25.5, 30.25/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel placement' }))
+    expect(screen.getByText('Manual placement cancelled.')).toBeTruthy()
+    expect(screen.queryByText(/Mock draft/)).toBeNull()
+    expect(postManualSymbol).not.toHaveBeenCalled()
+  })
+
+  it('renders and selects a manual symbol returned by a fresh retrieval', async () => {
+    const persisted = results()
+    persisted.manual_symbols = [{
+      id: 4, floor_plan_id: 2, processing_job_id: 3,
+      status: 'manually_added', authoritative_class: { id: 2, name: 'Wall light' },
+      center: { x: 45.5, y: 35.25 }, image_width_pixels: 100,
+      image_height_pixels: 80, created_at: '2026-08-30T12:00:00',
+    }]
+    fetchDetectionResults.mockResolvedValueOnce(persisted)
+    render(<DetectionReviewPage projectId={1} floorPlanId={2} processingJobId={3} />)
+    const manual = await screen.findByRole('button', { name: 'Canvas manual 4' })
+    fireEvent.click(manual)
+    expect(screen.getAllByText('Manually added').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText((_text, element) => (
+      element.tagName === 'DD' && element.textContent === '45.5, 35.25'
+    ))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Confirm detection' })).toBeNull()
   })
 })
