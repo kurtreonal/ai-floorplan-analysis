@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "project_id": 15,
+  "floor": {
+    "project_floor_id": 2,
+    "name": "Lower Ground Floor",
+    "sort_order": 0,
+    "elevation_meters": -1.5
+  },
+  "floor_plan_id": 81,
+  "coordinate_system": {
+    "unit": "meter",
+    "origin": "image_top_left",
+    "x_direction": "right",
+    "y_direction": "down",
+    "pixels_per_meter": 100.0,
+    "image_width_pixels": 640,
+    "image_height_pixels": 480,
+    "width_meters": 6.4,
+    "height_meters": 4.8
+  },
+  "walls": [
+    {
+      "id": 1,
+      "source_candidate_id": 1,
+      "processing_job_id": 103,
+      "status": "detected",
+      "start": {"x": 0.2, "y": 0.35},
+      "end": {"x": 2.2, "y": 0.35},
+      "length_meters": 2.0,
+      "angle_degrees": 0.0,
+      "thickness_meters": null,
+      "height_meters": null
+    }
+  ],
+  "rooms": [
+    {
+      "id": 1,
+      "name": "Living Room",
+      "boundary": [
+        {"x": 0.1, "y": 0.1},
+        {"x": 3.0, "y": 0.1},
+        {"x": 3.0, "y": 2.0},
+        {"x": 0.1, "y": 2.0}
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "id": "detected:501",
+      "source_type": "detected",
+      "source_record_id": 501,
+      "processing_job_id": 103,
+      "status": "confirmed",
+      "class": {"id": 7, "name": "Power outlet"},
+      "position": {"x": 2.5, "y": 1.5}
+    },
+    {
+      "id": "manual:601",
+      "source_type": "manual",
+      "source_record_id": 601,
+      "processing_job_id": 103,
+      "status": "manually_added",
+      "class": {"id": 2, "name": "Wall light"},
+      "position": {"x": 4.1, "y": 2.25}
+    }
+  ],
+  "routes": [
+    {
+      "id": 1,
+      "points": [
+        {"project_floor_id": 2, "x": 0.5, "y": 0.5, "elevation_meters": -1.5},
+        {"project_floor_id": 2, "x": 2.5, "y": 1.5, "elevation_meters": 0.0}
+      ]
+    }
+  ]
+}

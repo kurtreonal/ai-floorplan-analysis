@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through J5. It
+This directory contains the FastAPI backend implemented through K1. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -13,8 +13,9 @@ persistence, read-only detection-result retrieval, authenticated serving of
 the existing normalized review image, append-only Designer confirmation or
 rejection decisions, an active-only approved symbol legend API, and append-only
 Designer classification correction, and owner-scoped manual symbol placement.
-Workers, complete canonical geometry, routing, estimation, and reporting are
-not implemented.
+K1 adds a pure canonical geometry v1 contract and adapters without changing the
+19-operation API or twelve-table schema. Workers, K2 snapshots, editable
+layouts, 3D, routing, estimation, and reporting are not implemented.
 
 ## Requirements
 
@@ -457,7 +458,8 @@ Three.js z, and floor elevation to Three.js y; H2 implements no renderer or
 adapter. H2 candidates remain unverified machine suggestions. It adds no OpenCV
 execution, API, filesystem I/O, database table, persistence, scale inference,
 wall merging/snapping/thickness, room geometry, worker, or job-state behavior.
-K1 still owns the complete cross-domain canonical project geometry schema.
+K1 now supplies the complete cross-domain canonical document schema; see
+`../docs/geometry.md`. It is not persisted or exposed through HTTP.
 
 ## Wall-geometry persistence
 
@@ -618,7 +620,9 @@ J1 returns manual records in a separate `manual_symbols` array. Persisted class
 snapshots survive later legend changes. A renderer-independent service hands
 confirmed detections (using J4's authoritative class) plus all manual symbols
 to K1 in source pixels, excluding pending and deleted detections. K1 canonical
-geometry and actual 3D, routing, and quantity work remain unimplemented.
+geometry converts those centers with H2 scale while preserving authoritative
+class and source provenance. Canonical persistence and actual 3D, routing, and
+quantity work remain unimplemented.
 
 ## Detection results API
 
@@ -749,7 +753,9 @@ tests, 9 focused J3 tests, 15 focused I4 tests,
 13 focused I3 tests, 25 focused I2 tests, 21 focused I1 tests, 21 focused H3
 tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
-regression tests, 17 focused F1 regression tests, and 524 full backend tests.
+regression tests, 17 focused F1 regression tests, 39 focused K1 tests, and 571
+full backend tests through K1. The required H2/H3/J1/J4/J5 K1 regression batch
+contains 85 tests plus 63 subtests.
 The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a
 test failure.

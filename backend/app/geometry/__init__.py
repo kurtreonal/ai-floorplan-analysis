@@ -13,6 +13,18 @@ from app.geometry.walls import (
     RawPixelWall,
     normalize_wall_coordinates,
 )
+from app.geometry.canonical import (
+    CanonicalDocumentWall,
+    CanonicalFloor,
+    CanonicalGeometryDocument,
+    CanonicalGeometryError,
+    CanonicalRoom,
+    CanonicalRoute,
+    CanonicalRoutePoint,
+    CanonicalSymbol,
+    build_canonical_geometry,
+    canonical_geometry_from_dict,
+)
 
 __all__ = (
     "CanonicalCoordinateSystem",
@@ -24,4 +36,14 @@ __all__ = (
     "RawPixelWall",
     "WallCoordinateError",
     "normalize_wall_coordinates",
+    "CanonicalDocumentWall",
+    "CanonicalFloor",
+    "CanonicalGeometryDocument",
+    "CanonicalGeometryError",
+    "CanonicalRoom",
+    "CanonicalRoute",
+    "CanonicalRoutePoint",
+    "CanonicalSymbol",
+    "build_canonical_geometry",
+    "canonical_geometry_from_dict",
 )
