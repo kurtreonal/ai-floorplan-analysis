@@ -138,6 +138,19 @@ describe('project floor upload panel', () => {
     expect(screen.queryByLabelText('Floor name')).toBeNull()
     expect(screen.queryByLabelText('Floor-plan file')).toBeNull()
     expect(screen.queryByRole('button', { name: /upload floor plan/i })).toBeNull()
+    expect(screen.getAllByRole('link', { name: 'Open current 2D layout' }).map(
+      (link) => link.getAttribute('href'),
+    )).toEqual(['#/app/projects/7/floors/12/layout', '#/app/projects/7/floors/19/layout'])
+  })
+
+  it('shows the Designer selected-floor layout link without requiring a session upload', async () => {
+    listProjectFloors.mockResolvedValue(FLOORS)
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    const link = await screen.findByRole('link', { name: 'Open current 2D layout' })
+    expect(link.getAttribute('href')).toBe('#/app/projects/7/floors/12/layout')
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project floor' }), { target: { value: '19' } })
+    expect(link.getAttribute('href')).toBe('#/app/projects/7/floors/19/layout')
+    expect(screen.queryByText('Uploaded this session')).toBeNull()
   })
 
   it('automatically selects a newly created floor', async () => {

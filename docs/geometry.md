@@ -9,6 +9,8 @@ JavaScript normalizer in `frontend/src/geometry/canonicalGeometry.js`.
 K2 persists complete validated documents in append-only `layout_versions`
 snapshots. K3 exposes current-layout retrieval and new snapshot creation at
 `/api/projects/{project_id}/floors/{project_floor_id}/layouts`.
+K4 consumes the current snapshot in a read-only Konva source-pixel plane with
+six stable layers; it does not create a second geometry model.
 Callers must supply floor elevation explicitly: `project_floors` has no
 elevation column, and an elevation must never be inferred from a floor name or
 sort order.
@@ -134,11 +136,30 @@ delegates append-only version creation to K2. The API does not expose history or
 current-version selection and does not write original or derived floor-plan
 files.
 
+## K4 read-only Konva mapping
+
+K4 maps canonical meters back to the aligned source plane using
+`pixel_x = x * pixels_per_meter` and `pixel_y = y * pixels_per_meter`.
+Responsive fitting changes only the Konva stage scale. Blueprint, walls, rooms,
+symbols, wiring/conduit route previews, and selection/editing UI remain six
+separate always-mounted layers. The last layer is empty in K4 and contains no
+persisted geometry. Visibility controls set layer presentation only; the frozen
+canonical arrays, ordering, and values remain unchanged.
+
+K4 may request the existing J1A review image only when all non-null wall and
+symbol `processing_job_id` values resolve to exactly one positive safe ID. Its
+decoded dimensions must exactly equal `image_width_pixels` and
+`image_height_pixels`. Otherwise a neutral blueprint layer remains mounted and
+the UI reports that the reference is unavailable. Source-less or mixed-source
+snapshots require a later explicit blueprint-source contract for guaranteed
+aligned-image display.
+
 ## Downstream mapping and non-goals
 
 Future 3D adapters are expected to map canonical x to horizontal 3D x, explicit
 floor elevation to vertical 3D y, and canonical y to horizontal 3D z. This is a
 planned mapping, not an implemented renderer or proof of 2D/3D synchronization.
 
-K3 does not implement geometry editing, Konva rendering, Three.js rendering,
-routing algorithms, quantities, estimates, or reports.
+K4 implements read-only Konva rendering but not selection, geometry editing,
+dragging, saving, Three.js rendering, routing algorithms, quantities, estimates,
+or reports.

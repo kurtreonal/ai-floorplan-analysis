@@ -55,14 +55,15 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through K3, including the E3A project-floor
+The repository is implemented through K4, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 The current verified prototype contract contains thirteen SQLAlchemy/MySQL tables
 and 21 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
 catalog. K1 changes neither count; K2 adds `layout_versions` while leaving the
-API count unchanged; K3 adds exactly two layout operations and no table.
+API count unchanged; K3 adds exactly two layout operations and no table; K4 is
+frontend-only and leaves both counts unchanged.
 
 Completed ticket areas:
 
@@ -97,6 +98,7 @@ J5 — Add Missing Symbol Manually
 K1 — Define Canonical Geometry Schema
 K2 — Create Layout Snapshot/Version Model
 K3 — Create 2D Layout API
+K4 — Build Konva Layer Architecture
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -114,8 +116,9 @@ read-only React-Konva review canvas, append-only owning-Designer confirmation
 or rejection decisions, and the database-backed active-only approved symbol
 legend catalog, append-only owning-Designer classification correction, and
 owner-scoped idempotent manual placement using trusted review-image dimensions.
-K4 and later tickets remain unimplemented. In particular, there is no worker,
-external queue, automatic OpenCV/YOLO pipeline, 2D/3D editor,
+K5 and later tickets remain unimplemented. K4 provides a read-only canonical
+Konva viewer, not geometry editing. In particular, there is no worker,
+external queue, automatic OpenCV/YOLO pipeline, editable 2D/3D editor,
 routing, estimation, or report implementation.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
@@ -3398,7 +3401,8 @@ append-only K2 version. Missing, inaccessible, and cross-context resources use
 the same non-disclosing `LAYOUT_NOT_FOUND` response. Semantic geometry failures
 use `INVALID_LAYOUT_GEOMETRY`, and persistence failures are sanitized. No
 history/current-selection API, editor, renderer, schema change, or floor-plan
-file mutation is introduced. K4 remains next.
+file mutation is introduced. K4 consumes this current-layout `GET` without
+changing the K3 contract.
 
 **Acceptance Criteria:**
 
@@ -3416,14 +3420,31 @@ file mutation is introduced. K4 remains next.
 
 **Dependencies:** K3.
 
+**Implementation status:** Complete. K4 adds a protected current-layout hash
+route and project-floor navigation, a strict credentialed K3 `GET` client, and
+a responsive read-only React-Konva source plane derived exclusively from the
+deeply frozen K1 document. Blueprint, walls, rooms, symbols, wiring/conduit
+previews, and the empty selection/editing UI are six separate always-mounted
+layers in that exact order. Accessible checkboxes change only each layer's
+`visible` presentation property and never modify canonical arrays or call K3
+`POST`.
+
+The existing J1A image is requested only when all non-null canonical wall and
+symbol provenance resolves to exactly one positive safe processing-job ID. The
+decoded image must exactly match the canonical pixel dimensions. Missing or
+mixed provenance, fetch/decode failure, or dimension mismatch retains a neutral
+blueprint layer and an accessible warning. Guaranteed aligned-image display for
+source-less/mixed snapshots requires a later explicit blueprint-source contract;
+K4 does not change K1-K3 or the database to solve that limitation.
+
 **Acceptance Criteria:**
 
-- [ ] Blueprint is on its own layer.
-- [ ] Walls are on their own layer.
-- [ ] Symbols are on their own layer.
-- [ ] Wiring/conduit layer exists even if routing is not implemented yet.
-- [ ] Selection/editing UI is separated from project geometry.
-- [ ] Toggling one layer does not delete its data.
+- [x] Blueprint is on its own layer.
+- [x] Walls are on their own layer.
+- [x] Symbols are on their own layer.
+- [x] Wiring/conduit layer exists even if routing is not implemented yet.
+- [x] Selection/editing UI is separated from project geometry.
+- [x] Toggling one layer does not delete its data.
 
 ---
 

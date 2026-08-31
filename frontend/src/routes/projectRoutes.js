@@ -3,6 +3,21 @@ export function parseProjectRoute(route) {
     return { view: 'dashboard', projectId: null }
   }
 
+  const layoutMatch = route.match(
+    /^\/app\/projects\/([^/]+)\/floors\/([^/]+)\/layout$/,
+  )
+  if (layoutMatch) {
+    const identifiers = layoutMatch.slice(1)
+    if (!identifiers.every((value) => /^[1-9]\d*$/.test(value))) {
+      return { view: 'invalid', projectId: null }
+    }
+    const [projectId, projectFloorId] = identifiers.map(Number)
+    if (![projectId, projectFloorId].every(Number.isSafeInteger)) {
+      return { view: 'invalid', projectId: null }
+    }
+    return { view: 'layout', projectId, projectFloorId }
+  }
+
   const reviewMatch = route.match(
     /^\/app\/projects\/([^/]+)\/floor-plans\/([^/]+)\/detections\/([^/]+)$/,
   )
@@ -34,6 +49,13 @@ export function parseProjectRoute(route) {
 export function getProjectHref(projectId) {
   if (!Number.isSafeInteger(projectId) || projectId <= 0) throw new Error('Invalid project ID.')
   return `#/app/projects/${projectId}`
+}
+
+export function getLayoutHref(projectId, projectFloorId) {
+  if (![projectId, projectFloorId].every(
+    (value) => Number.isSafeInteger(value) && value > 0,
+  )) throw new Error('Invalid layout route identifiers.')
+  return `#/app/projects/${projectId}/floors/${projectFloorId}/layout`
 }
 
 export function getDetectionReviewHref(projectId, floorPlanId, processingJobId) {

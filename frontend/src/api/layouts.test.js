@@ -1,0 +1,72 @@
+import { readFileSync } from 'node:fs'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { fetchCurrentLayout, LayoutApiError } from './layouts.js'
+
+const fixture = JSON.parse(readFileSync(new URL('../../../fixtures/canonical_geometry_v1.json', import.meta.url), 'utf8'))
+
+function response(overrides = {}) {
+  return {
+    id: 9, project_id: 15, project_floor_id: 2, floor_plan_id: 81,
+    version_number: 3, schema_version: 1, is_current: true,
+    created_at: '2026-08-31T12:00:00Z', geometry: structuredClone(fixture),
+    ...overrides,
+  }
+}
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe('current layout API', () => {
+  it('uses the exact credentialed GET URL, abort signal, and immutable K1 normalization', async () => {
+    const signal = new AbortController().signal
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => response() })
+    vi.stubGlobal('fetch', fetch)
+    const result = await fetchCurrentLayout(15, 2, { signal })
+    expect(fetch).toHaveBeenCalledWith('http://localhost:8000/api/projects/15/floors/2/layouts', {
+      credentials: 'include', headers: { Accept: 'application/json' }, signal,
+    })
+    expect(fetch.mock.calls[0][1].method).toBeUndefined()
+    expect(result.geometry).toEqual(fixture)
+    expect(result.geometry).not.toBe(fixture)
+    expect(Object.isFrozen(result.geometry.symbols[0].position)).toBe(true)
+  })
+
+  it('rejects malformed IDs and inconsistent or non-current successful responses', async () => {
+    await expect(fetchCurrentLayout(0, 2)).rejects.toBeInstanceOf(LayoutApiError)
+    for (const mutate of [
+      (value) => { value.project_id = 16 },
+      (value) => { value.project_floor_id = 3 },
+      (value) => { value.floor_plan_id = 82 },
+      (value) => { value.is_current = false },
+      (value) => { value.schema_version = 2 },
+      (value) => { value.created_at = 'invalid' },
+      (value) => { value.geometry.project_id = 16 },
+      (value) => { value.geometry.coordinate_system.pixels_per_meter = 0 },
+      (value) => { value.internal = 'private' },
+    ]) {
+      const payload = response(); mutate(payload)
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => payload }))
+      await expect(fetchCurrentLayout(15, 2)).rejects.toBeInstanceOf(LayoutApiError)
+    }
+  })
+
+  it.each([401, 403, 404, 422, 503])('preserves safe status/code for HTTP %s without exposing details', async (status) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status,
+      json: async () => ({ detail: { error: { code: `SAFE_${status}`, message: 'private SQL path' } } }),
+    }))
+    await expect(fetchCurrentLayout(15, 2)).rejects.toMatchObject({
+      status, code: `SAFE_${status}`, message: 'The current layout could not be loaded safely.',
+    })
+  })
+
+  it('sanitizes invalid JSON and network failures while preserving aborts', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => { throw new Error('private') } }))
+    await expect(fetchCurrentLayout(15, 2)).rejects.toBeInstanceOf(LayoutApiError)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network private')))
+    await expect(fetchCurrentLayout(15, 2)).rejects.toMatchObject({ status: 0 })
+    const abort = Object.assign(new Error('aborted'), { name: 'AbortError' })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abort))
+    await expect(fetchCurrentLayout(15, 2)).rejects.toBe(abort)
+  })
+})
