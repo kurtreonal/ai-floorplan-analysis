@@ -55,13 +55,14 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through K1, including the E3A project-floor
+The repository is implemented through K2, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
-The current verified prototype contract contains twelve SQLAlchemy/MySQL tables
+The current verified prototype contract contains thirteen SQLAlchemy/MySQL tables
 and 19 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
-catalog. K1 changes neither count.
+catalog. K1 changes neither count; K2 adds `layout_versions` while leaving the
+API count unchanged.
 
 Completed ticket areas:
 
@@ -94,6 +95,7 @@ J3A — Approved Symbol Legend Foundation
 J4 — Correct Symbol Classification
 J5 — Add Missing Symbol Manually
 K1 — Define Canonical Geometry Schema
+K2 — Create Layout Snapshot/Version Model
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -111,9 +113,9 @@ read-only React-Konva review canvas, append-only owning-Designer confirmation
 or rejection decisions, and the database-backed active-only approved symbol
 legend catalog, append-only owning-Designer classification correction, and
 owner-scoped idempotent manual placement using trusted review-image dimensions.
-K2 and later tickets remain unimplemented. In particular, there is no worker,
-external queue, automatic OpenCV/YOLO pipeline, canonical persistence,
-2D/3D editor, routing, estimation, or report implementation.
+K3 and later tickets remain unimplemented. In particular, there is no worker,
+external queue, automatic OpenCV/YOLO pipeline, layout HTTP API, 2D/3D editor,
+routing, estimation, or report implementation.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
 successful uploads returned during the current page session; records cannot
@@ -3335,7 +3337,8 @@ and ordered J5 authoritative symbols map into the document; rooms and minimal
 elevated route points are representable. Floor elevation is supplied explicitly
 and is not inferred or stored in `project_floors`. See `docs/geometry.md`.
 K1 adds no API operation or table, layout snapshot, editor, renderer, routing
-algorithm, quantity, estimate, or report implementation. K2 remains next.
+algorithm, quantity, estimate, or report implementation. K2 supplies the
+snapshot persistence described in the following ticket.
 
 **Acceptance Criteria:**
 
@@ -3356,13 +3359,25 @@ algorithm, quantity, estimate, or report implementation. K2 remains next.
 
 **Dependencies:** K1.
 
+**Implementation status:** Complete. K2 adds the thirteenth prototype table,
+`layout_versions`, and a backend-only repository/service boundary. Each row
+stores one complete validated K1 schema-v1 document with project, floor, and
+source-plan references, a positive per-floor sequential version, a server
+timestamp, and a nullable `TRUE`/`NULL` current marker. Saving locks the
+project-floor row and atomically preserves history while making the new version
+current. An older version may later become current without changing its stored
+geometry or timestamp. Database constraints enforce unique floor/version and
+one current row per floor. Reconstruction rejects corrupt or mismatched stored
+JSON. K2 adds no HTTP operation, original-file mutation, editor, renderer,
+routing, estimate, or report behavior. K3 remains next.
+
 **Acceptance Criteria:**
 
-- [ ] Layout version references a project/floor.
-- [ ] Version number or timestamp is stored.
-- [ ] Verified walls and symbols can be reconstructed from the version.
-- [ ] Saving a new layout does not silently destroy the previous version if versioning is enabled.
-- [ ] One version can be marked current/authoritative.
+- [x] Layout version references a project/floor.
+- [x] Version number or timestamp is stored.
+- [x] Verified walls and symbols can be reconstructed from the version.
+- [x] Saving a new layout does not silently destroy the previous version if versioning is enabled.
+- [x] One version can be marked current/authoritative.
 
 ---
 

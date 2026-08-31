@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through K1, including E3A, J1A, and J3A, and labels
+> the architecture actually implemented through K2, including E3A, J1A, and J3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -54,11 +54,13 @@
   image dimensions, separate J1 retrieval, and a source-pixel K1 handoff
 - K1: strict canonical geometry schema v1 plus pure H2-wall and J5-symbol
   adapters shared with a renderer-independent JavaScript normalizer
+- K2: append-only canonical layout snapshots with per-floor version allocation,
+  validated reconstruction, ordered history, and transactional current selection
 
 ### Planned
 
-K2 and later roadmap tickets remain unimplemented, including layout persistence,
-geometry editing, editable Konva 2D, Three.js 3D,
+K3 and later roadmap tickets remain unimplemented, including the layout HTTP
+API, geometry editing, editable Konva 2D, Three.js 3D,
 routing, quantities, estimates, reports, administration, and audit logging.
 
 ### Proposed but not approved
@@ -249,7 +251,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set through J5 is exactly:
+The live and SQLAlchemy model table set through K2 is exactly:
 
 ```text
 roles
@@ -264,6 +266,7 @@ detection_reviews
 symbol_legends
 detection_class_corrections
 manual_symbols
+layout_versions
 ```
 
 Relationships:
@@ -285,6 +288,9 @@ processing_jobs 1 ── * detected_symbols
 detected_symbols 1 ── * detection_class_corrections
 users 1 ── * detection_class_corrections
 symbol_legends 1 ── * detection_class_corrections (old/new nullable references)
+projects 1 ── * layout_versions
+project_floors 1 ── * layout_versions
+floor_plans 1 ── * layout_versions
 ```
 
 - `users` maps provider plus subject to a local role and contains no password.
@@ -307,6 +313,10 @@ symbol_legends 1 ── * detection_class_corrections (old/new nullable referenc
 - `manual_symbols` stores immutable active-legend snapshots, creator and review
   context provenance, retry UUIDs, trusted review-image dimensions, and bounded
   source-pixel centers; it has no mutable timestamp or delete cascade.
+- `layout_versions` stores complete K1 schema-v1 JSON documents as append-only
+  snapshots. Positive versions are sequential per floor, `TRUE` marks the one
+  current row while historical rows use `NULL`, and foreign keys have no
+  destructive delete cascade.
 
 Processing-job status is restricted by `ck_processing_jobs_status` to `queued`,
 `processing`, `completed`, `failed`, or `cancelled`. Progress is restricted by
@@ -347,7 +357,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 19 OpenAPI operations through K1. Detection retrieval requires a
+The API has 19 OpenAPI operations through K2. Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Machine and
 manual symbols are returned in separate arrays. Symbols are
@@ -578,7 +588,7 @@ document described by `geometry.md` without changing H2 persistence.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through K1 is:
+The verified baseline through K2 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -603,7 +613,8 @@ J5 focused backend:      8 tests
 J5 backend regressions: 90 tests
 K1 focused backend:     39 tests
 K1 required regressions: 85 tests + 63 subtests
-Full backend:          571 tests + 426 subtests
+K2 focused backend:     17 tests + 27 subtests
+Full backend:          588 tests + 453 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -629,7 +640,7 @@ Durable queued processing job with planned worker and AI/CV pipeline
         ↓
 Persisted Designer confirmation/rejection review
         ↓
-Planned verified canonical geometry
+Persisted K2 canonical layout snapshots
         ├── planned Konva 2D
         ├── planned Three.js 3D
         ├── planned electrical routing
@@ -660,7 +671,8 @@ truth.
   version, and its aligned normalized blueprint reference; J3 persists
   confirmation/rejection decisions without changing machine provenance
 - Detection review supports J4 approved-catalog classification correction and
-  J5 manual symbol creation; K1 geometry is now an in-memory contract only
+  J5 manual symbol creation; K1 geometry can be persisted through the
+  backend-only K2 snapshot service
 - J3A exposes an empty-safe approved legend catalog, but no approved production
   VED class values or Admin catalog-management operations have been supplied
 - No 2D/3D editor implementation
@@ -669,10 +681,10 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-K1 is implemented without database/API changes. Floor elevation is required by
-the contract but is not a `project_floors` column and is never inferred. The
-next roadmap ticket is K2 layout snapshot/version persistence; it has not been
-started.
+K2 is implemented without an API change. Floor elevation is required by the
+canonical contract, stored inside each complete snapshot, is not a
+`project_floors` column, and is never inferred. The next roadmap ticket is K3,
+the 2D layout API; it has not been started.
 A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
 J1A.

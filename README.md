@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through K1, including the E3A, J1A, and J3A prerequisites.**
+**Implemented through K2, including the E3A, J1A, and J3A prerequisites.**
 
 The current backend surface contains 19 OpenAPI operations.
 
@@ -12,7 +12,7 @@ The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the twelve-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the thirteen-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -57,11 +57,14 @@ The repository currently includes:
   J1 retrieval, and a source-pixel authoritative-symbol handoff; and
 - a versioned, renderer-independent canonical geometry contract with strict
   Python and JavaScript validation, pure H2-wall/J5-symbol adapters, explicit
-  floor elevation, and one shared cross-runtime fixture.
+  floor elevation, and one shared cross-runtime fixture; and
+- append-only canonical layout snapshots with per-floor sequential versions,
+  one nullable current marker, reconstruction validation, and transactional
+  current-version switching.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing K1 does not imply that canonical geometry
-is persisted or that editable layout, 3D, routing, estimation, or reporting exists.
+`docs/FUNCTIONAL_SPEC.md`; completing K2 does not imply that a layout HTTP API,
+editable layout, 3D, routing, estimation, or reporting exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
 
@@ -212,7 +215,7 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
 prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
 prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, J4, J5, and
-K1 are implemented. K2 and all later tickets remain unimplemented.
+K1 and K2 are implemented. K3 and all later tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -395,11 +398,18 @@ The folders that do not exist yet should be created by the appropriate developme
   walls, rooms, authoritative symbols, routes, coordinate metadata, and an
   explicit non-inferred floor elevation. It adds pure backend/frontend adapters
   but no API, database column, renderer, or persistence. See `docs/geometry.md`.
+- K2 adds the thirteenth prototype table, `layout_versions`. Its backend-only
+  service stores complete K1 documents as append-only JSON snapshots, assigns
+  positive sequential versions while locking the project-floor row, and keeps
+  exactly one current snapshot per floor through `TRUE`/`NULL` markers. History
+  and prior geometry remain intact when the current marker changes. K2 adds no
+  HTTP operation, editor, renderer, or change to original floor-plan files.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.
-- K2 layout snapshots and the editable Konva 2D/Three.js 3D editors are not
-  implemented. `project_floors` does not yet persist elevation.
+- The K3 layout API and editable Konva 2D/Three.js 3D editors are not
+  implemented. `project_floors` does not persist elevation; each K2 snapshot
+  retains the explicit elevation inside its complete canonical document.
 - Electrical routing, material quantification, cost estimation, and PDF reports
   are not implemented.
 - The current Vercel deployment is frontend-only unless a separately hosted
