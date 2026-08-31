@@ -6,6 +6,7 @@ import { parseProjectRoute } from '../../routes/projectRoutes.js'
 import { ProjectDashboardPage } from '../projects/ProjectDashboardPage.jsx'
 import { ProjectDetailPage } from '../projects/ProjectDetailPage.jsx'
 import { DetectionReviewPage } from '../detection-review/DetectionReviewPage.jsx'
+import { LayoutEditorPage } from '../editor-2d/LayoutEditorPage.jsx'
 import '../projects/projects.css'
 
 
@@ -86,6 +87,14 @@ export function ProtectedAppPage({ route, session }) {
             projectId={projectRoute.projectId}
             floorPlanId={projectRoute.floorPlanId}
             processingJobId={projectRoute.processingJobId}
+          />
+        )}
+        {projectRoute.view === 'layout' && (
+          <LayoutEditorPage
+            key={`${projectRoute.projectId}-${projectRoute.projectFloorId}`}
+            projectId={projectRoute.projectId}
+            projectFloorId={projectRoute.projectFloorId}
+            session={session}
           />
         )}
         {projectRoute.view === 'invalid' && (

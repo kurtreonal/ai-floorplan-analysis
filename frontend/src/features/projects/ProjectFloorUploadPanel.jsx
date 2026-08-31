@@ -4,6 +4,7 @@ import {
   listProjectFloors,
   ProjectFloorApiError,
 } from '../../api/projectFloors.js'
+import { getLayoutHref } from '../../routes/projectRoutes.js'
 import { CreateProjectFloorForm } from './CreateProjectFloorForm.jsx'
 import { FloorPlanUploadForm } from './FloorPlanUploadForm.jsx'
 import { ProcessingJobPanel } from './ProcessingJobPanel.jsx'
@@ -124,8 +125,11 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                 <ul>
                   {floors.map((floor) => (
                     <li key={floor.id}>
-                      <strong>{floor.name}</strong>
-                      <span className="mono">FLOOR #{floor.id} · ORDER {floor.sort_order}</span>
+                      <span>
+                        <strong>{floor.name}</strong>
+                        <span className="mono">FLOOR #{floor.id} · ORDER {floor.sort_order}</span>
+                      </span>
+                      <a href={getLayoutHref(projectId, floor.id)}>Open current 2D layout</a>
                     </li>
                   ))}
                 </ul>
@@ -166,6 +170,12 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                     onUploadingChange={setIsUploading}
                     onUnavailable={() => setRefreshKey((key) => key + 1)}
                   />
+                  <a
+                    className="project-floor-layout-link"
+                    href={getLayoutHref(projectId, Number(selectedFloorId))}
+                  >
+                    Open current 2D layout
+                  </a>
                 </div>
               )}
             </div>

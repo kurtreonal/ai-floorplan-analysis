@@ -12,6 +12,9 @@ vi.mock('../detection-review/DetectionReviewPage.jsx', () => ({
     <p>review {projectId}/{floorPlanId}/{processingJobId}</p>
   ),
 }))
+vi.mock('../editor-2d/LayoutEditorPage.jsx', () => ({
+  LayoutEditorPage: ({ projectId, projectFloorId }) => <p>layout {projectId}/{projectFloorId}</p>,
+}))
 
 afterEach(cleanup)
 
@@ -28,5 +31,14 @@ describe('protected app detection route', () => {
       />,
     )
     expect(screen.getByText('review 15/81/103')).toBeTruthy()
+  })
+
+  it('renders the current layout view with parsed identifiers', () => {
+    const session = {
+      status: 'authenticated', user: { display_name: 'Designer', role: 'DESIGNER' },
+      signOut: vi.fn(), retry: vi.fn(), error: null, isSigningOut: false,
+    }
+    render(<ProtectedAppPage route="/app/projects/15/floors/2/layout" session={session} />)
+    expect(screen.getByText('layout 15/2')).toBeTruthy()
   })
 })

@@ -1,6 +1,7 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through K3. It
+This directory contains the FastAPI backend implemented through K3; the
+repository's frontend is implemented through K4. The backend
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -17,8 +18,10 @@ K1 adds a pure canonical geometry v1 contract and adapters. K2 adds the
 thirteenth prototype table and a backend-only transactional service for
 append-only canonical layout snapshots, history retrieval, and current-version
 selection. K3 exposes current-layout retrieval and owning-Designer snapshot
-creation through two layout operations. The API now has 21 operations. Workers,
-editable layouts, 3D, routing, estimation, and reporting are not implemented.
+creation through two layout operations. K4 consumes only the existing `GET`
+operation and makes no backend or schema change. The API remains at 21
+operations. Workers, editable layouts, 3D, routing, estimation, and reporting
+are not implemented.
 
 ## Requirements
 
@@ -163,7 +166,8 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 21 OpenAPI operations through K3. `GET /api/symbol-legends`
+The API has 21 OpenAPI operations through K4; K4 adds no backend operation.
+`GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
 official VED class values are committed or seeded; P3 remains responsible for
@@ -497,6 +501,13 @@ cross-context resources share `LAYOUT_NOT_FOUND`; invalid semantic geometry is
 errors. K3 exposes neither history nor current-version selection and never
 writes an original or derived floor-plan file.
 
+K4 adds a frontend-only, read-only Konva consumer of the current-layout `GET`.
+It does not call layout `POST`, add an API route, change any table, or modify
+stored geometry. Aligned-blueprint display is allowed only for one unambiguous
+wall/symbol processing-job provenance value whose decoded image dimensions
+exactly match the canonical coordinate system; otherwise the frontend keeps a
+neutral blueprint layer and reports the limitation safely.
+
 ## Wall-geometry persistence
 
 H3 adds the `walls` table and the backend-only wall persistence service. Each
@@ -794,7 +805,7 @@ tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
-601 full backend tests plus 479 subtests through K3. The required
+601 full backend tests plus 479 subtests, unchanged through frontend-only K4. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
 The existing

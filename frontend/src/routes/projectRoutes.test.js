@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { getProtectedRouteRedirect } from './authRoutes.js'
-import { getDetectionReviewHref, getProjectHref, parseProjectRoute } from './projectRoutes.js'
+import { getDetectionReviewHref, getLayoutHref, getProjectHref, parseProjectRoute } from './projectRoutes.js'
 
 
 describe('project hash routes', () => {
@@ -18,6 +18,22 @@ describe('project hash routes', () => {
     expect(getDetectionReviewHref(15, 81, 103)).toBe(
       '#/app/projects/15/floor-plans/81/detections/103',
     )
+  })
+
+  it('parses and builds the exact current layout route', () => {
+    expect(parseProjectRoute('/app/projects/15/floors/2/layout')).toEqual({
+      view: 'layout', projectId: 15, projectFloorId: 2,
+    })
+    expect(getLayoutHref(15, 2)).toBe('#/app/projects/15/floors/2/layout')
+    for (const route of [
+      '/app/projects/15/floors/0/layout', '/app/projects/15/floors/-2/layout',
+      '/app/projects/15/floors/2.1/layout', '/app/projects/15/floors/%32/layout',
+      '/app/projects/15/floors/2/layout/extra',
+      '/app/projects/999999999999999999/floors/2/layout',
+    ]) expect(parseProjectRoute(route)).toEqual({ view: 'invalid', projectId: null })
+    for (const ids of [[0, 2], [15, -2], [15, 2.1], [15, Number.MAX_SAFE_INTEGER + 1]]) {
+      expect(() => getLayoutHref(...ids)).toThrow()
+    }
   })
 
   it('rejects malformed detection review segments', () => {
