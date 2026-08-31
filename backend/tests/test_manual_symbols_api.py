@@ -437,12 +437,12 @@ class ManualSymbolApiTests(unittest.TestCase):
         self.assertEqual(handoff[1].status, "manually_added")
         self.assertTrue(all(hasattr(item, "center_x_pixels") for item in handoff))
 
-    def test_openapi_has_exactly_nineteen_operations(self) -> None:
+    def test_openapi_has_exactly_twenty_one_operations(self) -> None:
         schema = self.app.openapi()
         path = "/api/floor-plans/{floor_plan_id}/manual-symbols"
         self.assertEqual(set(schema["paths"][path]), {"post"})
         operations = {(method, route) for route, definitions in schema["paths"].items() for method in definitions if method in {"get", "post", "put", "patch", "delete"}}
-        self.assertEqual(len(operations), 19)
+        self.assertEqual(len(operations), 21)
 
 
 if __name__ == "__main__":

@@ -4,9 +4,9 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through K2, including the E3A, J1A, and J3A prerequisites.**
+**Implemented through K3, including the E3A, J1A, and J3A prerequisites.**
 
-The current backend surface contains 19 OpenAPI operations.
+The current backend surface contains 21 OpenAPI operations.
 
 The repository currently includes:
 
@@ -60,11 +60,14 @@ The repository currently includes:
   floor elevation, and one shared cross-runtime fixture; and
 - append-only canonical layout snapshots with per-floor sequential versions,
   one nullable current marker, reconstruction validation, and transactional
-  current-version switching.
+  current-version switching; and
+- an ownership-aware layout API that returns the current canonical snapshot and
+  lets an owning Designer save a complete validated K1 document as the next K2
+  version without modifying the original floor-plan file.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing K2 does not imply that a layout HTTP API,
-editable layout, 3D, routing, estimation, or reporting exists.
+`docs/FUNCTIONAL_SPEC.md`; completing K3 does not imply that an editable layout,
+3D, routing, estimation, or reporting exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
 
@@ -215,7 +218,7 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
 prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
 prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, J4, J5, and
-K1 and K2 are implemented. K3 and all later tickets remain unimplemented.
+K1, K2, and K3 are implemented. K4 and all later tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -404,11 +407,16 @@ The folders that do not exist yet should be created by the appropriate developme
   exactly one current snapshot per floor through `TRUE`/`NULL` markers. History
   and prior geometry remain intact when the current marker changes. K2 adds no
   HTTP operation, editor, renderer, or change to original floor-plan files.
+- K3 exposes the current snapshot at
+  `GET /api/projects/{project_id}/floors/{project_floor_id}/layouts` to the
+  owning Designer or an Admin. The matching `POST` accepts exactly one complete
+  K1 canonical document from the owning Designer and creates the next K2
+  snapshot. The API exposes no history or current-version-selection operation.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.
-- The K3 layout API and editable Konva 2D/Three.js 3D editors are not
-  implemented. `project_floors` does not persist elevation; each K2 snapshot
+- Editable Konva 2D/Three.js 3D editors are not implemented.
+  `project_floors` does not persist elevation; each K2 snapshot
   retains the explicit elevation inside its complete canonical document.
 - Electrical routing, material quantification, cost estimation, and PDF reports
   are not implemented.

@@ -751,6 +751,10 @@ class ProjectCreationTests(unittest.TestCase):
                 "/api/projects/{project_id}": {"get"},
                 "/api/projects/{project_id}/floor-plans": {"post"},
                 "/api/projects/{project_id}/floors": {"get", "post"},
+                "/api/projects/{project_id}/floors/{project_floor_id}/layouts": {
+                    "get",
+                    "post",
+                },
             },
         )
 

@@ -55,14 +55,14 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through K2, including the E3A project-floor
+The repository is implemented through K3, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 The current verified prototype contract contains thirteen SQLAlchemy/MySQL tables
-and 19 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
+and 21 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
 catalog. K1 changes neither count; K2 adds `layout_versions` while leaving the
-API count unchanged.
+API count unchanged; K3 adds exactly two layout operations and no table.
 
 Completed ticket areas:
 
@@ -96,6 +96,7 @@ J4 — Correct Symbol Classification
 J5 — Add Missing Symbol Manually
 K1 — Define Canonical Geometry Schema
 K2 — Create Layout Snapshot/Version Model
+K3 — Create 2D Layout API
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -113,8 +114,8 @@ read-only React-Konva review canvas, append-only owning-Designer confirmation
 or rejection decisions, and the database-backed active-only approved symbol
 legend catalog, append-only owning-Designer classification correction, and
 owner-scoped idempotent manual placement using trusted review-image dimensions.
-K3 and later tickets remain unimplemented. In particular, there is no worker,
-external queue, automatic OpenCV/YOLO pipeline, layout HTTP API, 2D/3D editor,
+K4 and later tickets remain unimplemented. In particular, there is no worker,
+external queue, automatic OpenCV/YOLO pipeline, 2D/3D editor,
 routing, estimation, or report implementation.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
@@ -3369,7 +3370,8 @@ current. An older version may later become current without changing its stored
 geometry or timestamp. Database constraints enforce unique floor/version and
 one current row per floor. Reconstruction rejects corrupt or mismatched stored
 JSON. K2 adds no HTTP operation, original-file mutation, editor, renderer,
-routing, estimate, or report behavior. K3 remains next.
+routing, estimate, or report behavior. K3 exposes this service without changing
+those persistence guarantees.
 
 **Acceptance Criteria:**
 
@@ -3387,13 +3389,24 @@ routing, estimate, or report behavior. K3 remains next.
 
 **Dependencies:** K2.
 
+**Implementation status:** Complete. K3 adds exactly `GET` and `POST`
+`/api/projects/{project_id}/floors/{project_floor_id}/layouts`. `GET` returns
+the current complete K2 snapshot to the owning Designer or an Admin. `POST`
+accepts the exact complete strict K1 canonical document from the owning
+Designer, validates its path and persisted-floor identity, and creates the next
+append-only K2 version. Missing, inaccessible, and cross-context resources use
+the same non-disclosing `LAYOUT_NOT_FOUND` response. Semantic geometry failures
+use `INVALID_LAYOUT_GEOMETRY`, and persistence failures are sanitized. No
+history/current-selection API, editor, renderer, schema change, or floor-plan
+file mutation is introduced. K4 remains next.
+
 **Acceptance Criteria:**
 
-- [ ] `GET /api/projects/{id}/layouts` or documented equivalent returns current layout data.
-- [ ] Save/update endpoint validates geometry.
-- [ ] Backend remains source of truth.
-- [ ] Invalid coordinates produce a validation error.
-- [ ] Saving the 2D layout does not modify the original blueprint file.
+- [x] `GET /api/projects/{id}/layouts` or documented equivalent returns current layout data.
+- [x] Save/update endpoint validates geometry.
+- [x] Backend remains source of truth.
+- [x] Invalid coordinates produce a validation error.
+- [x] Saving the 2D layout does not modify the original blueprint file.
 
 ---
 

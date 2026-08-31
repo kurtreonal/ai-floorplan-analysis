@@ -598,7 +598,7 @@ class WallPersistenceTests(unittest.TestCase):
         self.assertEqual((self.job.status, self.job.progress), ("processing", 25))
         self.assertEqual(floor_plan.processing_status, "uploaded")
 
-    def test_current_openapi_operation_count_includes_j1(self) -> None:
+    def test_current_openapi_operation_count_includes_k3(self) -> None:
         from app.main import app
 
         operations = sum(
@@ -607,7 +607,7 @@ class WallPersistenceTests(unittest.TestCase):
             for method in methods
             if method.casefold() in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 19)
+        self.assertEqual(operations, 21)
 
 
 if __name__ == "__main__":
