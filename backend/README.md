@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through K2. It
+This directory contains the FastAPI backend implemented through K3. It
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -16,7 +16,8 @@ Designer classification correction, and owner-scoped manual symbol placement.
 K1 adds a pure canonical geometry v1 contract and adapters. K2 adds the
 thirteenth prototype table and a backend-only transactional service for
 append-only canonical layout snapshots, history retrieval, and current-version
-selection. The API remains at 19 operations. Workers, the K3 layout API,
+selection. K3 exposes current-layout retrieval and owning-Designer snapshot
+creation through two layout operations. The API now has 21 operations. Workers,
 editable layouts, 3D, routing, estimation, and reporting are not implemented.
 
 ## Requirements
@@ -149,6 +150,9 @@ POST /api/projects/{project_id}/floors
 
 POST /api/projects/{project_id}/floor-plans
 
+GET  /api/projects/{project_id}/floors/{project_floor_id}/layouts
+POST /api/projects/{project_id}/floors/{project_floor_id}/layouts
+
 POST /api/floor-plans/{floor_plan_id}/process
 GET  /api/processing-jobs/{job_id}
 GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
@@ -159,7 +163,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 19 OpenAPI operations through K2. `GET /api/symbol-legends`
+The API has 21 OpenAPI operations through K3. `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
 official VED class values are committed or seeded; P3 remains responsible for
@@ -462,8 +466,8 @@ adapter. H2 candidates remain unverified machine suggestions. It adds no OpenCV
 execution, API, filesystem I/O, database table, persistence, scale inference,
 wall merging/snapping/thickness, room geometry, worker, or job-state behavior.
 K1 now supplies the complete cross-domain canonical document schema; see
-`../docs/geometry.md`. K2 persists complete validated documents through a
-backend-only service; the contract is not exposed through HTTP.
+`../docs/geometry.md`. K2 persists complete validated documents, and K3 exposes
+the current document and new snapshot creation through the protected layout API.
 
 ## Layout snapshot persistence
 
@@ -480,9 +484,18 @@ and creation timestamps remain unchanged.
 The repository/service boundary supports save, exact-version reconstruction,
 current-version reconstruction, ordered metadata history, and current-version
 selection. Stored documents are reconstructed through the K1 validator, and
-database or document failures expose only sanitized service errors. K2 adds no
-HTTP operation and performs no floor-plan or derived-file writes. K3 owns the
-future layout API.
+database or document failures expose only sanitized service errors. K2 itself
+adds no HTTP operation and performs no floor-plan or derived-file writes.
+
+K3 adds `GET` and `POST`
+`/api/projects/{project_id}/floors/{project_floor_id}/layouts`. The owning
+Designer may read and create snapshots; Admins may read but not save. `POST`
+requires one complete strict K1 document, verifies its path and persisted-floor
+identity, and delegates append-only creation to K2. Missing, inaccessible, or
+cross-context resources share `LAYOUT_NOT_FOUND`; invalid semantic geometry is
+`INVALID_LAYOUT_GEOMETRY`; storage failures use sanitized retrieval/save `503`
+errors. K3 exposes neither history nor current-version selection and never
+writes an original or derived floor-plan file.
 
 ## Wall-geometry persistence
 
@@ -644,8 +657,9 @@ snapshots survive later legend changes. A renderer-independent service hands
 confirmed detections (using J4's authoritative class) plus all manual symbols
 to K1 in source pixels, excluding pending and deleted detections. K1 canonical
 geometry converts those centers with H2 scale while preserving authoritative
-class and source provenance. Canonical persistence and actual 3D, routing, and
-quantity work remain unimplemented.
+class and source provenance. K2/K3 canonical persistence and current-layout API
+access are implemented; actual 3D, routing, and quantity work remain
+unimplemented.
 
 ## Detection results API
 
@@ -757,6 +771,7 @@ available:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest tests.test_layout_versions -v
+.\.venv\Scripts\python.exe -m unittest tests.test_layouts_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_detection_results_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_detection_reviews_api -v
 .\.venv\Scripts\python.exe -m unittest tests.test_detection_classifications_api -v
@@ -778,8 +793,9 @@ tests, 9 focused J3 tests, 15 focused I4 tests,
 tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
-focused K2 tests plus 27 subtests, and 588 full backend tests plus 453 subtests
-through K2. The required H2/H3/J1/J4/J5 K1 regression batch
+focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
+601 full backend tests plus 479 subtests through K3. The required
+H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
 The existing
 Starlette TestClient/httpx deprecation warning does not by itself indicate a

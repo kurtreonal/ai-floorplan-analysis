@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through K2, including E3A, J1A, and J3A, and labels
+> the architecture actually implemented through K3, including E3A, J1A, and J3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -56,11 +56,13 @@
   adapters shared with a renderer-independent JavaScript normalizer
 - K2: append-only canonical layout snapshots with per-floor version allocation,
   validated reconstruction, ordered history, and transactional current selection
+- K3: owning-Designer current-layout retrieval and snapshot creation plus
+  read-only Admin access, using the strict K1 request and K2 persistence contracts
 
 ### Planned
 
-K3 and later roadmap tickets remain unimplemented, including the layout HTTP
-API, geometry editing, editable Konva 2D, Three.js 3D,
+K4 and later roadmap tickets remain unimplemented, including geometry editing,
+editable Konva 2D, Three.js 3D,
 routing, quantities, estimates, reports, administration, and audit logging.
 
 ### Proposed but not approved
@@ -251,7 +253,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set through K2 is exactly:
+The live and SQLAlchemy model table set through K3 is exactly:
 
 ```text
 roles
@@ -347,6 +349,9 @@ POST /api/projects/{project_id}/floors
 
 POST /api/projects/{project_id}/floor-plans
 
+GET  /api/projects/{project_id}/floors/{project_floor_id}/layouts
+POST /api/projects/{project_id}/floors/{project_floor_id}/layouts
+
 POST /api/floor-plans/{floor_plan_id}/process
 GET  /api/processing-jobs/{job_id}
 GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
@@ -357,11 +362,17 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 19 OpenAPI operations through K2. Detection retrieval requires a
+The API has 21 OpenAPI operations through K3. Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Machine and
 manual symbols are returned in separate arrays. Symbols are
 job-versioned, whereas walls remain the current floor-plan wall set.
+
+The layout `GET` returns only the current complete K2 snapshot. It permits the
+owning Designer and Admins. The matching `POST` is owning-Designer-only, accepts
+the exact complete K1 document, verifies path and persisted-floor identity, and
+creates a new append-only current K2 version. K3 exposes no history or
+current-version-selection API and performs no floor-plan file writes.
 
 All business responses use Pydantic response schemas. Project-floor listing is
 ordered by `sort_order` then ID. The upload endpoint requires a positive
@@ -588,7 +599,7 @@ document described by `geometry.md` without changing H2 persistence.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified baseline through K2 is:
+The verified baseline through K3 is:
 
 ```text
 F3 focused backend:    11 tests
@@ -614,7 +625,8 @@ J5 backend regressions: 90 tests
 K1 focused backend:     39 tests
 K1 required regressions: 85 tests + 63 subtests
 K2 focused backend:     17 tests + 27 subtests
-Full backend:          588 tests + 453 subtests
+K3 focused backend:     13 tests + 26 subtests
+Full backend:          601 tests + 479 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -671,8 +683,8 @@ truth.
   version, and its aligned normalized blueprint reference; J3 persists
   confirmation/rejection decisions without changing machine provenance
 - Detection review supports J4 approved-catalog classification correction and
-  J5 manual symbol creation; K1 geometry can be persisted through the
-  backend-only K2 snapshot service
+  J5 manual symbol creation; K1 geometry can be persisted through K2 and loaded
+  or saved as the current snapshot through the protected K3 API
 - J3A exposes an empty-safe approved legend catalog, but no approved production
   VED class values or Admin catalog-management operations have been supplied
 - No 2D/3D editor implementation
@@ -681,10 +693,10 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-K2 is implemented without an API change. Floor elevation is required by the
-canonical contract, stored inside each complete snapshot, is not a
-`project_floors` column, and is never inferred. The next roadmap ticket is K3,
-the 2D layout API; it has not been started.
+K3 exposes K2 current-layout retrieval and snapshot creation. Floor elevation
+is required by the canonical contract, stored inside each complete snapshot, is not a
+`project_floors` column, and is never inferred. The next roadmap ticket is K4,
+the Konva layer architecture; it has not been started.
 A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
 J1A.

@@ -874,7 +874,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             before,
         )
 
-    def test_current_openapi_operation_count_includes_j1(self):
+    def test_current_openapi_operation_count_includes_k3(self):
         from app.main import app
 
         operations = sum(
@@ -884,7 +884,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             if method.casefold()
             in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 19)
+        self.assertEqual(operations, 21)
 
 
 if __name__ == "__main__":

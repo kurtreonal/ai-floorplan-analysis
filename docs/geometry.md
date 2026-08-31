@@ -7,7 +7,8 @@ contracts in `backend/app/geometry/canonical.py` and the dependency-free
 JavaScript normalizer in `frontend/src/geometry/canonicalGeometry.js`.
 
 K2 persists complete validated documents in append-only `layout_versions`
-snapshots through a backend-only service. No layout HTTP API exists yet.
+snapshots. K3 exposes current-layout retrieval and new snapshot creation at
+`/api/projects/{project_id}/floors/{project_floor_id}/layouts`.
 Callers must supply floor elevation explicitly: `project_floors` has no
 elevation column, and an elevation must never be inferred from a floor name or
 sort order.
@@ -124,11 +125,20 @@ identity-inconsistent stored JSON with a sanitized service error. History reads
 return ordered metadata without rewriting geometry. K2 does not write any
 floor-plan or derived-image file.
 
+## K3 layout API
+
+`GET` returns the current snapshot metadata and complete canonical geometry to
+the owning Designer or an Admin. `POST` is owning-Designer-only and accepts one
+complete strict K1 document; it validates path and persisted-floor identity and
+delegates append-only version creation to K2. The API does not expose history or
+current-version selection and does not write original or derived floor-plan
+files.
+
 ## Downstream mapping and non-goals
 
 Future 3D adapters are expected to map canonical x to horizontal 3D x, explicit
 floor elevation to vertical 3D y, and canonical y to horizontal 3D z. This is a
 planned mapping, not an implemented renderer or proof of 2D/3D synchronization.
 
-K2 does not implement the K3 layout API, geometry editing, Konva rendering,
-Three.js rendering, routing algorithms, quantities, estimates, or reports.
+K3 does not implement geometry editing, Konva rendering, Three.js rendering,
+routing algorithms, quantities, estimates, or reports.
