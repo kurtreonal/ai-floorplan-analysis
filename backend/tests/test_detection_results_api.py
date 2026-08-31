@@ -44,6 +44,7 @@ TABLES = (
     "detection_class_corrections",
     "detection_reviews",
     "floor_plans",
+    "layout_versions",
     "manual_symbols",
     "processing_jobs",
     "project_floors",

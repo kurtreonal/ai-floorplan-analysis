@@ -69,8 +69,8 @@ class DetectionReviewModelTests(unittest.TestCase):
                 "ix_detection_reviews_reviewer_user_id",
             },
         )
-        self.assertEqual(len(Base.metadata.tables), 12)
-        self.assertEqual(len(inspect(get_engine()).get_table_names()), 12)
+        self.assertEqual(len(Base.metadata.tables), 13)
+        self.assertEqual(len(inspect(get_engine()).get_table_names()), 13)
         self.assertEqual(
             DetectedSymbol.reviews.property.back_populates,
             "detected_symbol",

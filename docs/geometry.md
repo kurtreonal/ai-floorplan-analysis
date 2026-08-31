@@ -6,9 +6,11 @@ one floor-plan coordinate plane. Version 1 is implemented by the frozen Python
 contracts in `backend/app/geometry/canonical.py` and the dependency-free
 JavaScript normalizer in `frontend/src/geometry/canonicalGeometry.js`.
 
-The contract is not persisted or exposed by an API in K1. Callers must supply
-floor elevation explicitly: `project_floors` has no elevation column, and an
-elevation must never be inferred from a floor name or sort order.
+K2 persists complete validated documents in append-only `layout_versions`
+snapshots through a backend-only service. No layout HTTP API exists yet.
+Callers must supply floor elevation explicitly: `project_floors` has no
+elevation column, and an elevation must never be inferred from a floor name or
+sort order.
 
 ## Document fields
 
@@ -105,12 +107,28 @@ returns a fresh deeply frozen value. Invalid Python documents raise
 expose only the stable message `The canonical geometry document is invalid.`
 and perform no database, filesystem, or HTTP side effects.
 
+## K2 snapshot persistence
+
+Each snapshot references its project, project floor, and source floor plan,
+stores schema version `1`, the complete canonical JSON document, a positive
+per-floor sequential version, a nullable current marker, and a server-created
+timestamp. Saving locks the project-floor row, validates all three identities,
+sets the former current marker to `NULL`, and inserts the new snapshot as
+`TRUE` in one transaction. A unique floor/version constraint and a unique
+floor/current constraint enforce version and current-marker integrity. Older
+documents are never updated or deleted when a new snapshot is saved or an older
+version is selected as current.
+
+Reads reconstruct the immutable K1 contract and reject corrupt or
+identity-inconsistent stored JSON with a sanitized service error. History reads
+return ordered metadata without rewriting geometry. K2 does not write any
+floor-plan or derived-image file.
+
 ## Downstream mapping and non-goals
 
 Future 3D adapters are expected to map canonical x to horizontal 3D x, explicit
 floor elevation to vertical 3D y, and canonical y to horizontal 3D z. This is a
 planned mapping, not an implemented renderer or proof of 2D/3D synchronization.
 
-K1 does not implement persistence or K2 layout snapshots, geometry editing,
-Konva rendering, Three.js rendering, routing algorithms, quantities, estimates,
-or reports.
+K2 does not implement the K3 layout API, geometry editing, Konva rendering,
+Three.js rendering, routing algorithms, quantities, estimates, or reports.

@@ -8,6 +8,7 @@ from app.models.base import Base
 
 
 if TYPE_CHECKING:
+    from app.models.layout_version import LayoutVersion
     from app.models.project_floor import ProjectFloor
     from app.models.user import User
 
@@ -81,5 +82,8 @@ class Project(Base):
 
     owner: Mapped["User"] = relationship(back_populates="projects")
     project_floors: Mapped[list["ProjectFloor"]] = relationship(
+        back_populates="project"
+    )
+    layout_versions: Mapped[list["LayoutVersion"]] = relationship(
         back_populates="project"
     )
