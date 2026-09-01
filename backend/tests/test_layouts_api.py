@@ -465,6 +465,69 @@ class LayoutApiTests(unittest.TestCase):
         self.assertEqual(other.json()["version_number"], 1)
         self.assertTrue(other.json()["is_current"])
 
+    def test_k5_symbol_move_creates_new_version_and_get_reloads_only_position(self) -> None:
+        first_payload = self._payload()
+        moved_payload = copy.deepcopy(first_payload)
+        moved_payload["symbols"][0]["position"] = {"x": 4.25, "y": 1.75}
+        source_counts_before = {
+            table.name: self.database_session.scalar(
+                select(func.count()).select_from(table)
+            )
+            for table in Base.metadata.sorted_tables
+            if table.name != "layout_versions"
+        }
+        files_before = self._file_state()
+
+        first = self._post(first_payload, user=self.designer)
+        self.assertEqual(first.status_code, 201, first.text)
+        self.client.cookies.clear()
+        second = self._post(moved_payload, user=self.designer)
+        self.assertEqual(second.status_code, 201, second.text)
+        self.assertEqual(second.json()["version_number"], 2)
+
+        self.client.cookies.clear()
+        loaded = self._get(user=self.designer)
+        self.assertEqual(loaded.status_code, 200, loaded.text)
+        self.assertEqual(loaded.json()["version_number"], 2)
+        self.assertEqual(
+            loaded.json()["geometry"]["symbols"][0]["position"],
+            {"x": 4.25, "y": 1.75},
+        )
+
+        rows = tuple(
+            self.database_session.scalars(
+                select(LayoutVersion)
+                .where(LayoutVersion.project_floor_id == self.floor.id)
+                .order_by(LayoutVersion.version_number)
+            )
+        )
+        self.assertEqual([row.version_number for row in rows], [1, 2])
+        self.assertEqual(rows[0].geometry_document, first_payload)
+        self.assertEqual(rows[1].geometry_document, moved_payload)
+
+        original_symbol = copy.deepcopy(first_payload["symbols"][0])
+        moved_symbol = copy.deepcopy(moved_payload["symbols"][0])
+        original_position = original_symbol.pop("position")
+        moved_position = moved_symbol.pop("position")
+        self.assertNotEqual(original_position, moved_position)
+        self.assertEqual(moved_symbol, original_symbol)
+        self.assertEqual(moved_payload["symbols"][1:], first_payload["symbols"][1:])
+        for field in (
+            "schema_version", "project_id", "floor", "floor_plan_id",
+            "coordinate_system", "walls", "rooms", "routes",
+        ):
+            self.assertEqual(moved_payload[field], first_payload[field])
+
+        source_counts_after = {
+            table.name: self.database_session.scalar(
+                select(func.count()).select_from(table)
+            )
+            for table in Base.metadata.sorted_tables
+            if table.name != "layout_versions"
+        }
+        self.assertEqual(source_counts_after, source_counts_before)
+        self.assertEqual(self._file_state(), files_before)
+
     def test_get_exact_current_is_read_only_and_missing_is_404(self) -> None:
         missing = self._get(user=self.designer)
         self.assertEqual(missing.status_code, 404, missing.text)

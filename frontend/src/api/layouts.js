@@ -1,14 +1,15 @@
 import { API_BASE_URL } from './auth.js'
 import { normalizeCanonicalGeometry } from '../geometry/canonicalGeometry.js'
 
-const GENERIC_ERROR = 'The current layout could not be loaded safely.'
+const LOAD_ERROR = 'The current layout could not be loaded safely.'
+const SAVE_ERROR = 'The layout changes could not be saved safely.'
 const RESPONSE_KEYS = [
   'id', 'project_id', 'project_floor_id', 'floor_plan_id', 'version_number',
   'schema_version', 'is_current', 'created_at', 'geometry',
 ]
 
 export class LayoutApiError extends Error {
-  constructor(message = GENERIC_ERROR, status = 0, code = null) {
+  constructor(message = LOAD_ERROR, status = 0, code = null) {
     super(message)
     this.name = 'LayoutApiError'
     this.status = status
@@ -28,7 +29,7 @@ function exactObject(value, keys) {
     && Object.keys(value).every((key) => keys.includes(key))
 }
 
-function validateResponse(payload, projectId, projectFloorId) {
+function validateResponse(payload, projectId, projectFloorId, message = LOAD_ERROR) {
   if (!exactObject(payload, RESPONSE_KEYS)
     || !positiveId(payload.id)
     || payload.project_id !== projectId
@@ -39,20 +40,20 @@ function validateResponse(payload, projectId, projectFloorId) {
     || payload.is_current !== true
     || typeof payload.created_at !== 'string'
     || !Number.isFinite(Date.parse(payload.created_at))) {
-    throw new LayoutApiError()
+    throw new LayoutApiError(message)
   }
 
   let geometry
   try {
     geometry = normalizeCanonicalGeometry(payload.geometry)
   } catch {
-    throw new LayoutApiError()
+    throw new LayoutApiError(message)
   }
   if (geometry.schema_version !== payload.schema_version
     || geometry.project_id !== projectId
     || geometry.floor.project_floor_id !== projectFloorId
     || geometry.floor_plan_id !== payload.floor_plan_id) {
-    throw new LayoutApiError()
+    throw new LayoutApiError(message)
   }
 
   return Object.freeze({
@@ -92,12 +93,62 @@ export async function fetchCurrentLayout(projectId, projectFloorId, { signal } =
     throw new LayoutApiError()
   }
   if (!response.ok) {
-    throw new LayoutApiError(GENERIC_ERROR, response.status, await safeError(response))
+    throw new LayoutApiError(LOAD_ERROR, response.status, await safeError(response))
   }
   try {
     return validateResponse(await response.json(), projectId, projectFloorId)
   } catch (error) {
     if (error instanceof LayoutApiError) throw error
     throw new LayoutApiError()
+  }
+}
+
+export async function saveCurrentLayout(
+  projectId,
+  projectFloorId,
+  geometryDocument,
+  { signal } = {},
+) {
+  if (!positiveId(projectId) || !positiveId(projectFloorId)) {
+    throw new LayoutApiError(SAVE_ERROR)
+  }
+
+  let geometry
+  try {
+    geometry = normalizeCanonicalGeometry(geometryDocument)
+  } catch {
+    throw new LayoutApiError(SAVE_ERROR)
+  }
+  if (geometry.project_id !== projectId
+    || geometry.floor.project_floor_id !== projectFloorId) {
+    throw new LayoutApiError(SAVE_ERROR)
+  }
+
+  let response
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/api/projects/${projectId}/floors/${projectFloorId}/layouts`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(geometry),
+        signal,
+      },
+    )
+  } catch (error) {
+    if (error.name === 'AbortError') throw error
+    throw new LayoutApiError(SAVE_ERROR)
+  }
+  if (!response.ok) {
+    throw new LayoutApiError(SAVE_ERROR, response.status, await safeError(response))
+  }
+  try {
+    return validateResponse(
+      await response.json(), projectId, projectFloorId, SAVE_ERROR,
+    )
+  } catch (error) {
+    if (error instanceof LayoutApiError) throw error
+    throw new LayoutApiError(SAVE_ERROR)
   }
 }

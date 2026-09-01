@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through K4, including the E3A, J1A, and J3A prerequisites.**
+**Implemented through K5, including the E3A, J1A, and J3A prerequisites.**
 
 The current backend surface contains 21 OpenAPI operations.
 
@@ -67,10 +67,13 @@ The repository currently includes:
 - a protected, read-only canonical 2D layout page with strict K3 GET validation,
   responsive meter-to-source-pixel rendering, six stable React-Konva layers,
   accessible local visibility controls, and conservative aligned-blueprint
-  loading only when processing-job provenance is unambiguous.
+  loading only when processing-job provenance is unambiguous; and
+- canonical detected/manual symbol selection and Designer-only repositioning by
+  drag or accessible meter inputs, with explicit save/cancel controls and K3
+  append-only snapshot persistence.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing K4 does not imply that an editable layout,
+`docs/FUNCTIONAL_SPEC.md`; completing K5 does not imply wall/room/route editing,
 3D, routing, estimation, or reporting exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
@@ -222,7 +225,7 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
 prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
 prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, J4, J5, and
-K1, K2, K3, and K4 are implemented. K5 and all later tickets remain unimplemented.
+K1, K2, K3, K4, and K5 are implemented. L1 and all later tickets remain unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -419,19 +422,30 @@ The folders that do not exist yet should be created by the appropriate developme
 - K4 adds a protected read-only route at
   `#/app/projects/{project_id}/floors/{project_floor_id}/layout`. It renders the
   current K3 snapshot in six always-mounted layers: blueprint, walls, rooms,
-  symbols, wiring/conduit previews, and a separate empty selection/editing UI
-  layer reserved for K5. Layer toggles are presentation-only and never alter
+  symbols, wiring/conduit previews, and a separate selection/editing UI layer.
+  K5 now uses that final layer for non-authoritative selection outlines. Layer
+  toggles are presentation-only and never alter
   canonical data or call the K3 `POST` operation.
 - K4 displays the existing J1A aligned review image only when every non-null
   wall/symbol processing provenance value identifies one safe job and decoded
   image dimensions exactly match the canonical source plane. Missing or mixed
   provenance leaves a neutral blueprint layer and an accessible warning; a
   later explicit blueprint-source contract is required for guaranteed display.
+- K5 lets an owning Designer select and reposition confirmed detected or
+  manually added canonical symbols. Dragging and accessible X/Y meter inputs
+  update an immutable draft K1 document; an explicit save sends the complete
+  document through K3 and adopts the returned append-only K2 version. Admins
+  may inspect/select but cannot move or save. Walls, rooms, routes, scale,
+  elevation, floor identity, class/status/provenance, deletion, resizing,
+  undo/redo, 3D, and routing remain outside K5.
+- K3 POST has no expected-version, ETag, conditional-write, or idempotency-key
+  contract. K5 reconciles uncertain save outcomes with one current-layout GET
+  before permitting a retry, but this is not atomic concurrent-edit protection.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.
-- The Konva 2D foundation is read-only; symbol selection/movement and saving are
-  deferred to K5. Three.js 3D is not implemented.
+- The Konva 2D layout can reposition canonical symbols only. Other geometry
+  remains read-only, and Three.js 3D is not implemented.
   `project_floors` does not persist elevation; each K2 snapshot
   retains the explicit elevation inside its complete canonical document.
 - Electrical routing, material quantification, cost estimation, and PDF reports

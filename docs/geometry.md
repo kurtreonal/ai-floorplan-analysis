@@ -9,8 +9,8 @@ JavaScript normalizer in `frontend/src/geometry/canonicalGeometry.js`.
 K2 persists complete validated documents in append-only `layout_versions`
 snapshots. K3 exposes current-layout retrieval and new snapshot creation at
 `/api/projects/{project_id}/floors/{project_floor_id}/layouts`.
-K4 consumes the current snapshot in a read-only Konva source-pixel plane with
-six stable layers; it does not create a second geometry model.
+K4 consumes the current snapshot in a Konva source-pixel plane with six stable
+layers; K5 repositions symbols while retaining the same geometry model.
 Callers must supply floor elevation explicitly: `project_floors` has no
 elevation column, and an elevation must never be inferred from a floor name or
 sort order.
@@ -154,12 +154,36 @@ the UI reports that the reference is unavailable. Source-less or mixed-source
 snapshots require a later explicit blueprint-source contract for guaranteed
 aligned-image display.
 
+## K5 canonical symbol movement
+
+K5 makes confirmed detected and manually added symbols selectable. An owning
+Designer may drag a symbol in the Konva source plane or enter bounded X/Y meter
+coordinates in an accessible inspector. Source pixels are converted back with
+`x = pixel_x / pixels_per_meter` and `y = pixel_y / pixels_per_meter`, then the
+complete document is normalized. The authoritative value remains
+`geometry.symbols[*].position` in meters; Konva always derives its displayed
+node from that field, and future 3D must consume the same field.
+
+K5 preserves symbol IDs, class, status, source and processing provenance,
+ordering, and all unrelated floor, coordinate, wall, room, symbol, and route
+data. Walls, rooms, routes, scale, floor identity, elevation, classification,
+review state, deletion, resizing, and rotation remain non-editable. Each
+successful save posts the complete K1 document through K3 and creates a new
+append-only K2 version. Cancel restores the last server snapshot without a
+POST.
+
+K3 exposes no expected-version, ETag, conditional-write, or idempotency-key
+contract. K5 checks the current layout before retrying an uncertain save, but
+this does not provide atomic optimistic concurrency or idempotent POST semantics.
+
 ## Downstream mapping and non-goals
 
 Future 3D adapters are expected to map canonical x to horizontal 3D x, explicit
 floor elevation to vertical 3D y, and canonical y to horizontal 3D z. This is a
 planned mapping, not an implemented renderer or proof of 2D/3D synchronization.
 
-K4 implements read-only Konva rendering but not selection, geometry editing,
-dragging, saving, Three.js rendering, routing algorithms, quantities, estimates,
-or reports.
+K5 implements canonical symbol selection, repositioning, and explicit snapshot
+saving. It does not implement wall/room/route editing, symbol class/status
+changes, deletion, resizing, undo/redo, Three.js rendering, routing algorithms,
+quantities, estimates, or reports. The explicit floor elevation still lives in
+the snapshot because `project_floors` has no elevation column.

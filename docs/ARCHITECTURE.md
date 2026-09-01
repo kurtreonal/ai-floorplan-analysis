@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through K4, including E3A, J1A, and J3A, and labels
+> the architecture actually implemented through K5, including E3A, J1A, and J3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -61,11 +61,13 @@
 - K4: protected read-only canonical layout route, strict current-layout client,
   responsive source-pixel Konva stage, six stable layers, accessible local
   visibility controls, and provenance-safe optional J1A blueprint display
+- K5: detected/manual canonical symbol selection, Designer-only drag and
+  accessible meter editing, immutable draft/save/cancel state, strict K3 POST
+  use, uncertain-save reconciliation, and append-only K2 snapshot adoption
 
 ### Planned
 
-K5 and later roadmap tickets remain unimplemented, including geometry editing,
-editable Konva interactions, Three.js 3D,
+L1 and later roadmap tickets remain unimplemented, including Three.js 3D,
 routing, quantities, estimates, reports, administration, and audit logging.
 
 ### Proposed but not approved
@@ -256,7 +258,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set remains exactly the same through K4:
+The live and SQLAlchemy model table set remains exactly the same through K5:
 
 ```text
 roles
@@ -365,7 +367,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API remains at 21 OpenAPI operations through K4. Detection retrieval requires a
+The API remains at 21 OpenAPI operations through K5. Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Machine and
 manual symbols are returned in separate arrays. Symbols are
@@ -602,7 +604,8 @@ document described by `geometry.md` without changing H2 persistence.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified backend baseline remains unchanged through K4; K4 adds focused
+The verified backend surface remains unchanged through K5; K5 adds one focused
+K3 persistence/reload regression while using the existing operations. K4 adds focused
 frontend API, route, navigation, coordinate, canvas, layer-toggle, page, and
 accessibility coverage:
 
@@ -631,7 +634,7 @@ K1 focused backend:     39 tests
 K1 required regressions: 85 tests + 63 subtests
 K2 focused backend:     17 tests + 27 subtests
 K3 focused backend:     13 tests + 26 subtests
-Full backend:          601 tests + 479 subtests
+Full backend:          602 tests + 479 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -640,7 +643,7 @@ J5 focused frontend:    49 tests
 K1 focused frontend:    21 tests
 K1 J2/J5 regressions:   43 tests
 K4 focused frontend:    19 tests + 4 route/navigation regressions
-Full frontend:          211 tests
+Full frontend:          239 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -659,7 +662,7 @@ Durable queued processing job with planned worker and AI/CV pipeline
 Persisted Designer confirmation/rejection review
         ↓
 Persisted K2 canonical layout snapshots
-        ├── planned Konva 2D
+        ├── implemented Konva 2D symbol editor
         ├── planned Three.js 3D
         ├── planned electrical routing
         └── planned quantities and estimates
@@ -693,9 +696,10 @@ truth.
   or saved as the current snapshot through the protected K3 API
 - J3A exposes an empty-safe approved legend catalog, but no approved production
   VED class values or Admin catalog-management operations have been supplied
-- K4 renders the current immutable K3 snapshot in six always-mounted Konva
-  layers. Visibility is local presentation state; there is no selection,
-  movement, geometry mutation, or save UI before K5.
+- K5 renders an immutable draft of the current K3 snapshot in K4's six
+  always-mounted Konva layers. Symbols can be selected and repositioned by an
+  owning Designer; visibility remains presentation-only. Walls, rooms, routes,
+  scale, identity, elevation, class/status, deletion, and resizing are read-only.
 - K4 reuses the J1A review image only when wall/symbol provenance resolves to
   exactly one safe processing job and decoded dimensions match the canonical
   source plane. Missing/mixed provenance remains an explicit limitation until
@@ -706,11 +710,12 @@ truth.
 - Production Vercel deployment remains frontend-only without a separately
   deployed HTTPS FastAPI backend
 
-K3 exposes K2 current-layout retrieval and snapshot creation, and K4 consumes
-that immutable current snapshot for read-only 2D rendering. Floor elevation
+K3 exposes K2 current-layout retrieval and snapshot creation; K5 uses those
+existing operations for canonical symbol movement and append-only saving. Floor elevation
 is required by the canonical contract, stored inside each complete snapshot, is not a
-`project_floors` column, and is never inferred. The next roadmap ticket is K5,
-symbol move/edit in 2D; it has not been started.
+`project_floors` column, and is never inferred. K3 has no atomic conditional-save
+or idempotency-key contract; K5's uncertain-response reconciliation does not
+claim otherwise. The next roadmap ticket is L1; it has not been started.
 A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
 J1A.
