@@ -157,3 +157,47 @@ export function normalizeCanonicalGeometry(value) {
     symbols: data.symbols.map((item) => symbol(item, cs)), routes: data.routes.map((item) => route(item, cs)),
   })
 }
+
+function canonicalSymbolId(value) {
+  if (typeof value !== 'string' || !/^(detected|manual):[1-9]\d*$/.test(value)) fail()
+  const sourceRecordId = Number(value.slice(value.indexOf(':') + 1))
+  if (!Number.isSafeInteger(sourceRecordId)) fail()
+  return value
+}
+
+export function moveCanonicalSymbol(value, symbolId, newCanonicalPosition) {
+  const geometry = normalizeCanonicalGeometry(value)
+  const normalizedSymbolId = canonicalSymbolId(symbolId)
+  const proposedPosition = exactObject(newCanonicalPosition, ['x', 'y'])
+  const x = finiteNumber(proposedPosition.x, { nonnegative: true })
+  const y = finiteNumber(proposedPosition.y, { nonnegative: true })
+  if (x > geometry.coordinate_system.width_meters
+    || y > geometry.coordinate_system.height_meters) fail()
+
+  const matchingIndexes = geometry.symbols.flatMap(
+    (item, index) => item.id === normalizedSymbolId ? [index] : [],
+  )
+  if (matchingIndexes.length !== 1) fail()
+
+  const normalizedPosition = { x: roundMetric(x), y: roundMetric(y) }
+  const selectedIndex = matchingIndexes[0]
+  const selected = geometry.symbols[selectedIndex]
+  if (selected.position.x === normalizedPosition.x
+    && selected.position.y === normalizedPosition.y) return geometry
+
+  return normalizeCanonicalGeometry({
+    ...geometry,
+    symbols: geometry.symbols.map((item, index) => index === selectedIndex
+      ? { ...item, position: normalizedPosition }
+      : item),
+  })
+}
+
+export function canonicalGeometriesEqual(left, right) {
+  try {
+    return JSON.stringify(normalizeCanonicalGeometry(left))
+      === JSON.stringify(normalizeCanonicalGeometry(right))
+  } catch {
+    return false
+  }
+}

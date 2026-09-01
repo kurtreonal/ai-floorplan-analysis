@@ -55,15 +55,15 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through K4, including the E3A project-floor
+The repository is implemented through K5, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 The current verified prototype contract contains thirteen SQLAlchemy/MySQL tables
 and 21 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
 catalog. K1 changes neither count; K2 adds `layout_versions` while leaving the
-API count unchanged; K3 adds exactly two layout operations and no table; K4 is
-frontend-only and leaves both counts unchanged.
+API count unchanged; K3 adds exactly two layout operations and no table; K4 and
+K5 are frontend-only and leave both counts unchanged.
 
 Completed ticket areas:
 
@@ -99,6 +99,7 @@ K1 — Define Canonical Geometry Schema
 K2 — Create Layout Snapshot/Version Model
 K3 — Create 2D Layout API
 K4 — Build Konva Layer Architecture
+K5 — Implement Symbol Move/Edit in 2D
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -116,8 +117,8 @@ read-only React-Konva review canvas, append-only owning-Designer confirmation
 or rejection decisions, and the database-backed active-only approved symbol
 legend catalog, append-only owning-Designer classification correction, and
 owner-scoped idempotent manual placement using trusted review-image dimensions.
-K5 and later tickets remain unimplemented. K4 provides a read-only canonical
-Konva viewer, not geometry editing. In particular, there is no worker,
+L1 and later tickets remain unimplemented. K5 provides canonical symbol
+repositioning, not general geometry editing. In particular, there is no worker,
 external queue, automatic OpenCV/YOLO pipeline, editable 2D/3D editor,
 routing, estimation, or report implementation.
 
@@ -3454,14 +3455,28 @@ K4 does not change K1-K3 or the database to solve that limitation.
 
 **Dependencies:** K4.
 
+**Implementation status:** Complete. K5 makes confirmed detected and manually
+added canonical symbols selectable on the six-layer Konva canvas and in an
+accessible inspector. Owning Designers may drag or enter bounded X/Y meter
+coordinates; Admins remain inspection-only. Edits update an immutable complete
+K1 draft and explicit save posts that document through the existing K3 route,
+creating a new append-only K2 version whose server response becomes current
+local state. Cancel restores the last server snapshot without a POST. Walls,
+rooms, routes, scale, floor identity/elevation, symbol class/status/provenance,
+deletion, resize/rotation, undo/redo, 3D, and routing remain outside K5.
+
+K3 provides no expected-version, ETag, conditional-write, or idempotency-key
+contract. K5 reconciles an uncertain save with one current-layout GET before
+allowing a controlled retry, but this is not atomic concurrent-edit protection.
+
 **Acceptance Criteria:**
 
-- [ ] User can select a symbol.
-- [ ] User can move a symbol.
-- [ ] Updated canonical coordinate is saved.
-- [ ] Reload shows the saved position.
-- [ ] Position is not stored only in Konva-specific state.
-- [ ] Later 3D rendering can consume the same coordinate.
+- [x] User can select a symbol.
+- [x] User can move a symbol.
+- [x] Updated canonical coordinate is saved.
+- [x] Reload shows the saved position.
+- [x] Position is not stored only in Konva-specific state.
+- [x] Later 3D rendering can consume the same coordinate.
 
 ---
 

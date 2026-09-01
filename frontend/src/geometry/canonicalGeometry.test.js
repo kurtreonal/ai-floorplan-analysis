@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-import { normalizeCanonicalGeometry } from './canonicalGeometry.js'
+import {
+  canonicalGeometriesEqual,
+  moveCanonicalSymbol,
+  normalizeCanonicalGeometry,
+} from './canonicalGeometry.js'
 
 const fixture = JSON.parse(readFileSync(new URL('../../../fixtures/canonical_geometry_v1.json', import.meta.url), 'utf8'))
 const clone = (value) => structuredClone(value)
@@ -68,5 +72,47 @@ describe('normalizeCanonicalGeometry', () => {
     for (const value of [wrongIdentity, closedRoom]) {
       expect(() => normalizeCanonicalGeometry(value)).toThrow(TypeError)
     }
+  })
+})
+
+describe('moveCanonicalSymbol', () => {
+  it('moves detected and manual symbols while preserving all other canonical data', () => {
+    const original = clone(fixture)
+    const detected = moveCanonicalSymbol(original, 'detected:501', { x: 0, y: 4.8 })
+    const manual = moveCanonicalSymbol(detected, 'manual:601', { x: 6.4, y: 0 })
+    expect(detected.symbols[0].position).toEqual({ x: 0, y: 4.8 })
+    expect(manual.symbols[1].position).toEqual({ x: 6.4, y: 0 })
+    expect(original).toEqual(fixture)
+    const expected = clone(fixture)
+    expected.symbols[0].position = { x: 0, y: 4.8 }
+    expected.symbols[1].position = { x: 6.4, y: 0 }
+    expect(manual).toEqual(expected)
+    expect(Object.isFrozen(manual.symbols[1].position)).toBe(true)
+  })
+
+  it('normalizes to nine decimals and reports deterministic no-op equality', () => {
+    const moved = moveCanonicalSymbol(fixture, 'detected:501', { x: 1.1234567894, y: 2.1234567896 })
+    expect(moved.symbols[0].position).toEqual({ x: 1.123456789, y: 2.12345679 })
+    const same = moveCanonicalSymbol(moved, 'detected:501', { ...moved.symbols[0].position })
+    expect(canonicalGeometriesEqual(moved, same)).toBe(true)
+    expect(canonicalGeometriesEqual(moved, fixture)).toBe(false)
+  })
+
+  it.each([
+    ['detected:501', { x: -1, y: 0 }],
+    ['detected:501', { x: 6.400000001, y: 0 }],
+    ['detected:501', { x: Number.NaN, y: 0 }],
+    ['detected:501', { x: Number.POSITIVE_INFINITY, y: 0 }],
+    ['detected:501', { x: '1', y: 0 }],
+    ['unknown:501', { x: 1, y: 1 }],
+    ['detected:999', { x: 1, y: 1 }],
+  ])('rejects invalid move input %#', (symbolId, position) => {
+    expect(() => moveCanonicalSymbol(fixture, symbolId, position)).toThrow(TypeError)
+  })
+
+  it('rejects ambiguous canonical IDs', () => {
+    const duplicate = clone(fixture)
+    duplicate.symbols.push(clone(duplicate.symbols[0]))
+    expect(() => moveCanonicalSymbol(duplicate, 'detected:501', { x: 1, y: 1 })).toThrow(TypeError)
   })
 })

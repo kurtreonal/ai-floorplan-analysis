@@ -11,12 +11,23 @@ import {
 } from 'react-konva'
 
 import {
+  clampSourcePixelPoint,
   fitSourcePlane,
   metricPointToPixel,
   metricPointsToPixels,
+  sourcePixelPointToMetric,
 } from './layoutCanvasGeometry.js'
 
-export function CanonicalLayoutCanvas({ geometry, blueprintImage, visibility }) {
+export function CanonicalLayoutCanvas({
+  geometry,
+  blueprintImage,
+  visibility,
+  selectedSymbolId = null,
+  canEdit = false,
+  editDisabled = false,
+  onSelectSymbol = () => {},
+  onMoveSymbol = () => {},
+}) {
   const containerRef = useRef(null)
   const [availableWidth, setAvailableWidth] = useState(960)
   const coordinateSystem = geometry.coordinate_system
@@ -41,6 +52,19 @@ export function CanonicalLayoutCanvas({ geometry, blueprintImage, visibility }) 
     availableWidth,
     760,
   ), [availableWidth, coordinateSystem.image_height_pixels, coordinateSystem.image_width_pixels])
+  const selectedSymbol = geometry.symbols.find((symbol) => symbol.id === selectedSymbolId) ?? null
+
+  function clampDraggedNode(event) {
+    const node = event.target
+    const bounded = clampSourcePixelPoint(node.position(), coordinateSystem)
+    node.position(bounded)
+    return bounded
+  }
+
+  function finishSymbolMove(symbolId, event) {
+    const bounded = clampDraggedNode(event)
+    onMoveSymbol(symbolId, sourcePixelPointToMetric(bounded, coordinateSystem))
+  }
 
   return (
     <section className="layout-canvas-card" aria-label="Current canonical 2D layout canvas">
@@ -93,12 +117,23 @@ export function CanonicalLayoutCanvas({ geometry, blueprintImage, visibility }) 
             ))}
           </Layer>
 
-          <Layer name="symbols" visible={visibility.symbols} listening={false}>
+          <Layer name="symbols" visible={visibility.symbols} listening={visibility.symbols}>
             {geometry.symbols.map((symbol) => {
               const point = metricPointToPixel(symbol.position, coordinateSystem)
               const manual = symbol.source_type === 'manual'
               return (
-                <Group key={symbol.id} x={point.x} y={point.y}>
+                <Group
+                  key={symbol.id}
+                  name={`canonical-symbol-${symbol.id}`}
+                  x={point.x}
+                  y={point.y}
+                  draggable={canEdit && !editDisabled && visibility.symbols}
+                  onClick={() => onSelectSymbol(symbol.id)}
+                  onTap={() => onSelectSymbol(symbol.id)}
+                  onDragStart={() => onSelectSymbol(symbol.id)}
+                  onDragMove={clampDraggedNode}
+                  onDragEnd={(event) => finishSymbolMove(symbol.id, event)}
+                >
                   <Circle
                     radius={Math.max(7 / stage.scale, 3)}
                     fill={manual ? '#7c3aed' : '#d9480f'}
@@ -129,7 +164,22 @@ export function CanonicalLayoutCanvas({ geometry, blueprintImage, visibility }) 
             ))}
           </Layer>
 
-          <Layer name="selection-ui" listening={false} />
+          <Layer name="selection-ui" listening={false}>
+            {selectedSymbol && visibility.symbols && (() => {
+              const point = metricPointToPixel(selectedSymbol.position, coordinateSystem)
+              return (
+                <Circle
+                  name="selected-symbol-outline"
+                  x={point.x}
+                  y={point.y}
+                  radius={Math.max(12 / stage.scale, 5)}
+                  stroke="#0b63ce"
+                  strokeWidth={Math.max(2 / stage.scale, 1)}
+                  dash={[4 / stage.scale, 3 / stage.scale]}
+                />
+              )
+            })()}
+          </Layer>
         </Stage>
       </div>
     </section>

@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { normalizeCanonicalGeometry } from '../../geometry/canonicalGeometry.js'
@@ -9,11 +9,23 @@ import { LAYOUT_LAYER_NAMES } from './layoutLayers.js'
 import fixtureData from '../../../../fixtures/canonical_geometry_v1.json'
 
 vi.mock('react-konva', () => {
-  const container = (kind) => function MockContainer({ children, name, visible = true }) {
-    return <div data-konva={kind} name={name} data-visible={String(visible)}>{children}</div>
+  const container = (kind) => function MockContainer(props) {
+    const { children, name, visible = true, draggable = false, onClick } = props
+    return (
+      <div
+        ref={(node) => { if (node) node.konvaProps = props }}
+        data-konva={kind}
+        name={name}
+        data-visible={String(visible)}
+        data-draggable={String(draggable)}
+        onClick={onClick}
+      >
+        {children}
+      </div>
+    )
   }
-  const shape = (kind) => function MockShape({ fill }) {
-    return <span data-konva={kind} data-fill={fill} />
+  const shape = (kind) => function MockShape(props) {
+    return <span data-konva={kind} data-fill={props.fill} name={props.name} />
   }
   return {
     Stage: container('Stage'), Layer: container('Layer'), Group: container('Group'),
@@ -44,11 +56,62 @@ describe('canonical layout canvas', () => {
     )).toEqual(['#d9480f', '#7c3aed'])
     expect(layers[4].querySelectorAll('[data-konva="Line"]')).toHaveLength(1)
     expect(layers[5].children).toHaveLength(0)
-    expect(container.querySelector('[draggable]')).toBeNull()
+    expect([...layers[3].querySelectorAll('[data-konva="Group"]')].every(
+      (node) => node.getAttribute('data-draggable') === 'false',
+    )).toBe(true)
     rerender(<CanonicalLayoutCanvas geometry={geometry} blueprintImage={{}} visibility={{ ...visible, walls: false }} />)
     expect(container.querySelector('[name="walls"]')).toBeTruthy()
     expect(container.querySelector('[name="walls"]').getAttribute('data-visible')).toBe('false')
     expect(JSON.stringify(geometry)).toBe(before)
+  })
+
+  it('selects both symbol sources, enables only Designer dragging, clamps, and emits canonical meters', () => {
+    const geometry = normalizeCanonicalGeometry(fixture)
+    const onSelectSymbol = vi.fn()
+    const onMoveSymbol = vi.fn()
+    const { container, rerender } = render(
+      <CanonicalLayoutCanvas
+        geometry={geometry}
+        blueprintImage={null}
+        visibility={visible}
+        selectedSymbolId="detected:501"
+        canEdit
+        onSelectSymbol={onSelectSymbol}
+        onMoveSymbol={onMoveSymbol}
+      />,
+    )
+    const groups = [...container.querySelectorAll('[data-konva="Group"]')]
+    expect(groups).toHaveLength(2)
+    expect(groups.every((node) => node.getAttribute('data-draggable') === 'true')).toBe(true)
+    fireEvent.click(groups[0])
+    fireEvent.click(groups[1])
+    expect(onSelectSymbol.mock.calls.map(([id]) => id)).toEqual(['detected:501', 'manual:601'])
+    expect(container.querySelector('[name="selection-ui"] [name="selected-symbol-outline"]')).toBeTruthy()
+
+    let position = { x: 700, y: -10 }
+    const target = {
+      position: vi.fn((next) => { if (next) position = next; return position }),
+    }
+    groups[1].konvaProps.onDragEnd({ target })
+    expect(position).toEqual({ x: 640, y: 0 })
+    expect(onMoveSymbol).toHaveBeenCalledWith('manual:601', { x: 6.4, y: 0 })
+
+    rerender(
+      <CanonicalLayoutCanvas
+        geometry={geometry}
+        blueprintImage={null}
+        visibility={{ ...visible, symbols: false }}
+        selectedSymbolId="detected:501"
+        canEdit
+        editDisabled
+        onSelectSymbol={onSelectSymbol}
+        onMoveSymbol={onMoveSymbol}
+      />,
+    )
+    expect(container.querySelector('[name="selection-ui"] [name="selected-symbol-outline"]')).toBeNull()
+    expect([...container.querySelectorAll('[data-konva="Group"]')].every(
+      (node) => node.getAttribute('data-draggable') === 'false',
+    )).toBe(true)
   })
 
   it('keeps all six layers mounted for empty collections and no blueprint', () => {

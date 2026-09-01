@@ -1,7 +1,7 @@
 # VED Electrical Services API
 
 This directory contains the FastAPI backend implemented through K3; the
-repository's frontend is implemented through K4. The backend
+repository's frontend is implemented through K5. The backend
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -19,9 +19,11 @@ thirteenth prototype table and a backend-only transactional service for
 append-only canonical layout snapshots, history retrieval, and current-version
 selection. K3 exposes current-layout retrieval and owning-Designer snapshot
 creation through two layout operations. K4 consumes only the existing `GET`
-operation and makes no backend or schema change. The API remains at 21
-operations. Workers, editable layouts, 3D, routing, estimation, and reporting
-are not implemented.
+operation and makes no backend or schema change. K5 consumes the existing K3
+GET and POST operations to reposition canonical symbols and adds no backend
+operation, table, or schema field. The API remains at 21 operations. Workers,
+non-symbol geometry editing, 3D, routing, estimation, and reporting are not
+implemented.
 
 ## Requirements
 
@@ -166,7 +168,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 21 OpenAPI operations through K4; K4 adds no backend operation.
+The API has 21 OpenAPI operations through K5; K4 and K5 add no backend operation.
 `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
@@ -508,6 +510,14 @@ wall/symbol processing-job provenance value whose decoded image dimensions
 exactly match the canonical coordinate system; otherwise the frontend keeps a
 neutral blueprint layer and reports the limitation safely.
 
+K5 adds no backend production behavior. Its frontend keeps symbol movement in
+the complete K1 `geometry.symbols[*].position` meter field, posts the complete
+document through the existing K3 operation, and adopts the returned K2 current
+snapshot. Every successful save therefore creates a new append-only layout
+version. K3 has no expected-version, ETag, conditional-write, or idempotency-key
+contract; frontend reconciliation after an uncertain response reduces duplicate
+retries but does not provide atomic concurrent-edit protection.
+
 ## Wall-geometry persistence
 
 H3 adds the `walls` table and the backend-only wall persistence service. Each
@@ -805,7 +815,7 @@ tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
-601 full backend tests plus 479 subtests, unchanged through frontend-only K4. The required
+602 full backend tests plus 479 subtests through K5. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
 The existing

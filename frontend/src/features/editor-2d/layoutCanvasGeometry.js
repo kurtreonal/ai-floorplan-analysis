@@ -36,6 +36,35 @@ export function metricPointsToPixels(points, coordinateSystem) {
   })
 }
 
+export function clampSourcePixelPoint(point, coordinateSystem) {
+  const values = [
+    point?.x, point?.y,
+    coordinateSystem?.image_width_pixels, coordinateSystem?.image_height_pixels,
+  ]
+  if (!values.every((value) => typeof value === 'number' && Number.isFinite(value))
+    || coordinateSystem.image_width_pixels <= 0
+    || coordinateSystem.image_height_pixels <= 0) {
+    throw new Error('Source-plane coordinates are invalid.')
+  }
+  return {
+    x: Math.min(coordinateSystem.image_width_pixels, Math.max(0, point.x)),
+    y: Math.min(coordinateSystem.image_height_pixels, Math.max(0, point.y)),
+  }
+}
+
+export function sourcePixelPointToMetric(point, coordinateSystem) {
+  const bounded = clampSourcePixelPoint(point, coordinateSystem)
+  if (typeof coordinateSystem?.pixels_per_meter !== 'number'
+    || !Number.isFinite(coordinateSystem.pixels_per_meter)
+    || coordinateSystem.pixels_per_meter <= 0) {
+    throw new Error('Source-plane coordinates are invalid.')
+  }
+  return {
+    x: bounded.x / coordinateSystem.pixels_per_meter,
+    y: bounded.y / coordinateSystem.pixels_per_meter,
+  }
+}
+
 export function resolveBlueprintProvenance(geometry) {
   const processingJobIds = new Set()
   for (const item of [...geometry.walls, ...geometry.symbols]) {
