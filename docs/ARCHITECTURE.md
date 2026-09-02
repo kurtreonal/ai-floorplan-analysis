@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through K5, including E3A, J1A, and J3A, and labels
+> the architecture actually implemented through L1, including E3A, J1A, and J3A, and labels
 > downstream concepts as planned or proposed.
 
 ## 1. Current implementation boundary
@@ -64,11 +64,14 @@
 - K5: detected/manual canonical symbol selection, Designer-only drag and
   accessible meter editing, immutable draft/save/cancel state, strict K3 POST
   use, uncertain-save reconciliation, and append-only K2 snapshot adoption
+- L1: protected, lazy-loaded Three.js/React Three Fiber empty viewer with a
+  demand-rendered neutral scene, direct OrbitControls lifecycle, orbit/pan/zoom,
+  deterministic reset, and viewer-local loading/WebGL/error isolation
 
 ### Planned
 
-L1 and later roadmap tickets remain unimplemented, including Three.js 3D,
-routing, quantities, estimates, reports, administration, and audit logging.
+L2 and later roadmap tickets remain unimplemented, including canonical 3D
+geometry, routing, quantities, estimates, reports, administration, and audit logging.
 
 ### Proposed but not approved
 
@@ -117,10 +120,12 @@ Implemented frontend technology is React with JavaScript/JSX and Vite. Current
 tests use Vitest, Testing Library, and jsdom. The project does not use
 TypeScript.
 
-React Router, Axios/TanStack Query, React Hook Form/Zod, Konva, and Three.js are
-required or permitted by the target architecture but are introduced only when
-their owning tickets need them. The current project workflow uses a small hash
-route and Fetch-based API modules.
+Konva/React-Konva, `three@0.185.1`, and `@react-three/fiber@9.7.0` are installed.
+React Router, Axios/TanStack Query, and React Hook Form/Zod remain permitted by
+the target architecture but are introduced only when their owning tickets need
+them. The current project workflow uses a small hash route and Fetch-based API
+modules. L1 lazy-loads its 3D route so Three/R3F remain outside the initial
+application chunk.
 
 ### Backend
 
@@ -367,7 +372,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API remains at 21 OpenAPI operations through K5. Detection retrieval requires a
+The API remains at 21 OpenAPI operations through L1. Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Machine and
 manual symbols are returned in separate arrays. Symbols are
@@ -634,7 +639,9 @@ K1 focused backend:     39 tests
 K1 required regressions: 85 tests + 63 subtests
 K2 focused backend:     17 tests + 27 subtests
 K3 focused backend:     13 tests + 26 subtests
-Full backend:          602 tests + 479 subtests
+Backend unittest:      563 tests + 479 subtests
+Canonical pytest:       39 tests
+Backend aggregate:     602 top-level tests + 479 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -643,7 +650,8 @@ J5 focused frontend:    49 tests
 K1 focused frontend:    21 tests
 K1 J2/J5 regressions:   43 tests
 K4 focused frontend:    19 tests + 4 route/navigation regressions
-Full frontend:          239 tests
+L1 focused/regression:  40 tests
+Full frontend:          248 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -663,7 +671,7 @@ Persisted Designer confirmation/rejection review
         ↓
 Persisted K2 canonical layout snapshots
         ├── implemented Konva 2D symbol editor
-        ├── planned Three.js 3D
+        ├── implemented empty Three.js foundation; canonical rendering planned
         ├── planned electrical routing
         └── planned quantities and estimates
                     ↓
@@ -704,7 +712,9 @@ truth.
   exactly one safe processing job and decoded dimensions match the canonical
   source plane. Missing/mixed provenance remains an explicit limitation until
   a later blueprint-source contract is approved.
-- No editable 2D or 3D implementation
+- Canonical symbol positions are editable in 2D; other canonical geometry is
+  read-only. L1 provides an empty 3D viewer only, with no project geometry or
+  editing.
 - No routing or multi-floor route calculation
 - No material pricing, estimates, reports, or audit logs
 - Production Vercel deployment remains frontend-only without a separately
@@ -715,7 +725,11 @@ existing operations for canonical symbol movement and append-only saving. Floor 
 is required by the canonical contract, stored inside each complete snapshot, is not a
 `project_floors` column, and is never inferred. K3 has no atomic conditional-save
 or idempotency-key contract; K5's uncertain-response reconciliation does not
-claim otherwise. The next roadmap ticket is L1; it has not been started.
+claim otherwise. The next roadmap ticket is L2; it has not been started. L1's
+grid and axes are neutral orientation helpers and it makes no layout,
+floor-plan, detection, or processing-job request. Canonical floor meshes,
+walls, openings, symbols, synchronization, and top/perspective switching remain
+future work.
 A persistent
 floor-plan listing API remains a separate proposed ticket and is not implied by
 J1A.

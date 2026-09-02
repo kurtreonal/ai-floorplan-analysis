@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through K5, including the E3A, J1A, and J3A prerequisites.**
+**Implemented through L1, including the E3A, J1A, and J3A prerequisites.**
 
 The current backend surface contains 21 OpenAPI operations.
 
@@ -64,17 +64,22 @@ The repository currently includes:
 - an ownership-aware layout API that returns the current canonical snapshot and
   lets an owning Designer save a complete validated K1 document as the next K2
   version without modifying the original floor-plan file; and
-- a protected, read-only canonical 2D layout page with strict K3 GET validation,
+- a protected canonical 2D layout page with strict K3 GET validation,
   responsive meter-to-source-pixel rendering, six stable React-Konva layers,
   accessible local visibility controls, and conservative aligned-blueprint
   loading only when processing-job provenance is unambiguous; and
 - canonical detected/manual symbol selection and Designer-only repositioning by
   drag or accessible meter inputs, with explicit save/cancel controls and K3
-  append-only snapshot persistence.
+  append-only snapshot persistence; and
+- a protected, lazy-loaded empty Three.js/React Three Fiber viewer at
+  `#/app/projects/{project_id}/floors/{project_floor_id}/viewer-3d`, with a
+  demand-rendered neutral scene, orbit/pan/zoom controls, deterministic reset,
+  and viewer-local loading, WebGL fallback, and error isolation.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing K5 does not imply wall/room/route editing,
-3D, routing, estimation, or reporting exists.
+`docs/FUNCTIONAL_SPEC.md`; completing L1 provides only the empty 3D foundation
+and does not imply canonical 3D geometry, wall/room/route editing, routing,
+estimation, or reporting exists.
 
 Do **not** ask Codex to build the entire system in one prompt.
 
@@ -225,7 +230,8 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
 prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
 prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, J4, J5, and
-K1, K2, K3, K4, and K5 are implemented. L1 and all later tickets remain unimplemented.
+K1, K2, K3, K4, K5, and L1 are implemented. L2 and all later tickets remain
+unimplemented.
 
 The next ticket must be chosen explicitly. Do not silently add a floor-plan
 listing API or processing-worker behavior as part of unrelated work.
@@ -444,8 +450,13 @@ The folders that do not exist yet should be created by the appropriate developme
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.
-- The Konva 2D layout can reposition canonical symbols only. Other geometry
-  remains read-only, and Three.js 3D is not implemented.
+- L1 installs `three@0.185.1` and `@react-three/fiber@9.7.0` and adds an empty,
+  floor-scoped viewer foundation that makes no layout, floor-plan, detection,
+  or processing-job request. Its grid and axes are orientation helpers, not
+  project geometry. Canonical floor rendering, walls, openings, symbols,
+  2D/3D synchronization, and top/perspective switching remain future work.
+- The Konva 2D layout can reposition canonical symbols only. Other canonical
+  geometry remains read-only.
   `project_floors` does not persist elevation; each K2 snapshot
   retains the explicit elevation inside its complete canonical document.
 - Electrical routing, material quantification, cost estimation, and PDF reports

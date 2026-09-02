@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { getProtectedRouteRedirect } from './authRoutes.js'
-import { getDetectionReviewHref, getLayoutHref, getProjectHref, parseProjectRoute } from './projectRoutes.js'
+import {
+  getDetectionReviewHref, getLayoutHref, getProjectHref, getViewer3dHref, parseProjectRoute,
+} from './projectRoutes.js'
 
 
 describe('project hash routes', () => {
@@ -33,6 +35,22 @@ describe('project hash routes', () => {
     ]) expect(parseProjectRoute(route)).toEqual({ view: 'invalid', projectId: null })
     for (const ids of [[0, 2], [15, -2], [15, 2.1], [15, Number.MAX_SAFE_INTEGER + 1]]) {
       expect(() => getLayoutHref(...ids)).toThrow()
+    }
+  })
+
+  it('parses and builds the exact 3D viewer route', () => {
+    expect(parseProjectRoute('/app/projects/15/floors/2/viewer-3d')).toEqual({
+      view: 'viewer-3d', projectId: 15, projectFloorId: 2,
+    })
+    expect(getViewer3dHref(15, 2)).toBe('#/app/projects/15/floors/2/viewer-3d')
+    for (const route of [
+      '/app/projects/15/floors/0/viewer-3d', '/app/projects/15/floors/-2/viewer-3d',
+      '/app/projects/15/floors/2.1/viewer-3d', '/app/projects/15/floors/%32/viewer-3d',
+      '/app/projects/15/floors/2/viewer-3d/extra',
+      '/app/projects/999999999999999999/floors/2/viewer-3d',
+    ]) expect(parseProjectRoute(route)).toEqual({ view: 'invalid', projectId: null })
+    for (const ids of [[0, 2], [15, -2], [15, 2.1], [15, Number.MAX_SAFE_INTEGER + 1]]) {
+      expect(() => getViewer3dHref(...ids)).toThrow()
     }
   })
 

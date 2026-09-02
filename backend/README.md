@@ -1,7 +1,7 @@
 # VED Electrical Services API
 
 This directory contains the FastAPI backend implemented through K3; the
-repository's frontend is implemented through K5. The backend
+repository's frontend is implemented through L1. The backend
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage, and
@@ -21,9 +21,10 @@ selection. K3 exposes current-layout retrieval and owning-Designer snapshot
 creation through two layout operations. K4 consumes only the existing `GET`
 operation and makes no backend or schema change. K5 consumes the existing K3
 GET and POST operations to reposition canonical symbols and adds no backend
-operation, table, or schema field. The API remains at 21 operations. Workers,
-non-symbol geometry editing, 3D, routing, estimation, and reporting are not
-implemented.
+operation, table, or schema field. L1 adds only a protected, empty frontend 3D
+viewer and likewise makes no backend, API, schema, storage, or environment
+change. The API remains at 21 operations. Workers, canonical 3D rendering,
+non-symbol geometry editing, routing, estimation, and reporting are not implemented.
 
 ## Requirements
 
@@ -168,7 +169,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 21 OpenAPI operations through K5; K4 and K5 add no backend operation.
+The API has 21 OpenAPI operations through L1; K4, K5, and L1 add no backend operation.
 `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
@@ -815,7 +816,9 @@ tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
-602 full backend tests plus 479 subtests through K5. The required
+563 tests in the full `unittest` discovery run plus 479 subtests through L1.
+The separate canonical-geometry pytest suite contains 39 tests, for 602
+aggregate top-level backend tests; 602 is not a single discovery-run count. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
 The existing

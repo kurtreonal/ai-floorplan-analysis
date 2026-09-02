@@ -1,0 +1,23 @@
+.viewer-3d-page { display: grid; gap: 20px; max-width: 1240px; margin: 0 auto; }
+.viewer-3d-back-link { color: #17324d; font-weight: 700; width: fit-content; }
+.viewer-3d-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.viewer-3d-header h1 { margin: 8px 0; }
+.viewer-3d-header p { margin: 0; }
+.viewer-3d-scope-note { margin: 0; padding: 12px 14px; border-left: 4px solid #0b63ce; background: #eef6ff; }
+.viewer-3d-canvas { height: min(68vh, 680px); min-height: 420px; overflow: hidden; border: 1px solid #b9c6d2; border-radius: 12px; background: #edf2f6; }
+.viewer-3d-canvas canvas { display: block; }
+.viewer-3d-webgl-fallback, .viewer-3d-route-state, .viewer-3d-error { display: grid; place-content: center; min-height: 320px; padding: 32px; border: 1px solid #cbd5df; border-radius: 12px; background: #fff; text-align: center; }
+.viewer-3d-error { gap: 12px; max-width: 760px; margin: 40px auto; }
+.viewer-3d-error h1, .viewer-3d-error p { margin: 0; }
+.viewer-3d-error a { color: #17324d; font-weight: 750; }
+.viewer-3d-error-actions { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.viewer-3d-help { display: flex; align-items: center; gap: 22px; padding: 14px 18px; border: 1px solid #d7e0e8; border-radius: 10px; background: #fff; }
+.viewer-3d-help h2 { margin: 0; font-size: 1rem; }
+.viewer-3d-help ul { display: flex; flex: 1; flex-wrap: wrap; gap: 8px 28px; margin: 0; padding-left: 20px; }
+.viewer-3d-retry { border: 0; background: transparent; color: #17324d; font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; }
+.project-floor-view-links { display: flex !important; flex-wrap: wrap; gap: 6px 18px !important; }
+@media (max-width: 760px) {
+  .viewer-3d-header, .viewer-3d-help, .viewer-3d-error-actions { align-items: stretch; flex-direction: column; }
+  .viewer-3d-canvas { min-height: 360px; }
+  .viewer-3d-help ul { display: grid; }
+}
