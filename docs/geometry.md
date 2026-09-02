@@ -178,12 +178,18 @@ this does not provide atomic optimistic concurrency or idempotent POST semantics
 
 ## Downstream mapping and non-goals
 
-Future 3D adapters are expected to map canonical x to horizontal 3D x, explicit
+L1 provides only a protected empty Three.js/React Three Fiber scene. It does not
+request K1/K2/K3 layout data or render any canonical floor, wall, opening,
+symbol, or route. Its grid and axes are orientation helpers rather than project
+geometry.
+
+Future L2+ adapters are expected to map canonical x to horizontal 3D x, explicit
 floor elevation to vertical 3D y, and canonical y to horizontal 3D z. This is a
-planned mapping, not an implemented renderer or proof of 2D/3D synchronization.
+planned mapping, not an implemented canonical renderer or proof of 2D/3D
+synchronization. Top/perspective switching also remains future viewer work.
 
 K5 implements canonical symbol selection, repositioning, and explicit snapshot
 saving. It does not implement wall/room/route editing, symbol class/status
-changes, deletion, resizing, undo/redo, Three.js rendering, routing algorithms,
+changes, deletion, resizing, undo/redo, canonical Three.js rendering, routing algorithms,
 quantities, estimates, or reports. The explicit floor elevation still lives in
 the snapshot because `project_floors` has no elevation column.

@@ -55,7 +55,7 @@ XAMPP is a local-development convenience, not a production architecture requirem
 
 ## Current Implementation Status
 
-The repository is implemented through K5, including the E3A project-floor
+The repository is implemented through L1, including the E3A project-floor
 prerequisite introduced between E3 and E4.
 
 The current verified prototype contract contains thirteen SQLAlchemy/MySQL tables
@@ -63,7 +63,7 @@ and 21 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
 catalog. K1 changes neither count; K2 adds `layout_versions` while leaving the
 API count unchanged; K3 adds exactly two layout operations and no table; K4 and
-K5 are frontend-only and leave both counts unchanged.
+K5 and L1 are frontend-only and leave both counts unchanged.
 
 Completed ticket areas:
 
@@ -100,6 +100,7 @@ K2 — Create Layout Snapshot/Version Model
 K3 — Create 2D Layout API
 K4 — Build Konva Layer Architecture
 K5 — Implement Symbol Move/Edit in 2D
+L1 — Initialize Three.js / React Three Fiber Viewer
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -117,10 +118,12 @@ read-only React-Konva review canvas, append-only owning-Designer confirmation
 or rejection decisions, and the database-backed active-only approved symbol
 legend catalog, append-only owning-Designer classification correction, and
 owner-scoped idempotent manual placement using trusted review-image dimensions.
-L1 and later tickets remain unimplemented. K5 provides canonical symbol
-repositioning, not general geometry editing. In particular, there is no worker,
-external queue, automatic OpenCV/YOLO pipeline, editable 2D/3D editor,
-routing, estimation, or report implementation.
+L1 provides a protected, lazy-loaded empty 3D viewer with orbit, pan, zoom,
+deterministic reset, and local failure isolation. It does not fetch or render
+K1/K2/K3 geometry. K5 provides canonical symbol repositioning, not general
+geometry editing. In particular, there is no worker, external queue, automatic
+OpenCV/YOLO pipeline, canonical 3D reconstruction, routing, estimation, or
+report implementation. L2 and later tickets remain unimplemented.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
 successful uploads returned during the current page session; records cannot
@@ -3488,14 +3491,30 @@ allowing a controlled retry, but this is not atomic concurrent-edit protection.
 
 **Dependencies:** A3.
 
+**Implementation status:** Complete. L1 adds the protected hash route
+`#/app/projects/{project_id}/floors/{project_floor_id}/viewer-3d`, exposed from
+Designer and Admin floor controls even when no upload or layout snapshot exists.
+The lazily loaded JavaScript viewer uses `three@0.185.1` and
+`@react-three/fiber@9.7.0`, a perspective camera, neutral grid/axes helpers,
+demand rendering, and direct Three.js OrbitControls with local cleanup and
+saveState/reset behavior. It makes no floor-plan, detection, processing-job, or
+layout request. The helpers are not project geometry. Top/perspective switching
+and all canonical floor, wall, opening, symbol, and route rendering remain later
+work.
+
+L1 verification covers 40 focused route/navigation/viewer regressions and the
+complete frontend suite contains 248 tests across 28 files. Backend verification
+remains 563 `unittest`-discovery tests plus 479 subtests and a separate 39-test
+canonical-geometry pytest suite (602 aggregate top-level backend tests).
+
 **Acceptance Criteria:**
 
-- [ ] 3D scene loads without floor-plan data.
-- [ ] Orbit works.
-- [ ] Pan works.
-- [ ] Zoom works.
-- [ ] Reset view works.
-- [ ] Viewer failure does not crash unrelated dashboard pages.
+- [x] 3D scene loads without floor-plan data.
+- [x] Orbit works.
+- [x] Pan works.
+- [x] Zoom works.
+- [x] Reset view works.
+- [x] Viewer failure does not crash unrelated dashboard pages.
 
 ---
 

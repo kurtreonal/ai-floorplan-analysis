@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 
 import vedLogo from '../../assets/ved-logo.png'
 import { getProtectedRouteRedirect } from '../../routes/authRoutes.js'
@@ -7,8 +7,10 @@ import { ProjectDashboardPage } from '../projects/ProjectDashboardPage.jsx'
 import { ProjectDetailPage } from '../projects/ProjectDetailPage.jsx'
 import { DetectionReviewPage } from '../detection-review/DetectionReviewPage.jsx'
 import { LayoutEditorPage } from '../editor-2d/LayoutEditorPage.jsx'
+import { Viewer3DErrorBoundary } from '../viewer-3d/Viewer3DErrorBoundary.jsx'
 import '../projects/projects.css'
 
+const Viewer3DPage = lazy(() => import('../viewer-3d/Viewer3DPage.jsx'))
 
 export function ProtectedAppPage({ route, session }) {
   useEffect(() => {
@@ -96,6 +98,20 @@ export function ProtectedAppPage({ route, session }) {
             projectFloorId={projectRoute.projectFloorId}
             session={session}
           />
+        )}
+        {projectRoute.view === 'viewer-3d' && (
+          <Viewer3DErrorBoundary
+            key={`${projectRoute.projectId}-${projectRoute.projectFloorId}`}
+            projectId={projectRoute.projectId}
+            title="3D viewer unavailable"
+          >
+            <Suspense fallback={<div className="viewer-3d-route-state" role="status">Loading the 3D viewer…</div>}>
+              <Viewer3DPage
+                projectId={projectRoute.projectId}
+                projectFloorId={projectRoute.projectFloorId}
+              />
+            </Suspense>
+          </Viewer3DErrorBoundary>
         )}
         {projectRoute.view === 'invalid' && (
           <ProjectDetailPage projectId={null} session={session} />

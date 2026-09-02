@@ -3,6 +3,21 @@ export function parseProjectRoute(route) {
     return { view: 'dashboard', projectId: null }
   }
 
+  const viewer3dMatch = route.match(
+    /^\/app\/projects\/([^/]+)\/floors\/([^/]+)\/viewer-3d$/,
+  )
+  if (viewer3dMatch) {
+    const identifiers = viewer3dMatch.slice(1)
+    if (!identifiers.every((value) => /^[1-9]\d*$/.test(value))) {
+      return { view: 'invalid', projectId: null }
+    }
+    const [projectId, projectFloorId] = identifiers.map(Number)
+    if (![projectId, projectFloorId].every(Number.isSafeInteger)) {
+      return { view: 'invalid', projectId: null }
+    }
+    return { view: 'viewer-3d', projectId, projectFloorId }
+  }
+
   const layoutMatch = route.match(
     /^\/app\/projects\/([^/]+)\/floors\/([^/]+)\/layout$/,
   )
@@ -56,6 +71,13 @@ export function getLayoutHref(projectId, projectFloorId) {
     (value) => Number.isSafeInteger(value) && value > 0,
   )) throw new Error('Invalid layout route identifiers.')
   return `#/app/projects/${projectId}/floors/${projectFloorId}/layout`
+}
+
+export function getViewer3dHref(projectId, projectFloorId) {
+  if (![projectId, projectFloorId].every(
+    (value) => Number.isSafeInteger(value) && value > 0,
+  )) throw new Error('Invalid 3D viewer route identifiers.')
+  return `#/app/projects/${projectId}/floors/${projectFloorId}/viewer-3d`
 }
 
 export function getDetectionReviewHref(projectId, floorPlanId, processingJobId) {
