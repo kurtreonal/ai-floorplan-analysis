@@ -43,6 +43,8 @@ TABLES = (
     "detected_symbols",
     "detection_class_corrections",
     "detection_reviews",
+    "floor_plan_pages",
+    "floor_plan_sources",
     "floor_plans",
     "layout_versions",
     "manual_symbols",

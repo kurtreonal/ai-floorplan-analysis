@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models import FloorPlan
 from app.repositories.floor_plan_repository import add_floor_plan
 from app.services.upload_validation import validate_floor_plan_upload
+from app.services.source_identity import persist_source_identity, verified_source_identity
 
 
 ORIGINALS_DIRECTORY_NAME = "originals"
@@ -176,9 +177,15 @@ def store_floor_plan_upload(
         file_size=validated.file_size,
         processing_status="uploaded",
     )
+    identity = verified_source_identity(content=content, validated=validated)
 
     try:
         persisted_floor_plan = add_floor_plan(database_session, floor_plan)
+        persist_source_identity(
+            database_session,
+            floor_plan=persisted_floor_plan,
+            identity=identity,
+        )
         database_session.commit()
     except Exception:
         try:

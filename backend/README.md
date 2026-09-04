@@ -38,10 +38,11 @@ PRE0 in `../docs/PRE_VLM_FOUNDATION_PLAN.md` is complete and published: it
 establishes the maintained migration documentation and private-artifact ignore
 baseline without changing backend behavior. PRE1 floor-plan discovery and PRE2
 bounded processing-job history discovery and PRE3 frontend recovery are also
-complete. PRE4-PRE12 now precede U1. They own source-page/artifact provenance, approved
+complete. PRE4 immutable source/page identity is also complete. PRE5-PRE12 now
+precede U1. They own derived-artifact provenance, approved
 scale/elevation inputs, legend administration, layout-save concurrency,
 engine-neutral execution controls, dataset-approver authority, and canonical
-compatibility decision. PRE0-PRE3 are complete; PRE4-PRE12 remain unimplemented.
+compatibility decision. PRE0-PRE4 are complete; PRE5-PRE12 remain unimplemented.
 
 ## Requirements
 
@@ -96,7 +97,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype has these thirteen application tables:
+The current prototype has these fifteen application tables:
 
 ```text
 roles
@@ -104,6 +105,8 @@ users
 projects
 project_floors
 floor_plans
+floor_plan_sources
+floor_plan_pages
 processing_jobs
 walls
 detected_symbols
@@ -116,6 +119,20 @@ layout_versions
 
 Alembic and production schema migrations remain deferred. Never run schema
 initialization as an automatic repair step against an unexpected database.
+
+PRE4 source/page import is separately explicit and verification-first:
+
+```powershell
+# Dry run: validate every stored original, report only the missing count, rollback
+.\.venv\Scripts\python.exe -m app.core.source_backfill
+
+# Apply only verified missing immutable manifests/pages
+.\.venv\Scripts\python.exe -m app.core.source_backfill --apply
+```
+
+The command refuses unsafe paths, missing/invalid originals, size mismatches,
+and conflicting existing identity. It never fabricates a hash or changes an
+original file.
 
 Seed the required local roles deliberately in development:
 
@@ -886,9 +903,9 @@ tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
-580 tests in the full `unittest` discovery run plus 479 subtests through PRE2.
-The separate canonical-geometry pytest suite contains 39 tests, for 619
-aggregate top-level backend tests; 619 is not a single discovery-run count. The required
+585 tests in the full `unittest` discovery run plus 479 subtests through PRE4.
+The separate canonical-geometry pytest suite contains 39 tests, for 624
+aggregate top-level backend tests; 624 is not a single discovery-run count. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
 The existing

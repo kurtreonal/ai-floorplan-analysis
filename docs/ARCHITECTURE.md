@@ -76,10 +76,12 @@
   error text, server timestamps, and deterministic newest-first ordering
 - PRE3: reload-safe project workspace reconciliation, recovered active polling,
   persisted completed-review links, and inspection-only Admin job state
+- PRE4: private immutable original SHA-256 manifests and one-based source-page
+  identity, with atomic upload persistence and verified legacy backfill
 
 ### Planned
 
-PRE4-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
+PRE5-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
 define the migration from the implemented YOLO-only symbol path to local
 multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
 unimplemented, including canonical 3D geometry, routing, quantities, estimates,
@@ -773,9 +775,9 @@ K1 focused backend:     39 tests
 K1 required regressions: 85 tests + 63 subtests
 K2 focused backend:     17 tests + 27 subtests
 K3 focused backend:     13 tests + 26 subtests
-Backend unittest:      580 tests + 479 subtests
+Backend unittest:      585 tests + 479 subtests
 Canonical pytest:       39 tests
-Backend aggregate:     619 top-level tests + 479 subtests
+Backend aggregate:     624 top-level tests + 479 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -873,4 +875,5 @@ walls, openings, symbols, synchronization, and top/perspective switching remain
 future work.
 The PRE3 project workspace consumes persisted floor plans and bounded job
 history, deduplicates optimistic upload feedback, and resumes active polling.
-PRE3 does not make J1A review-image provenance durable; PRE4 is next.
+PRE4 gives originals and their pages immutable identity but does not yet make
+derived J1A review-image provenance durable; PRE5 is next.
