@@ -88,7 +88,7 @@ API, or database migration.
 ## Current Implementation Status
 
 The application roadmap is implemented through L1, including the E3A
-project-floor prerequisite introduced between E3 and E4. PRE0-PRE2 are also
+project-floor prerequisite introduced between E3 and E4. PRE0-PRE3 are also
 complete.
 
 The current verified prototype contract contains thirteen SQLAlchemy/MySQL tables
@@ -161,16 +161,16 @@ K1/K2/K3 geometry. K5 provides canonical symbol repositioning, not general
 geometry editing. In particular, there is no worker, external queue, automatic
 OpenCV/YOLO pipeline, canonical 3D reconstruction, routing, estimation, or
 report implementation. There is also no local VLM runtime, candidate schema,
-reviewed VLM gold set, adapter, or VLM orchestration. PRE3-PRE12 are the current
-foundation priority; they close the remaining non-model UI recovery, provenance, metric-input,
+reviewed VLM gold set, adapter, or VLM orchestration. PRE4-PRE12 are the current
+foundation priority; they close the remaining non-model provenance, metric-input,
 catalog, concurrency, worker-control, reviewer-authority, and canonical-contract
 gaps before U1. L2 and later tickets remain unimplemented and are paused unless
 explicitly selected.
 
 `GET /api/projects/{project_id}/floor-plans` now returns authorized persisted
 safe metadata with an optional project-scoped floor filter. E4 still uses
-current-session upload state; PRE3 will consume persistent discovery and the
-bounded processing-job history now provided by PRE2.
+current-session upload state before PRE3; PRE3 now consumes persistent
+discovery and the bounded processing-job history provided by PRE2.
 
 ---
 
@@ -3605,7 +3605,7 @@ and all canonical floor, wall, opening, symbol, and route rendering remain later
 work.
 
 L1 verification covers 40 focused route/navigation/viewer regressions and the
-complete frontend suite contains 248 tests across 28 files. Backend verification
+complete frontend suite contains 264 tests across 28 files through PRE3. Backend verification
 is 580 `unittest`-discovery tests plus 479 subtests and a separate 39-test
 canonical-geometry pytest suite (619 aggregate top-level backend tests) through PRE2.
 
@@ -4287,7 +4287,7 @@ These tickets do not install or run a local model and do not retire YOLO.
 | PRE0 (complete) | Publish documentation/privacy baseline | Maintained docs and ignore rules are consistent, no private/model artifact is tracked, feature and main are published |
 | PRE1 (complete) | Floor-plan discovery API | Authorized persisted plans are reload-discoverable without storage-path disclosure |
 | PRE2 (complete) | Processing-job history API | Safe bounded job summaries recover job IDs/status after reload |
-| PRE3 | Reload-safe project workspace | Persisted plans/jobs render and active monitoring resumes without session-only state |
+| PRE3 (complete) | Reload-safe project workspace | Persisted plans/jobs render and active monitoring resumes without session-only state |
 | PRE4 | Immutable source/page identity | Original SHA-256 and one-based raster/PDF page records are persisted atomically |
 | PRE5 | Processing-artifact manifest | Every trusted derived image has exact job/page/type/path/hash/dimension provenance |
 | PRE6 | Approved elevation and scale | Explicit reviewed metric inputs are persisted without inferred defaults |
@@ -4302,9 +4302,10 @@ Every PRE ticket inherits the detailed acceptance criteria in the pre-foundation
 plan. Each uses a separate feature branch and progress report. PRE12 must stop
 before U1.
 
-PRE0-PRE2 are complete. PRE1 adds read-only floor-plan discovery and PRE2 adds
-bounded read-only processing-job history without a table or filesystem access.
-PRE3 is next; no U-series model work has started.
+PRE0-PRE3 are complete. PRE1 adds read-only floor-plan discovery, PRE2 adds
+bounded read-only processing-job history, and PRE3 reconciles both in the
+workspace without a new table or backend operation. PRE4 is next; no U-series
+model work has started.
 
 ---
 

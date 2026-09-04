@@ -4,6 +4,11 @@ import {
   listProjectFloors,
   ProjectFloorApiError,
 } from '../../api/projectFloors.js'
+import { FloorPlanApiError, listFloorPlans } from '../../api/floorPlans.js'
+import {
+  listProcessingJobs,
+  ProcessingJobApiError,
+} from '../../api/processingJobs.js'
 import { getLayoutHref, getViewer3dHref } from '../../routes/projectRoutes.js'
 import { CreateProjectFloorForm } from './CreateProjectFloorForm.jsx'
 import { FloorPlanUploadForm } from './FloorPlanUploadForm.jsx'
@@ -25,6 +30,18 @@ function getFloorListError(error) {
   return 'Project floors could not be loaded. Please try again.'
 }
 
+function getPlanListError(error) {
+  if (error instanceof FloorPlanApiError || error instanceof ProcessingJobApiError) {
+    if (error.status === 401) {
+      window.location.replace('#/signin?reason=session-expired')
+      return null
+    }
+    if (error.status === 403) return 'You are not authorized to view these floor plans.'
+    if (error.status === 404) return 'The selected project or floor plan is no longer available.'
+  }
+  return 'Persisted floor plans are temporarily unavailable.'
+}
+
 export function ProjectFloorUploadPanel({ projectId, session }) {
   const [floors, setFloors] = useState([])
   const [selectedFloorId, setSelectedFloorId] = useState('')
@@ -33,6 +50,10 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
   const [sessionUploads, setSessionUploads] = useState([])
+  const [persistedPlans, setPersistedPlans] = useState([])
+  const [planLoadState, setPlanLoadState] = useState('idle')
+  const [planError, setPlanError] = useState(null)
+  const [planRefreshKey, setPlanRefreshKey] = useState(0)
   const role = session?.user?.role
   const isDesigner = role === 'DESIGNER'
 
@@ -66,6 +87,51 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
     return () => controller.abort()
   }, [projectId, refreshKey])
 
+  useEffect(() => {
+    if (loadState !== 'ready' || !selectedFloorId) {
+      return undefined
+    }
+
+    const controller = new AbortController()
+    let current = true
+
+    async function loadPlans() {
+      setPlanLoadState('loading')
+      setPlanError(null)
+      try {
+        const plans = await listFloorPlans(projectId, {
+          projectFloorId: selectedFloorId,
+          signal: controller.signal,
+        })
+        const histories = await Promise.all(
+          plans.map((plan) => listProcessingJobs(plan.id, { signal: controller.signal })),
+        )
+        if (!current) return
+        const records = plans.map((plan, index) => ({
+          ...plan,
+          history: histories[index],
+          latest_job: histories[index][0] || null,
+        }))
+        setPersistedPlans(records)
+        setSessionUploads((uploads) => uploads.filter(
+          (upload) => !records.some((record) => record.id === upload.id),
+        ))
+        setPlanLoadState('ready')
+      } catch (requestError) {
+        if (requestError.name !== 'AbortError' && current) {
+          setPlanError(getPlanListError(requestError))
+          setPlanLoadState('error')
+        }
+      }
+    }
+
+    loadPlans()
+    return () => {
+      current = false
+      controller.abort()
+    }
+  }, [loadState, planRefreshKey, projectId, selectedFloorId])
+
   function handleFloorCreated(floor) {
     setFloors((currentFloors) => [...currentFloors, floor])
     setSelectedFloorId(floor.id)
@@ -76,10 +142,27 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
       (floor) => String(floor.id) === String(selectedFloorId),
     )
     setSessionUploads((uploads) => [
-      ...uploads,
-      { ...floorPlan, floor_name: selectedFloor?.name || 'Unknown floor' },
+      ...uploads.filter((upload) => upload.id !== floorPlan.id),
+      {
+        ...floorPlan,
+        floor_name: selectedFloor?.name || 'Unknown floor',
+        history: [],
+        latest_job: null,
+      },
     ])
+    setPlanRefreshKey((key) => key + 1)
   }
+
+  const visiblePlans = [
+    ...persistedPlans,
+    ...sessionUploads.filter(
+      (upload) => String(upload.project_floor_id) === String(selectedFloorId)
+        && !persistedPlans.some((plan) => plan.id === upload.id),
+    ),
+  ]
+  const selectedFloorName = floors.find(
+    (floor) => String(floor.id) === String(selectedFloorId),
+  )?.name || 'Unknown floor'
 
   return (
     <section className="project-floor-panel" aria-labelledby="project-floor-panel-title">
@@ -192,27 +275,56 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
             </div>
           )}
 
-          {sessionUploads.length > 0 && (
-            <section className="session-upload-section" aria-labelledby="session-upload-title">
-              <h3 id="session-upload-title">Uploaded this session</h3>
+          {floors.length > 0 && planLoadState === 'loading' && (
+            <div className="project-floor-state" role="status">
+              <span className="auth-spinner" aria-hidden="true" />
+              Loading persisted floor plans...
+            </div>
+          )}
+
+          {planLoadState === 'error' && (
+            <div className="project-floor-state project-state-error">
+              <p role="alert">{planError}</p>
+              <button
+                className="btn btn-outline-dark"
+                type="button"
+                onClick={() => setPlanRefreshKey((key) => key + 1)}
+              >
+                Retry floor plans
+              </button>
+            </div>
+          )}
+
+          {planLoadState === 'ready' && visiblePlans.length === 0 && (
+            <div className="project-floor-empty">
+              <h3>No floor plans on this floor.</h3>
+              <p>Upload an original plan to begin analysis.</p>
+            </div>
+          )}
+
+          {visiblePlans.length > 0 && (
+            <section className="session-upload-section" aria-labelledby="persisted-plan-title">
+              <h3 id="persisted-plan-title">Saved floor plans</h3>
               <div className="session-upload-grid">
-                {sessionUploads.map((upload) => (
+                {visiblePlans.map((upload) => (
                   <article className="session-upload-card" key={upload.id}>
                     <strong>{upload.original_filename}</strong>
                     <dl>
-                      <div><dt>Floor</dt><dd>{upload.floor_name}</dd></div>
+                      <div><dt>Floor</dt><dd>{upload.floor_name || selectedFloorName}</dd></div>
                       <div><dt>MIME type</dt><dd>{upload.mime_type}</dd></div>
                       <div><dt>File size</dt><dd>{upload.file_size.toLocaleString()} bytes</dd></div>
                       <div><dt>Status</dt><dd>{upload.processing_status}</dd></div>
                       <div><dt>Floor-plan ID</dt><dd>{upload.id}</dd></div>
+                      <div><dt>Job history</dt><dd>{upload.history.length}</dd></div>
                     </dl>
-                    {isDesigner && (
-                      <ProcessingJobPanel
-                        projectId={projectId}
-                        floorPlanId={upload.id}
-                        originalFilename={upload.original_filename}
-                      />
-                    )}
+                    <ProcessingJobPanel
+                      key={`${upload.id}-${upload.latest_job?.job_id || 'none'}-${upload.latest_job?.updated_at || 'none'}`}
+                      projectId={projectId}
+                      floorPlanId={upload.id}
+                      originalFilename={upload.original_filename}
+                      initialJob={upload.latest_job}
+                      canStart={isDesigner}
+                    />
                   </article>
                 ))}
               </div>

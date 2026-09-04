@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 
 import {
   fetchProcessingJob,
@@ -35,9 +35,15 @@ function startFailureMessage(error) {
   return 'Floor-plan processing is temporarily unavailable.'
 }
 
-export function ProcessingJobPanel({ projectId, floorPlanId, originalFilename }) {
-  const [viewState, setViewState] = useState('ready')
-  const [job, setJob] = useState(null)
+export function ProcessingJobPanel({
+  projectId,
+  floorPlanId,
+  originalFilename,
+  initialJob = null,
+  canStart = true,
+}) {
+  const [viewState, setViewState] = useState(initialJob?.status || 'ready')
+  const [job, setJob] = useState(initialJob)
   const [message, setMessage] = useState(null)
   const mountedRef = useRef(true)
   const timerRef = useRef(null)
@@ -46,6 +52,7 @@ export function ProcessingJobPanel({ projectId, floorPlanId, originalFilename })
   const startLockedRef = useRef(false)
   const statusInFlightRef = useRef(false)
   const generationRef = useRef(0)
+  const initialJobRef = useRef(initialJob)
 
   function clearTimer() {
     if (timerRef.current !== null) {
@@ -68,6 +75,11 @@ export function ProcessingJobPanel({ projectId, floorPlanId, originalFilename })
       pollJob(jobId, generation)
     }, delay)
   }
+
+  const scheduleInitialPoll = useEffectEvent((initialValue) => {
+    generationRef.current += 1
+    schedulePoll(initialValue.job_id, generationRef.current)
+  })
 
   async function pollJob(jobId, generation) {
     if (
@@ -190,6 +202,9 @@ export function ProcessingJobPanel({ projectId, floorPlanId, originalFilename })
 
   useEffect(() => {
     mountedRef.current = true
+    if (initialJobRef.current && ACTIVE_STATUSES.has(initialJobRef.current.status)) {
+      scheduleInitialPoll(initialJobRef.current)
+    }
     return () => {
       mountedRef.current = false
       generationRef.current += 1
@@ -217,10 +232,14 @@ export function ProcessingJobPanel({ projectId, floorPlanId, originalFilename })
 
       {viewState === 'ready' && (
         <>
-          <p>Ready to create a processing job for this uploaded floor plan.</p>
-          <button className="btn btn-dark" type="button" onClick={startProcessing}>
-            Start processing
-          </button>
+          <p>{canStart
+            ? 'Ready to create a processing job for this uploaded floor plan.'
+            : 'No processing jobs have been recorded for this floor plan.'}</p>
+          {canStart && (
+            <button className="btn btn-dark" type="button" onClick={startProcessing}>
+              Start processing
+            </button>
+          )}
         </>
       )}
 
@@ -262,9 +281,11 @@ export function ProcessingJobPanel({ projectId, floorPlanId, originalFilename })
         <div className="processing-job-result processing-job-failure" role="alert">
           <strong>Processing failed.</strong>
           <p>{job.error_message || 'The processing job failed without a public error message.'}</p>
-          <button className="btn btn-outline-dark" type="button" onClick={startProcessing}>
-            Retry processing
-          </button>
+          {canStart && (
+            <button className="btn btn-outline-dark" type="button" onClick={startProcessing}>
+              Retry processing
+            </button>
+          )}
         </div>
       )}
 
@@ -272,9 +293,11 @@ export function ProcessingJobPanel({ projectId, floorPlanId, originalFilename })
         <div className="processing-job-result" role="status">
           <strong>Processing was cancelled.</strong>
           <p>You can start a new processing attempt.</p>
-          <button className="btn btn-outline-dark" type="button" onClick={startProcessing}>
-            Start new attempt
-          </button>
+          {canStart && (
+            <button className="btn btn-outline-dark" type="button" onClick={startProcessing}>
+              Start new attempt
+            </button>
+          )}
         </div>
       )}
 

@@ -8,9 +8,18 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { FloorPlanApiError, uploadFloorPlan } from '../../api/floorPlans.js'
+import {
+  FloorPlanApiError,
+  listFloorPlans,
+  uploadFloorPlan,
+} from '../../api/floorPlans.js'
+import {
+  fetchProcessingJob,
+  listProcessingJobs,
+  ProcessingJobApiError,
+} from '../../api/processingJobs.js'
 import {
   createProjectFloor,
   listProjectFloors,
@@ -34,7 +43,17 @@ vi.mock('../../api/floorPlans.js', async () => {
   const actual = await vi.importActual('../../api/floorPlans.js')
   return {
     ...actual,
+    listFloorPlans: vi.fn(),
     uploadFloorPlan: vi.fn(),
+  }
+})
+
+vi.mock('../../api/processingJobs.js', async () => {
+  const actual = await vi.importActual('../../api/processingJobs.js')
+  return {
+    ...actual,
+    fetchProcessingJob: vi.fn(),
+    listProcessingJobs: vi.fn(),
   }
 })
 
@@ -76,14 +95,142 @@ function readFile(file) {
     reader.readAsArrayBuffer(file)
   })
 }
+const COMPLETED_JOB = {
+  job_id: 31,
+  type: 'floor_plan_analysis',
+  status: 'completed',
+  progress: 100,
+  error_message: null,
+  created_at: '2026-01-02T03:04:05',
+  updated_at: '2026-01-02T03:05:05',
+}
+
+beforeEach(() => {
+  listFloorPlans.mockResolvedValue([])
+  listProcessingJobs.mockResolvedValue([])
+})
 
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  vi.useRealTimers()
   window.location.hash = ''
 })
 
 describe('project floor upload panel', () => {
+  it('shows persisted-plan loading and empty states', async () => {
+    let resolvePlans
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans.mockReturnValue(new Promise((resolve) => {
+      resolvePlans = resolve
+    }))
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    expect(await screen.findByText('Loading persisted floor plans...')).toBeTruthy()
+    await act(async () => resolvePlans([]))
+    expect(await screen.findByText('No floor plans on this floor.')).toBeTruthy()
+  })
+
+  it('restores a completed persisted plan and its review link', async () => {
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans.mockResolvedValue([UPLOAD])
+    listProcessingJobs.mockResolvedValue([COMPLETED_JOB])
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    expect(await screen.findByText('Processing completed.')).toBeTruthy()
+    expect(screen.getByText(UPLOAD.original_filename)).toBeTruthy()
+    expect(screen.getByText('1')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Review detections' }).getAttribute('href')).toBe(
+      '#/app/projects/7/floor-plans/42/detections/31',
+    )
+  })
+
+  it('keeps Admin history inspection-only', async () => {
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans.mockResolvedValue([UPLOAD])
+    listProcessingJobs.mockResolvedValue([])
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={ADMIN_SESSION} />)
+    expect(await screen.findByText('No processing jobs have been recorded for this floor plan.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Start processing' })).toBeNull()
+  })
+
+  it('resumes polling a discovered active job', async () => {
+    vi.useFakeTimers()
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans.mockResolvedValue([UPLOAD])
+    listProcessingJobs.mockResolvedValue([{ ...COMPLETED_JOB, status: 'processing', progress: 37 }])
+    fetchProcessingJob.mockResolvedValue({ ...COMPLETED_JOB, status: 'completed' })
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    await act(async () => {})
+    expect(screen.getByText('Processing')).toBeTruthy()
+    await act(async () => vi.advanceTimersByTimeAsync(2000))
+    expect(fetchProcessingJob).toHaveBeenCalledWith(31, { signal: expect.any(AbortSignal) })
+    expect(screen.getByText('Processing completed.')).toBeTruthy()
+  })
+
+  it('shows safe persisted-plan errors and retries', async () => {
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans
+      .mockRejectedValueOnce(new FloorPlanApiError('private trace', 503))
+      .mockResolvedValueOnce([])
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    expect(await screen.findByText('Persisted floor plans are temporarily unavailable.')).toBeTruthy()
+    expect(screen.queryByText('private trace')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry floor plans' }))
+    expect(await screen.findByText('No floor plans on this floor.')).toBeTruthy()
+    expect(listFloorPlans).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    [403, 'You are not authorized to view these floor plans.'],
+    [404, 'The selected project or floor plan is no longer available.'],
+  ])('handles persisted-plan status %s safely', async (status, message) => {
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans.mockRejectedValue(new FloorPlanApiError('private', status))
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    expect(await screen.findByText(message)).toBeTruthy()
+    expect(screen.queryByText('private')).toBeNull()
+  })
+
+  it('redirects an expired history session', async () => {
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans.mockResolvedValue([UPLOAD])
+    listProcessingJobs.mockRejectedValue(
+      new ProcessingJobApiError('private', 401, 'AUTHENTICATION_REQUIRED'),
+    )
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    await waitFor(() => expect(window.location.hash).toBe('#/signin?reason=session-expired'))
+  })
+
+  it('ignores stale floor-plan responses and aborts on unmount', async () => {
+    let resolveFirst
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve }))
+      .mockResolvedValueOnce([{ ...UPLOAD, id: 99, project_floor_id: 19, original_filename: 'second.png' }])
+    listProcessingJobs.mockResolvedValue([])
+    const view = render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    const selector = await screen.findByRole('combobox', { name: 'Project floor' })
+    fireEvent.change(selector, { target: { value: '19' } })
+    expect(await screen.findByText('second.png')).toBeTruthy()
+    await act(async () => resolveFirst([UPLOAD]))
+    expect(screen.queryByText('house-plan.png')).toBeNull()
+    const latestSignal = listFloorPlans.mock.calls.at(-1)[1].signal
+    view.unmount()
+    expect(latestSignal.aborted).toBe(true)
+  })
+
+  it('reconciles optimistic upload feedback without duplicate cards', async () => {
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans.mockResolvedValueOnce([]).mockResolvedValueOnce([UPLOAD])
+    listProcessingJobs.mockResolvedValue([])
+    uploadFloorPlan.mockResolvedValue(UPLOAD)
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    await screen.findByRole('combobox', { name: 'Project floor' })
+    chooseFile()
+    submitUpload()
+    await waitFor(() => expect(listFloorPlans).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getAllByText(UPLOAD.original_filename)).toHaveLength(1))
+  })
+
   it('shows an accessible floor loading state', () => {
     listProjectFloors.mockReturnValue(new Promise(() => {}))
 
@@ -312,7 +459,7 @@ describe('floor plan upload form', () => {
 
     submitUpload()
 
-    expect(await screen.findByRole('heading', { name: 'Uploaded this session' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Saved floor plans' })).toBeTruthy()
     expect(screen.getByText(UPLOAD.original_filename)).toBeTruthy()
     expect(screen.getByText(UPLOAD.processing_status)).toBeTruthy()
     expect(screen.getAllByText('Ground Floor')).toHaveLength(2)

@@ -74,10 +74,12 @@
   deterministic floor/plan ordering, and optional project-floor filtering
 - PRE2: ownership-aware bounded processing-job history discovery with safe
   error text, server timestamps, and deterministic newest-first ordering
+- PRE3: reload-safe project workspace reconciliation, recovered active polling,
+  persisted completed-review links, and inspection-only Admin job state
 
 ### Planned
 
-PRE3-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
+PRE4-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
 define the migration from the implemented YOLO-only symbol path to local
 multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
 unimplemented, including canonical 3D geometry, routing, quantities, estimates,
@@ -783,7 +785,7 @@ K1 focused frontend:    21 tests
 K1 J2/J5 regressions:   43 tests
 K4 focused frontend:    19 tests + 4 route/navigation regressions
 L1 focused/regression:  40 tests
-Full frontend:          248 tests
+Full frontend:          264 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -869,5 +871,6 @@ grid and axes are neutral orientation helpers and it makes no layout,
 floor-plan, detection, or processing-job request. Canonical floor meshes,
 walls, openings, symbols, synchronization, and top/perspective switching remain
 future work.
-The project workspace does not consume persisted floor plans or job history
-until PRE3; PRE2 does not make J1A review-image provenance durable.
+The PRE3 project workspace consumes persisted floor plans and bounded job
+history, deduplicates optimistic upload feedback, and resumes active polling.
+PRE3 does not make J1A review-image provenance durable; PRE4 is next.

@@ -3,6 +3,7 @@ import { API_BASE_URL } from './auth.js'
 
 const GENERIC_PROCESSING_ERROR = 'The processing request could not be completed.'
 const GENERIC_STATUS_ERROR = 'The processing status could not be loaded.'
+const GENERIC_HISTORY_ERROR = 'Processing-job history could not be loaded.'
 const PROCESSING_STATUSES = new Set([
   'queued',
   'processing',
@@ -110,6 +111,23 @@ function normalizeStatusResponse(payload) {
   }
 }
 
+function normalizeHistoryItem(payload) {
+  const normalized = normalizeStatusResponse(payload)
+  if (
+    typeof payload?.created_at !== 'string'
+    || Number.isNaN(Date.parse(payload.created_at))
+    || typeof payload?.updated_at !== 'string'
+    || Number.isNaN(Date.parse(payload.updated_at))
+  ) {
+    throw new ProcessingJobApiError(GENERIC_HISTORY_ERROR)
+  }
+  return {
+    ...normalized,
+    created_at: payload.created_at,
+    updated_at: payload.updated_at,
+  }
+}
+
 export async function startFloorPlanProcessing(floorPlanId, { signal } = {}) {
   const payload = await request(
     `${API_BASE_URL}/api/floor-plans/${encodeURIComponent(floorPlanId)}/process`,
@@ -136,4 +154,21 @@ export async function fetchProcessingJob(jobId, { signal } = {}) {
     GENERIC_STATUS_ERROR,
   )
   return normalizeStatusResponse(payload)
+}
+
+export async function listProcessingJobs(floorPlanId, { signal } = {}) {
+  const payload = await request(
+    `${API_BASE_URL}/api/floor-plans/${encodeURIComponent(floorPlanId)}/processing-jobs?limit=50`,
+    {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      signal,
+    },
+    GENERIC_HISTORY_ERROR,
+  )
+  if (!Array.isArray(payload)) {
+    throw new ProcessingJobApiError(GENERIC_HISTORY_ERROR)
+  }
+  return payload.map(normalizeHistoryItem)
 }

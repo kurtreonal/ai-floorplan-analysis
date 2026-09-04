@@ -37,11 +37,11 @@ must remain available for comparison and rollback until U14 is approved.
 PRE0 in `../docs/PRE_VLM_FOUNDATION_PLAN.md` is complete and published: it
 establishes the maintained migration documentation and private-artifact ignore
 baseline without changing backend behavior. PRE1 floor-plan discovery and PRE2
-bounded processing-job history discovery are also complete. PRE3-PRE12 now
-precede U1. They own reload-safe UI recovery, source-page/artifact provenance, approved
+bounded processing-job history discovery and PRE3 frontend recovery are also
+complete. PRE4-PRE12 now precede U1. They own source-page/artifact provenance, approved
 scale/elevation inputs, legend administration, layout-save concurrency,
 engine-neutral execution controls, dataset-approver authority, and canonical
-compatibility decision. PRE0-PRE2 are complete; PRE3-PRE12 remain unimplemented.
+compatibility decision. PRE0-PRE3 are complete; PRE4-PRE12 remain unimplemented.
 
 ## Requirements
 
@@ -198,16 +198,19 @@ future Admin management of the catalog.
 the owning Designer or an Admin, ordered by floor sort order, floor identity,
 then floor-plan identity. A positive optional `project_floor_id` filter cannot
 escape the project. The response never exposes `storage_path`, private hashes,
-or filesystem details and performs no file access or database write. PRE3 will
-consume this operation and PRE2 job history in the project workspace.
+or filesystem details and performs no file access or database write. PRE3
+consumes this operation and PRE2 job history in the project workspace.
 
 `GET /api/floor-plans/{floor_plan_id}/processing-jobs` permits the owning
 Designer or an Admin to recover safe `floor_plan_analysis` job summaries. It
 orders by server creation time and job identity newest first, sanitizes failed
 job details, includes server timestamps, and accepts a `limit` from 1 through
 100 (default 50) so reads are bounded. It does not claim, retry, cancel, run, or
-mutate a job and never accesses the uploaded file. PRE3 will reconcile these
+mutate a job and never accesses the uploaded file. PRE3 reconciles these
 persisted records into the project workspace after reload.
+PRE3 now consumes both discovery operations, reconciles optimistic uploads by
+ID, resumes active polling, preserves completed review links, and keeps Admins
+inspection-only. It adds no backend operation, table, or dependency.
 
 ## Floor-plan validation and original storage
 

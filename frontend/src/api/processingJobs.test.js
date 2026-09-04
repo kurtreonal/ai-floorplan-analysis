@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   fetchProcessingJob,
+  listProcessingJobs,
   ProcessingJobApiError,
   startFloorPlanProcessing,
 } from './processingJobs.js'
@@ -22,6 +23,41 @@ afterEach(() => {
 })
 
 describe('processing jobs API client', () => {
+  it('loads and validates bounded processing-job history', async () => {
+    const payload = [{
+      job_id: 31,
+      type: 'floor_plan_analysis',
+      status: 'completed',
+      progress: 100,
+      error_message: null,
+      created_at: '2026-01-02T03:04:05',
+      updated_at: '2026-01-02T03:05:05',
+    }]
+    const fetchMock = vi.fn().mockResolvedValue(response({ payload }))
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    await expect(listProcessingJobs(42, { signal: controller.signal })).resolves.toEqual(payload)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/floor-plans/42/processing-jobs?limit=50',
+      {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      },
+    )
+  })
+
+  it.each([
+    null,
+    [{ job_id: 31, type: 'floor_plan_analysis', status: 'completed', progress: 100, error_message: null }],
+  ])('rejects malformed history payload %j', async (payload) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ payload })))
+    const error = await listProcessingJobs(42).catch((requestError) => requestError)
+    expect(error).toBeInstanceOf(ProcessingJobApiError)
+    expect(error.message).toBe('Processing-job history could not be loaded.')
+  })
+
   it('starts processing with credentials, JSON acceptance, and no request body', async () => {
     const fetchMock = vi.fn().mockResolvedValue(response({
       status: 202,
