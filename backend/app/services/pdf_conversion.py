@@ -9,6 +9,10 @@ import pypdfium2 as pdfium
 from sqlalchemy.orm import Session
 
 from app.models import FloorPlan, ProcessingJob
+from app.services.processing_artifact_service import (
+    ProcessingArtifactError,
+    register_processing_artifact,
+)
 
 
 DEFAULT_PDF_DPI = 150
@@ -42,6 +46,7 @@ ERROR_MESSAGES = {
     "PROCESSING_JOB_FAILURE_PERSISTENCE_FAILED": (
         "The PDF conversion failure state could not be saved."
     ),
+    "ARTIFACT_REGISTRATION_FAILED": "The rendered PDF page could not be registered safely.",
 }
 
 
@@ -424,7 +429,7 @@ def convert_processing_job_pdf(
             upload_directory=upload_directory,
             floor_plan=floor_plan,
         )
-        return convert_pdf_page(
+        converted = convert_pdf_page(
             source_path=source_path,
             processed_directory=processed_directory,
             floor_plan_id=floor_plan.id,
@@ -433,6 +438,23 @@ def convert_processing_job_pdf(
             dpi=dpi,
             max_pixel_count=max_pixel_count,
         )
+        register_processing_artifact(
+            database_session,
+            processing_job=processing_job,
+            floor_plan_id=floor_plan.id,
+            page_number=page_number,
+            artifact_kind="pdf_page",
+            processed_directory=processed_directory,
+            relative_path=converted.output_reference,
+            mime_type=converted.mime_type,
+        )
+        database_session.commit()
+        return converted
+    except ProcessingArtifactError:
+        if "converted" in locals():
+            _remove_partial_output(converted.absolute_output_path)
+        _persist_processing_failure(database_session, processing_job)
+        raise _conversion_error("ARTIFACT_REGISTRATION_FAILED") from None
     except PdfConversionError:
         _persist_processing_failure(database_session, processing_job)
         raise

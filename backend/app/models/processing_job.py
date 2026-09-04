@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from app.models.detected_symbol import DetectedSymbol
     from app.models.floor_plan import FloorPlan
     from app.models.manual_symbol import ManualSymbol
+    from app.models.processing_artifact import ProcessingArtifact
     from app.models.wall import Wall
 
 
@@ -99,3 +100,6 @@ class ProcessingJob(Base):
         back_populates="processing_job"
     )
     walls: Mapped[list["Wall"]] = relationship(back_populates="processing_job")
+    artifacts: Mapped[list["ProcessingArtifact"]] = relationship(
+        back_populates="processing_job"
+    )

@@ -347,6 +347,7 @@ class WallPersistenceTests(unittest.TestCase):
                 "layout_versions",
                 "manual_symbols",
                 "processing_jobs",
+                "processing_artifacts",
                 "walls",
                 "detected_symbols",
                 "detection_class_corrections",

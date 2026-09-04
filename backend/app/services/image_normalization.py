@@ -11,6 +11,10 @@ from sqlalchemy.orm import Session
 
 from app.models import FloorPlan, ProcessingJob
 from app.services.pdf_conversion import ConvertedPdfPage
+from app.services.processing_artifact_service import (
+    ProcessingArtifactError,
+    register_processing_artifact,
+)
 
 
 DEFAULT_MAXIMUM_DIMENSION = 4096
@@ -53,6 +57,7 @@ ERROR_MESSAGES = {
     "PROCESSING_JOB_FAILURE_PERSISTENCE_FAILED": (
         "The image normalization failure state could not be saved."
     ),
+    "ARTIFACT_REGISTRATION_FAILED": "The normalized image could not be registered safely.",
 }
 
 
@@ -579,7 +584,7 @@ def normalize_processing_job_image(
         else:
             raise _normalization_error("UNSUPPORTED_SOURCE")
 
-        return normalize_image(
+        normalized = normalize_image(
             source_path=source_path,
             source_mime_type=source_mime_type,
             processed_directory=processed_directory,
@@ -587,6 +592,24 @@ def normalize_processing_job_image(
             processing_job_id=processing_job.id,
             maximum_dimension=maximum_dimension,
         )
+        page_number = g1_page.page_number if isinstance(g1_page, ConvertedPdfPage) else 1
+        register_processing_artifact(
+            database_session,
+            processing_job=processing_job,
+            floor_plan_id=floor_plan.id,
+            page_number=page_number,
+            artifact_kind="normalized_image",
+            processed_directory=processed_directory,
+            relative_path=normalized.output_reference,
+            mime_type=normalized.output_mime_type,
+        )
+        database_session.commit()
+        return normalized
+    except ProcessingArtifactError:
+        if "normalized" in locals():
+            _remove_partial_output(normalized.absolute_output_path)
+        _persist_failure_state(database_session, processing_job)
+        raise _normalization_error("ARTIFACT_REGISTRATION_FAILED") from None
     except ImageNormalizationError:
         _persist_failure_state(database_session, processing_job)
         raise

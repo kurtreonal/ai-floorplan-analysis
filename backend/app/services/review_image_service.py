@@ -15,6 +15,10 @@ from app.services.image_normalization import (
     DEFAULT_MAXIMUM_DIMENSION,
     MAX_SOURCE_PIXEL_COUNT,
 )
+from app.services.processing_artifact_service import (
+    ProcessingArtifactError,
+    resolve_trusted_processing_artifact,
+)
 
 
 MAXIMUM_BIGINT = 9_223_372_036_854_775_807
@@ -48,47 +52,6 @@ def _positive_identifier(value: object, code: str) -> int:
     if type(value) is not int or value <= 0 or value > MAXIMUM_BIGINT:
         raise ReviewImageServiceError(code)
     return value
-
-
-def _resolve_review_image_path(
-    processed_directory: Path,
-    *,
-    floor_plan_id: int,
-    processing_job_id: int,
-) -> Path:
-    try:
-        configured_root = Path(processed_directory)
-        if configured_root == Path("."):
-            raise ValueError
-        processed_root = configured_root.resolve(strict=True)
-    except (OSError, RuntimeError, TypeError, ValueError):
-        raise ReviewImageServiceError("REVIEW_IMAGE_UNAVAILABLE") from None
-
-    if not processed_root.is_dir():
-        raise ReviewImageServiceError("REVIEW_IMAGE_UNAVAILABLE")
-
-    expected = (
-        processed_root
-        / "normalized"
-        / f"floor-plan-{floor_plan_id}"
-        / f"job-{processing_job_id}"
-        / "image.png"
-    )
-    try:
-        resolved = expected.resolve(strict=True)
-    except FileNotFoundError:
-        raise ReviewImageServiceError("REVIEW_IMAGE_NOT_FOUND") from None
-    except (OSError, RuntimeError, ValueError):
-        raise ReviewImageServiceError("REVIEW_IMAGE_UNAVAILABLE") from None
-
-    if (
-        not resolved.is_relative_to(processed_root)
-        or resolved != expected
-        or resolved.suffix.casefold() != ".png"
-        or not resolved.is_file()
-    ):
-        raise ReviewImageServiceError("REVIEW_IMAGE_NOT_FOUND")
-    return resolved
 
 
 def _read_and_validate_png(image_path: Path) -> ReviewImage:
@@ -137,6 +100,7 @@ def _read_and_validate_png(image_path: Path) -> ReviewImage:
 
 
 def validate_review_image(
+    database_session: Session,
     processed_directory: Path,
     *,
     floor_plan_id: int,
@@ -148,12 +112,27 @@ def validate_review_image(
         processing_job_id,
         "INVALID_PROCESSING_JOB_ID",
     )
-    image_path = _resolve_review_image_path(
-        processed_directory,
-        floor_plan_id=floor_plan_id,
-        processing_job_id=processing_job_id,
-    )
-    return _read_and_validate_png(image_path)
+    try:
+        artifact = resolve_trusted_processing_artifact(
+            database_session,
+            floor_plan_id=floor_plan_id,
+            processing_job_id=processing_job_id,
+            artifact_kind="normalized_image",
+            processed_directory=processed_directory,
+        )
+    except ProcessingArtifactError as error:
+        code = (
+            "REVIEW_IMAGE_NOT_FOUND"
+            if str(error)
+            in {
+                "Registered artifact was not found.",
+                "Artifact file was not found.",
+                "Artifact path is unsafe.",
+            }
+            else "REVIEW_IMAGE_UNAVAILABLE"
+        )
+        raise ReviewImageServiceError(code) from None
+    return _read_and_validate_png(artifact.absolute_path)
 
 
 def retrieve_review_image(
@@ -200,6 +179,7 @@ def retrieve_review_image(
         raise ReviewImageServiceError("REVIEW_IMAGE_NOT_FOUND")
 
     return validate_review_image(
+        database_session,
         processed_directory,
         floor_plan_id=floor_plan_id,
         processing_job_id=processing_job_id,

@@ -8,6 +8,7 @@ from app.models.floor_plan_source import FloorPlanSource
 from app.models.layout_version import LayoutVersion
 from app.models.manual_symbol import ManualSymbol
 from app.models.processing_job import ProcessingJob
+from app.models.processing_artifact import ProcessingArtifact
 from app.models.project import Project
 from app.models.project_floor import ProjectFloor
 from app.models.role import Role
@@ -27,6 +28,7 @@ __all__ = (
     "LayoutVersion",
     "ManualSymbol",
     "ProcessingJob",
+    "ProcessingArtifact",
     "Project",
     "ProjectFloor",
     "Role",

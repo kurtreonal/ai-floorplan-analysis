@@ -23,7 +23,7 @@ from app.core.config import (
     get_processed_directory,
 )
 from app.core.database import get_engine
-from app.models import FloorPlan, ProcessingJob, Project, ProjectFloor, Role, User
+from app.models import FloorPlan, ProcessingArtifact, ProcessingJob, Project, ProjectFloor, Role, User
 from app.services.pdf_conversion import (
     DEFAULT_PDF_DPI,
     ERROR_MESSAGES,
@@ -34,6 +34,11 @@ from app.services.pdf_conversion import (
     _resolve_original_pdf,
     convert_pdf_page,
     convert_processing_job_pdf,
+)
+from tests.artifact_fixtures import (
+    attach_source_identity,
+    delete_artifact_identity_fixtures,
+    delete_processing_artifacts,
 )
 
 
@@ -460,6 +465,9 @@ class PdfConversionMySqlTests(unittest.TestCase):
             processing_status="uploaded",
         )
         cls.session.add_all((cls.valid_plan, cls.corrupt_plan))
+        cls.session.flush()
+        attach_source_identity(cls.session, cls.valid_plan, cls.valid_bytes)
+        attach_source_identity(cls.session, cls.corrupt_plan, b"not a pdf")
         cls.session.commit()
         cls.floor_plan_ids = (cls.valid_plan.id, cls.corrupt_plan.id)
 
@@ -467,6 +475,9 @@ class PdfConversionMySqlTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         try:
             cls.session.rollback()
+            delete_artifact_identity_fixtures(
+                cls.session, floor_plan_ids=cls.floor_plan_ids
+            )
             cls.session.execute(
                 delete(ProcessingJob).where(
                     ProcessingJob.floor_plan_id.in_(cls.floor_plan_ids)
@@ -500,6 +511,9 @@ class PdfConversionMySqlTests(unittest.TestCase):
 
     def setUp(self) -> None:
         self.session.rollback()
+        delete_processing_artifacts(
+            self.session, floor_plan_ids=self.floor_plan_ids
+        )
         self.session.execute(
             delete(ProcessingJob).where(
                 ProcessingJob.floor_plan_id.in_(self.floor_plan_ids)
@@ -676,12 +690,20 @@ class PdfConversionMySqlTests(unittest.TestCase):
         result = self.convert()
         with Session(self.engine) as reload_session:
             reloaded = reload_session.get(ProcessingJob, self.job.id)
+            artifact = reload_session.scalar(
+                select(ProcessingArtifact).where(
+                    ProcessingArtifact.processing_job_id == self.job.id,
+                    ProcessingArtifact.artifact_kind == "pdf_page",
+                )
+            )
             values = (
                 reloaded.job_type,
                 reloaded.status,
                 reloaded.error_message,
             )
         self.assertFalse(any(result.output_reference in (value or "") for value in values))
+        self.assertIsNotNone(artifact)
+        self.assertEqual(artifact.relative_path, result.output_reference)
 
 
 if __name__ == "__main__":
