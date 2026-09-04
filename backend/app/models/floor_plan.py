@@ -9,6 +9,7 @@ from app.models.base import Base
 if TYPE_CHECKING:
     from app.models.detected_symbol import DetectedSymbol
     from app.models.layout_version import LayoutVersion
+    from app.models.floor_plan_source import FloorPlanSource
     from app.models.manual_symbol import ManualSymbol
     from app.models.processing_job import ProcessingJob
     from app.models.project_floor import ProjectFloor
@@ -67,4 +68,8 @@ class FloorPlan(Base):
     walls: Mapped[list["Wall"]] = relationship(back_populates="floor_plan")
     layout_versions: Mapped[list["LayoutVersion"]] = relationship(
         back_populates="floor_plan"
+    )
+    source_manifest: Mapped["FloorPlanSource | None"] = relationship(
+        back_populates="floor_plan",
+        uselist=False,
     )

@@ -59,6 +59,8 @@ class SymbolLegendModelTests(unittest.TestCase):
             "detection_class_corrections",
             "detection_reviews",
             "floor_plans",
+            "floor_plan_pages",
+            "floor_plan_sources",
             "layout_versions",
             "manual_symbols",
             "processing_jobs",
@@ -71,7 +73,7 @@ class SymbolLegendModelTests(unittest.TestCase):
         }
         self.assertEqual(set(Base.metadata.tables), expected)
         self.assertEqual(set(inspect(self.engine).get_table_names()), expected)
-        self.assertEqual(len(Base.metadata.tables), 13)
+        self.assertEqual(len(Base.metadata.tables), 15)
 
 
 class SymbolLegendApiTests(unittest.TestCase):

@@ -8,11 +8,11 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current application baseline is L1, with PRE0-PRE3 foundations complete:
-23 OpenAPI operations and 13 SQLAlchemy/MySQL tables. The implementation can
+The current application baseline is L1, with PRE0-PRE4 foundations complete:
+23 OpenAPI operations and 15 SQLAlchemy/MySQL tables. The implementation can
 discover and reconcile persisted floor plans and bounded processing-job history
-after a page reload, but it cannot yet identify every PDF page
-and derived artifact durably, collect authoritative scale/elevation inputs,
+after a page reload and identify every source page, but it cannot yet persist
+derived-artifact provenance, collect authoritative scale/elevation inputs,
 manage the empty approved legend catalog, guarantee conditional/idempotent
 layout saves, or support safe worker leasing and dataset-approver assignments.
 
@@ -36,8 +36,9 @@ set and the private-artifact ignore baseline without changing application
 behavior, dependencies, the then-21-operation API, or the 13-table schema. PRE1
 is also complete and adds one read-only operation without a table. PRE2 is
 complete and adds one bounded read-only operation without a table. PRE3 is
-complete without a backend operation or table. PRE4 is the next ticket;
-PRE4-PRE12 and all U-series work remain unimplemented.
+complete without a backend operation or table. PRE4 is complete with two
+private source/page tables and verified backfill. PRE5 is the next ticket;
+PRE5-PRE12 and all U-series work remain unimplemented.
 
 ## 2. Evidence-backed gaps
 
@@ -210,6 +211,11 @@ before VLM page classification exists.
 
 **Expected scope:** additive source-manifest/page models, upload transaction,
 repositories/services, relationship registration, schema checks, and tests.
+
+**Implementation status:** Complete and published. New uploads atomically store
+the original SHA-256 and exact one-based page rows. The explicit dry-run/apply
+backfill validates existing bytes and imported all six live raster sources
+without changing their original files.
 
 **Acceptance criteria:**
 

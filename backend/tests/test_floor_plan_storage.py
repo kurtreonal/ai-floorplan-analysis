@@ -432,8 +432,8 @@ class FloorPlanStorageTests(unittest.TestCase):
             database_session=mock_session,
         )
 
-        mock_session.add.assert_called_once()
-        mock_session.flush.assert_called_once_with()
+        self.assertEqual(mock_session.add.call_count, 2)
+        self.assertEqual(mock_session.flush.call_count, 2)
         mock_session.rollback.assert_called_once_with()
         self.assertEqual(tuple((self.upload_directory / "originals").iterdir()), ())
         self.assertNotIn("commit", error.message.casefold())
