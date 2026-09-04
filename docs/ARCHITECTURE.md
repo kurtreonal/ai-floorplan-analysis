@@ -858,8 +858,9 @@ existing operations for canonical symbol movement and append-only saving. Floor 
 is required by the canonical contract, stored inside each complete snapshot, is not a
 `project_floors` column, and is never inferred. K3 has no atomic conditional-save
 or idempotency-key contract; K5's uncertain-response reconciliation does not
-claim otherwise. The next priority ticket is PRE0; no PRE or U ticket has been
-started. U1 depends on the PRE12 readiness gate. L2 is paused unless explicitly
+claim otherwise. PRE0's documentation/privacy baseline is complete and
+published. The next priority ticket is PRE1; no application-foundation PRE
+ticket or U ticket has started. U1 depends on the PRE12 readiness gate. L2 is paused unless explicitly
 selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
 floor-plan, detection, or processing-job request. Canonical floor meshes,

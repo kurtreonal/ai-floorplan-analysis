@@ -4279,7 +4279,7 @@ These tickets do not install or run a local model and do not retire YOLO.
 
 | Ticket | Goal | Required result before the next ticket |
 |---|---|---|
-| PRE0 | Publish documentation/privacy baseline | Maintained docs and ignore rules are consistent, no private/model artifact is tracked, feature and main are published |
+| PRE0 (complete) | Publish documentation/privacy baseline | Maintained docs and ignore rules are consistent, no private/model artifact is tracked, feature and main are published |
 | PRE1 | Floor-plan discovery API | Authorized persisted plans are reload-discoverable without storage-path disclosure |
 | PRE2 | Processing-job history API | Safe bounded job summaries recover job IDs/status after reload |
 | PRE3 | Reload-safe project workspace | Persisted plans/jobs render and active monitoring resumes without session-only state |
@@ -4296,6 +4296,10 @@ These tickets do not install or run a local model and do not retire YOLO.
 Every PRE ticket inherits the detailed acceptance criteria in the pre-foundation
 plan. Each uses a separate feature branch and progress report. PRE12 must stop
 before U1.
+
+PRE0 is the only completed PRE ticket. It changes documentation and ignore
+coverage only. PRE1 is next; no PRE application/API/schema behavior or U-series
+model work has started.
 
 ---
 
