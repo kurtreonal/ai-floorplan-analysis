@@ -38,11 +38,11 @@ PRE0 in `../docs/PRE_VLM_FOUNDATION_PLAN.md` is complete and published: it
 establishes the maintained migration documentation and private-artifact ignore
 baseline without changing backend behavior. PRE1 floor-plan discovery and PRE2
 bounded processing-job history discovery and PRE3 frontend recovery are also
-complete. PRE4 immutable source/page identity is also complete. PRE5-PRE12 now
-precede U1. They own derived-artifact provenance, approved
+complete. PRE4 immutable source/page identity and PRE5 durable derived-artifact
+provenance are also complete. PRE6-PRE12 now precede U1. They own approved
 scale/elevation inputs, legend administration, layout-save concurrency,
 engine-neutral execution controls, dataset-approver authority, and canonical
-compatibility decision. PRE0-PRE4 are complete; PRE5-PRE12 remain unimplemented.
+compatibility decision. PRE0-PRE5 are complete; PRE6-PRE12 remain unimplemented.
 
 ## Requirements
 
@@ -129,6 +129,14 @@ PRE4 source/page import is separately explicit and verification-first:
 # Apply only verified missing immutable manifests/pages
 .\.venv\Scripts\python.exe -m app.core.source_backfill --apply
 ```
+
+PRE5 adds `processing_artifacts` as the durable registry for derived PNGs.
+G1 PDF renders and G2 normalized images register their exact processing job,
+source page, bounded kind, safe relative path, MIME type, byte size, SHA-256,
+pixel dimensions, and creation time. J1A resolves normalized review images only
+through this registry and revalidates containment, symlinks, content, hash, and
+dimensions before serving. Existing derived files are not inferred or imported
+automatically; an unregistered file remains untrusted.
 
 The command refuses unsafe paths, missing/invalid originals, size mismatches,
 and conflicting existing identity. It never fabricates a hash or changes an
@@ -903,9 +911,9 @@ tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
-585 tests in the full `unittest` discovery run plus 479 subtests through PRE4.
-The separate canonical-geometry pytest suite contains 39 tests, for 624
-aggregate top-level backend tests; 624 is not a single discovery-run count. The required
+590 tests in the full `unittest` discovery run plus 479 subtests through PRE5.
+The separate canonical-geometry pytest suite contains 39 tests, for 629
+aggregate top-level backend tests; 629 is not a single discovery-run count. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
 The existing

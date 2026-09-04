@@ -48,6 +48,7 @@ TABLES = (
     "floor_plans",
     "layout_versions",
     "manual_symbols",
+    "processing_artifacts",
     "processing_jobs",
     "project_floors",
     "projects",

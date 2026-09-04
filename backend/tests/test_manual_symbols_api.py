@@ -46,6 +46,11 @@ from app.services.authoritative_symbol_service import (
 )
 from app.services.manual_symbol_service import create_manual_symbol
 from app.services.symbol_persistence import SymbolPersistenceError, replace_detected_symbols
+from tests.artifact_fixtures import (
+    attach_source_identity,
+    delete_artifact_identity_fixtures,
+    register_normalized_fixture,
+)
 
 
 SESSION_SECRET = "j5-test-session-secret-with-sufficient-length"
@@ -104,7 +109,7 @@ class ManualSymbolModelTests(unittest.TestCase):
                 "ix_manual_symbols_symbol_legend_id",
             },
         )
-        self.assertEqual(len(Base.metadata.tables), 15)
+        self.assertEqual(len(Base.metadata.tables), 16)
         self.assertEqual(set(inspect(self.engine).get_table_names()), set(Base.metadata.tables))
         self.assertEqual(FloorPlan.manual_symbols.property.back_populates, "floor_plan")
         self.assertEqual(ProcessingJob.manual_symbols.property.back_populates, "processing_job")
@@ -162,6 +167,8 @@ class ManualSymbolApiTests(unittest.TestCase):
         cls.inactive = SymbolLegend(class_id=103, name=f"{cls.marker}-inactive", is_active=False)
         cls.session.add_all((cls.admin, cls.unsupported, cls.floor_plan, cls.other_floor_plan, cls.active, cls.second, cls.inactive))
         cls.session.flush()
+        attach_source_identity(cls.session, cls.floor_plan, cls.original.read_bytes())
+        attach_source_identity(cls.session, cls.other_floor_plan, b"x")
         cls.job = ProcessingJob(floor_plan=cls.floor_plan, job_type="floor_plan_analysis", status="processing", progress=44)
         cls.second_job = ProcessingJob(floor_plan=cls.floor_plan, job_type="floor_plan_analysis", status="processing", progress=55)
         cls.other_job = ProcessingJob(floor_plan=cls.other_floor_plan, job_type="floor_plan_analysis", status="processing", progress=66)
@@ -179,6 +186,21 @@ class ManualSymbolApiTests(unittest.TestCase):
         cls.second_image = cls._image_path(cls.floor_plan.id, cls.second_job.id)
         cls.second_image.parent.mkdir(parents=True)
         cls.second_image.write_bytes(png_bytes())
+        register_normalized_fixture(
+            cls.session,
+            floor_plan=cls.floor_plan,
+            processing_job=cls.job,
+            processed_root=cls.processed_root,
+            image_path=cls.image,
+        )
+        register_normalized_fixture(
+            cls.session,
+            floor_plan=cls.floor_plan,
+            processing_job=cls.second_job,
+            processed_root=cls.processed_root,
+            image_path=cls.second_image,
+        )
+        cls.session.commit()
         settings = Settings(
             _env_file=None, app_env="development", database_url=None,
             upload_dir=cls.upload_root, processed_dir=cls.processed_root,
@@ -218,6 +240,9 @@ class ManualSymbolApiTests(unittest.TestCase):
                 cls.session.execute(delete(DetectionReview).where(DetectionReview.detected_symbol_id.in_(detection_ids)))
             cls.session.execute(delete(ManualSymbol).where(ManualSymbol.processing_job_id.in_(cls.job_ids)))
             cls.session.execute(delete(DetectedSymbol).where(DetectedSymbol.processing_job_id.in_(cls.job_ids)))
+            delete_artifact_identity_fixtures(
+                cls.session, floor_plan_ids=cls.floor_plan_ids
+            )
             cls.session.execute(delete(ProcessingJob).where(ProcessingJob.id.in_(cls.job_ids)))
             cls.session.execute(delete(FloorPlan).where(FloorPlan.id.in_(cls.floor_plan_ids)))
             cls.session.execute(delete(ProjectFloor).where(ProjectFloor.project_id.in_(cls.project_ids)))

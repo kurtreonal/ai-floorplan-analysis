@@ -18,6 +18,11 @@ from app.core.config import Settings
 from app.core.database import get_db, get_engine
 from app.main import create_app
 from app.models import FloorPlan, ProcessingJob, Project, ProjectFloor, Role, User
+from tests.artifact_fixtures import (
+    attach_source_identity,
+    delete_artifact_identity_fixtures,
+    register_normalized_fixture,
+)
 
 
 SESSION_SECRET = "j1a-test-session-secret-with-sufficient-length"
@@ -105,6 +110,8 @@ class ReviewImageApiTests(unittest.TestCase):
             (cls.admin, cls.unsupported_user, cls.floor_plan, cls.other_floor_plan)
         )
         cls.database_session.flush()
+        attach_source_identity(cls.database_session, cls.floor_plan, cls.original_bytes)
+        attach_source_identity(cls.database_session, cls.other_floor_plan, b"x")
         cls.job = ProcessingJob(
             floor_plan_id=cls.floor_plan.id,
             job_type="floor_plan_analysis",
@@ -140,6 +147,14 @@ class ReviewImageApiTests(unittest.TestCase):
         cls.image_path.parent.mkdir(parents=True)
         cls.review_bytes = _image_bytes()
         cls.image_path.write_bytes(cls.review_bytes)
+        register_normalized_fixture(
+            cls.database_session,
+            floor_plan=cls.floor_plan,
+            processing_job=cls.job,
+            processed_root=cls.processed_root,
+            image_path=cls.image_path,
+        )
+        cls.database_session.commit()
 
         settings = Settings(
             _env_file=None,
@@ -182,6 +197,10 @@ class ReviewImageApiTests(unittest.TestCase):
         cls.client.close()
         try:
             cls.database_session.rollback()
+            delete_artifact_identity_fixtures(
+                cls.database_session,
+                floor_plan_ids=cls.created["floor_plans"],
+            )
             cls.database_session.execute(delete(ProcessingJob).where(ProcessingJob.id.in_(cls.created["jobs"])))
             cls.database_session.execute(delete(FloorPlan).where(FloorPlan.id.in_(cls.created["floor_plans"])))
             cls.database_session.execute(delete(ProjectFloor).where(ProjectFloor.project_id.in_(cls.created["projects"])))
@@ -346,7 +365,7 @@ class ReviewImageApiTests(unittest.TestCase):
             if method in {"get", "post", "put", "patch", "delete"}
         }
         self.assertEqual(len(operations), 23)
-        self.assertEqual(len(__import__("sqlalchemy").inspect(self.engine).get_table_names()), 15)
+        self.assertEqual(len(__import__("sqlalchemy").inspect(self.engine).get_table_names()), 16)
 
 
 if __name__ == "__main__":

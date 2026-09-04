@@ -176,6 +176,7 @@ def create_manual_symbol(
 
     try:
         review_image = validate_review_image(
+            database_session,
             processed_directory,
             floor_plan_id=floor_plan_id,
             processing_job_id=processing_job_id,

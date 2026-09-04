@@ -29,6 +29,11 @@ from app.services.image_normalization import (
     normalize_processing_job_image,
 )
 from app.services.pdf_conversion import convert_pdf_page
+from tests.artifact_fixtures import (
+    attach_source_identity,
+    delete_artifact_identity_fixtures,
+    delete_processing_artifacts,
+)
 
 
 def make_image(
@@ -564,6 +569,10 @@ class ImageNormalizationMySqlTests(unittest.TestCase):
             processing_status="uploaded",
         )
         cls.session.add_all((cls.valid_plan, cls.corrupt_plan, cls.pdf_plan))
+        cls.session.flush()
+        attach_source_identity(cls.session, cls.valid_plan, cls.valid_bytes)
+        attach_source_identity(cls.session, cls.corrupt_plan, b"not a png")
+        attach_source_identity(cls.session, cls.pdf_plan, cls.pdf_bytes)
         cls.session.commit()
         cls.floor_plan_ids = (
             cls.valid_plan.id,
@@ -575,6 +584,9 @@ class ImageNormalizationMySqlTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         try:
             cls.session.rollback()
+            delete_artifact_identity_fixtures(
+                cls.session, floor_plan_ids=cls.floor_plan_ids
+            )
             cls.session.execute(
                 delete(ProcessingJob).where(
                     ProcessingJob.floor_plan_id.in_(cls.floor_plan_ids)
@@ -606,6 +618,9 @@ class ImageNormalizationMySqlTests(unittest.TestCase):
 
     def setUp(self) -> None:
         self.session.rollback()
+        delete_processing_artifacts(
+            self.session, floor_plan_ids=self.floor_plan_ids
+        )
         self.session.execute(
             delete(ProcessingJob).where(
                 ProcessingJob.floor_plan_id.in_(self.floor_plan_ids)

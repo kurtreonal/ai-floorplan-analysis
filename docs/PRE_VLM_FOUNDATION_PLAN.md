@@ -8,11 +8,11 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current application baseline is L1, with PRE0-PRE4 foundations complete:
-23 OpenAPI operations and 15 SQLAlchemy/MySQL tables. The implementation can
+The current application baseline is L1, with PRE0-PRE5 foundations complete:
+23 OpenAPI operations and 16 SQLAlchemy/MySQL tables. The implementation can
 discover and reconcile persisted floor plans and bounded processing-job history
-after a page reload and identify every source page, but it cannot yet persist
-derived-artifact provenance, collect authoritative scale/elevation inputs,
+after a page reload, identify every source page, and verify registered derived
+artifacts, but it cannot yet collect authoritative scale/elevation inputs,
 manage the empty approved legend catalog, guarantee conditional/idempotent
 layout saves, or support safe worker leasing and dataset-approver assignments.
 
@@ -37,8 +37,9 @@ behavior, dependencies, the then-21-operation API, or the 13-table schema. PRE1
 is also complete and adds one read-only operation without a table. PRE2 is
 complete and adds one bounded read-only operation without a table. PRE3 is
 complete without a backend operation or table. PRE4 is complete with two
-private source/page tables and verified backfill. PRE5 is the next ticket;
-PRE5-PRE12 and all U-series work remain unimplemented.
+private source/page tables and verified backfill. PRE5 is complete with one
+private processing-artifact manifest table. PRE6 is the next ticket;
+PRE6-PRE12 and all U-series work remain unimplemented.
 
 ## 2. Evidence-backed gaps
 
@@ -47,7 +48,7 @@ PRE5-PRE12 and all U-series work remain unimplemented.
 | Persisted floor-plan discovery not yet consumed by UI | PRE1 adds the safe GET operation; the project UI still stores `sessionUploads` in React memory | PRE3 must reconcile persisted plans after PRE2 adds job history |
 | Persisted recovery foundation complete | PRE3 consumes PRE1/PRE2 with abort-safe reconciliation and active polling | PRE4 can add immutable page identity without session-only UI assumptions |
 | No page identity | `processing_jobs` references a floor plan, but no persisted PDF page entity exists | Multi-page plans, legends, schedules, and detail sheets cannot be tracked safely |
-| Derived artifacts use implicit paths | G1/G2/G3 and J1A do not share a durable artifact manifest | A restarted worker cannot prove which page/image/hash a result used |
+| Derived-artifact provenance foundation complete | PRE5 registers G1/G2 PNGs by job/source page and makes J1A resolve and revalidate the exact manifest row | Optional G3 debug output and future U7 tiles can use the bounded registry without fabricated legacy rows |
 | No persisted source hash | `floor_plans` stores path, MIME, and size but no durable SHA-256 manifest | Reproducible training/inference provenance is incomplete |
 | Floor elevation is snapshot-only | `project_floors` has no elevation field or settings record | K1 requires explicit elevation, so automatic canonical creation would stop |
 | No approved page scale workflow | H2 accepts an injected scale but no API/UI persists reviewed scale evidence | Pixel candidates cannot safely become K1 meters |

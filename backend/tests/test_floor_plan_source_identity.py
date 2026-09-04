@@ -77,7 +77,7 @@ class FloorPlanSourceIdentityTests(unittest.TestCase):
         inspector = inspect(get_engine())
         self.assertIn("floor_plan_sources", inspector.get_table_names())
         self.assertIn("floor_plan_pages", inspector.get_table_names())
-        self.assertEqual(len(inspector.get_table_names()), 15)
+        self.assertEqual(len(inspector.get_table_names()), 16)
         self.assertIn(
             "ck_floor_plan_sources_sha256_length",
             {item["name"] for item in inspector.get_check_constraints("floor_plan_sources")},
