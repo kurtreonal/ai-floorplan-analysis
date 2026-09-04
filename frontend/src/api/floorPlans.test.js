@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { FloorPlanApiError, uploadFloorPlan } from './floorPlans.js'
+import { FloorPlanApiError, listFloorPlans, uploadFloorPlan } from './floorPlans.js'
 
 
 function successfulResponse(data) {
@@ -18,6 +18,61 @@ afterEach(() => {
 })
 
 describe('floor plan API client', () => {
+  it('lists one project floor with credentials and an abort signal', async () => {
+    const payload = [{
+      id: 42,
+      project_floor_id: 12,
+      original_filename: 'house-plan.png',
+      mime_type: 'image/png',
+      file_size: 4,
+      processing_status: 'processed',
+    }]
+    const fetchMock = vi.fn().mockResolvedValue(successfulResponse(payload))
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+
+    await expect(listFloorPlans(7, {
+      projectFloorId: 12,
+      signal: controller.signal,
+    })).resolves.toEqual(payload)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/projects/7/floor-plans?project_floor_id=12',
+      {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      },
+    )
+  })
+
+  it('rejects malformed floor-plan collections without retaining private fields', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(successfulResponse([
+      { id: '42', storage_path: 'C:\\private\\plan.png' },
+    ])))
+    const error = await listFloorPlans(7).catch((requestError) => requestError)
+    expect(error).toBeInstanceOf(FloorPlanApiError)
+    expect(error.message).toBe('The project floor plans could not be loaded.')
+    expect(JSON.stringify(error)).not.toContain('private')
+  })
+
+  it('preserves safe list authorization errors and aborts', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: vi.fn().mockResolvedValue({
+        detail: { error: { code: 'PROJECT_NOT_FOUND', message: 'The requested project was not found.' } },
+      }),
+    }))
+    const error = await listFloorPlans(7).catch((requestError) => requestError)
+    expect(error.status).toBe(404)
+    expect(error.code).toBe('PROJECT_NOT_FOUND')
+
+    const abortError = new DOMException('Aborted', 'AbortError')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError))
+    await expect(listFloorPlans(7)).rejects.toBe(abortError)
+  })
+
   it('sends credentialed multipart data containing only the floor ID and original file', async () => {
     const file = new File([new Uint8Array([1, 2, 3, 4])], 'house-plan.png', {
       type: 'image/png',
