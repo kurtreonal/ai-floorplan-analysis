@@ -4,9 +4,9 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Application roadmap implemented through L1; PRE0 and PRE1 foundations are complete.**
+**Application roadmap implemented through L1; PRE0-PRE2 foundations are complete.**
 
-The current backend surface contains 22 OpenAPI operations.
+The current backend surface contains 23 OpenAPI operations.
 
 The repository currently includes:
 
@@ -270,9 +270,9 @@ K1, K2, K3, K4, K5, and L1 are implemented. L2 and all later tickets remain
 unimplemented.
 
 PRE0 is complete: the maintained migration documentation and privacy-focused
-Git ignore baseline are published, and PRE1 floor-plan discovery is complete.
-PRE2-PRE12 are the current implementation priority. They explicitly own
-processing-job recovery, source/page/artifact
+Git ignore baseline are published, and PRE1 floor-plan plus PRE2 bounded
+processing-job history discovery are complete. PRE3-PRE12 are the current
+implementation priority. They explicitly own reload-safe UI reconciliation, source/page/artifact
 provenance, reviewed metric inputs, legend administration, save concurrency,
 job execution controls, reviewer authority, and the canonical compatibility
 decision. U1-U14 begin only after PRE12 passes. L2 and later product tickets are

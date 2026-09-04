@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, PositiveInt
@@ -20,3 +21,8 @@ class ProcessingJobStatusResponse(BaseModel):
     ]
     progress: Annotated[int, Field(ge=0, le=100)]
     error_message: str | None
+
+
+class ProcessingJobHistoryItemResponse(ProcessingJobStatusResponse):
+    created_at: datetime
+    updated_at: datetime
