@@ -13,6 +13,38 @@ def add_floor_plan(
     return floor_plan
 
 
+def list_floor_plans_by_project(
+    database_session: Session,
+    *,
+    project_id: int,
+    project_floor_id: int | None = None,
+) -> list[FloorPlan]:
+    statement = (
+        select(FloorPlan)
+        .join(ProjectFloor, FloorPlan.project_floor_id == ProjectFloor.id)
+        .options(
+            load_only(
+                FloorPlan.id,
+                FloorPlan.project_floor_id,
+                FloorPlan.original_filename,
+                FloorPlan.mime_type,
+                FloorPlan.file_size,
+                FloorPlan.processing_status,
+            ),
+            raiseload("*"),
+        )
+        .where(ProjectFloor.project_id == project_id)
+        .order_by(
+            ProjectFloor.sort_order.asc(),
+            ProjectFloor.id.asc(),
+            FloorPlan.id.asc(),
+        )
+    )
+    if project_floor_id is not None:
+        statement = statement.where(FloorPlan.project_floor_id == project_floor_id)
+    return list(database_session.scalars(statement).all())
+
+
 def find_owned_floor_plan_for_update(
     database_session: Session,
     *,

@@ -536,7 +536,7 @@ class DetectionReviewApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 21)
+        self.assertEqual(len(operations), 22)
 
 
 if __name__ == "__main__":

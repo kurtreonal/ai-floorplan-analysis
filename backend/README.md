@@ -4,7 +4,8 @@ This directory contains the FastAPI backend implemented through K3; the
 repository's frontend is implemented through L1. The backend
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
-project-floor APIs, original floor-plan upload validation and storage, and
+project-floor APIs, original floor-plan upload validation and storage,
+ownership-aware persisted floor-plan discovery, and
 persisted processing-job records, the owning-Designer start-processing endpoint,
 and an ownership-aware processing-status endpoint. A backend-only PDF-to-PNG
 image normalization, OpenCV preprocessing, wall detection/normalization/
@@ -23,7 +24,8 @@ operation and makes no backend or schema change. K5 consumes the existing K3
 GET and POST operations to reposition canonical symbols and adds no backend
 operation, table, or schema field. L1 adds only a protected, empty frontend 3D
 viewer and likewise makes no backend, API, schema, storage, or environment
-change. The API remains at 21 operations. Workers, canonical 3D rendering,
+change. PRE1 adds one read-only operation, so the API contains 22 operations.
+Workers, canonical 3D rendering,
 non-symbol geometry editing, routing, estimation, and reporting are not implemented.
 
 The approved target AI direction is a locally hosted multimodal VLM described
@@ -34,11 +36,12 @@ must remain available for comparison and rollback until U14 is approved.
 
 PRE0 in `../docs/PRE_VLM_FOUNDATION_PLAN.md` is complete and published: it
 establishes the maintained migration documentation and private-artifact ignore
-baseline without changing backend behavior. PRE1-PRE12 now precede U1. They own
-the missing floor-plan/job recovery, source-page/artifact provenance, approved
+baseline without changing backend behavior. PRE1 floor-plan discovery is also
+complete. PRE2-PRE12 now precede U1. They own the missing processing-job
+recovery, source-page/artifact provenance, approved
 scale/elevation inputs, legend administration, layout-save concurrency,
 engine-neutral execution controls, dataset-approver authority, and canonical
-compatibility decision. None of PRE1-PRE12 is implemented yet.
+compatibility decision. PRE1 is complete; PRE2-PRE12 remain unimplemented.
 
 ## Requirements
 
@@ -168,6 +171,7 @@ GET  /api/projects/{project_id}
 GET  /api/projects/{project_id}/floors
 POST /api/projects/{project_id}/floors
 
+GET  /api/projects/{project_id}/floor-plans?project_floor_id={optional_floor_id}
 POST /api/projects/{project_id}/floor-plans
 
 GET  /api/projects/{project_id}/floors/{project_floor_id}/layouts
@@ -183,17 +187,19 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 21 OpenAPI operations through L1; K4, K5, and L1 add no backend operation.
+The API has 22 OpenAPI operations through PRE1; K4, K5, L1, and PRE0 add no backend operation.
 `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
 official VED class values are committed or seeded; P3 remains responsible for
 future Admin management of the catalog.
 
-`GET /api/projects/{project_id}/floor-plans` does not exist. The E4 frontend
-shows successful uploads returned during the current page session, but upload
-history cannot repopulate after reload. Persistent history requires a separate
-approved ticket.
+`GET /api/projects/{project_id}/floor-plans` returns persisted safe metadata to
+the owning Designer or an Admin, ordered by floor sort order, floor identity,
+then floor-plan identity. A positive optional `project_floor_id` filter cannot
+escape the project. The response never exposes `storage_path`, private hashes,
+or filesystem details and performs no file access or database write. PRE3 will
+consume this operation in the project workspace after PRE2 adds job history.
 
 ## Floor-plan validation and original storage
 
@@ -869,9 +875,9 @@ tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
-563 tests in the full `unittest` discovery run plus 479 subtests through L1.
-The separate canonical-geometry pytest suite contains 39 tests, for 602
-aggregate top-level backend tests; 602 is not a single discovery-run count. The required
+572 tests in the full `unittest` discovery run plus 479 subtests through PRE1.
+The separate canonical-geometry pytest suite contains 39 tests, for 611
+aggregate top-level backend tests; 611 is not a single discovery-run count. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
 The existing

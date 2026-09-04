@@ -8,10 +8,10 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current verified implementation baseline is L1: 21 OpenAPI operations and
-13 SQLAlchemy/MySQL tables. The implementation remains useful, but the
-repository evidence below shows that it cannot yet resume an uploaded plan and
-its processing history reliably after a page reload, identify every PDF page
+The current application baseline is L1, with PRE0 and PRE1 foundations complete:
+22 OpenAPI operations and 13 SQLAlchemy/MySQL tables. The implementation can
+discover persisted floor plans, but it cannot yet recover their processing-job
+history reliably after a page reload, identify every PDF page
 and derived artifact durably, collect authoritative scale/elevation inputs,
 manage the empty approved legend catalog, guarantee conditional/idempotent
 layout saves, or support safe worker leasing and dataset-approver assignments.
@@ -33,14 +33,15 @@ The foundation must preserve these boundaries:
 
 PRE0 is complete and published. It established this maintained documentation
 set and the private-artifact ignore baseline without changing application
-behavior, dependencies, the 21-operation API, or the 13-table schema. PRE1 is
-the next ticket; PRE1-PRE12 and all U-series work remain unimplemented.
+behavior, dependencies, the then-21-operation API, or the 13-table schema. PRE1
+is also complete and adds one read-only operation without a table. PRE2 is the
+next ticket; PRE2-PRE12 and all U-series work remain unimplemented.
 
 ## 2. Evidence-backed gaps
 
 | Gap | Repository evidence | Why it blocks or risks migration |
 |---|---|---|
-| No persistent floor-plan discovery | Only upload POST exists; the project UI stores `sessionUploads` in React memory | A reload loses the floor-plan IDs needed to start/resume analysis |
+| Persisted floor-plan discovery not yet consumed by UI | PRE1 adds the safe GET operation; the project UI still stores `sessionUploads` in React memory | PRE3 must reconcile persisted plans after PRE2 adds job history |
 | No processing-job history discovery | Jobs are readable only by a known job ID | The UI cannot recover active/completed jobs after reload |
 | No page identity | `processing_jobs` references a floor plan, but no persisted PDF page entity exists | Multi-page plans, legends, schedules, and detail sheets cannot be tracked safely |
 | Derived artifacts use implicit paths | G1/G2/G3 and J1A do not share a durable artifact manifest | A restarted worker cannot prove which page/image/hash a result used |
@@ -123,6 +124,10 @@ storage paths.
 
 **Expected scope:** floor-plan response schemas, repository/service/route,
 router registration if needed, OpenAPI assertions, and focused tests.
+
+**Implementation status:** Complete and published. The API adds one read-only
+operation, exposes no storage path or hash, performs no file or database write,
+and leaves the schema at 13 tables.
 
 **Acceptance criteria:**
 

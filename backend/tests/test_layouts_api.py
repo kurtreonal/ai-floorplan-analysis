@@ -306,7 +306,7 @@ class LayoutApiTests(unittest.TestCase):
             for method in item
             if method in {"get", "post", "put", "patch", "delete"}
         ]
-        self.assertEqual(len(operations), 21)
+        self.assertEqual(len(operations), 22)
         self.assertFalse(
             any("history" in path or "current" in path for path in schema["paths"])
         )
