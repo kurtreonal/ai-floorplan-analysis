@@ -176,6 +176,34 @@ K3 exposes no expected-version, ETag, conditional-write, or idempotency-key
 contract. K5 checks the current layout before retrying an uncertain save, but
 this does not provide atomic optimistic concurrency or idempotent POST semantics.
 
+## Planned local-VLM adapter boundary
+
+PRE11 in `PRE_VLM_FOUNDATION_PLAN.md` must first freeze the compatibility
+decision for source pages, openings, panels, and observed/generated route
+provenance while keeping this v1 contract and existing K2 snapshots readable.
+U2 then defines model candidate data; U11 performs any separately approved
+versioned canonical implementation.
+
+The local multimodal migration does not change K1 into a model-output schema.
+The VLM will produce a separate, source-pixel
+`FloorPlanInterpretationCandidate` with page/model/prompt/adapter provenance,
+scale evidence, OCR, walls, rooms, symbols, panels, observed routes,
+ambiguities, and warnings. That document must pass strict application
+validation and VED review before a deterministic adapter can create K1 values.
+
+The adapter may convert coordinates to meters only from explicitly approved
+scale evidence. It must preserve the original candidate and human-decision
+history instead of overwriting machine output. Only approved candidates enter
+K2 snapshots. Raw VLM text, tile-local coordinates, token probabilities,
+Konva nodes, and Three.js meshes are never canonical geometry.
+
+Routes visibly traced from the uploaded drawing are `observed` evidence. Future
+A* routes are `generated` geometry with separate algorithm/rule provenance. A
+page with no visible wiring contributes no observed route; the VLM must not
+design or infer one merely to populate `routes`. The exact v2-or-extension
+representation for provenance-bearing routes must be approved in U2/U11 before
+the current K1 v1 contract is changed.
+
 ## Downstream mapping and non-goals
 
 L1 provides only a protected empty Three.js/React Three Fiber scene. It does not

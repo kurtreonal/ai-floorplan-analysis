@@ -5,7 +5,9 @@
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
 > the architecture actually implemented through L1, including E3A, J1A, and J3A, and labels
-> downstream concepts as planned or proposed.
+> downstream concepts as planned or proposed. The approved target AI migration
+> is governed by `docs/LOCAL_VLM_MIGRATION_PLAN.md`; it does not retroactively
+> make the local VLM an implemented capability.
 
 ## 1. Current implementation boundary
 
@@ -70,8 +72,11 @@
 
 ### Planned
 
-L2 and later roadmap tickets remain unimplemented, including canonical 3D
-geometry, routing, quantities, estimates, reports, administration, and audit logging.
+PRE0-PRE12 now define the non-model foundation gate. After PRE12 passes, U1-U14
+define the migration from the implemented YOLO-only symbol path to local
+multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
+unimplemented, including canonical 3D geometry, routing, quantities, estimates,
+reports, administration, and audit logging.
 
 ### Proposed but not approved
 
@@ -215,6 +220,131 @@ classification-correction history exists.
 
 Ultralytics is available under AGPL-3.0 and a separate Enterprise license.
 Commercial or production deployment requires a licensing review.
+
+### Pre-migration foundation gate
+
+U1 does not start directly from the current L1 implementation. PRE0-PRE12 in
+`docs/PRE_VLM_FOUNDATION_PLAN.md` first close non-model gaps demonstrated by the
+repository:
+
+```text
+reload-safe floor-plan and job discovery
+        ↓
+immutable source/page identity and artifact provenance
+        ↓
+approved elevation and scale inputs
+        ↓
+operational legend administration and dataset-approver authority
+        ↓
+conditional/idempotent layout saves
+        ↓
+engine-neutral claim/lease/cancel/recovery controls
+        ↓
+canonical v1 compatibility decision for future page/opening/panel/route data
+        ↓
+PRE12 readiness report
+```
+
+These foundations do not run inference, train a model, or remove YOLO. They
+make the existing project/upload/review/canonical boundaries durable enough for
+the U-series to extend them without rediscovering missing identity, recovery,
+authorization, or concurrency contracts midway through migration.
+
+### Target local multimodal architecture
+
+The production target is a locally hosted open-weight **vision-language model
+(VLM)**, not a text-only LLM. Model choice is intentionally not frozen until U1
+records the actual CPU, RAM, GPU, VRAM, operating-system, privacy, and latency
+constraints and U6 runs the same frozen evaluation set against feasible
+candidates. The initial bake-off includes Qwen3-VL 4B/8B and a Qwen2.5-VL
+fallback, with Florence-2 and PaddleOCR/PaddleOCR-VL eligible as specialist
+grounding or OCR helpers rather than assumed sources of truth.
+
+```text
+Immutable uploaded PDF/image + SHA-256
+        ↓
+Validated page rendering and normalization
+        ↓
+Whole-page overview + legend crop + overlapping high-resolution tiles
+        ↓
+Local OCR + deterministic line/geometry evidence
+        ↓
+Isolated local VLM process with an approved legend/reference pack
+        ↓
+FloorPlanInterpretationCandidate JSON
+        ↓
+Strict schema, bounds, identity, topology, and provenance validation
+        ↓
+Cross-tile de-duplication and deterministic evidence fusion
+        ↓
+Persisted advisory machine interpretation
+        ↓
+VED Designer review/correction and independent release approval
+        ↓
+Deterministic adapter into validated K1 canonical geometry
+        ↓
+K2 version snapshot → Konva 2D / Three.js 3D / routing / quantities
+```
+
+`FloorPlanInterpretationCandidate` is an intermediate, versioned contract. It
+must carry source/page/model/prompt/adapter provenance; page classification and
+quality warnings; scale evidence; OCR regions; wall and room candidates;
+symbol/panel candidates; observed wiring candidates; and explicit ambiguity.
+It is not K1 geometry. The model never writes SQLAlchemy entities, Konva nodes,
+Three.js meshes, routes, quantities, or estimates directly. Application-owned
+validators and adapters own all identity and coordinate transformations.
+
+The model must treat the drawing-specific approved legend as primary class
+evidence. PEC 2017 and PEC 2020 references may support a local retrieval pack,
+but their edition, part, page, copyright, and VED approval provenance must be
+recorded. The model must not infer that a glyph is approved merely because it
+resembles an example in a private reference scan.
+
+#### Annotation-free user workflow versus model training
+
+Ordinary users may submit previously unseen scans without drawing boxes or
+polygons. That is an inference requirement, not evidence that raw scans alone
+are adequate supervised training data. The private learning workflow has four
+separate levels:
+
+1. immutable raw, unannotated corpus;
+2. model-generated pseudo-labels and deterministic evidence;
+3. Designer-corrected and VED-approved gold records;
+4. a project-separated frozen test set never used for training or class design.
+
+Only levels 3 and approved non-test examples may enter supervised LoRA/QLoRA
+training. Production requests never change weights automatically. Each adapter
+release is offline, reproducible, versioned, hashed, evaluated, approved, and
+reversible.
+
+#### Observed and generated wiring
+
+Wiring visibly present in the upload is `observed` drawing evidence. It retains
+pixel/metric geometry, page and crop provenance, connected-symbol/panel
+candidates, ambiguity, and review state. A later A* result is `generated` and
+must retain routing-rule/version provenance. These collections must never be
+silently merged. When no wiring is visibly supported, the correct observed
+result is an empty collection; the VLM must not design missing circuits.
+
+#### Runtime trust boundary
+
+The model server runs on VED-controlled hardware, binds locally by default, has
+no hosted-inference fallback, and receives only bounded pages/tiles for an
+authorized job. Model artifacts are pinned by name, revision, license, and
+hash. Grammar- or JSON-schema-constrained decoding reduces malformed output but
+does not replace Pydantic validation. The gateway enforces input limits,
+timeouts, cancellation, bounded concurrency, sanitized errors, health checks,
+and resource accounting. Training runs in a separate environment from FastAPI
+serving.
+
+#### Migration and rollback
+
+The local VLM first runs offline, then in shadow mode where its output is not
+authoritative. Release promotion requires the U5 metric contract, zero private
+data egress, strict-schema and coordinate safety gates, Designer review, and a
+documented rollback. The I1-I4 YOLO path is removed only by a separately
+approved U14 decision after the new release meets its gates; until then it is a
+comparison and rollback implementation.
 
 ## 4. Authentication and session architecture
 
@@ -665,9 +795,9 @@ The target data flow remains:
 ```text
 Original floor plan
         ↓
-Durable queued processing job with planned worker and AI/CV pipeline
+Durable queued processing job with planned local VLM worker pipeline
         ↓
-Persisted Designer confirmation/rejection review
+Validated candidate interpretation and persisted Designer review
         ↓
 Persisted K2 canonical layout snapshots
         ├── implemented Konva 2D symbol editor
@@ -696,6 +826,9 @@ truth.
   classify confidence, and persist versioned machine output, but
   the repository has no trained model and no automatic OpenCV/YOLO pipeline
   exists
+- No local VLM runtime, model gateway, candidate schema, reviewed gold set,
+  adapter, or VLM worker exists yet. Unannotated source scans and provisional
+  boxes are not approved training truth.
 - J1/J1A/J2 retrieve and display stored walls, an explicitly selected symbol-job
   version, and its aligned normalized blueprint reference; J3 persists
   confirmation/rejection decisions without changing machine provenance
@@ -725,7 +858,9 @@ existing operations for canonical symbol movement and append-only saving. Floor 
 is required by the canonical contract, stored inside each complete snapshot, is not a
 `project_floors` column, and is never inferred. K3 has no atomic conditional-save
 or idempotency-key contract; K5's uncertain-response reconciliation does not
-claim otherwise. The next roadmap ticket is L2; it has not been started. L1's
+claim otherwise. The next priority ticket is PRE0; no PRE or U ticket has been
+started. U1 depends on the PRE12 readiness gate. L2 is paused unless explicitly
+selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
 floor-plan, detection, or processing-job request. Canonical floor meshes,
 walls, openings, symbols, synchronization, and top/perspective switching remain

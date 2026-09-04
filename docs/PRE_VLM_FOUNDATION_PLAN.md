@@ -1,0 +1,461 @@
+# Pre-VLM Foundation Plan
+
+## 1. Purpose and stopping boundary
+
+This plan closes repository gaps that would otherwise interrupt the local
+multimodal migration in `LOCAL_VLM_MIGRATION_PLAN.md`. It does not install,
+download, fine-tune, or run a VLM. It does not remove or replace the implemented
+YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
+U1 begins.
+
+The current verified implementation baseline is L1: 21 OpenAPI operations and
+13 SQLAlchemy/MySQL tables. The implementation remains useful, but the
+repository evidence below shows that it cannot yet resume an uploaded plan and
+its processing history reliably after a page reload, identify every PDF page
+and derived artifact durably, collect authoritative scale/elevation inputs,
+manage the empty approved legend catalog, guarantee conditional/idempotent
+layout saves, or support safe worker leasing and dataset-approver assignments.
+
+The foundation must preserve these boundaries:
+
+- original uploads remain immutable;
+- private drawings, references, annotations, prompts, and model artifacts do
+  not enter Git or an unapproved hosted service;
+- no production legend values, scale, elevation, or engineering rule is
+  invented;
+- current YOLO records and K1/K2 layout snapshots remain readable;
+- frontend work remains JavaScript/JSX;
+- FastAPI routes remain thin;
+- schema changes use the approved prototype strategy and do not destructively
+  reset live data without separate authorization;
+- each ticket is committed, published, merged, verified, and reported before
+  the next ticket begins.
+
+## 2. Evidence-backed gaps
+
+| Gap | Repository evidence | Why it blocks or risks migration |
+|---|---|---|
+| No persistent floor-plan discovery | Only upload POST exists; the project UI stores `sessionUploads` in React memory | A reload loses the floor-plan IDs needed to start/resume analysis |
+| No processing-job history discovery | Jobs are readable only by a known job ID | The UI cannot recover active/completed jobs after reload |
+| No page identity | `processing_jobs` references a floor plan, but no persisted PDF page entity exists | Multi-page plans, legends, schedules, and detail sheets cannot be tracked safely |
+| Derived artifacts use implicit paths | G1/G2/G3 and J1A do not share a durable artifact manifest | A restarted worker cannot prove which page/image/hash a result used |
+| No persisted source hash | `floor_plans` stores path, MIME, and size but no durable SHA-256 manifest | Reproducible training/inference provenance is incomplete |
+| Floor elevation is snapshot-only | `project_floors` has no elevation field or settings record | K1 requires explicit elevation, so automatic canonical creation would stop |
+| No approved page scale workflow | H2 accepts an injected scale but no API/UI persists reviewed scale evidence | Pixel candidates cannot safely become K1 meters |
+| Empty catalog has no management API | J3A is active-only read access; P3 is unimplemented | U4 cannot build an approved reference pack from an operational catalog |
+| Layout save lacks concurrency/idempotency | K3 has no expected version, ETag, or idempotency key | Human and machine-assisted saves can create stale or duplicate versions |
+| Job model lacks execution control | No claim/lease/heartbeat/cancellation/retry-attempt contract exists | U13 would otherwise combine infrastructure and VLM orchestration in one risky ticket |
+| Dataset approver is documentation-only | No persisted assignment/qualification/active-authority contract exists | U5/U9 cannot prove who may release reviewed training truth |
+| K1 v1 lacks future provenance fields | No source-page identity, openings/panels contract, or observed/generated route provenance | U11 and later 3D/routing work could force an unplanned schema break |
+| Prototype schema evolution is implicit | `create_all()` adds tables but does not transform existing tables | Tickets must avoid assuming an existing-table change has been applied |
+
+## 3. Foundation data-flow target
+
+```text
+Project workspace reload
+        ↓
+Persisted floors → persisted floor plans → persisted job history
+        ↓
+Immutable source manifest → explicit source pages
+        ↓
+Versioned derived-artifact manifest
+        ↓
+Approved floor elevation + approved page scale evidence
+        ↓
+Approved legend catalog + assigned VED dataset approver
+        ↓
+Conditional/idempotent canonical layout saving
+        ↓
+Engine-neutral job claim/lease/cancel/retry primitives
+        ↓
+Canonical v2 compatibility decision
+        ↓
+PRE12 readiness gate
+        ↓
+U1 local-VLM hardware/privacy baseline
+```
+
+## 4. Foundation tickets
+
+### PRE0 — Publish the documentation and privacy baseline
+
+**Goal:** Turn the current reviewed Markdown and ignore rules into a clean,
+auditable baseline before application changes begin.
+
+**Dependencies:** Current L1 `main` baseline.
+
+**Expected scope:** `AGENTS.md`, `.gitignore`, maintained Markdown documents,
+and no application source.
+
+**Acceptance criteria:**
+
+- All mandatory documents are reread completely and compared with the current
+  repository before editing.
+- The pending documentation changes, local-VLM plan, pre-foundation plan, and
+  Codex execution prompt agree on current versus planned behavior.
+- Git ignore rules cover private blueprint/reference/training directories and
+  local VLM weight/checkpoint formats such as `.gguf`, `.safetensors`, and
+  adapter checkpoint directories without ignoring safe source code.
+- `git ls-files` confirms that no private PDFs, rendered pages, labels, prompts,
+  model weights, or training exports are tracked.
+- The Roboflow URL/license metadata concern is reported; no remote deletion,
+  publication, or permission change is attempted without explicit authority.
+- No API, table, dependency, environment template, or application behavior is
+  changed.
+- The documentation feature branch and `main` are pushed and both track their
+  remotes at `0 0` divergence.
+
+### PRE1 — Add ownership-aware floor-plan discovery API
+
+**Goal:** Make uploaded floor plans discoverable after reload without exposing
+storage paths.
+
+**Dependencies:** PRE0, D3, E3A, E3.
+
+**Expected scope:** floor-plan response schemas, repository/service/route,
+router registration if needed, OpenAPI assertions, and focused tests.
+
+**Acceptance criteria:**
+
+- `GET /api/projects/{project_id}/floor-plans` returns authorized persisted
+  plans with project-floor identity and safe metadata.
+- An optional validated `project_floor_id` filter may narrow the collection;
+  it cannot escape the project.
+- Owning Designers and Admins may read; cross-owner and missing projects use
+  non-disclosing behavior consistent with existing project APIs.
+- Ordering is deterministic by floor order/identity and floor-plan identity.
+- `storage_path`, private hashes, and filesystem details are not returned.
+- Empty projects return `200` with `[]`; reads perform no writes or file access.
+- Focused authorization, ordering, empty, validation, and sanitized-failure
+  tests pass; the exact OpenAPI count is reported.
+
+### PRE2 — Add processing-job history discovery API
+
+**Goal:** Recover the job IDs and states associated with a persisted floor plan.
+
+**Dependencies:** PRE1, F1-F3.
+
+**Expected scope:** processing-job list schema/query/service/route and tests.
+
+**Acceptance criteria:**
+
+- `GET /api/floor-plans/{floor_plan_id}/processing-jobs` returns authorized
+  `floor_plan_analysis` jobs in deterministic newest-first order.
+- Each safe summary includes job ID, type, status, progress, sanitized public
+  error, and server timestamps needed for recovery.
+- Owning Designers and Admins may read; cross-owner, missing, and mismatched
+  access does not disclose existence.
+- Empty valid history returns `200` with `[]`.
+- Listing does not claim, retry, cancel, mutate, or run a job.
+- Pagination is either implemented with a bounded contract or a documented
+  conservative maximum prevents unbounded reads.
+- Focused tests and exact OpenAPI count pass.
+
+### PRE3 — Make the project workspace reload-safe
+
+**Goal:** Use PRE1/PRE2 so persisted uploads and processing state survive a
+browser refresh.
+
+**Dependencies:** PRE1, PRE2, E4, F4.
+
+**Expected scope:** frontend API clients, project workspace components, tests,
+and accessible states. No backend production changes.
+
+**Acceptance criteria:**
+
+- Persisted floor plans load for the selected project/floor after reload.
+- Each plan shows safe metadata and its latest/history job state without
+  depending on `sessionUploads`.
+- The owning Designer can start a new job only when the backend allows it and
+  can resume polling a discovered active job.
+- Completed jobs expose the correct detection-review link using the persisted
+  job ID; Admin remains inspection-only.
+- Loading, empty, retry, session-expired, forbidden/not-found, stale response,
+  abort, and unmount paths are tested.
+- Session-only upload feedback may remain optimistic but reconciles with the
+  server collection without duplicate cards.
+- Full frontend tests, lint, and production build pass.
+
+### PRE4 — Persist immutable source and page identity
+
+**Goal:** Give every raster upload or PDF page a stable, verifiable identity
+before VLM page classification exists.
+
+**Dependencies:** PRE1, E1-E3, G1.
+
+**Expected scope:** additive source-manifest/page models, upload transaction,
+repositories/services, relationship registration, schema checks, and tests.
+
+**Acceptance criteria:**
+
+- An additive one-to-one source manifest stores a validated SHA-256 for each
+  original floor-plan record without exposing it through normal APIs.
+- A raster source creates exactly one page record; a PDF creates one record per
+  validated page, using one-based unique page numbers.
+- Page records carry only immutable source identity at this stage; they do not
+  guess sheet type, legend status, floor, scale, or electrical content.
+- Upload, manifest, and page rows commit atomically; storage compensation still
+  removes only a newly written original if the database transaction fails.
+- Existing floor plans receive a separately verified backfill/import strategy;
+  no destructive reset or silent fabricated hash is allowed.
+- Original bytes and current upload validation remain unchanged.
+- SQLAlchemy and live schema match exactly; table counts, existing row counts,
+  stored-original hashes, and focused/full regressions are reported.
+
+### PRE5 — Add a durable processing-artifact manifest
+
+**Goal:** Replace implicit derived-file assumptions with explicit job/page/hash
+provenance while keeping derived files separate from originals.
+
+**Dependencies:** PRE4, G1-G3, J1A.
+
+**Expected scope:** additive artifact model/repository/service, integration at
+existing derived-image boundaries, review-image resolution, and tests.
+
+**Acceptance criteria:**
+
+- Every registered artifact has processing-job ID, source-page ID, bounded
+  artifact kind, safe relative path, MIME type, byte size, SHA-256, optional
+  pixel dimensions, and creation time.
+- The registry supports current G1 render, G2 normalized image, optional G3
+  debug outputs, and later U7 tiles without inventing those future artifacts.
+- Path containment, symlink, hash, MIME, and dimension checks occur before an
+  artifact is trusted or served.
+- J1A resolves its normalized review image through exact manifest provenance;
+  it does not fall back to an ambiguous filename convention.
+- Retry registration is idempotent for identical content and rejects conflicting
+  reuse.
+- Existing derived files require an explicit verified import path or remain
+  unregistered; no fake rows are created.
+- Originals remain unchanged and full storage/database regressions pass.
+
+### PRE6 — Persist Designer-approved floor elevation and page scale
+
+**Goal:** Supply the explicit metric inputs required for deterministic K1
+adaptation without allowing the VLM to guess them.
+
+**Dependencies:** PRE4, H2, K1-K3.
+
+**Expected scope:** additive analysis-setting records, thin read/update APIs,
+minimal Designer UI, validation, authorization, and tests.
+
+**Acceptance criteria:**
+
+- Project-floor elevation and per-source-page scale are stored in additive
+  records rather than relying on an un-applied existing-table alteration.
+- Values are finite, bounded, unit-explicit, and carry source/evidence notes,
+  reviewer user ID, and timestamps.
+- Owning Designers may create or revise values; Admin is read-only unless the
+  documented authorization decision explicitly says otherwise.
+- Scale supports an unresolved state; no DPI-, paper-, floor-name-, or
+  sort-order-based metric value is invented.
+- K1 snapshots remain self-contained and historical values do not change when
+  settings are later revised.
+- Safe APIs/UI expose missing/unverified state clearly and do not block upload.
+- Focused geometry/API/UI tests and full regressions pass.
+
+### PRE7 — Implement approved symbol-legend administration
+
+**Goal:** Make the existing empty J3A catalog operational before U4 builds a
+local reference pack.
+
+**Dependencies:** PRE0, J3A, P3 requirements.
+
+**Expected scope:** Admin-only create/update/activate/deactivate operations for
+the current catalog, safe all-status retrieval, audit-ready history or snapshots,
+frontend management only if required by the approved P3 scope, and tests.
+
+**Acceptance criteria:**
+
+- Only Admin can manage catalog records; Designers retain active-only reads.
+- Class ID/name normalization and uniqueness remain enforced consistently in
+  API, service, and database boundaries.
+- Deactivation never deletes or rewrites historical detection, correction,
+  manual-symbol, or layout snapshots.
+- No production VED/PEC classes are seeded or inferred by Codex.
+- Changes record actor and time through an append-only history/audit-ready
+  mechanism approved for the prototype.
+- Private glyph/reference files are not returned by ordinary catalog APIs.
+- Empty catalog remains valid; focused authorization, conflict, history, and
+  regression tests pass.
+
+### PRE8 — Add conditional and idempotent layout saving
+
+**Goal:** Prevent silent stale writes and duplicate K2 versions before
+machine-assisted geometry creates more save activity.
+
+**Dependencies:** K2, K3, K5.
+
+**Expected scope:** expected-version contract, client request identity,
+additive idempotency record if required, K3 service/API, K5 client, and tests.
+
+**Acceptance criteria:**
+
+- A Designer save identifies the current version it was based on and carries a
+  bounded client-generated idempotency UUID.
+- The server locks and compares the authoritative current version before
+  inserting the next K2 snapshot.
+- Stale expected versions return a sanitized `409` with no new snapshot.
+- Repeating an identical successful request returns the original result without
+  another version; conflicting UUID reuse returns `409`.
+- First-layout creation has an explicit, tested no-current-version contract.
+- Admin remains read-only; authorization and complete K1 validation are
+  unchanged.
+- K5 reconciles success/retry/conflict without claiming unsupported atomicity.
+- Historical K2 snapshots remain append-only and full backend/frontend tests
+  pass.
+
+### PRE9 — Add engine-neutral processing execution controls
+
+**Goal:** Establish durable worker claim/lease/attempt/cancellation primitives
+without implementing a worker or VLM pipeline.
+
+**Dependencies:** PRE2, F1-F4.
+
+**Expected scope:** additive execution/attempt records, repository/service
+primitives, cancellation request API/UI if approved, and concurrency tests.
+
+**Acceptance criteria:**
+
+- A queued job can be claimed atomically by one worker identity for a bounded
+  lease and attempt number.
+- Heartbeat/lease renewal, expired-lease recovery, success, failure, retry
+  exhaustion, and process-crash scenarios have deterministic state rules.
+- An owning Designer can request cancellation; the contract distinguishes a
+  queued cancellation from cooperative cancellation of active work.
+- Progress is tied to named measurable stages and never advances on a timer.
+- The foundation does not execute G1-G3, H1-H3, YOLO, or a VLM.
+- Existing job records remain readable and require a verified compatibility or
+  backfill path.
+- Concurrent claim tests prove that two workers cannot own one active attempt;
+  API, schema, and regression checks pass.
+
+### PRE10 — Persist VED AI Dataset Approver authority
+
+**Goal:** Turn the documented reviewer policy into an auditable local authority
+assignment before gold data exists.
+
+**Dependencies:** PRE0, C3-C4, reviewer policy.
+
+**Expected scope:** additive assignment/history model, Admin management API,
+safe current-assignment retrieval, privacy decisions, and tests.
+
+**Acceptance criteria:**
+
+- A dataset approver is an assigned application user, not a model, Codex, or a
+  new OAuth identity role invented by the frontend.
+- Assignment records capture active dates, assigning Admin, VED authority,
+  qualification category, and only the minimum approved professional-reference
+  data.
+- Activation/deactivation is append-only or history-preserving.
+- Ordinary users cannot enumerate private qualification/license details.
+- No review decision is implemented yet; U5/U9 will reference an active
+  assignment and retain its snapshot.
+- Self-approval and independence policy is decided explicitly and tested rather
+  than assumed.
+- Authorization, privacy, schema, and regression tests pass.
+
+### PRE11 — Freeze canonical-geometry compatibility decision
+
+**Goal:** Decide how future interpreted pages, openings, panels, and route
+provenance will reach canonical geometry without breaking K1 v1 history.
+
+**Dependencies:** PRE4-PRE6, K1-K5, L1, M1 requirements.
+
+**Expected scope:** architecture decision record and versioned fixtures only,
+unless a separately approved implementation sub-ticket is necessary. Do not
+guess electrical engineering semantics.
+
+**Acceptance criteria:**
+
+- The decision explicitly covers source document/page/region identity,
+  openings needed for 3D, electrical-panel identity, symbol orientation or
+  bounding data if needed, and observed-versus-generated route provenance.
+- It states which information belongs in VLM candidate data, review records,
+  canonical geometry, or later routing models.
+- K1 v1 and existing K2 snapshots remain readable; the version negotiation or
+  deterministic upgrade policy is specified.
+- Python and JavaScript fixture strategy is defined before schema implementation.
+- Unsupported or professionally undefined fields remain nullable/unknown or
+  deferred; no fabricated defaults are approved.
+- U2 and U11 dependencies are updated to the accepted decision.
+
+### PRE12 — Run and publish the pre-migration readiness gate
+
+**Goal:** Prove the foundations are coherent before U1 begins.
+
+**Dependencies:** PRE0-PRE11.
+
+**Acceptance criteria:**
+
+- A clean reload can discover a project, floor, floor plan, and processing-job
+  history and can resume monitoring an active job.
+- Every original has verified source/page identity and every trusted derived
+  image used for review has exact artifact provenance.
+- Missing scale/elevation and an empty legend catalog fail safely without
+  invented values.
+- Conditional/idempotent layout-save and concurrent job-claim tests pass.
+- An active approver can be identified without exposing private details.
+- The canonical compatibility decision is accepted and referenced by U2/U11.
+- Full backend/frontend suites, compilation, dependency checks, lint, build,
+  OpenAPI count, SQLAlchemy/live schema equality, live row counts, original
+  hashes, artifact counts, Git status, and protected-file hash are reported.
+- All maintained Markdown matches the actual implementation; stale roadmap,
+  table, operation, test-total, and next-ticket claims are corrected.
+- `main` and every PRE feature branch are published and at `0 0` divergence.
+- U1 is not started in PRE12.
+
+## 5. Required execution and publication protocol
+
+For every PRE ticket:
+
+1. Read `AGENTS.md`, `README.md`, `backend/README.md`,
+   `docs/ARCHITECTURE.md`, and `docs/FUNCTIONAL_SPEC.md` completely, plus this
+   plan and the local-VLM plan.
+2. Inspect the current branch, `origin/main`, status, untracked files, exact
+   relevant implementation, tests, live schema, storage, and protected file.
+3. Do not begin if remote main moved, the prior ticket is unpublished, private
+   data is tracked, or the working tree contains an unexplained overlapping
+   change.
+4. Create `feature/pre<n>-<short-name>` (for example,
+   `feature/pre1-floor-plan-discovery`) from the verified main baseline.
+5. Implement only the named ticket; preserve unrelated user changes.
+6. Update all maintained Markdown claims affected by the ticket in the same
+   feature change.
+7. Run focused tests and proportionate full regression, structure, database,
+   storage, privacy, and artifact checks.
+8. Review the complete diff, stage explicit paths only, commit, push the feature
+   branch, and verify upstream divergence `0 0`.
+9. Recheck remote main, merge with an explicit non-fast-forward merge commit,
+   rerun required verification on `main`, push, and verify
+   `origin/main...main = 0 0`.
+10. Publish a progress report, then continue to the next authorized PRE ticket.
+
+No destructive database reset, deletion of existing uploads/rows, hosted-service
+action, model download, VLM dependency, or YOLO removal is authorized by this
+plan. If one becomes necessary, stop and request explicit approval with the
+exact target and recovery consequences.
+
+## 6. Mandatory progress report after every ticket
+
+Each ticket report must include:
+
+- ticket and outcome;
+- baseline, feature branch, feature commit, merge commit, upstreams, and both
+  divergence checks;
+- created/modified/deleted files;
+- implemented behavior and boundaries intentionally left unchanged;
+- every acceptance criterion marked `PASS`, `FAIL`, `BLOCKED`, or `NOT TESTED`;
+- focused and full test totals, lint/build/compilation/dependency checks;
+- exact OpenAPI operation and SQLAlchemy/live table counts;
+- database row-count comparison, original-upload size/hash comparison, derived
+  artifact and model artifact counts;
+- documentation contradictions found and corrected;
+- protected `backend/app/services/project_service.py` diff and blob hash;
+- warnings, manual/browser verification, cleanup performed, and whether cleanup
+  is recoverable;
+- next ticket status and any authority needed.
+
+Progress must be reported truthfully. A missing browser, unavailable database,
+unknown domain rule, failed suite, or unverified external privacy setting is
+`BLOCKED` or `NOT TESTED`, never `PASS`.

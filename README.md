@@ -81,6 +81,21 @@ Implementation must continue incrementally through the tickets in
 and does not imply canonical 3D geometry, wall/room/route editing, routing,
 estimation, or reporting exists.
 
+The approved target AI direction is now a **locally hosted multimodal
+vision-language model (VLM)** rather than a YOLO-only production pipeline. The
+existing I1-I4 YOLO code is still the implemented baseline and must remain
+available for comparison and rollback until the local-VLM migration gates pass.
+The target architecture, training method, privacy controls, evaluation gates,
+and isolated U1-U14 tickets are defined in
+[`docs/LOCAL_VLM_MIGRATION_PLAN.md`](docs/LOCAL_VLM_MIGRATION_PLAN.md). This
+documentation decision does not imply that a VLM runtime or trained adapter is
+already present.
+
+Before U1, PRE0-PRE12 close the non-model foundations documented in
+[`docs/PRE_VLM_FOUNDATION_PLAN.md`](docs/PRE_VLM_FOUNDATION_PLAN.md). The
+copy/paste execution handoff is maintained in
+[`docs/CODEX_PRE_VLM_FOUNDATION_PROMPT.md`](docs/CODEX_PRE_VLM_FOUNDATION_PROMPT.md).
+
 Do **not** ask Codex to build the entire system in one prompt.
 
 ---
@@ -118,10 +133,17 @@ architecture is explicitly changed.
 ### AI / Computer Vision
 
 - OpenCV
-- Ultralytics YOLO
+- A locally hosted open-weight multimodal VLM selected through a measured
+  hardware and quality bake-off
+- Transformers plus PEFT/TRL for offline LoRA or QLoRA adapter training
+- Local OCR/document parsing and optional specialist grounding helpers
 - NumPy
 - Pillow
 - PDF-to-image processing
+
+Ultralytics YOLO remains a legacy benchmark and rollback implementation during
+the controlled migration. A text-only LLM is not an acceptable replacement for
+image interpretation.
 
 ---
 
@@ -134,6 +156,9 @@ Codex and contributors should use the documentation in this order:
 | `AGENTS.md` | Repository-wide coding and agent rules | Read automatically / first. These rules control how work is performed. |
 | `docs/FUNCTIONAL_SPEC.md` | Functional requirements, modules, tickets, acceptance criteria, development order | Primary implementation plan. Use the relevant ticket/section for the current task. |
 | `docs/ARCHITECTURE.md` | FastAPI architecture, workflow, technology choices, APIs, database and AI design | Use when a ticket needs architectural context. |
+| `docs/PRE_VLM_FOUNDATION_PLAN.md` | Evidence-backed non-model foundations required before U1 | Governing PRE0-PRE12 ticket plan. |
+| `docs/LOCAL_VLM_MIGRATION_PLAN.md` | Local multimodal model selection, private corpus workflow, training, evaluation, rollout, and U1-U14 tickets | Governing plan for the current AI migration initiative. |
+| `docs/CODEX_PRE_VLM_FOUNDATION_PROMPT.md` | Ready-to-paste Codex execution prompt | Use to implement and publish PRE0-PRE12 with progress checkpoints. |
 | `docs/THESIS_SOURCE.md` | Markdown conversion of the original thesis/source manuscript | Reference-only source for project scope and academic requirements. Do not treat old Flask references as implementation instructions. |
 
 ### Documentation Priority
@@ -145,7 +170,9 @@ When implementation details differ between documents, use this priority:
 2. AGENTS.md
 3. docs/FUNCTIONAL_SPEC.md
 4. docs/ARCHITECTURE.md
-5. docs/THESIS_SOURCE.md
+5. docs/PRE_VLM_FOUNDATION_PLAN.md for PRE0-PRE12 work
+6. docs/LOCAL_VLM_MIGRATION_PLAN.md for U1-U14 work
+7. docs/THESIS_SOURCE.md
 ```
 
 `docs/THESIS_SOURCE.md` is retained as the academic source and may contain earlier architecture terminology such as Flask. The current implementation uses FastAPI.
@@ -163,13 +190,15 @@ Upload Floor Plan
   ↓
 Validate and Preserve Original File
   ↓
-OpenCV Preprocessing
+Page Rendering, Image Normalization, and Quality Assessment
   ↓
-Wall / Boundary Detection
+Multi-Resolution Pages/Tiles plus OCR and Line Evidence
   ↓
-YOLO Electrical Symbol Detection
+Local Multimodal Floor-Plan Interpretation
   ↓
-Designer Review and Correction
+Strict Candidate Validation and Fusion
+  ↓
+Designer Review, Correction, and Approval
   ↓
 Canonical Geometry
   ├──→ Konva 2D Editor
@@ -183,6 +212,11 @@ Canonical Geometry
 ```
 
 The verified canonical geometry is the shared source of truth for 2D, 3D, routing, material quantities, estimates, and reports.
+
+The local model produces advisory candidate JSON, not canonical geometry and
+not renderer state. Observed wiring copied from an uploaded drawing is recorded
+separately from any future system-generated A* route. If no wiring is visibly
+supported, the model must return an empty observed-route collection.
 
 ---
 
@@ -233,8 +267,12 @@ prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, J4, J5, and
 K1, K2, K3, K4, K5, and L1 are implemented. L2 and all later tickets remain
 unimplemented.
 
-The next ticket must be chosen explicitly. Do not silently add a floor-plan
-listing API or processing-worker behavior as part of unrelated work.
+PRE0-PRE12 are the current implementation priority and no PRE ticket has
+started. They explicitly own floor-plan/job recovery, source/page/artifact
+provenance, reviewed metric inputs, legend administration, save concurrency,
+job execution controls, reviewer authority, and the canonical compatibility
+decision. U1-U14 begin only after PRE12 passes. L2 and later product tickets are
+paused unless the user explicitly chooses to resume them.
 
 ---
 
@@ -243,14 +281,20 @@ listing API or processing-worker behavior as part of unrelated work.
 Before the corresponding implementation stages, the project will also need real project assets/data such as:
 
 - Approved VED electrical symbol legend/classes
-- Annotated YOLO training/validation dataset
-- Trained YOLO model weights
-- Representative floor-plan test files
+- Representative private VED-approved scanned floor plans, kept Git-ignored
+- Drawing-specific legends and traceable PEC 2017/2020 reference metadata
+- A VED-reviewed gold validation/test subset with symbols, structure, scale,
+  and observed wiring where present
+- A locally evaluated base VLM and versioned VED LoRA/QLoRA adapter release
 - Official material catalog and company pricing data
 - Validated electrical routing/domain rules
 - UI/Figma references if the frontend must match a specific approved design
 
-These should be introduced when their tickets require them rather than blocking the repository-foundation work.
+Users may upload ordinary unannotated scans for inference and corpus intake.
+However, raw scans alone are not supervised training truth: model-generated
+pseudo-labels must be reviewed, corrected, and approved before they enter a
+training or evaluation release. Production uploads must never update model
+weights automatically.
 
 ---
 
@@ -277,6 +321,9 @@ ved-electrical-services/
 ├── docs/
 │   ├── FUNCTIONAL_SPEC.md
 │   ├── ARCHITECTURE.md
+│   ├── PRE_VLM_FOUNDATION_PLAN.md
+│   ├── LOCAL_VLM_MIGRATION_PLAN.md
+│   ├── CODEX_PRE_VLM_FOUNDATION_PROMPT.md
 │   └── THESIS_SOURCE.md
 ├── frontend/
 ├── backend/

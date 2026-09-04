@@ -34,7 +34,11 @@ The system accepts residential or commercial floor plans and assists Electrical 
 - Saving project history.
 - Allowing administrators to maintain symbols and material prices.
 
-The original thesis architecture specifies React.js, OpenCV, YOLOv8, Konva.js, Three.js, A* pathfinding, SQL/MySQL, and a Python backend. The implementation will use **FastAPI instead of Flask**.
+The original thesis architecture specifies React.js, OpenCV, YOLOv8, Konva.js,
+Three.js, A* pathfinding, SQL/MySQL, and a Python backend. The implementation
+uses **FastAPI instead of Flask**. YOLO was implemented in I1-I4, but the
+approved target direction is now local multimodal floor-plan interpretation as
+defined below and in `docs/LOCAL_VLM_MIGRATION_PLAN.md`.
 
 ## Current Prototype Implementation Decisions
 
@@ -52,6 +56,34 @@ For the current prototype/development phase:
 - MySQL stores the local application user record and VED authorization role (`ADMIN` or `DESIGNER`) after external identity verification.
 
 XAMPP is a local-development convenience, not a production architecture requirement. A later deployment may use another MySQL host without changing the application's SQLAlchemy domain model.
+
+## Target Local AI Decision
+
+The planned production interpreter is a locally hosted open-weight
+**vision-language model (VLM)**. Calling it a local LLM does not make a
+text-only language model suitable for scans: the selected base model must accept
+images and support grounded structured output. Private floor plans, prompts,
+outputs, reference material, training examples, and model adapters remain on
+VED-controlled storage and compute.
+
+The system must accept a normal scanned floor plan without requiring the user
+to draw training boxes. This is an inference requirement. It does not mean that
+unannotated scans provide supervised coordinate or class truth. The migration
+therefore combines zero/few-shot local interpretation, pseudo-label generation,
+Designer correction, independent VED approval, and optional offline
+LoRA/QLoRA fine-tuning. Production requests never update model weights
+automatically.
+
+The local model produces a versioned `FloorPlanInterpretationCandidate`, not K1
+canonical geometry. Strict application-owned validation and a deterministic
+adapter stand between model output and the Designer review/K1/K2 path. No raw
+model output may directly create Konva state, Three.js state, wiring quantities,
+routes, estimates, or reports.
+
+The existing I1-I4 YOLO implementation is retained as a legacy comparison and
+rollback path until U14 explicitly approves retirement. Documentation of the
+target state must not be interpreted as a completed dependency, model, worker,
+API, or database migration.
 
 ## Current Implementation Status
 
@@ -123,7 +155,12 @@ deterministic reset, and local failure isolation. It does not fetch or render
 K1/K2/K3 geometry. K5 provides canonical symbol repositioning, not general
 geometry editing. In particular, there is no worker, external queue, automatic
 OpenCV/YOLO pipeline, canonical 3D reconstruction, routing, estimation, or
-report implementation. L2 and later tickets remain unimplemented.
+report implementation. There is also no local VLM runtime, candidate schema,
+reviewed VLM gold set, adapter, or VLM orchestration. PRE0-PRE12 are the current
+foundation priority; they close non-model recovery, provenance, metric-input,
+catalog, concurrency, worker-control, reviewer-authority, and canonical-contract
+gaps before U1. L2 and later tickets remain unimplemented and are paused unless
+explicitly selected.
 
 `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 displays
 successful uploads returned during the current page session; records cannot
@@ -147,9 +184,9 @@ Floor Plan Upload
    ↓
 Image Processing
    ↓
-Wall / Boundary Detection
+Local Multimodal Interpretation
    ↓
-Electrical Symbol Detection
+Validated Structure, Symbol, Scale, and Observed-Wiring Candidates
    ↓
 User Verification / Correction
    ↓
@@ -304,13 +341,23 @@ Database
 ```text
 Python
 OpenCV
-Ultralytics YOLO
+Local open-weight multimodal VLM selected by U6
+Transformers
+PEFT / TRL for LoRA or QLoRA adapter training
+Local OCR/document parsing
+Optional specialist grounding model selected by evaluation
 NumPy
 Pillow
 PDF-to-image processing library
 ```
 
-The source system uses image preprocessing followed by wall extraction and YOLO-based symbol recognition.
+The currently implemented baseline uses OpenCV wall extraction and YOLO symbol
+recognition. New production work targets a local VLM pipeline. No model family
+is approved merely by appearing in the plan: U1 establishes hardware/privacy
+constraints and U6 measures feasible Qwen3-VL/Qwen2.5-VL candidates plus
+optional Florence-2 or PaddleOCR/PaddleOCR-VL helpers against the frozen U5
+evaluation set. The chosen model, runtime, revision, license, hash, prompt,
+adapter, and decoding configuration must be recorded.
 
 ## Processing Pipeline
 
@@ -323,32 +370,40 @@ PDF → Image Conversion if required
         ↓
 Image Normalization
         ↓
-Grayscale
+Page Classification and Quality Assessment
         ↓
-Noise Reduction
+Whole-Page Overview, Legend Region, and Overlapping Tiles
         ↓
-Gaussian Blur
+Local OCR and Deterministic Line/Geometry Evidence
         ↓
-Thresholding
+Local Multimodal Interpretation
         ↓
-Architectural Boundary Detection
+Strict Candidate-JSON Validation
         ↓
-Wall Detection
+Cross-Tile De-duplication and Evidence Fusion
         ↓
-YOLO Symbol Detection
+Persisted Advisory Machine Result
         ↓
-Confidence Filtering
+Designer Review / Correction / Approval
         ↓
-Coordinate Normalization
+Deterministic K1 Coordinate and Identity Adaptation
         ↓
-Structured JSON
+Append-Only K2 Canonical Geometry Snapshot
 ```
+
+The existing G1-G3, H1-H3, and I1-I4 modules may be used as legacy comparison
+or specialist evidence while migration is evaluated. A VLM must not be limited
+to a downscaled page when small glyphs require native-resolution overlapping
+tiles. Whole-page context is still required so tile candidates can be related
+to the title block, legend, scale, floor, rooms, panels, and circuits.
 
 ---
 
 # 7. AI Detection Scope
 
-The initial model should recognize symbols used by VED Electrical Services.
+The interpreter should recognize only symbols approved for VED Electrical
+Services and should also propose architectural structure, scale evidence,
+rooms, panels, and wiring visibly present on the source sheet.
 
 Source-defined examples include:
 
@@ -361,19 +416,35 @@ Data connection ports
 
 The source states that automatic recognition is intended for the standardized symbols used by VED Electrical Services rather than arbitrary architectural symbols from other firms.
 
-Do not silently expand the detection classes beyond the approved dataset.
+Do not silently expand classes beyond the active approved legend catalog. The
+drawing-specific approved legend is primary. PEC Part 1 (2017) and Part 2
+(2020) references may support a private retrieval pack only when their exact
+edition/part/page provenance and VED approval are recorded; they are not an
+automatic substitute for a drawing legend or professional review.
+
+Observed wiring is copied evidence from the uploaded sheet. Generated wiring is
+a later A* routing result. Store their provenance and status separately. If a
+sheet contains no visible wiring, the candidate must contain no observed routes
+rather than inventing a circuit.
 
 ---
 
 # 8. Confidence Handling
 
-The source architecture uses:
+The implemented I3 YOLO baseline uses:
 
 ```text
 Confidence threshold = 0.50
 ```
 
 Detections below the threshold should not automatically become confirmed electrical components.
+
+That numeric threshold is not automatically transferable to a VLM. Token
+probability and model-written confidence text are not treated as calibrated
+object-detection confidence. VLM candidates instead retain evidence references,
+ambiguity/warnings, model provenance, deterministic validation results, and
+Designer review status. A release-specific confidence or calibration policy may
+be adopted only after U5/U6 measurements.
 
 Recommended detection states:
 
@@ -966,7 +1037,9 @@ backend/
 │   │   ├── preprocessing/
 │   │   ├── wall_detection/
 │   │   ├── symbol_detection/
-│   │   └── model_loader.py
+│   │   ├── floor_plan_interpretation/
+│   │   ├── ocr/
+│   │   └── local_model_gateway/
 │   │
 │   ├── geometry/
 │   │   ├── coordinates.py
@@ -1052,7 +1125,9 @@ storage/
 │
 ├── previews/
 │
-└── reports/
+├── reports/
+│
+└── training/       # private, Git-ignored corpus/review/model-release workspace
 ```
 
 Do not overwrite the uploaded original.
@@ -1463,14 +1538,20 @@ Implement:
 ```text
 Image loading
 PDF conversion
-Preprocessing
-Wall detection
-YOLO inference
-Detection persistence
-Confidence filtering
+Page normalization and quality assessment
+High-resolution overview/legend/tile preparation
+Local OCR and deterministic geometry evidence
+Local multimodal interpretation
+Strict candidate validation and fusion
+Advisory interpretation persistence
+Designer review and deterministic canonical adaptation
 ```
 
 Do not connect cost estimation yet.
+
+The legacy G/H/I implementation remains available for comparison and rollback
+while U1-U14 replace the production interpretation path incrementally. Do not
+remove it in an earlier U ticket.
 
 ---
 
@@ -1497,12 +1578,12 @@ The user-corrected version becomes the authoritative layout input.
 
 Convert accepted detection and structural information into a normalized geometry model.
 
-Do not make Three.js parse raw YOLO output directly.
+Do not make Three.js parse raw YOLO or VLM output directly.
 
 Correct:
 
 ```text
-YOLO
+Validated and Designer-approved interpretation
  ↓
 Normalized Geometry
  ↓
@@ -1512,7 +1593,7 @@ Three.js
 Avoid:
 
 ```text
-YOLO
+Raw model candidate output
  ↓
 Three.js-specific custom logic
 ```
@@ -1758,6 +1839,13 @@ REPORT_DIR=storage/reports
 
 YOLO_MODEL_PATH=models/yolo/electrical-symbols.pt
 
+# Planned local-VLM values. Add them to .env.example only in the implementing
+# ticket, after U6 selects and pins a runtime/model.
+LOCAL_VLM_MODEL_PATH=models/vlm/base-model
+LOCAL_VLM_ADAPTER_PATH=models/vlm/adapters/ved-approved
+LOCAL_VLM_RUNTIME_URL=http://127.0.0.1:8081
+LOCAL_VLM_ALLOW_NETWORK=false
+
 FRONTEND_URL=http://localhost:5173
 ```
 
@@ -1893,10 +1981,10 @@ Then inspect the relevant repository files before editing.
 ┌────────────────────────┐   ┌─────────────────────────┐
 │      AI / CV ENGINE    │   │     MYSQL DATABASE      │
 │                        │   │                         │
-│ OpenCV                 │   │ Users                   │
-│ Wall Detection         │   │ Projects                │
-│ YOLO                   │   │ Layouts                 │
-│ Symbol Detection       │   │ Symbols                 │
+│ Page/Tiles/OCR         │   │ Users                   │
+│ Local Multimodal VLM   │   │ Projects                │
+│ Schema Validation      │   │ Layouts                 │
+│ Evidence Fusion        │   │ Symbols                 │
 └─────────────┬──────────┘   │ Routes                  │
               │              │ Materials               │
               ▼              │ Estimates               │
@@ -1947,6 +2035,12 @@ Report
 ```
 
 **AI detection should assist the designer, while the verified project geometry becomes the authoritative source for later routing, visualization, material computation, and reports.**
+
+Uploaded drawings may be unannotated from the user's perspective. Training and
+release evidence may not be: pseudo-labels require VED review, frozen test data
+must stay out of training, and every promoted adapter must be reproducible and
+reversible. A model must return empty/ambiguous evidence rather than fabricate
+walls, symbols, scale, rooms, or observed wiring.
 
 This separation is important because the project explicitly supports manual correction of automatically generated layouts and uses those layouts as a planning and estimation tool rather than as an automatically approved engineering plan.
 
@@ -2884,7 +2978,10 @@ Implemented behavior:
 
 ---
 
-## Epic I — YOLO Symbol Detection
+## Epic I — Implemented Legacy YOLO Symbol Detection
+
+I1-I4 are completed implementation history and remain the migration comparison
+and rollback path. They are not the target production architecture after U14.
 
 ### TICKET I1 — Implement YOLO Model Loader
 
@@ -4055,16 +4152,18 @@ canonical-geometry pytest suite (602 aggregate top-level backend tests).
 
 ### TICKET S3 — AI Detection Evaluation Dataset Runner
 
-**Goal:** Compare AI detections against manually verified ground truth.
+**Goal:** Compare local multimodal interpretations and the legacy YOLO baseline
+against independently verified ground truth.
 
-**Dependencies:** I3, I4.
+**Dependencies:** U5, U8, U11; I3/I4 for legacy comparison while retained.
 
 **Acceptance Criteria:**
 
 - [ ] Evaluation accepts a defined test dataset.
-- [ ] AI count can be compared against manual count.
-- [ ] Per-class results can be produced.
-- [ ] Confidence threshold used in evaluation is recorded.
+- [ ] Symbol count, class, box/center, wall/room geometry, scale, and observed wiring can be compared against approved truth.
+- [ ] Per-class and per-drawing-set results can be produced.
+- [ ] Model, adapter, prompt, reference pack, decoding settings, and any legacy confidence threshold are recorded.
+- [ ] Hallucination, malformed-schema, latency, RAM, and VRAM results are reported.
 - [ ] Evaluation results can be exported or documented for thesis analysis.
 
 ---
@@ -4171,6 +4270,280 @@ canonical-geometry pytest suite (602 aggregate top-level backend tests).
 
 ---
 
+## Epic PRE — Pre-VLM Application Foundations
+
+`docs/PRE_VLM_FOUNDATION_PLAN.md` is the normative evidence, scope, acceptance,
+verification, publication, and reporting plan for PRE0-PRE12. The ready-to-paste
+implementation authorization is in `docs/CODEX_PRE_VLM_FOUNDATION_PROMPT.md`.
+These tickets do not install or run a local model and do not retire YOLO.
+
+| Ticket | Goal | Required result before the next ticket |
+|---|---|---|
+| PRE0 | Publish documentation/privacy baseline | Maintained docs and ignore rules are consistent, no private/model artifact is tracked, feature and main are published |
+| PRE1 | Floor-plan discovery API | Authorized persisted plans are reload-discoverable without storage-path disclosure |
+| PRE2 | Processing-job history API | Safe bounded job summaries recover job IDs/status after reload |
+| PRE3 | Reload-safe project workspace | Persisted plans/jobs render and active monitoring resumes without session-only state |
+| PRE4 | Immutable source/page identity | Original SHA-256 and one-based raster/PDF page records are persisted atomically |
+| PRE5 | Processing-artifact manifest | Every trusted derived image has exact job/page/type/path/hash/dimension provenance |
+| PRE6 | Approved elevation and scale | Explicit reviewed metric inputs are persisted without inferred defaults |
+| PRE7 | Symbol-legend administration | Admin can safely manage the existing catalog without guessed seed data or history loss |
+| PRE8 | Conditional/idempotent layout save | Stale saves and duplicate retry versions are rejected or reconciled deterministically |
+| PRE9 | Processing execution controls | Claim/lease/heartbeat/cancel/recovery primitives exist without running an AI pipeline |
+| PRE10 | Dataset-approver authority | Active human VED approver assignment is auditable and privacy-bounded |
+| PRE11 | Canonical compatibility decision | K1 v1 history is preserved and future page/opening/panel/route provenance ownership is frozen |
+| PRE12 | Readiness gate | Full functional, schema, storage, privacy, documentation, and Git evidence permits U1 |
+
+Every PRE ticket inherits the detailed acceptance criteria in the pre-foundation
+plan. Each uses a separate feature branch and progress report. PRE12 must stop
+before U1.
+
+---
+
+## Epic U — Local Multimodal Floor-Plan AI Migration
+
+`docs/LOCAL_VLM_MIGRATION_PLAN.md` contains the normative rationale, data
+levels, candidate contract, metrics, privacy boundary, ticket details, and Git
+stopping protocol. Every U ticket requires separate implementation and
+publication authorization. None is implemented by this documentation update.
+
+### TICKET U1 — Freeze Hardware, Privacy, and Runtime Requirements
+
+**Goal:** Measure the target machine and approve the local-only boundary before
+choosing or downloading a model.
+
+**Dependencies:** PRE12 passing readiness gate; current L1 implementation
+baseline.
+
+**Acceptance Criteria:**
+
+- [ ] CPU, RAM, GPU, VRAM, OS, driver/CUDA, disk, and supported deployment environment are measured.
+- [ ] Page, tile, context, latency, timeout, concurrency, and storage budgets are approved.
+- [ ] Local-only prohibits source upload, hosted inference, telemetry, and silent network fallback.
+- [ ] Model-license and permitted training/deployment policies are recorded.
+- [ ] No model is selected or downloaded in U1.
+
+---
+
+### TICKET U2 — Define Floor-Plan Interpretation Candidate Schema v1
+
+**Goal:** Freeze the advisory model-output boundary before model selection.
+
+**Dependencies:** U1, K1.
+
+**Acceptance Criteria:**
+
+- [ ] Strict candidate data covers source/model provenance, page metadata, scale evidence, OCR, walls, rooms, symbols, panels, observed routes, ambiguity, and warnings.
+- [ ] Candidate geometry uses reversible source-pixel coordinates and is not K1 metric geometry.
+- [ ] Unknown, empty, partial, and ambiguous results are valid without invented values.
+- [ ] Valid, malformed, out-of-bounds, adversarial, and empty fixtures are tested.
+- [ ] The schema contains no Konva or Three.js state.
+
+---
+
+### TICKET U3 — Build Private Unannotated-Corpus Intake
+
+**Goal:** Accept VED-approved scans without requiring user annotations while
+protecting originals and preventing evaluation leakage.
+
+**Dependencies:** U1.
+
+**Acceptance Criteria:**
+
+- [ ] Original hashes, consent/approval, drawing-set identity, pages, sheet types, and quality are manifested.
+- [ ] Train, validation, and frozen-test groups are assigned by project/drawing set before pseudo-labeling.
+- [ ] Exact and near-duplicate checks prevent cross-split leakage.
+- [ ] Inputs, derivatives, prompts, labels, references, and model artifacts remain private and Git-ignored.
+- [ ] Original source bytes are never modified.
+
+---
+
+### TICKET U4 — Build Approved Local Legend and Reference Pack
+
+**Goal:** Ground local interpretation in approved VED classes and traceable
+drawing/PEC evidence.
+
+**Dependencies:** U3, J3A.
+
+**Acceptance Criteria:**
+
+- [ ] Each active class has a stable ID, approved name, aliases, description, glyph provenance, and active state.
+- [ ] Drawing-specific legends are versioned and take precedence for their drawing.
+- [ ] Unknown glyphs remain unknown instead of being forced into a class.
+- [ ] PEC/source edition, part, page, copyright, and permitted-use metadata are recorded.
+- [ ] Retrieval cannot create or activate production classes.
+
+---
+
+### TICKET U5 — Create Frozen Gold Set and Metric Contract
+
+**Goal:** Establish independently reviewed truth and promotion thresholds before
+prompt selection or fine-tuning.
+
+**Dependencies:** U2-U4.
+
+**Acceptance Criteria:**
+
+- [ ] A named VED AI Dataset Approver signs representative page records.
+- [ ] The set covers empty/hard-negative, dense, multi-scale, degraded supported scans, and sheets with and without visible wiring.
+- [ ] Metrics cover schema validity, page type, per-class symbol precision/recall/F1/count/IoU/center error, wall/room geometry, scale, wiring presence/topology/length, hallucination, latency, RAM, and VRAM.
+- [ ] Numeric promotion thresholds and allowed regressions are approved before tuning.
+- [ ] Frozen test examples are inaccessible to training and prompt-selection workflows.
+
+---
+
+### TICKET U6 — Run Local Model and Runtime Bake-Off
+
+**Goal:** Select a reproducible base VLM/runtime using measured local evidence.
+
+**Dependencies:** U1, U2, U5.
+
+**Acceptance Criteria:**
+
+- [ ] Pinned Qwen3-VL 4B/8B and feasible fallbacks/helpers are evaluated or skipped for a measured reason.
+- [ ] Revision, hashes, license, runtime, memory, latency, schema validity, and quality are recorded.
+- [ ] Network-egress checks confirm local-only inference.
+- [ ] The selected candidate passes approved gates, or the ticket reports that no candidate qualifies.
+- [ ] Legacy YOLO results remain visible as a comparison.
+
+---
+
+### TICKET U7 — Implement Multi-Resolution Page and Context Preparation
+
+**Goal:** Preserve small symbols and page-level relationships for the selected
+local model.
+
+**Dependencies:** U2, U6, G1-G3.
+
+**Acceptance Criteria:**
+
+- [ ] Overview, legend, plan-region, and overlapping-tile transforms are deterministic and reversible to page pixels.
+- [ ] Normalized RGB is primary; threshold, line, and OCR evidence is auxiliary.
+- [ ] Tile overlap/de-duplication has boundary fixtures.
+- [ ] Derived files remain isolated and originals unchanged.
+- [ ] Page/tile limits fail safely before resource exhaustion.
+
+---
+
+### TICKET U8 — Implement Isolated Local VLM Gateway
+
+**Goal:** Produce schema-valid candidates without cloud inference or route-level
+AI business logic.
+
+**Dependencies:** U2, U6, U7.
+
+**Acceptance Criteria:**
+
+- [ ] Pinned model loading is lazy, cached, health-checked, and local-only.
+- [ ] Each request records prompt, reference-pack version, model/adapter version, images, and decoding settings.
+- [ ] Timeout, cancellation, bounded concurrency, memory, and retry limits are explicit.
+- [ ] Grammar-constrained text still passes strict Pydantic validation before use.
+- [ ] User errors are sanitized while protected diagnostics retain traceability.
+
+---
+
+### TICKET U9 — Generate Pseudo-Labels and Capture VED Corrections
+
+**Goal:** Turn unannotated scans into reviewable candidates and approved training
+targets.
+
+**Dependencies:** U4, U8, J2-J5.
+
+**Acceptance Criteria:**
+
+- [ ] Pseudo-labels retain source, model, prompt, tile, and evidence provenance.
+- [ ] Review covers the U2 symbols, structure, panels, scale, and observed-wiring fields.
+- [ ] Accept, correct, add, reject, and ambiguous decisions are append-only.
+- [ ] Partially reviewed pages cannot enter supervised or gold releases.
+- [ ] Codex and models cannot approve their own proposals.
+
+---
+
+### TICKET U10 — Fine-Tune and Register VED Adapter
+
+**Goal:** Train a reproducible LoRA/QLoRA adapter from approved targets rather
+than training a foundation model from scratch.
+
+**Dependencies:** U5, U6, U9.
+
+**Acceptance Criteria:**
+
+- [ ] Only approved training examples and permitted synthetic data are used.
+- [ ] Base revision, adapter config, seed, hyperparameters, framework versions, data hashes, and checkpoints are recorded.
+- [ ] Validation selects checkpoints without access to the frozen test set.
+- [ ] Interrupted runs resume safely without overwriting released artifacts.
+- [ ] The adapter remains inactive until U14 promotion.
+
+---
+
+### TICKET U11 — Persist Candidates and Build the K1 Adapter
+
+**Goal:** Preserve immutable machine provenance and convert only reviewed,
+approved evidence into canonical geometry.
+
+**Dependencies:** U2, U8, U9, K1-K3.
+
+**Acceptance Criteria:**
+
+- [ ] Every machine run is immutable and linked to its processing job and model release.
+- [ ] Raw candidate, validation warnings, evidence, and latest human decisions are retrievable.
+- [ ] Metric conversion requires explicit approved scale evidence.
+- [ ] Only approved structure, symbols, panels, and observed routes reach K1/K2.
+- [ ] Historical YOLO detections and layout snapshots remain readable.
+
+---
+
+### TICKET U12 — Extract Observed Wiring Without Designing Routes
+
+**Goal:** Recover wiring/conduit visibly drawn on a sheet while keeping it
+separate from later generated routing.
+
+**Dependencies:** U2, U7-U9.
+
+**Acceptance Criteria:**
+
+- [ ] Sheets without visible wiring return an empty observed-route set.
+- [ ] Visible routes retain source polylines, endpoints, evidence, and ambiguity.
+- [ ] Tile fragments merge deterministically without impossible jumps.
+- [ ] Corrections persist and enter K1 only after approval.
+- [ ] U12 adds no A*, wire/conduit sizing, or claimed PEC-compliance rule.
+
+---
+
+### TICKET U13 — Orchestrate Local Interpretation Jobs
+
+**Goal:** Connect the durable processing job to the local pipeline without
+holding the request open.
+
+**Dependencies:** U8, U11, U12, F1-F4.
+
+**Acceptance Criteria:**
+
+- [ ] A worker safely claims jobs and reports only measurable stages.
+- [ ] Cancellation, timeout, crash, restart, and bounded retry behavior are tested.
+- [ ] Idempotency prevents duplicate candidate versions.
+- [ ] Original/derived-file privacy and containment protections remain enforced.
+- [ ] `completed` means reviewable candidates exist, not professionally approved geometry.
+
+---
+
+### TICKET U14 — Shadow, Promote, Roll Back, and Retire YOLO Safely
+
+**Goal:** Activate the local VLM only after it proves safe and useful on the
+approved release contract.
+
+**Dependencies:** U5-U13.
+
+**Acceptance Criteria:**
+
+- [ ] New and legacy paths run in non-authoritative shadow comparison on approved inputs.
+- [ ] Numeric quality, privacy, schema, latency, and resource gates pass with a signed VED decision.
+- [ ] Activation uses a versioned switch and a tested rollback target.
+- [ ] Existing YOLO records remain readable and auditable.
+- [ ] YOLO code/dependencies are removed only through a later separately reviewed cleanup.
+- [ ] Active model release, evaluation report, hashes, approvals, and rollback target are auditable.
+
+---
+
 # 58. Recommended Ticket Execution Order
 
 Codex should normally follow this order:
@@ -4199,7 +4572,16 @@ J1 → J2 → J3 → J3A → J4 → J5
 
 K1 → K2 → K3 → K4 → K5
 
-L1 → L2 → L3 → L4 → L5
+L1
+
+Current pre-migration foundation priority:
+PRE0 → PRE1 → PRE2 → PRE3 → PRE4 → PRE5 → PRE6 → PRE7 → PRE8 → PRE9 → PRE10 → PRE11 → PRE12
+
+Begin only after PRE12 passes:
+U1 → U2 → U3 → U4 → U5 → U6 → U7 → U8 → U9 → U10 → U11 → U12 → U13 → U14
+
+Resume only when explicitly selected:
+L2 → L3 → L4 → L5
 
 M1 → M2 → M3 → M4 → M5 → M6 → M7
 
@@ -4214,7 +4596,7 @@ Q1 → Q2 → Q3 → Q4
 R1 → R2 → R3
 
 S1 → S2
-S3 after I4
+S3 after U11, retaining I4 comparison until U14
 S4 after L5
 S5 after M6
 S6 after O2
@@ -4225,6 +4607,13 @@ T3 after the MVP pipeline is complete
 ```
 
 Parallel work is allowed only when two tickets do not modify the same contract or depend on unfinished behavior.
+
+Each PRE and U ticket uses its own feature branch, focused verification, feature
+commit, published upstream, explicit non-fast-forward merge, post-merge
+verification, and synchronized `main`, then reports progress. The
+`CODEX_PRE_VLM_FOUNDATION_PROMPT.md` handoff explicitly authorizes PRE0-PRE12
+publication when the user pastes it as the active task; this planning document
+alone does not authorize U work, model download, or dependency installation.
 
 ---
 

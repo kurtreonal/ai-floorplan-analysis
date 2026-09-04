@@ -36,7 +36,12 @@ storage/processed/**
 storage/detections/**
 storage/previews/**
 storage/reports/**
+storage/training/**
 !storage/.gitkeep
+
+# Private licensed references and approved AI-training source plans
+/docs/blueprints/
+/docs/electrical-symbols/
 
 # Local AI model weights and exports
 models/**/*.pt
@@ -44,6 +49,11 @@ models/**/*.pth
 models/**/*.onnx
 models/**/*.engine
 models/**/*.weights
+models/**/*.gguf
+models/**/*.safetensors
+models/**/*.ckpt
+models/**/*.bin
+models/**/checkpoint-*/
 !models/.gitkeep
 
 # Editor directories and files

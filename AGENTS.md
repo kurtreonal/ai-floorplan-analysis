@@ -123,18 +123,37 @@ Do not introduce Flask unless the user explicitly asks for it.
 
 ## AI / Computer Vision
 
-Use:
+Target stack for new AI-migration work:
 
 ```text
 Python
 OpenCV
-Ultralytics YOLO
+Local open-weight multimodal vision-language model (VLM)
+Transformers
+PEFT / TRL for LoRA or QLoRA fine-tuning
+Local OCR/document parsing
 NumPy
 Pillow
 PDF-to-image processing
 ```
 
-The AI/CV pipeline should remain separate from HTTP route logic.
+The repository still contains an implemented Ultralytics YOLO path from I1-I4.
+Treat it as the current legacy benchmark and rollback path during migration; do
+not delete it before the U14 release gate. Select the production VLM and local
+runtime through the measured U1/U6 hardware, privacy, license, quality, and
+latency evaluation in `docs/LOCAL_VLM_MIGRATION_PLAN.md`. Do not assume that a
+text-only LLM can interpret scanned pixels.
+
+The AI/CV pipeline, local model process, and training environment must remain
+separate from HTTP route logic.
+
+Before beginning U1, complete and publish PRE0-PRE12 from
+`docs/PRE_VLM_FOUNDATION_PLAN.md`. These tickets are required foundations, not
+optional refactors. Do not hide floor-plan/job recovery, source-page/artifact
+identity, scale/elevation approval, legend administration, save concurrency,
+worker execution controls, reviewer authority, or canonical compatibility work
+inside a VLM ticket. PRE12 must report a passing readiness gate before any model
+download or U1 branch.
 
 ---
 
@@ -187,7 +206,8 @@ ved-electrical-services/
 ├── frontend/
 ├── backend/
 ├── models/
-│   └── yolo/
+│   ├── yolo/                 # legacy comparison/rollback artifacts
+│   └── vlm/                  # ignored local base/adapters and manifests
 ├── storage/
 ├── docs/
 ├── scripts/
@@ -290,7 +310,9 @@ backend/
 │   │   ├── preprocessing/
 │   │   ├── wall_detection/
 │   │   ├── symbol_detection/
-│   │   └── model_loader.py
+│   │   ├── floor_plan_interpretation/
+│   │   ├── ocr/
+│   │   └── local_model_gateway/
 │   ├── geometry/
 │   │   ├── coordinates.py
 │   │   ├── walls.py
@@ -343,7 +365,7 @@ Routes should not contain large blocks of:
 ```text
 SQL queries
 Image processing
-YOLO inference
+AI model inference
 A* pathfinding
 Cost calculations
 PDF generation
@@ -465,26 +487,30 @@ PDF-to-Image Conversion when needed
     ↓
 Image Normalization
     ↓
-Grayscale Conversion
+Page Quality Assessment
     ↓
-Noise Reduction
+Whole-Page, Legend, and Overlapping Tile Views
     ↓
-Gaussian Blur
+Local OCR and Deterministic Line/Geometry Evidence
     ↓
-Thresholding
+Local Multimodal Floor-Plan Interpretation
     ↓
-Wall / Boundary Detection
+Strict Candidate-Schema Validation
     ↓
-YOLO Symbol Detection
+Coordinate, Class, and Cross-Tile Fusion
     ↓
-Confidence Filtering
+Designer Review / Correction / Approval
     ↓
-Coordinate Normalization
+Canonical Geometry Adaptation
     ↓
-Persist Results
+Persist Versioned Results
 ```
 
 Do not put the full pipeline in a single FastAPI endpoint function.
+
+The existing G3/H1/I1-I4 services remain valid legacy components and potential
+specialist evidence providers during migration. They are not proof that the new
+end-to-end local VLM pipeline is implemented.
 
 ---
 
@@ -501,15 +527,21 @@ Lighting fixtures
 Data connection ports
 ```
 
-Do not invent new AI classes in application code when they are not represented by the trained model or approved symbol legend.
+Do not invent new AI classes in application code, prompts, or training targets
+when they are not represented by the approved VED symbol legend. The
+drawing-specific approved legend controls first; PEC references support review
+but do not silently create project classes.
 
-The default symbol-confidence threshold is:
+The existing YOLO confidence threshold is:
 
 ```text
 0.50
 ```
 
-Keep the threshold configurable.
+Keep that legacy threshold configurable. The VLM migration must not pretend
+that token probability or a self-reported score is a calibrated detection
+confidence. Use explicit evidence, deterministic validation, review state, and
+release metrics defined by the candidate contract.
 
 Low-confidence detections should remain reviewable instead of silently being accepted.
 
@@ -553,7 +585,14 @@ Cost estimates
 Reports
 ```
 
-Do not calculate final quantities directly from unverified raw YOLO output when verified layout data exists.
+Do not calculate final quantities directly from unverified raw AI output when
+verified layout data exists.
+
+Production uploads must not retrain or mutate model weights automatically.
+Unannotated scans may enter a private intake corpus, but pseudo-labels become
+training truth only after correction and approval by the VED AI Dataset
+Approver. Keep a project-separated frozen test set outside training and class
+design.
 
 ---
 
@@ -651,14 +690,14 @@ Conceptual mappings:
 3D conduit/wire path
 ```
 
-Do not make Three.js parse raw YOLO results directly.
+Do not make Three.js parse raw YOLO or VLM results directly.
 
 Correct:
 
 ```text
-YOLO
+Local VLM or legacy YOLO
   ↓
-Detection normalization
+Strict candidate validation and deterministic normalization
   ↓
 Verified canonical geometry
   ↓
@@ -668,7 +707,7 @@ Three.js
 Avoid:
 
 ```text
-YOLO
+Local VLM / legacy YOLO
   ↓
 Three.js-specific detection logic
 ```
@@ -1068,7 +1107,14 @@ UPLOAD_DIR=storage/uploads
 PROCESSED_DIR=storage/processed
 REPORT_DIR=storage/reports
 
+# Existing legacy comparison/rollback configuration
 YOLO_MODEL_PATH=models/yolo/electrical-symbols.pt
+
+# Planned local-VLM configuration; add only in the ticket that implements it
+LOCAL_VLM_MODEL_PATH=models/vlm/base-model
+LOCAL_VLM_ADAPTER_PATH=models/vlm/adapters/ved-approved
+LOCAL_VLM_RUNTIME_URL=http://127.0.0.1:8081
+LOCAL_VLM_ALLOW_NETWORK=false
 
 FRONTEND_URL=http://localhost:5173
 ```
@@ -1315,6 +1361,13 @@ Acceptance criteria status
 Known limitations
 ```
 
+For a multi-ticket authorized sequence, publish a progress checkpoint after
+every separately committed/merged ticket. Include branch and commit state,
+acceptance criteria, focused/full verification, OpenAPI/table counts, data and
+original-file integrity, documentation alignment, cleanup, warnings, next
+ticket, and whether it has started. A progress update never permits silently
+skipping a failed gate.
+
 ---
 
 # 35. Do Not Perform Unrelated Refactors
@@ -1424,7 +1477,9 @@ Avoid unnecessary React rerenders in large Konva/Three.js scenes.
 
 Do not rebuild the complete 3D scene for trivial UI-only changes if the existing structure supports targeted updates.
 
-Do not reload the YOLO model for every detected symbol.
+Do not reload the YOLO model or local VLM for every detected symbol, tile, or
+request. Use a bounded, isolated local inference service with explicit startup,
+health, timeout, and memory controls.
 
 ---
 
@@ -1565,6 +1620,12 @@ The canonical verified project geometry is the shared source for downstream modu
 
 Do not let raw AI detections, Konva-specific state, or Three.js-specific state become competing sources of truth.
 
+Local multimodal output is advisory candidate data. It must pass a strict
+application-owned schema and deterministic coordinate validation before a
+Designer can approve it for canonical geometry. Wiring visibly copied from a
+drawing is `observed`; later A*-generated wiring is `generated`. Never
+hallucinate observed wiring when the scan contains none.
+
 Most importantly:
 
 ```text
@@ -1575,5 +1636,9 @@ Keep 2D and 3D synchronized through shared geometry.
 Keep electrical-routing rules explicit and configurable.
 Preserve original uploaded floor plans.
 Keep cost calculations backend-authoritative.
+Keep private drawings and model training artifacts local and Git-ignored.
+Require VED review before pseudo-labels enter a training release.
+Version, evaluate, and approve model adapters offline; never learn directly
+from a production request.
 Implement work as small, verifiable tickets.
 ```

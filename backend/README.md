@@ -26,6 +26,18 @@ viewer and likewise makes no backend, API, schema, storage, or environment
 change. The API remains at 21 operations. Workers, canonical 3D rendering,
 non-symbol geometry editing, routing, estimation, and reporting are not implemented.
 
+The approved target AI direction is a locally hosted multimodal VLM described
+in `../docs/LOCAL_VLM_MIGRATION_PLAN.md`. This backend has not yet installed or
+implemented that runtime, candidate schema, training adapter, persistence, or
+worker. I1-I4 below accurately document the current YOLO legacy baseline, which
+must remain available for comparison and rollback until U14 is approved.
+
+PRE0-PRE12 in `../docs/PRE_VLM_FOUNDATION_PLAN.md` now precede U1. They own the
+missing floor-plan/job recovery, source-page/artifact provenance, approved
+scale/elevation inputs, legend administration, layout-save concurrency,
+engine-neutral execution controls, dataset-approver authority, and canonical
+compatibility decision. None is implemented yet.
+
 ## Requirements
 
 - Python 3.13.7
@@ -546,7 +558,46 @@ and floor-plan processing status unchanged because later analysis stages remain
 incomplete. H3 adds no route, HTTP wall API, review UI, confirmation/editing
 service, worker connection, room/symbol persistence, or complete K1 geometry.
 
-## YOLO model loading
+## Planned local multimodal interpretation boundary
+
+U1-U14 will replace the active YOLO-only interpretation path incrementally. A
+text-only LLM is not sufficient: the selected open-weight local model must
+accept page images and return grounded structured candidates. The intended
+backend boundary is:
+
+```text
+Authorized processing job
+  → normalized full page, legend crop, and overlapping source-pixel tiles
+  → local OCR and deterministic geometry evidence
+  → isolated local VLM gateway
+  → strict FloorPlanInterpretationCandidate validation
+  → immutable advisory result and Designer review
+  → deterministic approved-candidate adapter
+  → K1 validation and K2 snapshot
+```
+
+Candidate output remains separate from canonical geometry and includes model,
+adapter, prompt, reference-pack, page, tile, and source provenance. The local
+model cannot directly write database entities or renderer state. It cannot
+convert pixels to meters without approved scale evidence. Visible drawing
+wiring is stored as `observed`; later A* output is `generated`. Absence of
+visible wiring must produce an empty observed-route result.
+
+Normal users can upload scans without annotating them. Raw scans and
+pseudo-labels are not approved training truth. Only fully reviewed, non-test
+examples may enter offline LoRA/QLoRA training, and production inference never
+updates weights. Private drawings, derivatives, references, prompts, labels,
+and model artifacts remain local and Git-ignored.
+
+The chosen model/runtime cannot be hard-coded in advance because target
+hardware has not been measured. PRE12 first verifies the application
+foundations; U1 records resources and privacy requirements; U5 freezes the gold
+evaluation; U6 performs the local bake-off; later tickets
+implement serving, review, tuning, persistence, orchestration, shadow rollout,
+and rollback. Planned environment variables must not be added to the live
+configuration until their owning implementation ticket.
+
+## Current legacy YOLO model loading
 
 I1 adds an isolated, lazy model loader under `app/ai/symbol_detection`. It reads
 only `YOLO_MODEL_PATH`, resolves relative values from the repository root,
@@ -563,7 +614,7 @@ I1 itself does not run inference, filter confidence, persist detections, update
 jobs, or connect to a worker or HTTP route. I2 uses the loaded model only through
 the isolated inference boundary below.
 
-## Symbol inference
+## Current legacy symbol inference
 
 I2 accepts only a valid G3 `PreprocessedImage` and consumes its two-dimensional
 binary `thresholded` array. It passes YOLO a separate contiguous three-channel
@@ -584,7 +635,7 @@ I2 creates no detection rows or artifacts and adds no API, worker, drawing,
 confidence classification, or automatic F2 orchestration. I3 owns the separate
 classification boundary below.
 
-## Symbol confidence classification
+## Current legacy symbol confidence classification
 
 I3 applies the existing `YOLO_CONFIDENCE_THRESHOLD` application setting to a
 validated I2 result without rerunning inference. The default is exactly `0.50`.
