@@ -31,6 +31,11 @@ The foundation must preserve these boundaries:
 - each ticket is committed, published, merged, verified, and reported before
   the next ticket begins.
 
+PRE0 is complete and published. It established this maintained documentation
+set and the private-artifact ignore baseline without changing application
+behavior, dependencies, the 21-operation API, or the 13-table schema. PRE1 is
+the next ticket; PRE1-PRE12 and all U-series work remain unimplemented.
+
 ## 2. Evidence-backed gaps
 
 | Gap | Repository evidence | Why it blocks or risks migration |
@@ -86,6 +91,10 @@ auditable baseline before application changes begin.
 
 **Expected scope:** `AGENTS.md`, `.gitignore`, maintained Markdown documents,
 and no application source.
+
+**Implementation status:** Complete and published. The baseline protects the
+private training/reference directories and local model/checkpoint formats,
+tracks no private artifacts, and leaves application behavior unchanged.
 
 **Acceptance criteria:**
 

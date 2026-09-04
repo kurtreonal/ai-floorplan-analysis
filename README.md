@@ -267,8 +267,9 @@ prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, J4, J5, and
 K1, K2, K3, K4, K5, and L1 are implemented. L2 and all later tickets remain
 unimplemented.
 
-PRE0-PRE12 are the current implementation priority and no PRE ticket has
-started. They explicitly own floor-plan/job recovery, source/page/artifact
+PRE0 is complete: the maintained migration documentation and privacy-focused
+Git ignore baseline are published. PRE1-PRE12 are the current implementation
+priority. They explicitly own floor-plan/job recovery, source/page/artifact
 provenance, reviewed metric inputs, legend administration, save concurrency,
 job execution controls, reviewer authority, and the canonical compatibility
 decision. U1-U14 begin only after PRE12 passes. L2 and later product tickets are

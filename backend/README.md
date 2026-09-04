@@ -32,11 +32,13 @@ implemented that runtime, candidate schema, training adapter, persistence, or
 worker. I1-I4 below accurately document the current YOLO legacy baseline, which
 must remain available for comparison and rollback until U14 is approved.
 
-PRE0-PRE12 in `../docs/PRE_VLM_FOUNDATION_PLAN.md` now precede U1. They own the
-missing floor-plan/job recovery, source-page/artifact provenance, approved
+PRE0 in `../docs/PRE_VLM_FOUNDATION_PLAN.md` is complete and published: it
+establishes the maintained migration documentation and private-artifact ignore
+baseline without changing backend behavior. PRE1-PRE12 now precede U1. They own
+the missing floor-plan/job recovery, source-page/artifact provenance, approved
 scale/elevation inputs, legend administration, layout-save concurrency,
 engine-neutral execution controls, dataset-approver authority, and canonical
-compatibility decision. None is implemented yet.
+compatibility decision. None of PRE1-PRE12 is implemented yet.
 
 ## Requirements
 
