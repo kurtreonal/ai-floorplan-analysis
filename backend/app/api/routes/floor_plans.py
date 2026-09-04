@@ -7,6 +7,7 @@ from fastapi import (
     Form,
     HTTPException,
     Path,
+    Query,
     Request,
     UploadFile,
     status,
@@ -22,10 +23,11 @@ from app.core.config import (
 )
 from app.core.database import get_db
 from app.models import User
-from app.schemas.floor_plan import FloorPlanUploadResponse
+from app.schemas.floor_plan import FloorPlanListItemResponse, FloorPlanUploadResponse
 from app.services.floor_plan_storage import FloorPlanStorageError
 from app.services.floor_plan_upload import (
     ProjectFloorNotFoundError,
+    list_accessible_floor_plans,
     upload_floor_plan,
 )
 from app.services.project_service import ProjectNotFoundError
@@ -95,6 +97,50 @@ def _storage_http_error(error: FloorPlanStorageError) -> HTTPException:
         message=error.message,
         details=error.details,
     )
+
+
+@router.get(
+    "/{project_id}/floor-plans",
+    response_model=list[FloorPlanListItemResponse],
+    status_code=status.HTTP_200_OK,
+)
+def list_floor_plans_endpoint(
+    project_id: Annotated[int, Path(gt=0)],
+    project_floor_id: Annotated[int | None, Query(gt=0)] = None,
+    current_user: User = Depends(require_roles("ADMIN", "DESIGNER")),
+    database_session: Session = Depends(get_db),
+) -> list[FloorPlanListItemResponse]:
+    try:
+        floor_plans = list_accessible_floor_plans(
+            database_session,
+            current_user=current_user,
+            project_id=project_id,
+            project_floor_id=project_floor_id,
+        )
+    except ProjectNotFoundError:
+        raise _api_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="PROJECT_NOT_FOUND",
+            message="The requested project was not found.",
+        ) from None
+    except ProjectFloorNotFoundError:
+        raise _api_error(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="PROJECT_FLOOR_NOT_FOUND",
+            message="The requested project floor was not found.",
+        ) from None
+    except SQLAlchemyError:
+        database_session.rollback()
+        raise _api_error(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="FLOOR_PLAN_LIST_FAILED",
+            message="Floor plans could not be loaded.",
+        ) from None
+
+    return [
+        FloorPlanListItemResponse.model_validate(floor_plan)
+        for floor_plan in floor_plans
+    ]
 
 
 @router.post(

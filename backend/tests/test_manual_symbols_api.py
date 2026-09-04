@@ -442,7 +442,7 @@ class ManualSymbolApiTests(unittest.TestCase):
         path = "/api/floor-plans/{floor_plan_id}/manual-symbols"
         self.assertEqual(set(schema["paths"][path]), {"post"})
         operations = {(method, route) for route, definitions in schema["paths"].items() for method in definitions if method in {"get", "post", "put", "patch", "delete"}}
-        self.assertEqual(len(operations), 21)
+        self.assertEqual(len(operations), 22)
 
 
 if __name__ == "__main__":

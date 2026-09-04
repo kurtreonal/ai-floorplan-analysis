@@ -4,9 +4,9 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Implemented through L1, including the E3A, J1A, and J3A prerequisites.**
+**Application roadmap implemented through L1; PRE0 and PRE1 foundations are complete.**
 
-The current backend surface contains 21 OpenAPI operations.
+The current backend surface contains 22 OpenAPI operations.
 
 The repository currently includes:
 
@@ -20,6 +20,8 @@ The repository currently includes:
 - JPEG, PNG, and PDF validation;
 - collision-safe original-file storage and compensating cleanup;
 - the floor-plan upload API and project-workspace upload UI;
+- ownership-aware persisted floor-plan discovery with safe metadata and an
+  optional project-floor filter;
 - persisted processing-job records with constrained status and progress fields;
 - an owning-Designer start-processing API that creates a durable queued job;
 - a read-only processing-status API for owning Designers and Admins; and
@@ -268,8 +270,9 @@ K1, K2, K3, K4, K5, and L1 are implemented. L2 and all later tickets remain
 unimplemented.
 
 PRE0 is complete: the maintained migration documentation and privacy-focused
-Git ignore baseline are published. PRE1-PRE12 are the current implementation
-priority. They explicitly own floor-plan/job recovery, source/page/artifact
+Git ignore baseline are published, and PRE1 floor-plan discovery is complete.
+PRE2-PRE12 are the current implementation priority. They explicitly own
+processing-job recovery, source/page/artifact
 provenance, reviewed metric inputs, legend administration, save concurrency,
 job execution controls, reviewer authority, and the canonical compatibility
 decision. U1-U14 begin only after PRE12 passes. L2 and later product tickets are
@@ -357,9 +360,8 @@ The folders that do not exist yet should be created by the appropriate developme
 
 ## Current Limitations
 
-- `GET /api/projects/{project_id}/floor-plans` is not implemented. E4 can show
-  successful upload responses during the current page session, but uploads do
-  not repopulate after reload.
+- Persisted floor plans can be discovered after reload, but their processing-job
+  history cannot yet be listed unless an individual job ID is already known.
 - Current-session upload cards can start processing and poll the job-status
   endpoint, but no worker, external queue, cancellation workflow, or automatic
   job creation exists. Without a worker, queued jobs do not advance

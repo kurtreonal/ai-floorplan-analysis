@@ -563,7 +563,7 @@ class FloorPlanUploadApiTests(unittest.TestCase):
     ) -> None:
         paths = self.application.openapi()["paths"]
         endpoint = paths["/api/projects/{project_id}/floor-plans"]
-        self.assertEqual(set(endpoint), {"post"})
+        self.assertEqual(set(endpoint), {"get", "post"})
         self.assertIn("multipart/form-data", endpoint["post"]["requestBody"]["content"])
         self.assertIn("post", paths["/api/projects"])
         self.assertIn("get", paths["/api/projects"])
