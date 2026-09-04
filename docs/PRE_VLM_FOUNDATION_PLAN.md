@@ -8,10 +8,10 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current application baseline is L1, with PRE0 and PRE1 foundations complete:
-22 OpenAPI operations and 13 SQLAlchemy/MySQL tables. The implementation can
-discover persisted floor plans, but it cannot yet recover their processing-job
-history reliably after a page reload, identify every PDF page
+The current application baseline is L1, with PRE0-PRE2 foundations complete:
+23 OpenAPI operations and 13 SQLAlchemy/MySQL tables. The implementation can
+discover persisted floor plans and bounded processing-job history, but the UI
+cannot yet reconcile them after a page reload or identify every PDF page
 and derived artifact durably, collect authoritative scale/elevation inputs,
 manage the empty approved legend catalog, guarantee conditional/idempotent
 layout saves, or support safe worker leasing and dataset-approver assignments.
@@ -34,15 +34,16 @@ The foundation must preserve these boundaries:
 PRE0 is complete and published. It established this maintained documentation
 set and the private-artifact ignore baseline without changing application
 behavior, dependencies, the then-21-operation API, or the 13-table schema. PRE1
-is also complete and adds one read-only operation without a table. PRE2 is the
-next ticket; PRE2-PRE12 and all U-series work remain unimplemented.
+is also complete and adds one read-only operation without a table. PRE2 is
+complete and adds one bounded read-only operation without a table. PRE3 is the
+next ticket; PRE3-PRE12 and all U-series work remain unimplemented.
 
 ## 2. Evidence-backed gaps
 
 | Gap | Repository evidence | Why it blocks or risks migration |
 |---|---|---|
 | Persisted floor-plan discovery not yet consumed by UI | PRE1 adds the safe GET operation; the project UI still stores `sessionUploads` in React memory | PRE3 must reconcile persisted plans after PRE2 adds job history |
-| No processing-job history discovery | Jobs are readable only by a known job ID | The UI cannot recover active/completed jobs after reload |
+| Processing-job history not yet consumed by UI | PRE2 adds a bounded safe history operation; the workspace does not call it | The UI cannot recover active/completed jobs until PRE3 |
 | No page identity | `processing_jobs` references a floor plan, but no persisted PDF page entity exists | Multi-page plans, legends, schedules, and detail sheets cannot be tracked safely |
 | Derived artifacts use implicit paths | G1/G2/G3 and J1A do not share a durable artifact manifest | A restarted worker cannot prove which page/image/hash a result used |
 | No persisted source hash | `floor_plans` stores path, MIME, and size but no durable SHA-256 manifest | Reproducible training/inference provenance is incomplete |
@@ -150,6 +151,10 @@ and leaves the schema at 13 tables.
 **Dependencies:** PRE1, F1-F3.
 
 **Expected scope:** processing-job list schema/query/service/route and tests.
+
+**Implementation status:** Complete and published. The read is bounded to 50
+jobs by default and at most 100, returns only `floor_plan_analysis` history,
+sanitizes failure details, and performs no job or file mutation.
 
 **Acceptance criteria:**
 

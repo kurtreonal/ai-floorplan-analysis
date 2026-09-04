@@ -72,10 +72,12 @@
 - PRE0: maintained migration documentation and private-artifact ignore baseline
 - PRE1: ownership-aware persisted floor-plan discovery with safe metadata,
   deterministic floor/plan ordering, and optional project-floor filtering
+- PRE2: ownership-aware bounded processing-job history discovery with safe
+  error text, server timestamps, and deterministic newest-first ordering
 
 ### Planned
 
-PRE2-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
+PRE3-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
 define the migration from the implemented YOLO-only symbol path to local
 multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
 unimplemented, including canonical 3D geometry, routing, quantities, estimates,
@@ -494,10 +496,14 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API contains 22 OpenAPI operations through PRE1. Floor-plan discovery
+The API contains 23 OpenAPI operations through PRE2. Floor-plan discovery
 returns safe persisted metadata to the owning Designer or an Admin, supports a
 positive project-scoped optional floor filter, and orders by floor sort order,
 floor ID, then floor-plan ID without reading files or exposing storage paths.
+Processing-job history discovery returns only the authorized floor plan's
+`floor_plan_analysis` jobs, orders by creation time and job ID newest first,
+exposes sanitized status/error/timestamp metadata, and uses a validated default
+limit of 50 with a maximum of 100. It neither executes nor mutates jobs.
 Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Machine and
@@ -765,9 +771,9 @@ K1 focused backend:     39 tests
 K1 required regressions: 85 tests + 63 subtests
 K2 focused backend:     17 tests + 27 subtests
 K3 focused backend:     13 tests + 26 subtests
-Backend unittest:      572 tests + 479 subtests
+Backend unittest:      580 tests + 479 subtests
 Canonical pytest:       39 tests
-Backend aggregate:     611 top-level tests + 479 subtests
+Backend aggregate:     619 top-level tests + 479 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -855,13 +861,13 @@ is required by the canonical contract, stored inside each complete snapshot, is 
 `project_floors` column, and is never inferred. K3 has no atomic conditional-save
 or idempotency-key contract; K5's uncertain-response reconciliation does not
 claim otherwise. PRE0's documentation/privacy baseline is complete and
-published. PRE1 floor-plan discovery is also complete and published. The next
-priority ticket is PRE2; no U ticket has started. U1 depends on the PRE12
+published. PRE1 floor-plan discovery and PRE2 processing-job history are also
+complete and published. The next priority ticket is PRE3; no U ticket has started. U1 depends on the PRE12
 readiness gate. L2 is paused unless explicitly
 selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
 floor-plan, detection, or processing-job request. Canonical floor meshes,
 walls, openings, symbols, synchronization, and top/perspective switching remain
 future work.
-Persistent processing-job history remains unavailable until PRE2; PRE1 does not
-make J1A review-image provenance durable.
+The project workspace does not consume persisted floor plans or job history
+until PRE3; PRE2 does not make J1A review-image provenance durable.

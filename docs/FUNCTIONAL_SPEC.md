@@ -88,16 +88,16 @@ API, or database migration.
 ## Current Implementation Status
 
 The application roadmap is implemented through L1, including the E3A
-project-floor prerequisite introduced between E3 and E4. PRE0 and PRE1 are also
+project-floor prerequisite introduced between E3 and E4. PRE0-PRE2 are also
 complete.
 
 The current verified prototype contract contains thirteen SQLAlchemy/MySQL tables
-and 22 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
+and 23 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
 catalog. K1 changes neither count; K2 adds `layout_versions` while leaving the
 API count unchanged; K3 adds exactly two layout operations and no table; K4 and
-K5 and L1 are frontend-only and leave both counts unchanged. PRE1 adds one GET
-operation and no table.
+K5 and L1 are frontend-only and leave both counts unchanged. PRE1 and PRE2 each
+add one GET operation and no table.
 
 Completed ticket areas:
 
@@ -137,6 +137,7 @@ K5 — Implement Symbol Move/Edit in 2D
 L1 — Initialize Three.js / React Three Fiber Viewer
 PRE0 — Publish Documentation and Privacy Baseline
 PRE1 — Add Ownership-Aware Floor-Plan Discovery API
+PRE2 — Add Processing-Job History Discovery API
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -160,16 +161,16 @@ K1/K2/K3 geometry. K5 provides canonical symbol repositioning, not general
 geometry editing. In particular, there is no worker, external queue, automatic
 OpenCV/YOLO pipeline, canonical 3D reconstruction, routing, estimation, or
 report implementation. There is also no local VLM runtime, candidate schema,
-reviewed VLM gold set, adapter, or VLM orchestration. PRE2-PRE12 are the current
-foundation priority; they close the remaining non-model recovery, provenance, metric-input,
+reviewed VLM gold set, adapter, or VLM orchestration. PRE3-PRE12 are the current
+foundation priority; they close the remaining non-model UI recovery, provenance, metric-input,
 catalog, concurrency, worker-control, reviewer-authority, and canonical-contract
 gaps before U1. L2 and later tickets remain unimplemented and are paused unless
 explicitly selected.
 
 `GET /api/projects/{project_id}/floor-plans` now returns authorized persisted
 safe metadata with an optional project-scoped floor filter. E4 still uses
-current-session upload state; PRE3 will consume persistent discovery after PRE2
-adds processing-job history.
+current-session upload state; PRE3 will consume persistent discovery and the
+bounded processing-job history now provided by PRE2.
 
 ---
 
@@ -3605,8 +3606,8 @@ work.
 
 L1 verification covers 40 focused route/navigation/viewer regressions and the
 complete frontend suite contains 248 tests across 28 files. Backend verification
-is 572 `unittest`-discovery tests plus 479 subtests and a separate 39-test
-canonical-geometry pytest suite (611 aggregate top-level backend tests) through PRE1.
+is 580 `unittest`-discovery tests plus 479 subtests and a separate 39-test
+canonical-geometry pytest suite (619 aggregate top-level backend tests) through PRE2.
 
 **Acceptance Criteria:**
 
@@ -4285,7 +4286,7 @@ These tickets do not install or run a local model and do not retire YOLO.
 |---|---|---|
 | PRE0 (complete) | Publish documentation/privacy baseline | Maintained docs and ignore rules are consistent, no private/model artifact is tracked, feature and main are published |
 | PRE1 (complete) | Floor-plan discovery API | Authorized persisted plans are reload-discoverable without storage-path disclosure |
-| PRE2 | Processing-job history API | Safe bounded job summaries recover job IDs/status after reload |
+| PRE2 (complete) | Processing-job history API | Safe bounded job summaries recover job IDs/status after reload |
 | PRE3 | Reload-safe project workspace | Persisted plans/jobs render and active monitoring resumes without session-only state |
 | PRE4 | Immutable source/page identity | Original SHA-256 and one-based raster/PDF page records are persisted atomically |
 | PRE5 | Processing-artifact manifest | Every trusted derived image has exact job/page/type/path/hash/dimension provenance |
@@ -4301,9 +4302,9 @@ Every PRE ticket inherits the detailed acceptance criteria in the pre-foundation
 plan. Each uses a separate feature branch and progress report. PRE12 must stop
 before U1.
 
-PRE0 and PRE1 are complete. PRE1 adds one read-only floor-plan discovery
-operation without a table or filesystem access. PRE2 is next; no U-series model
-work has started.
+PRE0-PRE2 are complete. PRE1 adds read-only floor-plan discovery and PRE2 adds
+bounded read-only processing-job history without a table or filesystem access.
+PRE3 is next; no U-series model work has started.
 
 ---
 

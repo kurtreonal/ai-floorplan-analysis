@@ -45,6 +45,38 @@ def list_floor_plans_by_project(
     return list(database_session.scalars(statement).all())
 
 
+def find_floor_plan_by_id(
+    database_session: Session,
+    *,
+    floor_plan_id: int,
+) -> FloorPlan | None:
+    return database_session.scalar(
+        select(FloorPlan)
+        .options(load_only(FloorPlan.id), raiseload("*"))
+        .where(FloorPlan.id == floor_plan_id)
+        .execution_options(populate_existing=True)
+    )
+
+
+def find_floor_plan_by_id_and_owner(
+    database_session: Session,
+    *,
+    floor_plan_id: int,
+    owner_id: int,
+) -> FloorPlan | None:
+    return database_session.scalar(
+        select(FloorPlan)
+        .join(ProjectFloor, FloorPlan.project_floor_id == ProjectFloor.id)
+        .join(Project, ProjectFloor.project_id == Project.id)
+        .options(load_only(FloorPlan.id), raiseload("*"))
+        .where(
+            FloorPlan.id == floor_plan_id,
+            Project.owner_id == owner_id,
+        )
+        .execution_options(populate_existing=True)
+    )
+
+
 def find_owned_floor_plan_for_update(
     database_session: Session,
     *,
