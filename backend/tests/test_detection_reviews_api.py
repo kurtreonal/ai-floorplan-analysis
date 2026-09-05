@@ -69,8 +69,8 @@ class DetectionReviewModelTests(unittest.TestCase):
                 "ix_detection_reviews_reviewer_user_id",
             },
         )
-        self.assertEqual(len(Base.metadata.tables), 18)
-        self.assertEqual(len(inspect(get_engine()).get_table_names()), 18)
+        self.assertEqual(len(Base.metadata.tables), 19)
+        self.assertEqual(len(inspect(get_engine()).get_table_names()), 19)
         self.assertEqual(
             DetectedSymbol.reviews.property.back_populates,
             "detected_symbol",
@@ -536,7 +536,7 @@ class DetectionReviewApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 26)
+        self.assertEqual(len(operations), 29)
 
 
 if __name__ == "__main__":

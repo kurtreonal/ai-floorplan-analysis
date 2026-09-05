@@ -571,9 +571,12 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
                 ("get", "/api/projects/{project_id}/floors/{floor_id}/analysis-settings"),
                 ("put", "/api/projects/{project_id}/floors/{floor_id}/analysis-settings/elevation"),
                 ("put", "/api/projects/{project_id}/floors/{floor_id}/analysis-settings/pages/{page_id}/scale"),
+                ("get", "/api/admin/symbol-legends"),
+                ("post", "/api/admin/symbol-legends"),
+                ("put", "/api/admin/symbol-legends/{legend_id}"),
             },
         )
-        self.assertEqual(len(operations), 26)
+        self.assertEqual(len(operations), 29)
 
 
 if __name__ == "__main__":

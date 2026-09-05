@@ -152,7 +152,7 @@ class AnalysisSettingsTests(unittest.TestCase):
     def test_schema_and_openapi_contract(self):
         inspector = inspect(get_engine())
         self.assertEqual(set(inspector.get_table_names()), set(Base.metadata.tables))
-        self.assertEqual(len(Base.metadata.tables), 18)
+        self.assertEqual(len(Base.metadata.tables), 19)
         for model, check in ((FloorElevationSetting, "ck_floor_elevation_bounds"), (PageScaleSetting, "ck_page_scale_bounds")):
             name = model.__tablename__
             self.assertEqual({c["name"] for c in inspector.get_columns(name)}, set(model.__table__.columns.keys()))
@@ -160,5 +160,5 @@ class AnalysisSettingsTests(unittest.TestCase):
             self.assertEqual({i["name"] for i in inspector.get_indexes(name)}, {i.name for i in model.__table__.indexes})
         methods = {"get", "post", "put", "patch", "delete"}
         operations = [(path, method) for path, item in self.app.openapi()["paths"].items() for method in item if method in methods]
-        self.assertEqual(len(operations), 26)
+        self.assertEqual(len(operations), 29)
         self.assertEqual(len(operations), len(set(operations)))

@@ -82,10 +82,12 @@
   bounded kinds, safe relative paths, content metadata, and trusted J1A lookup
 - PRE6: append-only Designer-reviewed floor elevation and per-source-page scale
   settings with evidence, explicit unresolved states, and Admin read-only access
+- PRE7: Admin-only legend creation/revision/all-status retrieval with append-only
+  actor/time snapshots and no guessed production class seed
 
 ### Planned
 
-PRE7-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
+PRE8-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
 define the migration from the implemented YOLO-only symbol path to local
 multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
 unimplemented, including canonical 3D geometry, routing, quantities, estimates,
@@ -208,7 +210,10 @@ nonnegative model class IDs and unique normalized names with a deliberate
 case-sensitive MySQL collation. Designers and Admins can retrieve active rows
 ordered by class ID then row ID. The catalog may be empty, and no production
 VED classes are inferred from detections or seeded without approved source
-data. P3 still owns future Admin catalog management.
+data. PRE7 adds the P3 Admin API without adding a management UI: Admins can list
+all statuses, create records, and revise class/name/active state. Each real
+change appends an immutable old/new snapshot with actor and server time in
+`symbol_legend_history`; exact retries append nothing. P4 still owns the UI.
 
 J4 adds a separate Designer-only mutation flow. The service locks the exact
 owner-scoped detection, resolves the latest effective class, locks the requested
@@ -504,11 +509,14 @@ GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
 GET  /api/symbol-legends
+GET  /api/admin/symbol-legends
+POST /api/admin/symbol-legends
+PUT  /api/admin/symbol-legends/{legend_id}
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classification?processing_job_id={job_id}
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API contains 26 OpenAPI operations through PRE6. Floor-plan discovery
+The API contains 29 OpenAPI operations through PRE7. Floor-plan discovery
 returns safe persisted metadata to the owning Designer or an Admin, supports a
 positive project-scoped optional floor filter, and orders by floor sort order,
 floor ID, then floor-plan ID without reading files or exposing storage paths.
@@ -784,10 +792,11 @@ K1 required regressions: 85 tests + 63 subtests
 K2 focused backend:     17 tests + 27 subtests
 K3 focused backend:     13 tests + 26 subtests
 PRE6 focused backend:    9 tests
-Backend unittest:      599 tests
-Combined pytest:       638 tests + 499 subtests
+PRE7 focused backend:   15 tests
+Backend unittest:      605 tests
+Combined pytest:       644 tests + 504 subtests
 Canonical pytest:       39 tests
-Backend aggregate:     638 top-level tests + 499 subtests
+Backend aggregate:     644 top-level tests + 504 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -877,7 +886,7 @@ is required by the canonical contract, stored inside each complete snapshot, is 
 or idempotency-key contract; K5's uncertain-response reconciliation does not
 claim otherwise. PRE0's documentation/privacy baseline is complete and
 published. PRE1 floor-plan discovery and PRE2 processing-job history are also
-complete and published. The next priority ticket is PRE7; no U ticket has started. U1 depends on the PRE12
+complete and published. The next priority ticket is PRE8; no U ticket has started. U1 depends on the PRE12
 readiness gate. L2 is paused unless explicitly
 selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
@@ -890,4 +899,5 @@ PRE4 gives originals and their pages immutable identity. PRE5 adds the
 `processing_artifacts` manifest and makes G1/G2 output provenance durable; J1A
 now resolves the exact registered normalized image and revalidates its file,
 hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
-K1 snapshots. PRE7 is next.
+K1 snapshots. PRE7 makes the approved catalog operational without seeding a
+class or adding the deferred P4 UI. PRE8 is next.
