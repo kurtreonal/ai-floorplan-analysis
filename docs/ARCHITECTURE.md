@@ -80,10 +80,12 @@
   identity, with atomic upload persistence and verified legacy backfill
 - PRE5: durable derived-artifact manifests with exact job/source-page identity,
   bounded kinds, safe relative paths, content metadata, and trusted J1A lookup
+- PRE6: append-only Designer-reviewed floor elevation and per-source-page scale
+  settings with evidence, explicit unresolved states, and Admin read-only access
 
 ### Planned
 
-PRE6-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
+PRE7-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
 define the migration from the implemented YOLO-only symbol path to local
 multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
 unimplemented, including canonical 3D geometry, routing, quantities, estimates,
@@ -486,6 +488,10 @@ GET  /api/projects/{project_id}
 GET  /api/projects/{project_id}/floors
 POST /api/projects/{project_id}/floors
 
+GET  /api/projects/{project_id}/floors/{floor_id}/analysis-settings
+PUT  /api/projects/{project_id}/floors/{floor_id}/analysis-settings/elevation
+PUT  /api/projects/{project_id}/floors/{floor_id}/analysis-settings/pages/{page_id}/scale
+
 GET  /api/projects/{project_id}/floor-plans?project_floor_id={optional_floor_id}
 POST /api/projects/{project_id}/floor-plans
 
@@ -502,7 +508,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API contains 23 OpenAPI operations through PRE2. Floor-plan discovery
+The API contains 26 OpenAPI operations through PRE6. Floor-plan discovery
 returns safe persisted metadata to the owning Designer or an Admin, supports a
 positive project-scoped optional floor filter, and orders by floor sort order,
 floor ID, then floor-plan ID without reading files or exposing storage paths.
@@ -777,9 +783,11 @@ K1 focused backend:     39 tests
 K1 required regressions: 85 tests + 63 subtests
 K2 focused backend:     17 tests + 27 subtests
 K3 focused backend:     13 tests + 26 subtests
-Backend unittest:      590 tests + 479 subtests
+PRE6 focused backend:    9 tests
+Backend unittest:      599 tests
+Combined pytest:       638 tests + 499 subtests
 Canonical pytest:       39 tests
-Backend aggregate:     629 top-level tests + 479 subtests
+Backend aggregate:     638 top-level tests + 499 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -789,7 +797,8 @@ K1 focused frontend:    21 tests
 K1 J2/J5 regressions:   43 tests
 K4 focused frontend:    19 tests + 4 route/navigation regressions
 L1 focused/regression:  40 tests
-Full frontend:          264 tests
+PRE6 focused frontend:   9 tests
+Full frontend:          273 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -868,7 +877,7 @@ is required by the canonical contract, stored inside each complete snapshot, is 
 or idempotency-key contract; K5's uncertain-response reconciliation does not
 claim otherwise. PRE0's documentation/privacy baseline is complete and
 published. PRE1 floor-plan discovery and PRE2 processing-job history are also
-complete and published. The next priority ticket is PRE3; no U ticket has started. U1 depends on the PRE12
+complete and published. The next priority ticket is PRE7; no U ticket has started. U1 depends on the PRE12
 readiness gate. L2 is paused unless explicitly
 selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
@@ -880,4 +889,5 @@ history, deduplicates optimistic upload feedback, and resumes active polling.
 PRE4 gives originals and their pages immutable identity. PRE5 adds the
 `processing_artifacts` manifest and makes G1/G2 output provenance durable; J1A
 now resolves the exact registered normalized image and revalidates its file,
-hash, MIME, and dimensions. PRE6 is next.
+hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
+K1 snapshots. PRE7 is next.

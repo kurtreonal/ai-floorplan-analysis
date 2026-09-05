@@ -24,7 +24,8 @@ operation and makes no backend or schema change. K5 consumes the existing K3
 GET and POST operations to reposition canonical symbols and adds no backend
 operation, table, or schema field. L1 adds only a protected, empty frontend 3D
 viewer and likewise makes no backend, API, schema, storage, or environment
-change. PRE1 and PRE2 each add one read-only operation, so the API contains 23 operations.
+change. PRE1 and PRE2 each add one read-only operation, and PRE6 adds three
+analysis-setting operations, so the API contains 26 operations.
 Workers, canonical 3D rendering,
 non-symbol geometry editing, routing, estimation, and reporting are not implemented.
 
@@ -39,10 +40,10 @@ establishes the maintained migration documentation and private-artifact ignore
 baseline without changing backend behavior. PRE1 floor-plan discovery and PRE2
 bounded processing-job history discovery and PRE3 frontend recovery are also
 complete. PRE4 immutable source/page identity and PRE5 durable derived-artifact
-provenance are also complete. PRE6-PRE12 now precede U1. They own approved
-scale/elevation inputs, legend administration, layout-save concurrency,
+provenance and PRE6 approved scale/elevation inputs are also complete. PRE7-PRE12
+now precede U1. They own legend administration, layout-save concurrency,
 engine-neutral execution controls, dataset-approver authority, and canonical
-compatibility decision. PRE0-PRE5 are complete; PRE6-PRE12 remain unimplemented.
+compatibility decision. PRE0-PRE6 are complete; PRE7-PRE12 remain unimplemented.
 
 ## Requirements
 
@@ -97,7 +98,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype has these fifteen application tables:
+The current prototype schema has these eighteen application tables:
 
 ```text
 roles
@@ -107,7 +108,10 @@ project_floors
 floor_plans
 floor_plan_sources
 floor_plan_pages
+floor_elevation_settings
+page_scale_settings
 processing_jobs
+processing_artifacts
 walls
 detected_symbols
 detection_reviews
@@ -137,6 +141,30 @@ pixel dimensions, and creation time. J1A resolves normalized review images only
 through this registry and revalidates containment, symlinks, content, hash, and
 dimensions before serving. Existing derived files are not inferred or imported
 automatically; an unregistered file remains untrusted.
+
+PRE6 adds Designer-reviewed metric settings at:
+
+```text
+GET /api/projects/{project_id}/floors/{floor_id}/analysis-settings
+PUT /api/projects/{project_id}/floors/{floor_id}/analysis-settings/elevation
+PUT /api/projects/{project_id}/floors/{floor_id}/analysis-settings/pages/{page_id}/scale
+```
+
+Owning Designers can read and revise settings; Admins can only read them.
+Elevation requests contain `elevation_meters` and `evidence_notes`. Scale
+requests contain `pixels_per_meter`, `reference_width_pixels`,
+`reference_height_pixels`, and `evidence_notes`. Supply all three numeric scale
+fields together, or all three as null to record an unresolved measurement.
+The service derives reviewer identity and creation time. Unknown fields,
+Boolean/string numbers, non-finite values, and out-of-bound measurements fail
+validation. GET returns the latest revision or an explicit unresolved state
+for each source page; it never exposes source paths or hashes.
+
+The additive settings tables retain revision history. No defaults are inferred,
+uploads remain available without approved settings, and existing layout
+snapshots are not rewritten. The project workspace exposes the settings through
+“Review scale and elevation.” See `../docs/geometry.md` for bounds and the exact
+reference-dimension requirement. PRE6 is complete.
 
 The command refuses unsafe paths, missing/invalid originals, size mismatches,
 and conflicting existing identity. It never fabricates a hash or changes an
@@ -212,7 +240,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 23 OpenAPI operations through PRE2; K4, K5, L1, and PRE0 add no backend operation.
+The API has 26 OpenAPI operations through PRE6; K4, K5, L1, and PRE0 add no backend operation.
 `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
@@ -911,9 +939,10 @@ tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
-590 tests in the full `unittest` discovery run plus 479 subtests through PRE5.
-The separate canonical-geometry pytest suite contains 39 tests, for 629
-aggregate top-level backend tests; 629 is not a single discovery-run count. The required
+599 tests in the full `unittest` discovery run through PRE6. Combined pytest
+discovery contains 638 tests plus 499 passing subtests. The separate
+canonical-geometry pytest suite contains 39 tests; 638 is not a single
+`unittest` discovery-run count. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
 The existing

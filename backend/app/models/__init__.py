@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.analysis_settings import FloorElevationSetting, PageScaleSetting
 from app.models.detection_class_correction import DetectionClassCorrection
 from app.models.detected_symbol import DetectedSymbol
 from app.models.detection_review import DetectionReview
@@ -19,6 +20,8 @@ from app.models.wall import Wall
 
 __all__ = (
     "Base",
+    "FloorElevationSetting",
+    "PageScaleSetting",
     "DetectionClassCorrection",
     "DetectedSymbol",
     "DetectionReview",

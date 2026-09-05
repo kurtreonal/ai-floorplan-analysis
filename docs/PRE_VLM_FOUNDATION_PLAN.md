@@ -8,11 +8,11 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current application baseline is L1, with PRE0-PRE5 foundations complete:
-23 OpenAPI operations and 16 SQLAlchemy/MySQL tables. The implementation can
+The current application baseline is L1, with PRE0-PRE6 foundations complete:
+26 OpenAPI operations and 18 SQLAlchemy/MySQL tables. The implementation can
 discover and reconcile persisted floor plans and bounded processing-job history
 after a page reload, identify every source page, and verify registered derived
-artifacts, but it cannot yet collect authoritative scale/elevation inputs,
+artifacts and collect authoritative scale/elevation inputs, but it cannot yet
 manage the empty approved legend catalog, guarantee conditional/idempotent
 layout saves, or support safe worker leasing and dataset-approver assignments.
 
@@ -38,8 +38,9 @@ is also complete and adds one read-only operation without a table. PRE2 is
 complete and adds one bounded read-only operation without a table. PRE3 is
 complete without a backend operation or table. PRE4 is complete with two
 private source/page tables and verified backfill. PRE5 is complete with one
-private processing-artifact manifest table. PRE6 is the next ticket;
-PRE6-PRE12 and all U-series work remain unimplemented.
+private processing-artifact manifest table. PRE6 is complete with two additive
+reviewed-setting tables and three operations. PRE7 is the next ticket;
+PRE7-PRE12 and all U-series work remain unimplemented.
 
 ## 2. Evidence-backed gaps
 
@@ -50,8 +51,8 @@ PRE6-PRE12 and all U-series work remain unimplemented.
 | No page identity | `processing_jobs` references a floor plan, but no persisted PDF page entity exists | Multi-page plans, legends, schedules, and detail sheets cannot be tracked safely |
 | Derived-artifact provenance foundation complete | PRE5 registers G1/G2 PNGs by job/source page and makes J1A resolve and revalidate the exact manifest row | Optional G3 debug output and future U7 tiles can use the bounded registry without fabricated legacy rows |
 | No persisted source hash | `floor_plans` stores path, MIME, and size but no durable SHA-256 manifest | Reproducible training/inference provenance is incomplete |
-| Floor elevation is snapshot-only | `project_floors` has no elevation field or settings record | K1 requires explicit elevation, so automatic canonical creation would stop |
-| No approved page scale workflow | H2 accepts an injected scale but no API/UI persists reviewed scale evidence | Pixel candidates cannot safely become K1 meters |
+| Reviewed floor elevation foundation complete | PRE6 stores append-only Designer-reviewed floor elevation with evidence and explicit unresolved state | Future adaptation can require approved values without inventing them or rewriting K1 history |
+| Reviewed page scale foundation complete | PRE6 stores append-only per-source-page pixels-per-meter plus exact reference dimensions and evidence | Pixel candidates can be rejected when reviewed scale is absent or dimensions mismatch |
 | Empty catalog has no management API | J3A is active-only read access; P3 is unimplemented | U4 cannot build an approved reference pack from an operational catalog |
 | Layout save lacks concurrency/idempotency | K3 has no expected version, ETag, or idempotency key | Human and machine-assisted saves can create stale or duplicate versions |
 | Job model lacks execution control | No claim/lease/heartbeat/cancellation/retry-attempt contract exists | U13 would otherwise combine infrastructure and VLM orchestration in one risky ticket |
@@ -261,7 +262,7 @@ existing derived-image boundaries, review-image resolution, and tests.
   unregistered; no fake rows are created.
 - Originals remain unchanged and full storage/database regressions pass.
 
-### PRE6 — Persist Designer-approved floor elevation and page scale
+### PRE6 (complete) — Persist Designer-approved floor elevation and page scale
 
 **Goal:** Supply the explicit metric inputs required for deterministic K1
 adaptation without allowing the VLM to guess them.

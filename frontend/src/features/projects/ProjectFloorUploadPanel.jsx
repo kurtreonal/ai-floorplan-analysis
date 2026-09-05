@@ -13,6 +13,7 @@ import { getLayoutHref, getViewer3dHref } from '../../routes/projectRoutes.js'
 import { CreateProjectFloorForm } from './CreateProjectFloorForm.jsx'
 import { FloorPlanUploadForm } from './FloorPlanUploadForm.jsx'
 import { ProcessingJobPanel } from './ProcessingJobPanel.jsx'
+import { AnalysisSettingsPanel } from './AnalysisSettingsPanel.jsx'
 
 
 function getFloorListError(error) {
@@ -204,6 +205,11 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
           {role === 'ADMIN' && (
             <div className="project-floor-admin" role="note">
               <p>Floor-plan uploads require a Designer account.</p>
+              {floors.length > 0 && <label>Settings floor
+                <select value={selectedFloorId} onChange={(event) => setSelectedFloorId(event.target.value)}>
+                  {floors.map((floor) => <option key={floor.id} value={floor.id}>{floor.name}</option>)}
+                </select>
+              </label>}
               {floors.length > 0 && (
                 <ul>
                   {floors.map((floor) => (
@@ -281,6 +287,11 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
               Loading persisted floor plans...
             </div>
           )}
+
+          {selectedFloorId && <AnalysisSettingsPanel
+            key={`${projectId}-${selectedFloorId}-${planRefreshKey}`}
+            projectId={projectId} floorId={Number(selectedFloorId)} canEdit={isDesigner}
+          />}
 
           {planLoadState === 'error' && (
             <div className="project-floor-state project-state-error">

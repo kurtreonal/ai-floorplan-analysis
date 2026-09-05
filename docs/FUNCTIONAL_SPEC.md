@@ -88,16 +88,17 @@ API, or database migration.
 ## Current Implementation Status
 
 The application roadmap is implemented through L1, including the E3A
-project-floor prerequisite introduced between E3 and E4. PRE0-PRE5 are also
+project-floor prerequisite introduced between E3 and E4. PRE0-PRE6 are also
 complete.
 
-The current verified prototype contract contains sixteen SQLAlchemy/MySQL tables
-and 23 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
+The current verified prototype contract contains eighteen SQLAlchemy/MySQL tables
+and 26 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
 catalog. K1 changes neither count; K2 adds `layout_versions` while leaving the
 API count unchanged; K3 adds exactly two layout operations and no table; PRE4
 adds `floor_plan_sources` and `floor_plan_pages`; PRE5 adds
-`processing_artifacts`. K4 and
+`processing_artifacts`; PRE6 adds `floor_elevation_settings` and
+`page_scale_settings` plus three analysis-setting operations. K4 and
 K5 and L1 are frontend-only and leave both counts unchanged. PRE1 and PRE2 each
 add one GET operation and no table.
 
@@ -163,9 +164,9 @@ K1/K2/K3 geometry. K5 provides canonical symbol repositioning, not general
 geometry editing. In particular, there is no worker, external queue, automatic
 OpenCV/YOLO pipeline, canonical 3D reconstruction, routing, estimation, or
 report implementation. There is also no local VLM runtime, candidate schema,
-reviewed VLM gold set, adapter, or VLM orchestration. PRE6-PRE12 are the current
-foundation priority; they close the remaining non-model metric-input,
-catalog, concurrency, worker-control, reviewer-authority, and canonical-contract
+reviewed VLM gold set, adapter, or VLM orchestration. PRE7-PRE12 are the current
+foundation priority; they close the remaining non-model catalog, concurrency,
+worker-control, reviewer-authority, and canonical-contract
 gaps before U1. L2 and later tickets remain unimplemented and are paused unless
 explicitly selected.
 
@@ -3607,9 +3608,9 @@ and all canonical floor, wall, opening, symbol, and route rendering remain later
 work.
 
 L1 verification covers 40 focused route/navigation/viewer regressions and the
-complete frontend suite contains 264 tests across 28 files through PRE3. Backend verification
-is 590 `unittest`-discovery tests plus 479 subtests and a separate 39-test
-canonical-geometry pytest suite (629 aggregate top-level backend tests) through PRE5.
+complete frontend suite contains 273 tests across 30 files through PRE6. Backend
+verification is 599 `unittest`-discovery tests, 638 combined pytest tests plus
+499 subtests, and a separate 39-test canonical-geometry pytest suite through PRE6.
 
 **Acceptance Criteria:**
 
@@ -4292,7 +4293,7 @@ These tickets do not install or run a local model and do not retire YOLO.
 | PRE3 (complete) | Reload-safe project workspace | Persisted plans/jobs render and active monitoring resumes without session-only state |
 | PRE4 (complete) | Immutable source/page identity | Original SHA-256 and one-based raster/PDF page records are persisted atomically |
 | PRE5 (complete) | Processing-artifact manifest | Every trusted derived image has exact job/page/type/path/hash/dimension provenance |
-| PRE6 | Approved elevation and scale | Explicit reviewed metric inputs are persisted without inferred defaults |
+| PRE6 (complete) | Approved elevation and scale | Explicit reviewed metric inputs are persisted without inferred defaults |
 | PRE7 | Symbol-legend administration | Admin can safely manage the existing catalog without guessed seed data or history loss |
 | PRE8 | Conditional/idempotent layout save | Stale saves and duplicate retry versions are rejected or reconciled deterministically |
 | PRE9 | Processing execution controls | Claim/lease/heartbeat/cancel/recovery primitives exist without running an AI pipeline |
@@ -4304,12 +4305,13 @@ Every PRE ticket inherits the detailed acceptance criteria in the pre-foundation
 plan. Each uses a separate feature branch and progress report. PRE12 must stop
 before U1.
 
-PRE0-PRE5 are complete. PRE1 adds read-only floor-plan discovery, PRE2 adds
+PRE0-PRE6 are complete. PRE1 adds read-only floor-plan discovery, PRE2 adds
 bounded read-only processing-job history, and PRE3 reconciles both in the
 workspace without a new table or backend operation. PRE4 adds two private
 source/page tables and a verification-first backfill. PRE5 adds one private
-derived-artifact manifest table and exact J1A provenance resolution. PRE6 is next; no U-series
-model work has started.
+derived-artifact manifest table and exact J1A provenance resolution. PRE6 adds
+append-only reviewed metric settings and three safe operations. PRE7 is next;
+no U-series model work has started.
 
 ---
 

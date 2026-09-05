@@ -281,7 +281,7 @@ describe('project floor upload panel', () => {
     render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={ADMIN_SESSION} />)
 
     expect(await screen.findByText('Floor-plan uploads require a Designer account.')).toBeTruthy()
-    expect(screen.getByText('Ground Floor')).toBeTruthy()
+    expect(screen.getAllByText('Ground Floor')).toHaveLength(2)
     expect(screen.queryByLabelText('Floor name')).toBeNull()
     expect(screen.queryByLabelText('Floor-plan file')).toBeNull()
     expect(screen.queryByRole('button', { name: /upload floor plan/i })).toBeNull()
