@@ -15,6 +15,33 @@ Callers must supply floor elevation explicitly: `project_floors` has no
 elevation column, and an elevation must never be inferred from a floor name or
 sort order.
 
+## PRE6 reviewed metric inputs
+
+PRE6 stores Designer-reviewed elevation and page scale separately in append-only
+`floor_elevation_settings` and `page_scale_settings` records. The newest record
+for a floor/page is its current setting. Each revision records evidence notes,
+the authenticated reviewer, and server creation time. Missing records or null
+values are unresolved; zero elevation is an explicit valid approval.
+
+Scale is expressed in pixels per meter for the explicitly supplied reference
+image width and height. These dimensions describe the image on which the
+Designer measured the reference distance. They are not inferred from DPI or PDF
+paper size. `require_approved_metric_inputs` requires an approved elevation and
+scale and exact reference dimensions before returning K1 adapter inputs.
+Resized or cropped images require a matching approval; PRE6 does not silently
+rescale measurements or introduce a transform contract.
+
+Software input bounds are -10,000 to 10,000 meters for elevation, 0.000001 to
+1,000,000 pixels per meter for scale, and integer dimensions from 1 to 100,000
+pixels. These are storage/validation limits, not electrical engineering rules.
+The values use at most nine decimal places in database storage. Evidence notes
+are required, trimmed, and limited to 1,000 characters. The UI permits marking a
+value unresolved by leaving it blank and supplying a reason.
+
+Settings revisions never rewrite existing K1 JSON, K2 history, stored wall
+coordinates, or original files. K1 documents remain complete snapshots of the
+values used when created. Automatic snapshot creation remains future work.
+
 ## Document fields
 
 | Field | Type | Requirement |

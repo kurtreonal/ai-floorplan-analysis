@@ -4,15 +4,15 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Application roadmap implemented through L1; PRE0-PRE5 foundations are complete.**
+**Application roadmap implemented through L1; PRE0-PRE6 foundations are complete.**
 
-The current backend surface contains 23 OpenAPI operations.
+The current backend surface contains 26 OpenAPI operations.
 
 The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the fifteen-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the eighteen-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -272,9 +272,9 @@ unimplemented.
 PRE0 is complete: the maintained migration documentation and privacy-focused
 Git ignore baseline are published, and PRE1 floor-plan plus PRE2 bounded
 processing-job history discovery, PRE3 reload-safe workspace reconciliation,
-PRE4 immutable source/page identity, and PRE5 derived-artifact provenance are
-complete. PRE6-PRE12 are the current implementation priority. They explicitly own reviewed
-metric inputs, legend administration, save concurrency,
+PRE4 immutable source/page identity, PRE5 derived-artifact provenance, and PRE6
+Designer-reviewed elevation/scale settings are complete. PRE7-PRE12 are the
+current implementation priority. They explicitly own legend administration, save concurrency,
 job execution controls, reviewer authority, and the canonical compatibility
 decision. U1-U14 begin only after PRE12 passes. L2 and later product tickets are
 paused unless the user explicitly chooses to resume them.

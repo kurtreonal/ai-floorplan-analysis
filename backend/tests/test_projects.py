@@ -755,6 +755,15 @@ class ProjectCreationTests(unittest.TestCase):
                     "get",
                     "post",
                 },
+                "/api/projects/{project_id}/floors/{floor_id}/analysis-settings": {
+                    "get",
+                },
+                "/api/projects/{project_id}/floors/{floor_id}/analysis-settings/elevation": {
+                    "put",
+                },
+                "/api/projects/{project_id}/floors/{floor_id}/analysis-settings/pages/{page_id}/scale": {
+                    "put",
+                },
             },
         )
 

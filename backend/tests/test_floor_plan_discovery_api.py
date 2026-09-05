@@ -331,7 +331,7 @@ class FloorPlanDiscoveryApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 23)
+        self.assertEqual(len(operations), 26)
 
 
 if __name__ == "__main__":
