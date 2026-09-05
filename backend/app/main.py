@@ -13,7 +13,10 @@ from app.api.routes.processing import router as processing_router
 from app.api.routes.project_floors import router as project_floors_router
 from app.api.routes.projects import router as projects_router
 from app.api.routes.review_images import router as review_images_router
-from app.api.routes.symbol_legends import router as symbol_legends_router
+from app.api.routes.symbol_legends import (
+    admin_router as symbol_legend_admin_router,
+    router as symbol_legends_router,
+)
 from app.core.config import (
     OAuthOIDCConfigurationError,
     Settings,
@@ -72,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(manual_symbols_router)
     application.include_router(review_images_router)
     application.include_router(symbol_legends_router)
+    application.include_router(symbol_legend_admin_router)
     return application
 
 

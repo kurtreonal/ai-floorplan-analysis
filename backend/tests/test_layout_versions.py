@@ -250,7 +250,7 @@ class LayoutVersionTests(unittest.TestCase):
             {index.name for index in table.indexes},
             {"ix_layout_versions_project_floor_id"},
         )
-        self.assertEqual(len(Base.metadata.tables), 18)
+        self.assertEqual(len(Base.metadata.tables), 19)
         self.assertEqual(
             set(inspect(self.engine).get_table_names()), set(Base.metadata.tables)
         )

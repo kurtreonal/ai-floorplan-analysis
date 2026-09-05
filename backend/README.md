@@ -25,7 +25,8 @@ GET and POST operations to reposition canonical symbols and adds no backend
 operation, table, or schema field. L1 adds only a protected, empty frontend 3D
 viewer and likewise makes no backend, API, schema, storage, or environment
 change. PRE1 and PRE2 each add one read-only operation, and PRE6 adds three
-analysis-setting operations, so the API contains 26 operations.
+analysis-setting operations, and PRE7 adds three Admin legend operations, so
+the API contains 29 operations.
 Workers, canonical 3D rendering,
 non-symbol geometry editing, routing, estimation, and reporting are not implemented.
 
@@ -40,10 +41,10 @@ establishes the maintained migration documentation and private-artifact ignore
 baseline without changing backend behavior. PRE1 floor-plan discovery and PRE2
 bounded processing-job history discovery and PRE3 frontend recovery are also
 complete. PRE4 immutable source/page identity and PRE5 durable derived-artifact
-provenance and PRE6 approved scale/elevation inputs are also complete. PRE7-PRE12
-now precede U1. They own legend administration, layout-save concurrency,
+provenance, PRE6 approved scale/elevation inputs, and PRE7 legend administration
+are also complete. PRE8-PRE12 now precede U1. They own layout-save concurrency,
 engine-neutral execution controls, dataset-approver authority, and canonical
-compatibility decision. PRE0-PRE6 are complete; PRE7-PRE12 remain unimplemented.
+compatibility decision. PRE0-PRE7 are complete; PRE8-PRE12 remain unimplemented.
 
 ## Requirements
 
@@ -98,7 +99,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype schema has these eighteen application tables:
+The current prototype schema has these nineteen application tables:
 
 ```text
 roles
@@ -116,6 +117,7 @@ walls
 detected_symbols
 detection_reviews
 symbol_legends
+symbol_legend_history
 detection_class_corrections
 manual_symbols
 layout_versions
@@ -240,12 +242,23 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 26 OpenAPI operations through PRE6; K4, K5, L1, and PRE0 add no backend operation.
+The API has 29 OpenAPI operations through PRE7; K4, K5, L1, and PRE0 add no backend operation.
 `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
-official VED class values are committed or seeded; P3 remains responsible for
-future Admin management of the catalog.
+official VED class values are committed or seeded. PRE7 adds Admin-only
+all-status retrieval, creation, and full revision/activation at:
+
+```text
+GET  /api/admin/symbol-legends
+POST /api/admin/symbol-legends
+PUT  /api/admin/symbol-legends/{legend_id}
+```
+
+Every real change appends an actor/time and old/new snapshot to
+`symbol_legend_history`; exact retries are no-ops. Deactivation updates only the
+catalog record and never deletes detection, correction, manual-symbol, or layout
+history. P4 still owns the future Admin management UI.
 
 `GET /api/projects/{project_id}/floor-plans` returns persisted safe metadata to
 the owning Designer or an Admin, ordered by floor sort order, floor identity,
@@ -939,9 +952,9 @@ tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
-599 tests in the full `unittest` discovery run through PRE6. Combined pytest
-discovery contains 638 tests plus 499 passing subtests. The separate
-canonical-geometry pytest suite contains 39 tests; 638 is not a single
+605 tests in the full `unittest` discovery run through PRE7. Combined pytest
+discovery contains 644 tests plus 504 passing subtests. The separate
+canonical-geometry pytest suite contains 39 tests; 644 is not a single
 `unittest` discovery-run count. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.

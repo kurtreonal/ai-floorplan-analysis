@@ -88,17 +88,18 @@ API, or database migration.
 ## Current Implementation Status
 
 The application roadmap is implemented through L1, including the E3A
-project-floor prerequisite introduced between E3 and E4. PRE0-PRE6 are also
+project-floor prerequisite introduced between E3 and E4. PRE0-PRE7 are also
 complete.
 
-The current verified prototype contract contains eighteen SQLAlchemy/MySQL tables
-and 26 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
+The current verified prototype contract contains nineteen SQLAlchemy/MySQL tables
+and 29 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
 catalog. K1 changes neither count; K2 adds `layout_versions` while leaving the
 API count unchanged; K3 adds exactly two layout operations and no table; PRE4
 adds `floor_plan_sources` and `floor_plan_pages`; PRE5 adds
 `processing_artifacts`; PRE6 adds `floor_elevation_settings` and
-`page_scale_settings` plus three analysis-setting operations. K4 and
+`page_scale_settings` plus three analysis-setting operations; PRE7 adds
+`symbol_legend_history` plus three Admin legend operations. K4 and
 K5 and L1 are frontend-only and leave both counts unchanged. PRE1 and PRE2 each
 add one GET operation and no table.
 
@@ -164,8 +165,8 @@ K1/K2/K3 geometry. K5 provides canonical symbol repositioning, not general
 geometry editing. In particular, there is no worker, external queue, automatic
 OpenCV/YOLO pipeline, canonical 3D reconstruction, routing, estimation, or
 report implementation. There is also no local VLM runtime, candidate schema,
-reviewed VLM gold set, adapter, or VLM orchestration. PRE7-PRE12 are the current
-foundation priority; they close the remaining non-model catalog, concurrency,
+reviewed VLM gold set, adapter, or VLM orchestration. PRE8-PRE12 are the current
+foundation priority; they close the remaining non-model concurrency,
 worker-control, reviewer-authority, and canonical-contract
 gaps before U1. L2 and later tickets remain unimplemented and are paused unless
 explicitly selected.
@@ -3344,8 +3345,8 @@ Implemented behavior:
   case-sensitive `utf8mb4_bin` MySQL collation.
 - Retrieval performs no model loading, inference, filesystem access, database
   mutation, flush, commit, or row lock.
-- No approved production VED values were supplied, so J3A seeds none. P3 still
-  owns future Admin catalog management.
+- No approved production VED values were supplied, so J3A seeds none. PRE7
+  implements P3's Admin API; P4 owns the future management UI.
 
 **Acceptance Criteria:**
 
@@ -3391,7 +3392,7 @@ Implemented behavior:
   keeps rejected results visible, and announces safe outcomes accessibly.
 - J4 adds no production legend seed, Admin catalog mutation, J5 manual symbol,
   dragging, canonical geometry, worker orchestration, model run, or new
-  dependency. P3 still owns Admin legend management.
+  dependency. PRE7 later implements Admin legend management without changing J4.
 
 **Acceptance Criteria:**
 
@@ -3608,9 +3609,9 @@ and all canonical floor, wall, opening, symbol, and route rendering remain later
 work.
 
 L1 verification covers 40 focused route/navigation/viewer regressions and the
-complete frontend suite contains 273 tests across 30 files through PRE6. Backend
-verification is 599 `unittest`-discovery tests, 638 combined pytest tests plus
-499 subtests, and a separate 39-test canonical-geometry pytest suite through PRE6.
+complete frontend suite contains 273 tests across 30 files through PRE7. Backend
+verification is 605 `unittest`-discovery tests, 644 combined pytest tests plus
+504 subtests, and a separate 39-test canonical-geometry pytest suite through PRE7.
 
 **Acceptance Criteria:**
 
@@ -3976,13 +3977,21 @@ verification is 599 `unittest`-discovery tests, 638 combined pytest tests plus
 
 **Dependencies:** C4, I4.
 
+**Implementation status:** Complete through PRE7. Admins have safe all-status
+retrieval, creation, and full class/name/active-state revision. Normalized class
+IDs and names remain unique and case-sensitive. Every real change appends an
+actor/time and old/new snapshot to `symbol_legend_history`; no-op retries append
+nothing. Deactivation performs no delete and does not rewrite dependent history.
+No production class or private glyph/reference file is seeded or returned. P4
+still owns the future management UI.
+
 **Acceptance Criteria:**
 
-- [ ] Admin can list symbol legends.
-- [ ] Admin can activate/deactivate supported legend records.
-- [ ] Designer cannot modify the legend library.
-- [ ] Existing detections remain referentially valid when a legend is deactivated.
-- [ ] Model class mapping behavior is documented.
+- [x] Admin can list symbol legends.
+- [x] Admin can activate/deactivate supported legend records.
+- [x] Designer cannot modify the legend library.
+- [x] Existing detections remain referentially valid when a legend is deactivated.
+- [x] Model class mapping behavior is documented.
 
 ---
 
@@ -4294,7 +4303,7 @@ These tickets do not install or run a local model and do not retire YOLO.
 | PRE4 (complete) | Immutable source/page identity | Original SHA-256 and one-based raster/PDF page records are persisted atomically |
 | PRE5 (complete) | Processing-artifact manifest | Every trusted derived image has exact job/page/type/path/hash/dimension provenance |
 | PRE6 (complete) | Approved elevation and scale | Explicit reviewed metric inputs are persisted without inferred defaults |
-| PRE7 | Symbol-legend administration | Admin can safely manage the existing catalog without guessed seed data or history loss |
+| PRE7 (complete) | Symbol-legend administration | Admin can safely manage the existing catalog without guessed seed data or history loss |
 | PRE8 | Conditional/idempotent layout save | Stale saves and duplicate retry versions are rejected or reconciled deterministically |
 | PRE9 | Processing execution controls | Claim/lease/heartbeat/cancel/recovery primitives exist without running an AI pipeline |
 | PRE10 | Dataset-approver authority | Active human VED approver assignment is auditable and privacy-bounded |
@@ -4305,12 +4314,13 @@ Every PRE ticket inherits the detailed acceptance criteria in the pre-foundation
 plan. Each uses a separate feature branch and progress report. PRE12 must stop
 before U1.
 
-PRE0-PRE6 are complete. PRE1 adds read-only floor-plan discovery, PRE2 adds
+PRE0-PRE7 are complete. PRE1 adds read-only floor-plan discovery, PRE2 adds
 bounded read-only processing-job history, and PRE3 reconciles both in the
 workspace without a new table or backend operation. PRE4 adds two private
 source/page tables and a verification-first backfill. PRE5 adds one private
 derived-artifact manifest table and exact J1A provenance resolution. PRE6 adds
-append-only reviewed metric settings and three safe operations. PRE7 is next;
+append-only reviewed metric settings and three safe operations. PRE7 adds the
+Admin legend API and append-only change history. PRE8 is next;
 no U-series model work has started.
 
 ---

@@ -8,12 +8,12 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current application baseline is L1, with PRE0-PRE6 foundations complete:
-26 OpenAPI operations and 18 SQLAlchemy/MySQL tables. The implementation can
+The current application baseline is L1, with PRE0-PRE7 foundations complete:
+29 OpenAPI operations and 19 SQLAlchemy/MySQL tables. The implementation can
 discover and reconcile persisted floor plans and bounded processing-job history
 after a page reload, identify every source page, and verify registered derived
-artifacts and collect authoritative scale/elevation inputs, but it cannot yet
-manage the empty approved legend catalog, guarantee conditional/idempotent
+artifacts, collect authoritative scale/elevation inputs, and safely manage the
+approved legend catalog, but it cannot yet guarantee conditional/idempotent
 layout saves, or support safe worker leasing and dataset-approver assignments.
 
 The foundation must preserve these boundaries:
@@ -39,8 +39,9 @@ complete and adds one bounded read-only operation without a table. PRE3 is
 complete without a backend operation or table. PRE4 is complete with two
 private source/page tables and verified backfill. PRE5 is complete with one
 private processing-artifact manifest table. PRE6 is complete with two additive
-reviewed-setting tables and three operations. PRE7 is the next ticket;
-PRE7-PRE12 and all U-series work remain unimplemented.
+reviewed-setting tables and three operations. PRE7 is complete with one
+append-only history table and three Admin operations. PRE8 is the next ticket;
+PRE8-PRE12 and all U-series work remain unimplemented.
 
 ## 2. Evidence-backed gaps
 
@@ -53,7 +54,7 @@ PRE7-PRE12 and all U-series work remain unimplemented.
 | No persisted source hash | `floor_plans` stores path, MIME, and size but no durable SHA-256 manifest | Reproducible training/inference provenance is incomplete |
 | Reviewed floor elevation foundation complete | PRE6 stores append-only Designer-reviewed floor elevation with evidence and explicit unresolved state | Future adaptation can require approved values without inventing them or rewriting K1 history |
 | Reviewed page scale foundation complete | PRE6 stores append-only per-source-page pixels-per-meter plus exact reference dimensions and evidence | Pixel candidates can be rejected when reviewed scale is absent or dimensions mismatch |
-| Empty catalog has no management API | J3A is active-only read access; P3 is unimplemented | U4 cannot build an approved reference pack from an operational catalog |
+| Approved catalog management foundation complete | PRE7 adds Admin-only create/revise/all-status APIs and actor/time history without seed data | U4 can later build a reference pack only from deliberately managed active records |
 | Layout save lacks concurrency/idempotency | K3 has no expected version, ETag, or idempotency key | Human and machine-assisted saves can create stale or duplicate versions |
 | Job model lacks execution control | No claim/lease/heartbeat/cancellation/retry-attempt contract exists | U13 would otherwise combine infrastructure and VLM orchestration in one risky ticket |
 | Dataset approver is documentation-only | No persisted assignment/qualification/active-authority contract exists | U5/U9 cannot prove who may release reviewed training truth |
@@ -287,7 +288,7 @@ minimal Designer UI, validation, authorization, and tests.
 - Safe APIs/UI expose missing/unverified state clearly and do not block upload.
 - Focused geometry/API/UI tests and full regressions pass.
 
-### PRE7 — Implement approved symbol-legend administration
+### PRE7 (complete) — Implement approved symbol-legend administration
 
 **Goal:** Make the existing empty J3A catalog operational before U4 builds a
 local reference pack.
