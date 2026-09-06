@@ -84,11 +84,21 @@
   settings with evidence, explicit unresolved states, and Admin read-only access
 - PRE7: Admin-only legend creation/revision/all-status retrieval with append-only
   actor/time snapshots and no guessed production class seed
+- PRE8: conditional expected-version layout saves and durable UUIDv4
+  idempotency records
+- PRE9: engine-neutral claim, lease, heartbeat, cancellation, recovery, and
+  retry controls without a worker
+- PRE10: history-preserving human VED AI Dataset Approver assignment authority
+  with privacy-reduced current retrieval
+- PRE11: accepted canonical v1 compatibility and additive extension decision
+  with one shared Python/JavaScript matrix
+- PRE12: passing functional, schema, storage, privacy, documentation, and Git
+  readiness gate
 
 ### Planned
 
-PRE9-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
-define the migration from the implemented YOLO-only symbol path to local
+PRE0-PRE12 now form a passing non-model foundation gate. U1-U14
+define the planned migration from the implemented YOLO-only symbol path to local
 multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
 unimplemented, including canonical 3D geometry, routing, quantities, estimates,
 reports, administration, and audit logging.
@@ -399,7 +409,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set contains twenty-three tables through PRE10:
+The live and SQLAlchemy model table set contains twenty-three tables through PRE12:
 
 ```text
 roles
@@ -535,7 +545,7 @@ POST /api/admin/dataset-approver-assignments
 POST /api/admin/dataset-approver-assignments/{assignment_id}/deactivate
 ```
 
-The API contains 34 OpenAPI operations through PRE10. Floor-plan discovery
+The API contains 34 OpenAPI operations through PRE12. Floor-plan discovery
 returns safe persisted metadata to the owning Designer or an Admin, supports a
 positive project-scoped optional floor filter, and orders by floor sort order,
 floor ID, then floor-plan ID without reading files or exposing storage paths.
@@ -917,9 +927,9 @@ claiming, bounded leases, named-stage heartbeats, deterministic retry/recovery,
 and queued/cooperative cancellation without implementing a worker or invoking
 AI/CV. PRE10 adds the human dataset-approver authority, and PRE11 accepts the
 canonical compatibility decision in
-`decisions/0001-canonical-geometry-compatibility.md`. The next priority ticket
-is PRE12; no U ticket has started. U1 depends on the PRE12
-readiness gate. L2 is paused unless explicitly
+`decisions/0001-canonical-geometry-compatibility.md`. PRE12 publishes the
+passing evidence in `PRE_VLM_READINESS_REPORT.md`; no U ticket has started.
+U1 is next but requires separate authorization. L2 is paused unless explicitly
 selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
 floor-plan, detection, or processing-job request. Canonical floor meshes,
@@ -932,4 +942,4 @@ PRE4 gives originals and their pages immutable identity. PRE5 adds the
 now resolves the exact registered normalized image and revalidates its file,
 hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
 K1 snapshots. PRE7 makes the approved catalog operational without seeding a
-class or adding the deferred P4 UI. PRE8-PRE11 are complete; PRE12 is next.
+class or adding the deferred P4 UI. PRE0-PRE12 are complete; U1 has not started.

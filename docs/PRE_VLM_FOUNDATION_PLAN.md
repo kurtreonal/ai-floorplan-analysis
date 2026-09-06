@@ -8,14 +8,15 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current application baseline is L1, with PRE0-PRE11 foundations complete:
+The current application baseline is L1, with PRE0-PRE12 foundations complete:
 34 OpenAPI operations and 23 SQLAlchemy/MySQL tables. The implementation can
 discover and reconcile persisted floor plans and bounded processing-job history
 after a page reload, identify every source page, and verify registered derived
 artifacts, collect authoritative scale/elevation inputs, and safely manage the
 approved legend catalog, guarantee conditional/idempotent layout saves, and
 control processing attempts safely, persist dataset-approver authority, and
-freeze the canonical compatibility boundary. The final readiness gate remains.
+freeze the canonical compatibility boundary. PRE12's readiness gate passes;
+U1 has not started.
 
 The foundation must preserve these boundaries:
 
@@ -46,8 +47,9 @@ conditional-save request table and no new operation. PRE9 is complete with two
 execution-control tables and one cancellation operation. PRE10 is complete with
 one history-preserving authority table and four privacy-bounded operations.
 PRE11 is complete with an accepted architecture decision and shared
-cross-runtime compatibility fixture, without API or table changes. PRE12 and
-all U-series work remain unimplemented.
+cross-runtime compatibility fixture, without API or table changes. PRE12 is
+complete with the published evidence in `PRE_VLM_READINESS_REPORT.md`. All
+U-series work remains unimplemented.
 
 ## 2. Evidence-backed gaps
 
@@ -447,6 +449,12 @@ JavaScript. No version-2 extension schema or persistence is implemented.
 **Goal:** Prove the foundations are coherent before U1 begins.
 
 **Dependencies:** PRE0-PRE11.
+
+**Implementation status:** Complete and published. The consolidated evidence is
+maintained in `PRE_VLM_READINESS_REPORT.md`. All functional, schema, storage,
+privacy, documentation, protected-file, test, and Git publication gates pass.
+No U1 branch, VLM dependency, model, training run, or external-service mutation
+was created.
 
 **Acceptance criteria:**
 

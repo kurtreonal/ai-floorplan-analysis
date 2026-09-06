@@ -18,6 +18,8 @@ legacy comparison and rollback path until the migration release gate passes.
 Before this migration begins, PRE0-PRE12 in
 `docs/PRE_VLM_FOUNDATION_PLAN.md` close the repository's non-model readiness
 gaps. U1 must not start until PRE12 publishes a passing readiness report.
+PRE12 now passes in `docs/PRE_VLM_READINESS_REPORT.md`; U1 has not started and
+still requires separate authorization.
 PRE11 has accepted
 `docs/decisions/0001-canonical-geometry-compatibility.md`; U2 and U11 must
 follow its evidence ownership, fail-closed negotiation, and append-only

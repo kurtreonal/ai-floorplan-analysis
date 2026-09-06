@@ -1,5 +1,16 @@
 # VED Electrical Services: AI-Driven Floor Plan Analysis and 3D Visualization System for Automated Layout and Cost Estimation
 
+> **Repository implementation note (2026-09-06):** This file preserves the
+> thesis/source manuscript and describes the proposed end state; its wording is
+> not current implementation evidence or agent instruction. The repository uses
+> FastAPI, not Flask. It retains a legacy local YOLO code path but has no trained
+> weights or automatic analysis worker, and no local VLM has been installed.
+> L1 is an empty Three.js viewer; canonical 3D reconstruction, routing, material
+> pricing, estimates, and PDF reports remain unimplemented. The application does
+> not require Internet access merely to load its bundled Three.js dependency.
+> See `README.md`, `ARCHITECTURE.md`, and `FUNCTIONAL_SPEC.md` for verified
+> current behavior and limitations.
+
 **Undergraduate Thesis**
 
 Submitted to the Faculty of the Department of Computer Studies  
