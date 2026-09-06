@@ -69,7 +69,10 @@ that cannot be safely guessed:
 - traceable PEC/reference edition, part, page, and permitted-use metadata;
 - known scale/elevation evidence when the scan does not state it clearly;
 - whether visible wiring should be captured as source evidence; and
-- the named VED AI Dataset Approver for release decisions.
+- the named VED AI Dataset Approver for release decisions. PRE10 persists this
+  as an application authority assignment rather than a third OAuth role. The
+  assigning Admin cannot assign themselves, and U5/U9 must enforce that an
+  approver cannot approve a proposal or annotation they authored.
 
 The system/Codex may hash and inventory originals, render pages, identify plan
 regions and legends, create tiles, run OCR/line extraction, propose structured

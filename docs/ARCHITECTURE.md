@@ -399,11 +399,12 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set contains twenty-two tables through PRE9:
+The live and SQLAlchemy model table set contains twenty-three tables through PRE10:
 
 ```text
 roles
 users
+dataset_approver_assignments
 projects
 project_floors
 floor_plans
@@ -528,9 +529,13 @@ POST /api/admin/symbol-legends
 PUT  /api/admin/symbol-legends/{legend_id}
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classification?processing_job_id={job_id}
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
+GET  /api/dataset-approver-assignment
+GET  /api/admin/dataset-approver-assignments
+POST /api/admin/dataset-approver-assignments
+POST /api/admin/dataset-approver-assignments/{assignment_id}/deactivate
 ```
 
-The API contains 30 OpenAPI operations through PRE9. Floor-plan discovery
+The API contains 34 OpenAPI operations through PRE10. Floor-plan discovery
 returns safe persisted metadata to the owning Designer or an Admin, supports a
 positive project-scoped optional floor filter, and orders by floor sort order,
 floor ID, then floor-plan ID without reading files or exposing storage paths.
@@ -922,4 +927,4 @@ PRE4 gives originals and their pages immutable identity. PRE5 adds the
 now resolves the exact registered normalized image and revalidates its file,
 hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
 K1 snapshots. PRE7 makes the approved catalog operational without seeding a
-class or adding the deferred P4 UI. PRE8 and PRE9 are complete; PRE10 is next.
+class or adding the deferred P4 UI. PRE8-PRE10 are complete; PRE11 is next.

@@ -158,7 +158,7 @@ class ProcessingExecutionTests(unittest.TestCase):
 
     def test_schema_and_openapi_contract(self) -> None:
         inspector = inspect(self.engine)
-        self.assertEqual(len(Base.metadata.tables), 22)
+        self.assertEqual(len(Base.metadata.tables), 23)
         self.assertEqual(set(inspector.get_table_names()), set(Base.metadata.tables))
         self.assertEqual(
             {item["name"] for item in inspector.get_unique_constraints("processing_job_attempts")},
@@ -171,7 +171,7 @@ class ProcessingExecutionTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 30)
+        self.assertEqual(operations, 34)
 
     def test_concurrent_claim_has_exactly_one_active_owner(self) -> None:
         job_id = self._job()

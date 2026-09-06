@@ -28,7 +28,7 @@ cancellation operation without adding a worker or executing AI/CV. L1 adds only 
 viewer and likewise makes no backend, API, schema, storage, or environment
 change. PRE1 and PRE2 each add one read-only operation, and PRE6 adds three
 analysis-setting operations, and PRE7 adds three Admin legend operations, so
-the API contains 30 operations.
+the API contains 34 operations.
 Workers, canonical 3D rendering,
 non-symbol geometry editing, routing, estimation, and reporting are not implemented.
 
@@ -45,9 +45,10 @@ bounded processing-job history discovery and PRE3 frontend recovery are also
 complete. PRE4 immutable source/page identity and PRE5 durable derived-artifact
 provenance, PRE6 approved scale/elevation inputs, and PRE7 legend administration
 are also complete. PRE8 conditional/idempotent layout saving and PRE9
-engine-neutral execution controls are complete. PRE10-PRE12 now precede U1.
-They own dataset-approver authority, the canonical compatibility decision, and
-the readiness gate. PRE0-PRE9 are complete; PRE10-PRE12 remain unimplemented.
+engine-neutral execution controls and PRE10 dataset-approver authority are
+complete. PRE11-PRE12 now precede U1. They own the canonical compatibility
+decision and readiness gate. PRE0-PRE10 are complete; PRE11-PRE12 remain
+unimplemented.
 
 ## Requirements
 
@@ -102,11 +103,12 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype schema has these twenty-two application tables:
+The current prototype schema has these twenty-three application tables:
 
 ```text
 roles
 users
+dataset_approver_assignments
 projects
 project_floors
 floor_plans
@@ -247,9 +249,13 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?pro
 GET  /api/symbol-legends
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classification?processing_job_id={job_id}
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
+GET  /api/dataset-approver-assignment
+GET  /api/admin/dataset-approver-assignments
+POST /api/admin/dataset-approver-assignments
+POST /api/admin/dataset-approver-assignments/{assignment_id}/deactivate
 ```
 
-The API has 30 OpenAPI operations through PRE9; K4, K5, L1, PRE0, PRE3-PRE5,
+The API has 34 OpenAPI operations through PRE10; K4, K5, L1, PRE0, PRE3-PRE5,
 and PRE8 add no backend operation.
 `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
@@ -267,6 +273,16 @@ Every real change appends an actor/time and old/new snapshot to
 `symbol_legend_history`; exact retries are no-ops. Deactivation updates only the
 catalog record and never deletes detection, correction, manual-symbol, or layout
 history. P4 still owns the future Admin management UI.
+
+PRE10 adds a separate application authority assignment without adding an OAuth
+role. `ADMIN` users manage history through `GET`/`POST
+/api/admin/dataset-approver-assignments` and `POST
+/api/admin/dataset-approver-assignments/{assignment_id}/deactivate`. Authenticated
+Designers and Admins may read the active assignee ID, authority scope, and start
+time through `GET /api/dataset-approver-assignment`; qualification category and
+the bounded professional reference remain Admin-only. Assignments preserve
+activation/deactivation history, only one may be active, and an Admin cannot
+assign themselves. PRE10 creates no dataset review or approval decision.
 
 `GET /api/projects/{project_id}/floor-plans` returns persisted safe metadata to
 the owning Designer or an Admin, ordered by floor sort order, floor identity,

@@ -8,14 +8,14 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current application baseline is L1, with PRE0-PRE9 foundations complete:
-30 OpenAPI operations and 22 SQLAlchemy/MySQL tables. The implementation can
+The current application baseline is L1, with PRE0-PRE10 foundations complete:
+34 OpenAPI operations and 23 SQLAlchemy/MySQL tables. The implementation can
 discover and reconcile persisted floor plans and bounded processing-job history
 after a page reload, identify every source page, and verify registered derived
 artifacts, collect authoritative scale/elevation inputs, and safely manage the
 approved legend catalog, guarantee conditional/idempotent layout saves, and
-control processing attempts safely, but it cannot yet support dataset-approver
-assignments.
+control processing attempts safely, and persist dataset-approver authority. The
+canonical v2 compatibility decision and final readiness gate remain.
 
 The foundation must preserve these boundaries:
 
@@ -43,8 +43,9 @@ private processing-artifact manifest table. PRE6 is complete with two additive
 reviewed-setting tables and three operations. PRE7 is complete with one
 append-only history table and three Admin operations. PRE8 is complete with one
 conditional-save request table and no new operation. PRE9 is complete with two
-execution-control tables and one cancellation operation; PRE10-PRE12 and all
-U-series work remain unimplemented.
+execution-control tables and one cancellation operation. PRE10 is complete with
+one history-preserving authority table and four privacy-bounded operations;
+PRE11-PRE12 and all U-series work remain unimplemented.
 
 ## 2. Evidence-backed gaps
 
@@ -60,7 +61,7 @@ U-series work remain unimplemented.
 | Approved catalog management foundation complete | PRE7 adds Admin-only create/revise/all-status APIs and actor/time history without seed data | U4 can later build a reference pack only from deliberately managed active records |
 | Conditional/idempotent layout saving complete | PRE8 adds an expected-version envelope, client UUIDv4, floor lock/compare, and durable request record | Stale writes and duplicate identical retries are rejected or reconciled before a K2 snapshot is appended |
 | Processing execution-control foundation complete | PRE9 adds atomic single-owner claims, bounded leases, named-stage heartbeats, attempt recovery, and cancellation records/API | U13 can later orchestrate a chosen engine without inventing concurrency controls inside model work |
-| Dataset approver is documentation-only | No persisted assignment/qualification/active-authority contract exists | U5/U9 cannot prove who may release reviewed training truth |
+| Dataset-approver authority foundation complete | PRE10 persists one active human assignment plus full Admin-only history and a privacy-reduced current view | U5/U9 can later bind decisions to verified active authority without adding an OAuth role |
 | K1 v1 lacks future provenance fields | No source-page identity, openings/panels contract, or observed/generated route provenance | U11 and later 3D/routing work could force an unplanned schema break |
 | Prototype schema evolution is implicit | `create_all()` adds tables but does not transform existing tables | Tickets must avoid assuming an existing-table change has been applied |
 
@@ -382,6 +383,13 @@ assignment before gold data exists.
 
 **Expected scope:** additive assignment/history model, Admin management API,
 safe current-assignment retrieval, privacy decisions, and tests.
+
+**Implementation status:** Complete and published. PRE10 persists a single
+active assignment to an existing application user, preserves deactivated rows,
+keeps qualification/reference details Admin-only, exposes only a reduced active
+view to authenticated users, and rejects Admin self-assignment. It creates no
+review decision; U5/U9 must also reject proposal-author self-approval when those
+records exist.
 
 **Acceptance criteria:**
 

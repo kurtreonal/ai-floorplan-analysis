@@ -382,8 +382,8 @@ class SymbolPersistenceTests(unittest.TestCase):
         self.assertTrue(table.c.processing_job_id.index)
         self.assertEqual(DETECTED_SYMBOL_STATUSES, ("detected", "needs_review"))
         self.assertIn("detected_symbols", Base.metadata.tables)
-        self.assertEqual(len(Base.metadata.tables), 22)
-        self.assertEqual(len(inspect(self.engine).get_table_names()), 22)
+        self.assertEqual(len(Base.metadata.tables), 23)
+        self.assertEqual(len(inspect(self.engine).get_table_names()), 23)
         self.assertEqual(
             DetectedSymbol.floor_plan.property.back_populates,
             "detected_symbols",
@@ -884,7 +884,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             if method.casefold()
             in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 30)
+        self.assertEqual(operations, 34)
 
 
 if __name__ == "__main__":
