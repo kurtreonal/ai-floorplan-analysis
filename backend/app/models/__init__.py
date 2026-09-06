@@ -10,6 +10,8 @@ from app.models.layout_version import LayoutVersion
 from app.models.layout_save_request import LayoutSaveRequest
 from app.models.manual_symbol import ManualSymbol
 from app.models.processing_job import ProcessingJob
+from app.models.processing_job_attempt import ProcessingJobAttempt
+from app.models.processing_job_cancellation import ProcessingJobCancellation
 from app.models.processing_artifact import ProcessingArtifact
 from app.models.project import Project
 from app.models.project_floor import ProjectFloor
@@ -34,6 +36,8 @@ __all__ = (
     "LayoutSaveRequest",
     "ManualSymbol",
     "ProcessingJob",
+    "ProcessingJobAttempt",
+    "ProcessingJobCancellation",
     "ProcessingArtifact",
     "Project",
     "ProjectFloor",

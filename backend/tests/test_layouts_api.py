@@ -339,11 +339,11 @@ class LayoutApiTests(unittest.TestCase):
             for method in item
             if method in {"get", "post", "put", "patch", "delete"}
         ]
-        self.assertEqual(len(operations), 29)
+        self.assertEqual(len(operations), 30)
         self.assertFalse(
             any("history" in path or "current" in path for path in schema["paths"])
         )
-        self.assertEqual(len(Base.metadata.tables), 20)
+        self.assertEqual(len(Base.metadata.tables), 22)
         self.assertEqual(
             set(inspect(self.engine).get_table_names()), set(Base.metadata.tables)
         )

@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  cancelProcessingJob,
   fetchProcessingJob,
   listProcessingJobs,
   ProcessingJobApiError,
@@ -23,6 +24,26 @@ afterEach(() => {
 })
 
 describe('processing jobs API client', () => {
+  it('requests cancellation with the exact credentialed job URL', async () => {
+    const payload = { job_id: 31, status: 'processing', cancellation_mode: 'cooperative_requested' }
+    const fetchMock = vi.fn().mockResolvedValue(response({ payload }))
+    vi.stubGlobal('fetch', fetchMock)
+    const signal = new AbortController().signal
+    await expect(cancelProcessingJob(31, { signal })).resolves.toEqual(payload)
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8000/api/processing-jobs/31/cancel', {
+      method: 'POST', credentials: 'include', headers: { Accept: 'application/json' }, signal,
+    })
+  })
+
+  it('rejects malformed cancellation identities and responses', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(cancelProcessingJob(0)).rejects.toBeInstanceOf(ProcessingJobApiError)
+    expect(fetchMock).not.toHaveBeenCalled()
+    fetchMock.mockResolvedValue(response({ payload: { job_id: 32, status: 'cancelled', cancellation_mode: 'queued_cancelled' } }))
+    await expect(cancelProcessingJob(31)).rejects.toBeInstanceOf(ProcessingJobApiError)
+  })
+
   it('loads and validates bounded processing-job history', async () => {
     const payload = [{
       job_id: 31,

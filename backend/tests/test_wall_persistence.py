@@ -348,6 +348,8 @@ class WallPersistenceTests(unittest.TestCase):
                 "layout_save_requests",
                 "manual_symbols",
                 "processing_jobs",
+                "processing_job_attempts",
+                "processing_job_cancellations",
                 "processing_artifacts",
                 "floor_elevation_settings",
                 "page_scale_settings",
@@ -605,7 +607,7 @@ class WallPersistenceTests(unittest.TestCase):
         self.assertEqual((self.job.status, self.job.progress), ("processing", 25))
         self.assertEqual(floor_plan.processing_status, "uploaded")
 
-    def test_current_openapi_operation_count_includes_k3(self) -> None:
+    def test_current_openapi_operation_count(self) -> None:
         from app.main import app
 
         operations = sum(
@@ -614,7 +616,7 @@ class WallPersistenceTests(unittest.TestCase):
             for method in methods
             if method.casefold() in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 29)
+        self.assertEqual(operations, 30)
 
 
 if __name__ == "__main__":

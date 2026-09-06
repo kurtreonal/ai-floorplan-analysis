@@ -8,9 +8,14 @@ from app.api.dependencies import require_roles
 from app.core.database import get_db
 from app.models import User
 from app.schemas.processing_job import (
+    ProcessingJobCancellationResponse,
     ProcessingJobStartResponse,
     ProcessingJobStatusResponse,
     ProcessingJobHistoryItemResponse,
+)
+from app.services.processing_execution_service import (
+    ProcessingExecutionError,
+    request_processing_cancellation,
 )
 from app.services.processing_job_service import (
     ActiveProcessingJobError,
@@ -178,4 +183,45 @@ def get_processing_job_status_endpoint(
         status=processing_job.status,
         progress=processing_job.progress,
         error_message=get_safe_processing_error_message(processing_job),
+    )
+
+
+@router.post(
+    "/api/processing-jobs/{job_id}/cancel",
+    response_model=ProcessingJobCancellationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def cancel_processing_job_endpoint(
+    job_id: Annotated[int, Path(gt=0)],
+    current_user: User = Depends(require_roles("DESIGNER")),
+    database_session: Session = Depends(get_db),
+) -> ProcessingJobCancellationResponse:
+    try:
+        result = request_processing_cancellation(
+            database_session,
+            current_user=current_user,
+            job_id=job_id,
+        )
+    except ProcessingExecutionError as error:
+        if error.code == "PROCESSING_JOB_NOT_FOUND":
+            raise _api_error(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="PROCESSING_JOB_NOT_FOUND",
+                message="The requested processing job was not found.",
+            ) from None
+        if error.code == "PROCESSING_JOB_NOT_CANCELLABLE":
+            raise _api_error(
+                status_code=status.HTTP_409_CONFLICT,
+                code="PROCESSING_JOB_NOT_CANCELLABLE",
+                message="The processing job is already terminal.",
+            ) from None
+        raise _api_error(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="PROCESSING_JOB_CANCELLATION_FAILED",
+            message="The cancellation request could not be recorded.",
+        ) from None
+    return ProcessingJobCancellationResponse(
+        job_id=result.job_id,
+        status=result.status,
+        cancellation_mode=result.mode,
     )

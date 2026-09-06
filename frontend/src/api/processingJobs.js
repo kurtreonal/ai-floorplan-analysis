@@ -4,6 +4,7 @@ import { API_BASE_URL } from './auth.js'
 const GENERIC_PROCESSING_ERROR = 'The processing request could not be completed.'
 const GENERIC_STATUS_ERROR = 'The processing status could not be loaded.'
 const GENERIC_HISTORY_ERROR = 'Processing-job history could not be loaded.'
+const GENERIC_CANCELLATION_ERROR = 'The cancellation request could not be completed.'
 const PROCESSING_STATUSES = new Set([
   'queued',
   'processing',
@@ -171,4 +172,31 @@ export async function listProcessingJobs(floorPlanId, { signal } = {}) {
     throw new ProcessingJobApiError(GENERIC_HISTORY_ERROR)
   }
   return payload.map(normalizeHistoryItem)
+}
+
+export async function cancelProcessingJob(jobId, { signal } = {}) {
+  if (!isPositiveInteger(jobId)) {
+    throw new ProcessingJobApiError(GENERIC_CANCELLATION_ERROR)
+  }
+  const payload = await request(
+    `${API_BASE_URL}/api/processing-jobs/${jobId}/cancel`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      signal,
+    },
+    GENERIC_CANCELLATION_ERROR,
+  )
+  if (!isPositiveInteger(payload?.job_id)
+    || payload.job_id !== jobId
+    || !['processing', 'cancelled'].includes(payload.status)
+    || !['queued_cancelled', 'cooperative_requested'].includes(payload.cancellation_mode)) {
+    throw new ProcessingJobApiError(GENERIC_CANCELLATION_ERROR)
+  }
+  return {
+    job_id: payload.job_id,
+    status: payload.status,
+    cancellation_mode: payload.cancellation_mode,
+  }
 }

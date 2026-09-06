@@ -574,9 +574,10 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
                 ("get", "/api/admin/symbol-legends"),
                 ("post", "/api/admin/symbol-legends"),
                 ("put", "/api/admin/symbol-legends/{legend_id}"),
+                ("post", "/api/processing-jobs/{job_id}/cancel"),
             },
         )
-        self.assertEqual(len(operations), 29)
+        self.assertEqual(len(operations), 30)
 
 
 if __name__ == "__main__":

@@ -26,3 +26,9 @@ class ProcessingJobStatusResponse(BaseModel):
 class ProcessingJobHistoryItemResponse(ProcessingJobStatusResponse):
     created_at: datetime
     updated_at: datetime
+
+
+class ProcessingJobCancellationResponse(BaseModel):
+    job_id: PositiveInt
+    status: Literal["processing", "cancelled"]
+    cancellation_mode: Literal["queued_cancelled", "cooperative_requested"]
