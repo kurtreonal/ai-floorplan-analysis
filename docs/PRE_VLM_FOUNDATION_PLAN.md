@@ -8,14 +8,14 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current application baseline is L1, with PRE0-PRE10 foundations complete:
+The current application baseline is L1, with PRE0-PRE11 foundations complete:
 34 OpenAPI operations and 23 SQLAlchemy/MySQL tables. The implementation can
 discover and reconcile persisted floor plans and bounded processing-job history
 after a page reload, identify every source page, and verify registered derived
 artifacts, collect authoritative scale/elevation inputs, and safely manage the
 approved legend catalog, guarantee conditional/idempotent layout saves, and
-control processing attempts safely, and persist dataset-approver authority. The
-canonical v2 compatibility decision and final readiness gate remain.
+control processing attempts safely, persist dataset-approver authority, and
+freeze the canonical compatibility boundary. The final readiness gate remains.
 
 The foundation must preserve these boundaries:
 
@@ -44,8 +44,10 @@ reviewed-setting tables and three operations. PRE7 is complete with one
 append-only history table and three Admin operations. PRE8 is complete with one
 conditional-save request table and no new operation. PRE9 is complete with two
 execution-control tables and one cancellation operation. PRE10 is complete with
-one history-preserving authority table and four privacy-bounded operations;
-PRE11-PRE12 and all U-series work remain unimplemented.
+one history-preserving authority table and four privacy-bounded operations.
+PRE11 is complete with an accepted architecture decision and shared
+cross-runtime compatibility fixture, without API or table changes. PRE12 and
+all U-series work remain unimplemented.
 
 ## 2. Evidence-backed gaps
 
@@ -62,7 +64,7 @@ PRE11-PRE12 and all U-series work remain unimplemented.
 | Conditional/idempotent layout saving complete | PRE8 adds an expected-version envelope, client UUIDv4, floor lock/compare, and durable request record | Stale writes and duplicate identical retries are rejected or reconciled before a K2 snapshot is appended |
 | Processing execution-control foundation complete | PRE9 adds atomic single-owner claims, bounded leases, named-stage heartbeats, attempt recovery, and cancellation records/API | U13 can later orchestrate a chosen engine without inventing concurrency controls inside model work |
 | Dataset-approver authority foundation complete | PRE10 persists one active human assignment plus full Admin-only history and a privacy-reduced current view | U5/U9 can later bind decisions to verified active authority without adding an OAuth role |
-| K1 v1 lacks future provenance fields | No source-page identity, openings/panels contract, or observed/generated route provenance | U11 and later 3D/routing work could force an unplanned schema break |
+| Canonical compatibility decision complete | PRE11 freezes K1 v1, evidence ownership, fail-closed version negotiation, and the reserved version-2 domains | U2/U11 must follow the accepted ADR and shared fixture strategy rather than mutate K1 history |
 | Prototype schema evolution is implicit | `create_all()` adds tables but does not transform existing tables | Tickets must avoid assuming an existing-table change has been applied |
 
 ## 3. Foundation data-flow target
@@ -416,6 +418,15 @@ provenance will reach canonical geometry without breaking K1 v1 history.
 **Expected scope:** architecture decision record and versioned fixtures only,
 unless a separately approved implementation sub-ticket is necessary. Do not
 guess electrical engineering semantics.
+
+**Implementation status:** Complete and published. ADR 0001 keeps K1 version 1
+strict and natively readable, assigns source-page/region and raw evidence to
+candidate/review records, reserves an additive canonical version-2 extension for approved
+source-plane references, openings, panels, optional symbol orientation/bounds,
+and route provenance, and requires a new version-1 snapshot plus transactional
+extension instead of changing the existing database constraint or performing
+read-time rewrites. The shared compatibility matrix is exercised by Python and
+JavaScript. No version-2 extension schema or persistence is implemented.
 
 **Acceptance criteria:**
 

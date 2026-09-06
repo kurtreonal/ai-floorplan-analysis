@@ -8,6 +8,7 @@ import {
 } from './canonicalGeometry.js'
 
 const fixture = JSON.parse(readFileSync(new URL('../../../fixtures/canonical_geometry_v1.json', import.meta.url), 'utf8'))
+const compatibilityFixture = JSON.parse(readFileSync(new URL('../../../fixtures/canonical_geometry_compatibility_v1.json', import.meta.url), 'utf8'))
 const clone = (value) => structuredClone(value)
 
 function changed(path, value) {
@@ -25,6 +26,20 @@ describe('normalizeCanonicalGeometry', () => {
     expect(normalized).not.toBe(fixture)
     expect(Object.isFrozen(normalized)).toBe(true)
     expect(Object.isFrozen(normalized.symbols[0].position)).toBe(true)
+  })
+
+  it('shares the v1-native and reserved-v2 compatibility decision with Python', () => {
+    expect(compatibilityFixture.decision_fixture_version).toBe(1)
+    expect(compatibilityFixture.current_contract).toEqual({
+      schema_version: 1,
+      document_fixture: 'canonical_geometry_v1.json',
+      python_expectation: 'accept',
+      javascript_expectation: 'accept',
+      storage_behavior: 'read_native_without_rewrite',
+    })
+    expect(normalizeCanonicalGeometry(fixture)).toEqual(fixture)
+    const future = { ...clone(fixture), schema_version: compatibilityFixture.reserved_contract.extension_schema_version }
+    expect(() => normalizeCanonicalGeometry(future)).toThrow('The canonical geometry document is invalid.')
   })
 
   it('accepts empty geometry collections', () => {

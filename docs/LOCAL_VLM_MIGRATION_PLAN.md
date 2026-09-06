@@ -18,6 +18,10 @@ legacy comparison and rollback path until the migration release gate passes.
 Before this migration begins, PRE0-PRE12 in
 `docs/PRE_VLM_FOUNDATION_PLAN.md` close the repository's non-model readiness
 gaps. U1 must not start until PRE12 publishes a passing readiness report.
+PRE11 has accepted
+`docs/decisions/0001-canonical-geometry-compatibility.md`; U2 and U11 must
+follow its evidence ownership, fail-closed negotiation, and append-only
+versioning rules.
 
 The migration does not change these core rules:
 
@@ -395,7 +399,7 @@ baseline.
 
 **Goal:** Freeze the model-output contract before selecting or tuning a model.
 
-**Dependencies:** U1, K1.
+**Dependencies:** U1, K1, and accepted PRE11 ADR 0001.
 
 **Acceptance criteria:**
 
@@ -406,6 +410,8 @@ baseline.
 - Python validation and representative fixtures cover valid, empty, partial,
   malformed, out-of-bounds, and adversarial output.
 - The schema contains no Konva or Three.js types.
+- Source document/page/region evidence stays in candidate/review records and
+  follows the PRE11 compatibility fixture; it is not added to K1 v1.
 
 ### U3 - Build private unannotated-corpus intake and split manifests
 
@@ -541,7 +547,7 @@ training targets.
 **Goal:** Preserve machine provenance and convert only approved candidates to
 canonical geometry.
 
-**Dependencies:** U2, U8, U9, K1-K3.
+**Dependencies:** U2, U8, U9, K1-K3, and accepted PRE11 ADR 0001.
 
 **Acceptance criteria:**
 
@@ -551,6 +557,9 @@ canonical geometry.
 - Deterministic conversion requires an explicit approved scale.
 - Only approved walls, rooms, symbols, panels, and routes reach K1/K2.
 - Existing historical YOLO detections and layout snapshots remain readable.
+- Version dispatch is fail-closed; K1 v1 is read natively, and any approved
+  version-2 extension is stored additively with a new append-only v1 base
+  snapshot rather than rewriting history or weakening the v1 database check.
 
 ### U12 - Extract and distinguish observed wiring
 

@@ -46,9 +46,9 @@ complete. PRE4 immutable source/page identity and PRE5 durable derived-artifact
 provenance, PRE6 approved scale/elevation inputs, and PRE7 legend administration
 are also complete. PRE8 conditional/idempotent layout saving and PRE9
 engine-neutral execution controls and PRE10 dataset-approver authority are
-complete. PRE11-PRE12 now precede U1. They own the canonical compatibility
-decision and readiness gate. PRE0-PRE10 are complete; PRE11-PRE12 remain
-unimplemented.
+complete. PRE11 freezes the canonical compatibility decision without changing
+runtime behavior. PRE12 now precedes U1 and owns the readiness gate.
+PRE0-PRE11 are complete; PRE12 remains unimplemented.
 
 ## Requirements
 
@@ -991,10 +991,10 @@ tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 17 focused K3/PRE8 API tests, and 18 focused
-K2/PRE8 persistence tests. The full `unittest` discovery run contains 609 tests
-through PRE8. Combined pytest discovery contains 648 tests plus 504 passing
-subtests. The separate canonical-geometry pytest suite contains 39 tests; 648 is not a single
-`unittest` discovery-run count. The required
+K2/PRE8 persistence tests. The full `unittest` discovery run contains 627
+tests through PRE11. Combined pytest discovery contains 667 tests plus 504
+passing subtests. The separate canonical-geometry pytest suite contains 40
+tests; 667 is not a single `unittest` discovery-run count. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
 The existing
