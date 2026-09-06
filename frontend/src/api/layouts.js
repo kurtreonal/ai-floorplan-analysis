@@ -7,6 +7,8 @@ const RESPONSE_KEYS = [
   'id', 'project_id', 'project_floor_id', 'floor_plan_id', 'version_number',
   'schema_version', 'is_current', 'created_at', 'geometry',
 ]
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const MAXIMUM_VERSION_NUMBER = 2_147_483_647
 
 export class LayoutApiError extends Error {
   constructor(message = LOAD_ERROR, status = 0, code = null) {
@@ -107,9 +109,17 @@ export async function saveCurrentLayout(
   projectId,
   projectFloorId,
   geometryDocument,
-  { signal } = {},
+  { signal, expectedVersionNumber, idempotencyKey } = {},
 ) {
   if (!positiveId(projectId) || !positiveId(projectFloorId)) {
+    throw new LayoutApiError(SAVE_ERROR)
+  }
+  if ((expectedVersionNumber !== null
+      && (!Number.isInteger(expectedVersionNumber)
+        || expectedVersionNumber <= 0
+        || expectedVersionNumber > MAXIMUM_VERSION_NUMBER))
+    || typeof idempotencyKey !== 'string'
+    || !UUID_V4.test(idempotencyKey)) {
     throw new LayoutApiError(SAVE_ERROR)
   }
 
@@ -132,7 +142,11 @@ export async function saveCurrentLayout(
         method: 'POST',
         credentials: 'include',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(geometry),
+        body: JSON.stringify({
+          expected_version_number: expectedVersionNumber,
+          idempotency_key: idempotencyKey,
+          geometry,
+        }),
         signal,
       },
     )

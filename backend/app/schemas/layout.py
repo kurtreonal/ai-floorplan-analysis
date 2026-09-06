@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, UUID4
 
 
 MAXIMUM_DATABASE_ID = 9_223_372_036_854_775_807
@@ -126,6 +126,14 @@ class CanonicalGeometryRequest(LayoutSchema):
     rooms: list[LayoutRoom]
     symbols: list[LayoutSymbol]
     routes: list[LayoutRoute]
+
+
+class LayoutSaveRequest(LayoutSchema):
+    expected_version_number: (
+        Annotated[StrictInt, Field(gt=0, le=MAXIMUM_VERSION_NUMBER)] | None
+    )
+    idempotency_key: UUID4
+    geometry: CanonicalGeometryRequest
 
 
 class LayoutResponse(LayoutSchema):

@@ -26,6 +26,7 @@ from app.geometry import canonical_geometry_from_dict
 from app.models import (
     Base,
     FloorPlan,
+    LayoutSaveRequest,
     LayoutVersion,
     Project,
     ProjectFloor,
@@ -41,6 +42,7 @@ from app.services.layout_version_service import (
     retrieve_current_layout_version,
     retrieve_layout_version,
     save_layout_snapshot,
+    save_layout_snapshot_conditionally,
 )
 
 
@@ -121,6 +123,13 @@ class LayoutVersionTests(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls.session.rollback()
         cls.session.execute(
+            delete(LayoutSaveRequest).where(
+                LayoutSaveRequest.project_floor_id.in_(
+                    (cls.floor_id, cls.other_floor_id)
+                )
+            )
+        )
+        cls.session.execute(
             delete(LayoutVersion).where(LayoutVersion.project_id == cls.project_id)
         )
         cls.session.execute(
@@ -148,6 +157,13 @@ class LayoutVersionTests(unittest.TestCase):
 
     def setUp(self) -> None:
         self.session.rollback()
+        self.session.execute(
+            delete(LayoutSaveRequest).where(
+                LayoutSaveRequest.project_floor_id.in_(
+                    (self.floor_id, self.other_floor_id)
+                )
+            )
+        )
         self.session.execute(
             delete(LayoutVersion).where(LayoutVersion.project_id == self.project_id)
         )
@@ -250,7 +266,7 @@ class LayoutVersionTests(unittest.TestCase):
             {index.name for index in table.indexes},
             {"ix_layout_versions_project_floor_id"},
         )
-        self.assertEqual(len(Base.metadata.tables), 19)
+        self.assertEqual(len(Base.metadata.tables), 20)
         self.assertEqual(
             set(inspect(self.engine).get_table_names()), set(Base.metadata.tables)
         )
@@ -286,6 +302,34 @@ class LayoutVersionTests(unittest.TestCase):
                 for foreign_key in inspector.get_foreign_keys("layout_versions")
             },
             {"projects", "project_floors", "floor_plans"},
+        )
+        save_table = LayoutSaveRequest.__table__
+        self.assertEqual(
+            tuple(save_table.columns.keys()),
+            (
+                "id", "project_floor_id", "idempotency_key",
+                "expected_version_number", "geometry_sha256",
+                "created_by_user_id", "layout_version_id", "created_at",
+            ),
+        )
+        self.assertEqual(
+            {item["name"] for item in inspector.get_unique_constraints("layout_save_requests")},
+            {
+                "uq_layout_save_requests_floor_key",
+                "layout_version_id",
+            },
+        )
+        self.assertEqual(
+            {item["name"] for item in inspector.get_check_constraints("layout_save_requests")},
+            {
+                "ck_layout_save_requests_expected_version",
+                "ck_layout_save_requests_key_length",
+                "ck_layout_save_requests_hash_length",
+            },
+        )
+        self.assertEqual(
+            {item["referred_table"] for item in inspector.get_foreign_keys("layout_save_requests")},
+            {"project_floors", "users", "layout_versions"},
         )
         self.assertEqual(Project.layout_versions.property.back_populates, "project")
         self.assertEqual(
@@ -626,6 +670,43 @@ class LayoutVersionTests(unittest.TestCase):
             )
         self.assertEqual([item.version_number for item in history], [1, 2])
         self.assertEqual(sum(item.is_current for item in history), 1)
+
+    def test_concurrent_identical_conditional_saves_create_one_snapshot(self):
+        document = self.document()
+        request_key = str(uuid.uuid4())
+        user_id = self.user.id
+
+        def save_one(_index):
+            with Session(self.engine, autoflush=False, expire_on_commit=False) as session:
+                return save_layout_snapshot_conditionally(
+                    session,
+                    document,
+                    expected_version_number=None,
+                    idempotency_key=request_key,
+                    created_by_user_id=user_id,
+                )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = tuple(executor.map(save_one, range(2)))
+        self.assertEqual({result.id for result in results}, {results[0].id})
+        self.assertEqual({result.version_number for result in results}, {1})
+        with Session(self.engine) as session:
+            self.assertEqual(
+                session.scalar(
+                    select(func.count())
+                    .select_from(LayoutVersion)
+                    .where(LayoutVersion.project_floor_id == self.floor_id)
+                ),
+                1,
+            )
+            self.assertEqual(
+                session.scalar(
+                    select(func.count())
+                    .select_from(LayoutSaveRequest)
+                    .where(LayoutSaveRequest.project_floor_id == self.floor_id)
+                ),
+                1,
+            )
 
     def test_save_commits_once_and_does_not_mutate_other_domain_rows_or_files(self):
         document = self.document()

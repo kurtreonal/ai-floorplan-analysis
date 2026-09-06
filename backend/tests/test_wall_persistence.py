@@ -345,6 +345,7 @@ class WallPersistenceTests(unittest.TestCase):
                 "floor_plan_pages",
                 "floor_plan_sources",
                 "layout_versions",
+                "layout_save_requests",
                 "manual_symbols",
                 "processing_jobs",
                 "processing_artifacts",

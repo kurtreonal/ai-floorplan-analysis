@@ -14,7 +14,7 @@ import './layoutEditor.css'
 const INITIAL_VISIBILITY = Object.freeze({
   blueprint: true, walls: true, rooms: true, symbols: true, routes: true,
 })
-const INITIAL_SAVE_STATE = Object.freeze({ status: 'idle', error: null })
+const INITIAL_SAVE_STATE = Object.freeze({ status: 'idle', error: null, idempotencyKey: null })
 
 function decodeImage(url) {
   return new Promise((resolve, reject) => {
@@ -40,6 +40,14 @@ function saveFailure(error) {
   if (error.status === 403) return { status: 'access-lost', message: 'Your edit access changed. This layout is now read-only.' }
   if (error.status === 404) return { status: 'idle', message: 'This layout context is no longer available. Your unsaved changes were not saved.' }
   if (error.status === 422) return { status: 'idle', message: 'The canonical geometry is invalid and was not saved.' }
+  if (error.status === 409) {
+    return {
+      status: 'conflict',
+      message: error.code === 'IDEMPOTENCY_KEY_CONFLICT'
+        ? 'This save identity conflicts with an earlier request. Reload before editing again.'
+        : 'A newer layout version exists. Reload before editing again.',
+    }
+  }
   if (error.status === 0 || error.status === 503) {
     return { status: 'uncertain', message: 'The save result is uncertain. Check the server before retrying.' }
   }
@@ -144,7 +152,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
     try {
       replaceDraft(moveCanonicalSymbol(state.draft, symbolId, position))
     } catch {
-      setSaveState({ status: 'idle', error: 'The symbol position is invalid.' })
+      setSaveState({ ...INITIAL_SAVE_STATE, error: 'The symbol position is invalid.' })
     }
   }
 
@@ -159,7 +167,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
     if (state.status !== 'ready' || saveState.status !== 'uncertain') return
     const controller = new AbortController()
     saveControllerRef.current = controller
-    setSaveState({ status: 'reconciling', error: null })
+    setSaveState((current) => ({ ...current, status: 'reconciling', error: null }))
     try {
       const current = await fetchCurrentLayout(projectId, projectFloorId, { signal: controller.signal })
       if (canonicalGeometriesEqual(current.geometry, state.draft)) {
@@ -167,10 +175,10 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
       } else if (current.id === state.serverLayout.id
         && current.version_number === state.serverLayout.version_number
         && canonicalGeometriesEqual(current.geometry, state.serverLayout.geometry)) {
-        setSaveState({ status: 'idle', error: 'The server still has the previous version. Select Save layout again to retry.' })
+        setSaveState((previous) => ({ ...previous, status: 'idle', error: 'The server still has the previous version. Select Save layout again to retry.' }))
         setAnnouncement('The previous server version is unchanged. A controlled save retry is available.')
       } else {
-        setSaveState({ status: 'conflict', error: 'A different layout version now exists. Discard these changes or reload before editing again.' })
+        setSaveState((previous) => ({ ...previous, status: 'conflict', error: 'A different layout version now exists. Discard these changes or reload before editing again.' }))
         setAnnouncement('A conflicting server layout was found. No overwrite was attempted.')
       }
     } catch (error) {
@@ -179,7 +187,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
         window.location.replace('#/signin?reason=session-expired')
         return
       }
-      setSaveState({ status: 'uncertain', error: 'The current server layout could not be checked. Your unsaved draft is retained.' })
+      setSaveState((previous) => ({ ...previous, status: 'uncertain', error: 'The current server layout could not be checked. Your unsaved draft is retained.' }))
     } finally {
       if (saveControllerRef.current === controller) saveControllerRef.current = null
     }
@@ -193,10 +201,15 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
     if (state.status !== 'ready' || saveState.status !== 'idle') return
     if (canonicalGeometriesEqual(state.serverLayout.geometry, state.draft)) return
     const controller = new AbortController()
+    const idempotencyKey = saveState.idempotencyKey ?? globalThis.crypto.randomUUID()
     saveControllerRef.current = controller
-    setSaveState({ status: 'saving', error: null })
+    setSaveState({ status: 'saving', error: null, idempotencyKey })
     try {
-      const saved = await saveCurrentLayout(projectId, projectFloorId, state.draft, { signal: controller.signal })
+      const saved = await saveCurrentLayout(projectId, projectFloorId, state.draft, {
+        signal: controller.signal,
+        expectedVersionNumber: state.serverLayout.version_number,
+        idempotencyKey,
+      })
       adoptSavedLayout(saved, `Layout version ${saved.version_number} saved successfully.`)
     } catch (error) {
       if (error.name === 'AbortError') return
@@ -205,7 +218,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
         return
       }
       const failure = saveFailure(error)
-      setSaveState({ status: failure.status, error: failure.message })
+      setSaveState({ status: failure.status, error: failure.message, idempotencyKey })
       setAnnouncement(failure.message)
     } finally {
       if (saveControllerRef.current === controller) saveControllerRef.current = null

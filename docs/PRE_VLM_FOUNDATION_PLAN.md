@@ -8,13 +8,13 @@ download, fine-tune, or run a VLM. It does not remove or replace the implemented
 YOLO path. PRE0-PRE12 must be completed and the readiness gate signed off before
 U1 begins.
 
-The current application baseline is L1, with PRE0-PRE7 foundations complete:
-29 OpenAPI operations and 19 SQLAlchemy/MySQL tables. The implementation can
+The current application baseline is L1, with PRE0-PRE8 foundations complete:
+29 OpenAPI operations and 20 SQLAlchemy/MySQL tables. The implementation can
 discover and reconcile persisted floor plans and bounded processing-job history
 after a page reload, identify every source page, and verify registered derived
 artifacts, collect authoritative scale/elevation inputs, and safely manage the
-approved legend catalog, but it cannot yet guarantee conditional/idempotent
-layout saves, or support safe worker leasing and dataset-approver assignments.
+approved legend catalog, and guarantee conditional/idempotent layout saves,
+but it cannot yet support safe worker leasing and dataset-approver assignments.
 
 The foundation must preserve these boundaries:
 
@@ -40,8 +40,9 @@ complete without a backend operation or table. PRE4 is complete with two
 private source/page tables and verified backfill. PRE5 is complete with one
 private processing-artifact manifest table. PRE6 is complete with two additive
 reviewed-setting tables and three operations. PRE7 is complete with one
-append-only history table and three Admin operations. PRE8 is the next ticket;
-PRE8-PRE12 and all U-series work remain unimplemented.
+append-only history table and three Admin operations. PRE8 is complete with one
+conditional-save request table and no new operation. PRE9 is the next ticket;
+PRE9-PRE12 and all U-series work remain unimplemented.
 
 ## 2. Evidence-backed gaps
 
@@ -55,7 +56,7 @@ PRE8-PRE12 and all U-series work remain unimplemented.
 | Reviewed floor elevation foundation complete | PRE6 stores append-only Designer-reviewed floor elevation with evidence and explicit unresolved state | Future adaptation can require approved values without inventing them or rewriting K1 history |
 | Reviewed page scale foundation complete | PRE6 stores append-only per-source-page pixels-per-meter plus exact reference dimensions and evidence | Pixel candidates can be rejected when reviewed scale is absent or dimensions mismatch |
 | Approved catalog management foundation complete | PRE7 adds Admin-only create/revise/all-status APIs and actor/time history without seed data | U4 can later build a reference pack only from deliberately managed active records |
-| Layout save lacks concurrency/idempotency | K3 has no expected version, ETag, or idempotency key | Human and machine-assisted saves can create stale or duplicate versions |
+| Conditional/idempotent layout saving complete | PRE8 adds an expected-version envelope, client UUIDv4, floor lock/compare, and durable request record | Stale writes and duplicate identical retries are rejected or reconciled before a K2 snapshot is appended |
 | Job model lacks execution control | No claim/lease/heartbeat/cancellation/retry-attempt contract exists | U13 would otherwise combine infrastructure and VLM orchestration in one risky ticket |
 | Dataset approver is documentation-only | No persisted assignment/qualification/active-authority contract exists | U5/U9 cannot prove who may release reviewed training truth |
 | K1 v1 lacks future provenance fields | No source-page identity, openings/panels contract, or observed/generated route provenance | U11 and later 3D/routing work could force an unplanned schema break |
@@ -313,7 +314,7 @@ frontend management only if required by the approved P3 scope, and tests.
 - Empty catalog remains valid; focused authorization, conflict, history, and
   regression tests pass.
 
-### PRE8 — Add conditional and idempotent layout saving
+### PRE8 (complete) — Add conditional and idempotent layout saving
 
 **Goal:** Prevent silent stale writes and duplicate K2 versions before
 machine-assisted geometry creates more save activity.

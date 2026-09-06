@@ -47,6 +47,7 @@ TABLES = (
     "floor_plan_pages",
     "floor_plan_sources",
     "floor_plans",
+    "layout_save_requests",
     "layout_versions",
     "manual_symbols",
     "page_scale_settings",

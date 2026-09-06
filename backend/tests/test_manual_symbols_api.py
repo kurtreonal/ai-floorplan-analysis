@@ -109,7 +109,7 @@ class ManualSymbolModelTests(unittest.TestCase):
                 "ix_manual_symbols_symbol_legend_id",
             },
         )
-        self.assertEqual(len(Base.metadata.tables), 19)
+        self.assertEqual(len(Base.metadata.tables), 20)
         self.assertEqual(set(inspect(self.engine).get_table_names()), set(Base.metadata.tables))
         self.assertEqual(FloorPlan.manual_symbols.property.back_populates, "floor_plan")
         self.assertEqual(ProcessingJob.manual_symbols.property.back_populates, "processing_job")

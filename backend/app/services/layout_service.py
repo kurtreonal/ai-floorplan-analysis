@@ -10,7 +10,7 @@ from app.services.layout_version_service import (
     LayoutVersionRecord,
     LayoutVersionServiceError,
     retrieve_current_layout_version,
-    save_layout_snapshot,
+    save_layout_snapshot_conditionally,
 )
 from app.services.project_service import ProjectNotFoundError, get_accessible_project
 
@@ -128,6 +128,8 @@ def save_owned_layout(
     project_id: int,
     project_floor_id: int,
     geometry_payload: object,
+    expected_version_number: int | None,
+    idempotency_key: str,
 ) -> LayoutVersionRecord:
     project_id = _identifier(project_id)
     project_floor_id = _identifier(project_floor_id)
@@ -148,7 +150,13 @@ def save_owned_layout(
         ):
             _fail("INVALID_LAYOUT_GEOMETRY")
         try:
-            return save_layout_snapshot(database_session, document)
+            return save_layout_snapshot_conditionally(
+                database_session,
+                document,
+                expected_version_number=expected_version_number,
+                idempotency_key=idempotency_key,
+                created_by_user_id=current_user.id,
+            )
         except LayoutVersionServiceError as error:
             if error.code in {
                 "INVALID_LAYOUT_DOCUMENT",
@@ -158,6 +166,11 @@ def save_owned_layout(
                 _fail("INVALID_LAYOUT_GEOMETRY")
             if error.code == "LAYOUT_CONTEXT_NOT_FOUND":
                 _fail("LAYOUT_NOT_FOUND")
+            if error.code in {
+                "STALE_LAYOUT_VERSION",
+                "IDEMPOTENCY_KEY_CONFLICT",
+            }:
+                _fail(error.code)
             _fail("LAYOUT_SAVE_FAILED")
     except LayoutServiceError:
         database_session.rollback()

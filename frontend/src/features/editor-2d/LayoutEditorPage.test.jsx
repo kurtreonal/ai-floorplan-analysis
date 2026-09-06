@@ -191,6 +191,9 @@ describe('layout editor page', () => {
     await screen.findByText(/CURRENT CANONICAL LAYOUT · VERSION 4/)
     expect(saveCurrentLayout).toHaveBeenCalledTimes(1)
     const sent = saveCurrentLayout.mock.calls[0][2]
+    const options = saveCurrentLayout.mock.calls[0][3]
+    expect(options.expectedVersionNumber).toBe(3)
+    expect(options.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/)
     expect(Object.keys(sent)).toEqual(Object.keys(fixture))
     expect(sent.symbols[0].position).toEqual({ x: 4.25, y: 1.75 })
     expect(sent.symbols[1]).toEqual(fixture.symbols[1])
@@ -220,6 +223,36 @@ describe('layout editor page', () => {
     expect(screen.getByText('All position changes saved')).toBeTruthy()
     expect(saveCurrentLayout).toHaveBeenCalledTimes(1)
     expect(fetchCurrentLayout).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries an unchanged server with the original expected version and idempotency key', async () => {
+    render(<LayoutEditorPage projectId={15} projectFloorId={2} session={{ user: { role: 'DESIGNER' } }} />)
+    await screen.findByTestId('canonical-canvas')
+    fireEvent.click(screen.getByRole('button', { name: 'Canvas move manual:601' }))
+    saveCurrentLayout.mockRejectedValueOnce(new LayoutApiError('safe', 503, 'LAYOUT_SAVE_FAILED'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save layout' }))
+    await screen.findByRole('button', { name: 'Check server before retry' })
+    const firstOptions = saveCurrentLayout.mock.calls[0][3]
+    fetchCurrentLayout.mockResolvedValueOnce(layout())
+    fireEvent.click(screen.getByRole('button', { name: 'Check server before retry' }))
+    const retry = await screen.findByRole('button', { name: 'Save layout' })
+    fireEvent.click(retry)
+    await screen.findByText(/CURRENT CANONICAL LAYOUT.*VERSION 4/)
+    expect(saveCurrentLayout).toHaveBeenCalledTimes(2)
+    expect(saveCurrentLayout.mock.calls[1][3]).toEqual(expect.objectContaining({
+      expectedVersionNumber: 3,
+      idempotencyKey: firstOptions.idempotencyKey,
+    }))
+  })
+
+  it('treats deterministic stale and idempotency conflicts as reload-required', async () => {
+    render(<LayoutEditorPage projectId={15} projectFloorId={2} session={{ user: { role: 'DESIGNER' } }} />)
+    await screen.findByTestId('canonical-canvas')
+    fireEvent.click(screen.getByRole('button', { name: 'Canvas move detected:501' }))
+    saveCurrentLayout.mockRejectedValueOnce(new LayoutApiError('safe', 409, 'STALE_LAYOUT_VERSION'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save layout' }))
+    expect((await screen.findByRole('alert')).textContent).toMatch(/newer layout version/i)
+    expect(screen.queryByRole('button', { name: 'Check server before retry' })).toBeNull()
   })
 
   it('does not overwrite a conflicting server version and makes Admin inspection-only', async () => {

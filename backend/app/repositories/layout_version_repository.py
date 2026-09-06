@@ -1,7 +1,7 @@
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, load_only, raiseload
 
-from app.models import FloorPlan, LayoutVersion, ProjectFloor
+from app.models import FloorPlan, LayoutSaveRequest, LayoutVersion, ProjectFloor
 
 
 LAYOUT_VERSION_COLUMNS = tuple(
@@ -105,6 +105,43 @@ def add_layout_version(
 ) -> None:
     database_session.add(layout_version)
     database_session.flush()
+
+
+def find_layout_save_request(
+    database_session: Session,
+    *,
+    project_floor_id: int,
+    idempotency_key: str,
+) -> LayoutSaveRequest | None:
+    return database_session.scalar(
+        select(LayoutSaveRequest)
+        .where(
+            LayoutSaveRequest.project_floor_id == project_floor_id,
+            LayoutSaveRequest.idempotency_key == idempotency_key,
+        )
+        .with_for_update()
+    )
+
+
+def add_layout_save_request(
+    database_session: Session,
+    request: LayoutSaveRequest,
+) -> None:
+    database_session.add(request)
+    database_session.flush()
+
+
+def find_layout_version_by_id(
+    database_session: Session,
+    *,
+    layout_version_id: int,
+) -> LayoutVersion | None:
+    return database_session.scalar(
+        select(LayoutVersion)
+        .options(load_only(*LAYOUT_VERSION_COLUMNS), raiseload("*"))
+        .where(LayoutVersion.id == layout_version_id)
+        .execution_options(populate_existing=True)
+    )
 
 
 def find_layout_version(

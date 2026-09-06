@@ -91,8 +91,8 @@ class DetectionClassCorrectionModelTests(unittest.TestCase):
                 "ix_detection_class_corrections_new_symbol_legend_id",
             },
         )
-        self.assertEqual(len(Base.metadata.tables), 19)
-        self.assertEqual(len(inspect(self.engine).get_table_names()), 19)
+        self.assertEqual(len(Base.metadata.tables), 20)
+        self.assertEqual(len(inspect(self.engine).get_table_names()), 20)
         self.assertEqual(
             DetectedSymbol.class_corrections.property.back_populates,
             "detected_symbol",

@@ -21,8 +21,9 @@ append-only canonical layout snapshots, history retrieval, and current-version
 selection. K3 exposes current-layout retrieval and owning-Designer snapshot
 creation through two layout operations. K4 consumes only the existing `GET`
 operation and makes no backend or schema change. K5 consumes the existing K3
-GET and POST operations to reposition canonical symbols and adds no backend
-operation, table, or schema field. L1 adds only a protected, empty frontend 3D
+GET and POST operations to reposition canonical symbols. PRE8 makes that POST
+conditional and idempotent and adds one request-record table without adding an
+operation. L1 adds only a protected, empty frontend 3D
 viewer and likewise makes no backend, API, schema, storage, or environment
 change. PRE1 and PRE2 each add one read-only operation, and PRE6 adds three
 analysis-setting operations, and PRE7 adds three Admin legend operations, so
@@ -42,9 +43,10 @@ baseline without changing backend behavior. PRE1 floor-plan discovery and PRE2
 bounded processing-job history discovery and PRE3 frontend recovery are also
 complete. PRE4 immutable source/page identity and PRE5 durable derived-artifact
 provenance, PRE6 approved scale/elevation inputs, and PRE7 legend administration
-are also complete. PRE8-PRE12 now precede U1. They own layout-save concurrency,
+are also complete. PRE8 conditional/idempotent layout saving is complete.
+PRE9-PRE12 now precede U1. They own
 engine-neutral execution controls, dataset-approver authority, and canonical
-compatibility decision. PRE0-PRE7 are complete; PRE8-PRE12 remain unimplemented.
+compatibility decision. PRE0-PRE8 are complete; PRE9-PRE12 remain unimplemented.
 
 ## Requirements
 
@@ -99,7 +101,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype schema has these nineteen application tables:
+The current prototype schema has these twenty application tables:
 
 ```text
 roles
@@ -121,6 +123,7 @@ symbol_legend_history
 detection_class_corrections
 manual_symbols
 layout_versions
+layout_save_requests
 ```
 
 Alembic and production schema migrations remain deferred. Never run schema
@@ -608,13 +611,18 @@ wall/symbol processing-job provenance value whose decoded image dimensions
 exactly match the canonical coordinate system; otherwise the frontend keeps a
 neutral blueprint layer and reports the limitation safely.
 
-K5 adds no backend production behavior. Its frontend keeps symbol movement in
+K5 keeps symbol movement in
 the complete K1 `geometry.symbols[*].position` meter field, posts the complete
 document through the existing K3 operation, and adopts the returned K2 current
 snapshot. Every successful save therefore creates a new append-only layout
-version. K3 has no expected-version, ETag, conditional-write, or idempotency-key
-contract; frontend reconciliation after an uncertain response reduces duplicate
-retries but does not provide atomic concurrent-edit protection.
+version. PRE8 requires the current version on which the edit is based plus a
+client-generated UUIDv4. The server locks the project floor, compares the
+authoritative current version, and returns sanitized `409` for a stale save.
+`layout_save_requests` binds the floor, request UUID, expected version,
+canonical geometry hash, actor, and created snapshot. Identical retries return
+the original snapshot without another K2 version; conflicting UUID reuse is
+`409`. First-layout creation explicitly uses a null expected version. The K5
+client keeps the same UUID through uncertain reconciliation and retry.
 
 ## Wall-geometry persistence
 
@@ -951,10 +959,10 @@ tests, 9 focused J3 tests, 15 focused I4 tests,
 tests, 30 focused H2 tests, 32 focused H1 tests, 37 focused G3 tests, 38
 focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
-focused K2 tests plus 27 subtests, 13 focused K3 tests plus 26 subtests, and
-605 tests in the full `unittest` discovery run through PRE7. Combined pytest
-discovery contains 644 tests plus 504 passing subtests. The separate
-canonical-geometry pytest suite contains 39 tests; 644 is not a single
+focused K2 tests plus 27 subtests, 17 focused K3/PRE8 API tests, and 18 focused
+K2/PRE8 persistence tests. The full `unittest` discovery run contains 609 tests
+through PRE8. Combined pytest discovery contains 648 tests plus 504 passing
+subtests. The separate canonical-geometry pytest suite contains 39 tests; 648 is not a single
 `unittest` discovery-run count. The required
 H2/H3/J1/J4/J5 K1 regression batch
 contains 85 tests plus 63 subtests.
