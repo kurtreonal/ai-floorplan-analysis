@@ -22,6 +22,7 @@ from app.main import create_app
 from app.models import (
     Base,
     FloorPlan,
+    LayoutSaveRequest,
     LayoutVersion,
     Project,
     ProjectFloor,
@@ -178,6 +179,18 @@ class LayoutApiTests(unittest.TestCase):
         self.application.dependency_overrides.pop(get_current_user, None)
         self.database_session.rollback()
         self.database_session.execute(
+            delete(LayoutSaveRequest).where(
+                LayoutSaveRequest.project_floor_id.in_(
+                    (
+                        self.floor.id,
+                        self.second_floor.id,
+                        self.foreign_floor.id,
+                        self.other_floor.id,
+                    )
+                )
+            )
+        )
+        self.database_session.execute(
             delete(LayoutVersion).where(
                 LayoutVersion.project_id.in_(
                     (
@@ -248,12 +261,27 @@ class LayoutApiTests(unittest.TestCase):
         user: User | None = None,
         project_id: int | None = None,
         floor_id: int | None = None,
+        expected_version_number: int | None | object = ...,
+        idempotency_key: str | None = None,
     ):
         if user is not None:
             self._set_session(user)
+        target_floor_id = self.floor.id if floor_id is None else floor_id
+        if expected_version_number is ...:
+            expected_version_number = self.database_session.scalar(
+                select(LayoutVersion.version_number).where(
+                    LayoutVersion.project_floor_id == target_floor_id,
+                    LayoutVersion.is_current.is_(True),
+                )
+            )
+        body = {
+            "expected_version_number": expected_version_number,
+            "idempotency_key": idempotency_key or str(uuid4()),
+            "geometry": self._payload() if payload is None else payload,
+        }
         return self.client.post(
             self._path(project_id=project_id, floor_id=floor_id),
-            json=self._payload() if payload is None else payload,
+            json=body,
         )
 
     def _get(
@@ -272,6 +300,11 @@ class LayoutApiTests(unittest.TestCase):
     def _layout_count(self) -> int:
         return self.database_session.scalar(
             select(func.count()).select_from(LayoutVersion)
+        )
+
+    def _save_request_count(self) -> int:
+        return self.database_session.scalar(
+            select(func.count()).select_from(LayoutSaveRequest)
         )
 
     def _file_state(self) -> dict[str, tuple[int, str]]:
@@ -310,7 +343,7 @@ class LayoutApiTests(unittest.TestCase):
         self.assertFalse(
             any("history" in path or "current" in path for path in schema["paths"])
         )
-        self.assertEqual(len(Base.metadata.tables), 19)
+        self.assertEqual(len(Base.metadata.tables), 20)
         self.assertEqual(
             set(inspect(self.engine).get_table_names()), set(Base.metadata.tables)
         )
@@ -348,6 +381,8 @@ class LayoutApiTests(unittest.TestCase):
                 project_id=self.project.id,
                 project_floor_id=self.floor.id,
                 geometry_payload=self._payload(),
+                expected_version_number=None,
+                idempotency_key=str(uuid4()),
             )
         self.assertEqual(caught.exception.code, "AUTHORIZATION_DENIED")
 
@@ -474,7 +509,7 @@ class LayoutApiTests(unittest.TestCase):
                 select(func.count()).select_from(table)
             )
             for table in Base.metadata.sorted_tables
-            if table.name != "layout_versions"
+            if table.name not in {"layout_versions", "layout_save_requests"}
         }
         files_before = self._file_state()
 
@@ -523,10 +558,83 @@ class LayoutApiTests(unittest.TestCase):
                 select(func.count()).select_from(table)
             )
             for table in Base.metadata.sorted_tables
-            if table.name != "layout_versions"
+            if table.name not in {"layout_versions", "layout_save_requests"}
         }
         self.assertEqual(source_counts_after, source_counts_before)
         self.assertEqual(self._file_state(), files_before)
+
+    def test_conditional_save_rejects_stale_versions_without_creating_rows(self) -> None:
+        first = self._post(user=self.designer)
+        self.assertEqual(first.status_code, 201, first.text)
+        self.assertEqual((self._layout_count(), self._save_request_count()), (1, 1))
+
+        self.client.cookies.clear()
+        stale = self._post(
+            self._payload(),
+            user=self.designer,
+            expected_version_number=None,
+        )
+        self.assertEqual(stale.status_code, 409, stale.text)
+        self.assertEqual(stale.json()["detail"]["error"]["code"], "STALE_LAYOUT_VERSION")
+        self.assertEqual((self._layout_count(), self._save_request_count()), (1, 1))
+
+        self.database_session.execute(delete(LayoutSaveRequest))
+        self.database_session.execute(delete(LayoutVersion))
+        self.database_session.commit()
+        self.client.cookies.clear()
+        stale_first = self._post(
+            self._payload(),
+            user=self.designer,
+            expected_version_number=1,
+        )
+        self.assertEqual(stale_first.status_code, 409, stale_first.text)
+        self.assertEqual((self._layout_count(), self._save_request_count()), (0, 0))
+
+    def test_identical_idempotent_retry_returns_original_without_new_snapshot(self) -> None:
+        key = str(uuid4())
+        payload = self._payload()
+        first = self._post(
+            payload,
+            user=self.designer,
+            expected_version_number=None,
+            idempotency_key=key,
+        )
+        self.assertEqual(first.status_code, 201, first.text)
+        self.client.cookies.clear()
+        retry = self._post(
+            copy.deepcopy(payload),
+            user=self.designer,
+            expected_version_number=None,
+            idempotency_key=key,
+        )
+        self.assertEqual(retry.status_code, 201, retry.text)
+        self.assertEqual(retry.json(), first.json())
+        self.assertEqual((self._layout_count(), self._save_request_count()), (1, 1))
+
+    def test_idempotency_key_reuse_with_different_request_is_conflict(self) -> None:
+        key = str(uuid4())
+        first = self._post(
+            self._payload(),
+            user=self.designer,
+            expected_version_number=None,
+            idempotency_key=key,
+        )
+        self.assertEqual(first.status_code, 201, first.text)
+        changed = self._payload()
+        changed["symbols"][0]["position"] = {"x": 4.25, "y": 1.75}
+        self.client.cookies.clear()
+        conflict = self._post(
+            changed,
+            user=self.designer,
+            expected_version_number=1,
+            idempotency_key=key,
+        )
+        self.assertEqual(conflict.status_code, 409, conflict.text)
+        self.assertEqual(
+            conflict.json()["detail"]["error"]["code"],
+            "IDEMPOTENCY_KEY_CONFLICT",
+        )
+        self.assertEqual((self._layout_count(), self._save_request_count()), (1, 1))
 
     def test_get_exact_current_is_read_only_and_missing_is_404(self) -> None:
         missing = self._get(user=self.designer)
@@ -653,7 +761,7 @@ class LayoutApiTests(unittest.TestCase):
 
     def test_save_and_retrieval_failures_are_sanitized_and_rollback(self) -> None:
         with patch(
-            "app.services.layout_service.save_layout_snapshot",
+            "app.services.layout_service.save_layout_snapshot_conditionally",
             side_effect=LayoutVersionServiceError("LAYOUT_PERSISTENCE_FAILED"),
         ):
             failed = self._post(user=self.designer)
@@ -693,7 +801,7 @@ class LayoutApiTests(unittest.TestCase):
                 select(func.count()).select_from(table)
             )
             for table in Base.metadata.sorted_tables
-            if table.name != "layout_versions"
+            if table.name not in {"layout_versions", "layout_save_requests"}
         }
         before_files = self._file_state()
         project_status = self.project.status
@@ -713,7 +821,7 @@ class LayoutApiTests(unittest.TestCase):
                 select(func.count()).select_from(table)
             )
             for table in Base.metadata.sorted_tables
-            if table.name != "layout_versions"
+            if table.name not in {"layout_versions", "layout_save_requests"}
         }
         self.assertEqual(after_rows, before_rows)
         self.assertEqual(self._file_state(), before_files)

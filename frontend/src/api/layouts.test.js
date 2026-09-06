@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fetchCurrentLayout, LayoutApiError, saveCurrentLayout } from './layouts.js'
 
 const fixture = JSON.parse(readFileSync(new URL('../../../fixtures/canonical_geometry_v1.json', import.meta.url), 'utf8'))
+const idempotencyKey = '123e4567-e89b-42d3-a456-426614174000'
+const saveOptions = { expectedVersionNumber: 2, idempotencyKey }
 
 function response(overrides = {}) {
   return {
@@ -72,22 +74,25 @@ describe('current layout API', () => {
 })
 
 describe('layout save API', () => {
-  it('posts only the complete normalized K1 document with exact request options', async () => {
+  it('posts the complete normalized K1 document in the conditional save envelope', async () => {
     const signal = new AbortController().signal
     const input = structuredClone(fixture)
     const original = structuredClone(input)
     const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => response() })
     vi.stubGlobal('fetch', fetch)
 
-    const result = await saveCurrentLayout(15, 2, input, { signal })
+    const result = await saveCurrentLayout(15, 2, input, { ...saveOptions, signal })
 
     expect(fetch).toHaveBeenCalledWith('http://localhost:8000/api/projects/15/floors/2/layouts', {
       method: 'POST', credentials: 'include',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(fixture), signal,
+      body: JSON.stringify({
+        expected_version_number: 2,
+        idempotency_key: idempotencyKey,
+        geometry: fixture,
+      }), signal,
     })
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual(fixture)
-    expect(Object.keys(JSON.parse(fetch.mock.calls[0][1].body))).not.toContain('version_number')
+    expect(JSON.parse(fetch.mock.calls[0][1].body).geometry).toEqual(fixture)
     expect(input).toEqual(original)
     expect(result.version_number).toBe(3)
     expect(Object.isFrozen(result)).toBe(true)
@@ -97,13 +102,15 @@ describe('layout save API', () => {
   it('rejects invalid IDs, geometry, and URL/body identity mismatches before fetch', async () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
-    await expect(saveCurrentLayout(0, 2, fixture)).rejects.toBeInstanceOf(LayoutApiError)
+    await expect(saveCurrentLayout(0, 2, fixture, saveOptions)).rejects.toBeInstanceOf(LayoutApiError)
     const wrongProject = structuredClone(fixture); wrongProject.project_id = 16
-    await expect(saveCurrentLayout(15, 2, wrongProject)).rejects.toBeInstanceOf(LayoutApiError)
+    await expect(saveCurrentLayout(15, 2, wrongProject, saveOptions)).rejects.toBeInstanceOf(LayoutApiError)
     const wrongFloor = structuredClone(fixture); wrongFloor.floor.project_floor_id = 3
-    await expect(saveCurrentLayout(15, 2, wrongFloor)).rejects.toBeInstanceOf(LayoutApiError)
+    await expect(saveCurrentLayout(15, 2, wrongFloor, saveOptions)).rejects.toBeInstanceOf(LayoutApiError)
     const malformed = structuredClone(fixture); malformed.symbols[0].position.x = '1'
-    await expect(saveCurrentLayout(15, 2, malformed)).rejects.toBeInstanceOf(LayoutApiError)
+    await expect(saveCurrentLayout(15, 2, malformed, saveOptions)).rejects.toBeInstanceOf(LayoutApiError)
+    await expect(saveCurrentLayout(15, 2, fixture, { ...saveOptions, expectedVersionNumber: 0 })).rejects.toBeInstanceOf(LayoutApiError)
+    await expect(saveCurrentLayout(15, 2, fixture, { ...saveOptions, idempotencyKey: 'not-a-uuid' })).rejects.toBeInstanceOf(LayoutApiError)
     expect(fetch).not.toHaveBeenCalled()
   })
 
@@ -112,20 +119,20 @@ describe('layout save API', () => {
       ok: false, status,
       json: async () => ({ detail: { error: { code: `SAFE_${status}`, message: 'private SQL path' } } }),
     }))
-    await expect(saveCurrentLayout(15, 2, fixture)).rejects.toMatchObject({
+    await expect(saveCurrentLayout(15, 2, fixture, saveOptions)).rejects.toMatchObject({
       status, code: `SAFE_${status}`, message: 'The layout changes could not be saved safely.',
     })
   })
 
   it('rejects malformed or mismatched responses, sanitizes networks, and preserves aborts', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => response({ project_id: 16 }) }))
-    await expect(saveCurrentLayout(15, 2, fixture)).rejects.toMatchObject({ message: 'The layout changes could not be saved safely.' })
+    await expect(saveCurrentLayout(15, 2, fixture, saveOptions)).rejects.toMatchObject({ message: 'The layout changes could not be saved safely.' })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => { throw new Error('private body') } }))
-    await expect(saveCurrentLayout(15, 2, fixture)).rejects.toMatchObject({ status: 0 })
+    await expect(saveCurrentLayout(15, 2, fixture, saveOptions)).rejects.toMatchObject({ status: 0 })
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('private network path')))
-    await expect(saveCurrentLayout(15, 2, fixture)).rejects.toMatchObject({ status: 0, message: 'The layout changes could not be saved safely.' })
+    await expect(saveCurrentLayout(15, 2, fixture, saveOptions)).rejects.toMatchObject({ status: 0, message: 'The layout changes could not be saved safely.' })
     const abort = Object.assign(new Error('aborted'), { name: 'AbortError' })
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abort))
-    await expect(saveCurrentLayout(15, 2, fixture)).rejects.toBe(abort)
+    await expect(saveCurrentLayout(15, 2, fixture, saveOptions)).rejects.toBe(abort)
   })
 })

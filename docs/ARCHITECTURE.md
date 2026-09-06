@@ -87,7 +87,7 @@
 
 ### Planned
 
-PRE8-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
+PRE9-PRE12 now define the remaining non-model foundation gate. After PRE12 passes, U1-U14
 define the migration from the implemented YOLO-only symbol path to local
 multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
 unimplemented, including canonical 3D geometry, routing, quantities, estimates,
@@ -399,7 +399,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set remains exactly the same through K5:
+The live and SQLAlchemy model table set contains twenty tables through PRE8:
 
 ```text
 roles
@@ -407,14 +407,21 @@ users
 projects
 project_floors
 floor_plans
+floor_plan_sources
+floor_plan_pages
+floor_elevation_settings
+page_scale_settings
 processing_jobs
+processing_artifacts
 walls
 detected_symbols
 detection_reviews
 symbol_legends
+symbol_legend_history
 detection_class_corrections
 manual_symbols
 layout_versions
+layout_save_requests
 ```
 
 Relationships:
@@ -442,6 +449,8 @@ floor_plans 1 ── * layout_versions
 ```
 
 - `users` maps provider plus subject to a local role and contains no password.
+- Each `layout_save_requests` row references one project floor, creator user,
+  and layout version; its layout-version reference is unique.
 - `projects.owner_id` identifies the authoritative Designer owner.
 - `project_floors` supports multiple ordered floors per project.
 - `floor_plans` stores upload metadata and a relative storage reference.
@@ -465,6 +474,9 @@ floor_plans 1 ── * layout_versions
   snapshots. Positive versions are sequential per floor, `TRUE` marks the one
   current row while historical rows use `NULL`, and foreign keys have no
   destructive delete cascade.
+- `layout_save_requests` binds a floor-scoped UUIDv4 to its expected version,
+  canonical geometry hash, actor, and one created snapshot so an identical
+  retry returns the original result without appending another version.
 
 Processing-job status is restricted by `ck_processing_jobs_status` to `queued`,
 `processing`, `completed`, `failed`, or `cancelled`. Progress is restricted by
@@ -793,10 +805,11 @@ K2 focused backend:     17 tests + 27 subtests
 K3 focused backend:     13 tests + 26 subtests
 PRE6 focused backend:    9 tests
 PRE7 focused backend:   15 tests
-Backend unittest:      605 tests
-Combined pytest:       644 tests + 504 subtests
+PRE8 focused backend:   35 tests
+Backend unittest:      609 tests
+Combined pytest:       648 tests + 504 subtests
 Canonical pytest:       39 tests
-Backend aggregate:     644 top-level tests + 504 subtests
+Backend aggregate:     648 top-level tests + 504 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -807,7 +820,8 @@ K1 J2/J5 regressions:   43 tests
 K4 focused frontend:    19 tests + 4 route/navigation regressions
 L1 focused/regression:  40 tests
 PRE6 focused frontend:   9 tests
-Full frontend:          273 tests
+PRE8 focused frontend:  27 tests
+Full frontend:          275 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -880,13 +894,16 @@ truth.
   deployed HTTPS FastAPI backend
 
 K3 exposes K2 current-layout retrieval and snapshot creation; K5 uses those
-existing operations for canonical symbol movement and append-only saving. Floor elevation
+existing operations for canonical symbol movement and append-only saving. PRE8
+makes POST conditional and idempotent: the service locks the project floor,
+compares the authoritative current version, rejects stale saves with sanitized
+`409`, and records successful request UUIDs. Floor elevation
 is required by the canonical contract, stored inside each complete snapshot, is not a
-`project_floors` column, and is never inferred. K3 has no atomic conditional-save
-or idempotency-key contract; K5's uncertain-response reconciliation does not
-claim otherwise. PRE0's documentation/privacy baseline is complete and
+`project_floors` column, and is never inferred. K5 preserves the same request
+UUID across an uncertain-result check and retry. PRE0's documentation/privacy
+baseline is complete and
 published. PRE1 floor-plan discovery and PRE2 processing-job history are also
-complete and published. The next priority ticket is PRE8; no U ticket has started. U1 depends on the PRE12
+complete and published. The next priority ticket is PRE9; no U ticket has started. U1 depends on the PRE12
 readiness gate. L2 is paused unless explicitly
 selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
@@ -900,4 +917,4 @@ PRE4 gives originals and their pages immutable identity. PRE5 adds the
 now resolves the exact registered normalized image and revalidates its file,
 hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
 K1 snapshots. PRE7 makes the approved catalog operational without seeding a
-class or adding the deferred P4 UI. PRE8 is next.
+class or adding the deferred P4 UI. PRE8 is complete; PRE9 is next.

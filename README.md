@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Application roadmap implemented through L1; PRE0-PRE7 foundations are complete.**
+**Application roadmap implemented through L1; PRE0-PRE8 foundations are complete.**
 
 The current backend surface contains 29 OpenAPI operations.
 
@@ -12,7 +12,7 @@ The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the nineteen-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the twenty-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -64,8 +64,8 @@ The repository currently includes:
   one nullable current marker, reconstruction validation, and transactional
   current-version switching; and
 - an ownership-aware layout API that returns the current canonical snapshot and
-  lets an owning Designer save a complete validated K1 document as the next K2
-  version without modifying the original floor-plan file; and
+  lets an owning Designer conditionally save a complete validated K1 document
+  as the next K2 version without modifying the original floor-plan file; and
 - a protected canonical 2D layout page with strict K3 GET validation,
   responsive meter-to-source-pixel rendering, six stable React-Konva layers,
   accessible local visibility controls, and conservative aligned-blueprint
@@ -273,8 +273,9 @@ PRE0 is complete: the maintained migration documentation and privacy-focused
 Git ignore baseline are published, and PRE1 floor-plan plus PRE2 bounded
 processing-job history discovery, PRE3 reload-safe workspace reconciliation,
 PRE4 immutable source/page identity, PRE5 derived-artifact provenance, PRE6
-Designer-reviewed elevation/scale settings, and PRE7 legend administration are
-complete. PRE8-PRE12 are the current implementation priority. They explicitly own save concurrency,
+Designer-reviewed elevation/scale settings, PRE7 legend administration, and
+PRE8 conditional/idempotent layout saving are complete. PRE9-PRE12 are the
+current implementation priority. They explicitly own
 job execution controls, reviewer authority, and the canonical compatibility
 decision. U1-U14 begin only after PRE12 passes. L2 and later product tickets are
 paused unless the user explicitly chooses to resume them.
@@ -496,9 +497,11 @@ The folders that do not exist yet should be created by the appropriate developme
   may inspect/select but cannot move or save. Walls, rooms, routes, scale,
   elevation, floor identity, class/status/provenance, deletion, resizing,
   undo/redo, 3D, and routing remain outside K5.
-- K3 POST has no expected-version, ETag, conditional-write, or idempotency-key
-  contract. K5 reconciles uncertain save outcomes with one current-layout GET
-  before permitting a retry, but this is not atomic concurrent-edit protection.
+- PRE8 wraps K3 POST geometry with the current version the edit was based on
+  and a client-generated UUIDv4. The server locks the floor, rejects stale
+  saves with sanitized `409`, and records an identical retry once in
+  `layout_save_requests`; conflicting UUID reuse is also `409`. K5 retains the
+  same UUID across uncertain reconciliation and retry.
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.

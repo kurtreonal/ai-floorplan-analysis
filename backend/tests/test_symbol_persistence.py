@@ -382,8 +382,8 @@ class SymbolPersistenceTests(unittest.TestCase):
         self.assertTrue(table.c.processing_job_id.index)
         self.assertEqual(DETECTED_SYMBOL_STATUSES, ("detected", "needs_review"))
         self.assertIn("detected_symbols", Base.metadata.tables)
-        self.assertEqual(len(Base.metadata.tables), 19)
-        self.assertEqual(len(inspect(self.engine).get_table_names()), 19)
+        self.assertEqual(len(Base.metadata.tables), 20)
+        self.assertEqual(len(inspect(self.engine).get_table_names()), 20)
         self.assertEqual(
             DetectedSymbol.floor_plan.property.back_populates,
             "detected_symbols",

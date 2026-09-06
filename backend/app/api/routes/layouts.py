@@ -8,8 +8,8 @@ from app.core.database import get_db
 from app.models import User
 from app.schemas.layout import (
     MAXIMUM_DATABASE_ID,
-    CanonicalGeometryRequest,
     LayoutResponse,
+    LayoutSaveRequest,
 )
 from app.services.layout_service import (
     LayoutServiceError,
@@ -62,6 +62,16 @@ def _raise_service_error(error: LayoutServiceError, *, saving: bool) -> None:
             code="INVALID_LAYOUT_GEOMETRY",
             message="The layout geometry is invalid.",
         ) from None
+    if error.code in {"STALE_LAYOUT_VERSION", "IDEMPOTENCY_KEY_CONFLICT"}:
+        raise _api_error(
+            status_code=status.HTTP_409_CONFLICT,
+            code=error.code,
+            message=(
+                "The layout changed after this edit began. Reload before saving."
+                if error.code == "STALE_LAYOUT_VERSION"
+                else "The save request identity was already used for different content."
+            ),
+        ) from None
     raise _api_error(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         code="LAYOUT_SAVE_FAILED" if saving else "LAYOUT_RETRIEVAL_FAILED",
@@ -102,7 +112,7 @@ def get_current_layout(
     status_code=status.HTTP_201_CREATED,
 )
 def post_layout(
-    payload: CanonicalGeometryRequest,
+    payload: LayoutSaveRequest,
     project_id: Annotated[int, Path(gt=0, le=MAXIMUM_DATABASE_ID)],
     project_floor_id: Annotated[int, Path(gt=0, le=MAXIMUM_DATABASE_ID)],
     current_user: User = Depends(require_roles("DESIGNER")),
@@ -114,7 +124,9 @@ def post_layout(
             current_user=current_user,
             project_id=project_id,
             project_floor_id=project_floor_id,
-            geometry_payload=payload.model_dump(mode="json", by_alias=True),
+            geometry_payload=payload.geometry.model_dump(mode="json", by_alias=True),
+            expected_version_number=payload.expected_version_number,
+            idempotency_key=str(payload.idempotency_key),
         )
     except LayoutServiceError as error:
         _raise_service_error(error, saving=True)

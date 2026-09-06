@@ -7,6 +7,7 @@ from app.models.floor_plan import FloorPlan
 from app.models.floor_plan_page import FloorPlanPage
 from app.models.floor_plan_source import FloorPlanSource
 from app.models.layout_version import LayoutVersion
+from app.models.layout_save_request import LayoutSaveRequest
 from app.models.manual_symbol import ManualSymbol
 from app.models.processing_job import ProcessingJob
 from app.models.processing_artifact import ProcessingArtifact
@@ -30,6 +31,7 @@ __all__ = (
     "FloorPlanPage",
     "FloorPlanSource",
     "LayoutVersion",
+    "LayoutSaveRequest",
     "ManualSymbol",
     "ProcessingJob",
     "ProcessingArtifact",
