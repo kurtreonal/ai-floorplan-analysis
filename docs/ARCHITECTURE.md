@@ -813,10 +813,11 @@ K3 focused backend:     13 tests + 26 subtests
 PRE6 focused backend:    9 tests
 PRE7 focused backend:   15 tests
 PRE8 focused backend:   35 tests
-Backend unittest:      609 tests
-Combined pytest:       648 tests + 504 subtests
-Canonical pytest:       39 tests
-Backend aggregate:     648 top-level tests + 504 subtests
+PRE11 canonical compatibility: 40 tests
+Backend unittest:      627 tests
+Combined pytest:       667 tests + 504 subtests
+Canonical pytest:       40 tests
+Backend aggregate:     667 top-level tests + 504 subtests
 F4 API client:           21 tests
 F4 component:            35 tests
 J3 focused frontend:    25 tests
@@ -828,7 +829,8 @@ K4 focused frontend:    19 tests + 4 route/navigation regressions
 L1 focused/regression:  40 tests
 PRE6 focused frontend:   9 tests
 PRE8 focused frontend:  27 tests
-Full frontend:          275 tests
+PRE11 canonical frontend: 32 tests
+Full frontend:          280 tests
 ```
 
 The current Starlette TestClient/httpx combination emits a deprecation warning;
@@ -913,7 +915,10 @@ published. PRE1 floor-plan discovery and PRE2 processing-job history are also
 complete and published. PRE9 adds durable worker-attempt identity, single-owner
 claiming, bounded leases, named-stage heartbeats, deterministic retry/recovery,
 and queued/cooperative cancellation without implementing a worker or invoking
-AI/CV. The next priority ticket is PRE10; no U ticket has started. U1 depends on the PRE12
+AI/CV. PRE10 adds the human dataset-approver authority, and PRE11 accepts the
+canonical compatibility decision in
+`decisions/0001-canonical-geometry-compatibility.md`. The next priority ticket
+is PRE12; no U ticket has started. U1 depends on the PRE12
 readiness gate. L2 is paused unless explicitly
 selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
@@ -927,4 +932,4 @@ PRE4 gives originals and their pages immutable identity. PRE5 adds the
 now resolves the exact registered normalized image and revalidates its file,
 hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
 K1 snapshots. PRE7 makes the approved catalog operational without seeding a
-class or adding the deferred P4 UI. PRE8-PRE10 are complete; PRE11 is next.
+class or adding the deferred P4 UI. PRE8-PRE11 are complete; PRE12 is next.

@@ -23,6 +23,11 @@ from app.services.authoritative_symbol_service import AuthoritativeSymbolCandida
 
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "canonical_geometry_v1.json"
+COMPATIBILITY_FIXTURE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "fixtures"
+    / "canonical_geometry_compatibility_v1.json"
+)
 
 
 @pytest.fixture
@@ -45,6 +50,24 @@ def test_shared_fixture_serializes_deterministically_and_is_immutable(payload):
     with pytest.raises(FrozenInstanceError):
         document.project_id = 99
     assert canonical_geometry_from_dict(document.to_dict()) is not document
+
+
+def test_shared_compatibility_fixture_keeps_v1_native_and_v2_unsupported(payload):
+    matrix = json.loads(COMPATIBILITY_FIXTURE_PATH.read_text(encoding="utf-8"))
+    assert matrix["decision_fixture_version"] == 1
+    assert matrix["current_contract"] == {
+        "schema_version": 1,
+        "document_fixture": "canonical_geometry_v1.json",
+        "python_expectation": "accept",
+        "javascript_expectation": "accept",
+        "storage_behavior": "read_native_without_rewrite",
+    }
+    assert canonical_geometry_from_dict(payload).to_dict() == payload
+    future = copy.deepcopy(payload)
+    future["schema_version"] = matrix["reserved_contract"]["extension_schema_version"]
+    with pytest.raises(CanonicalGeometryError) as error:
+        canonical_geometry_from_dict(future)
+    assert error.value.code == "UNSUPPORTED_SCHEMA_VERSION"
 
 
 def test_empty_document_is_valid(payload):

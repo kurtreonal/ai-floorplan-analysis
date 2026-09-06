@@ -199,17 +199,24 @@ successful save posts the complete K1 document through K3 and creates a new
 append-only K2 version. Cancel restores the last server snapshot without a
 POST.
 
-K3 exposes no expected-version, ETag, conditional-write, or idempotency-key
-contract. K5 checks the current layout before retrying an uncertain save, but
-this does not provide atomic optimistic concurrency or idempotent POST semantics.
+PRE8 wraps K3 saves in an expected-version and client UUIDv4 contract. The
+service locks the floor, rejects stale writes, and records successful request
+identities so identical retries return the original snapshot. K5 preserves the
+same request identity across its uncertain-result check and retry.
 
-## Planned local-VLM adapter boundary
+## Accepted local-VLM adapter boundary
 
-PRE11 in `PRE_VLM_FOUNDATION_PLAN.md` must first freeze the compatibility
-decision for source pages, openings, panels, and observed/generated route
-provenance while keeping this v1 contract and existing K2 snapshots readable.
-U2 then defines model candidate data; U11 performs any separately approved
-versioned canonical implementation.
+PRE11 freezes the compatibility policy in
+`decisions/0001-canonical-geometry-compatibility.md`. This version-1 contract
+and existing K2 snapshots remain native and readable without rewrite.
+Candidate/review records own source document, page, region, raw evidence, and
+human-decision provenance. An additive canonical extension version 2 is
+reserved, but not implemented,
+for approved source-plane references, first-class openings and panels, optional
+symbol orientation/bounds, and observed/generated route provenance. U2 must
+define compatible candidate data; U11 owns any extension dispatcher, exact
+version-2 extension validators, additive persistence, adapter, and new
+append-only version-1 base snapshots.
 
 The local multimodal migration does not change K1 into a model-output schema.
 The VLM will produce a separate, source-pixel
@@ -227,9 +234,8 @@ Konva nodes, and Three.js meshes are never canonical geometry.
 Routes visibly traced from the uploaded drawing are `observed` evidence. Future
 A* routes are `generated` geometry with separate algorithm/rule provenance. A
 page with no visible wiring contributes no observed route; the VLM must not
-design or infer one merely to populate `routes`. The exact v2-or-extension
-representation for provenance-bearing routes must be approved in U2/U11 before
-the current K1 v1 contract is changed.
+design or infer one merely to populate `routes`. U2/U11 must implement the
+accepted PRE11 ownership and versioning policy without changing K1 v1 in place.
 
 ## Downstream mapping and non-goals
 

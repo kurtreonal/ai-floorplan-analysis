@@ -1,0 +1,45 @@
+{
+  "decision_fixture_version": 1,
+  "current_contract": {
+    "schema_version": 1,
+    "document_fixture": "canonical_geometry_v1.json",
+    "python_expectation": "accept",
+    "javascript_expectation": "accept",
+    "storage_behavior": "read_native_without_rewrite"
+  },
+  "reserved_contract": {
+    "extension_schema_version": 2,
+    "implementation_status": "reserved_not_implemented",
+    "python_expectation": "reject_unsupported_version",
+    "javascript_expectation": "reject_unsupported_version",
+    "upgrade_behavior": "new_v1_snapshot_plus_additive_extension_only",
+    "required_domains": [
+      "approved_source_plane_reference",
+      "first_class_openings",
+      "first_class_electrical_panels",
+      "optional_symbol_orientation_and_bounds",
+      "observed_or_generated_route_provenance"
+    ]
+  },
+  "evidence_ownership": {
+    "candidate_and_review_records": [
+      "source_document_identity",
+      "source_page_identity",
+      "source_region_pixels",
+      "model_prompt_adapter_and_tile_provenance",
+      "raw_orientation_or_bounds_evidence",
+      "ambiguity_and_human_decisions"
+    ],
+    "canonical_geometry": [
+      "approved_metric_geometry",
+      "stable_approved_source_references",
+      "renderer_independent_openings_and_panels",
+      "route_kind_and_provenance_reference"
+    ],
+    "routing_models": [
+      "generated_route_algorithm_release",
+      "rule_set_version",
+      "route_measurements_and_segments"
+    ]
+  }
+}

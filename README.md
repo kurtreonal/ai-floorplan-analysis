@@ -4,7 +4,7 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Application roadmap implemented through L1; PRE0-PRE10 foundations are complete.**
+**Application roadmap implemented through L1; PRE0-PRE11 foundations are complete.**
 
 The current backend surface contains 34 OpenAPI operations.
 
@@ -65,6 +65,11 @@ The repository currently includes:
 - a versioned, renderer-independent canonical geometry contract with strict
   Python and JavaScript validation, pure H2-wall/J5-symbol adapters, explicit
   floor elevation, and one shared cross-runtime fixture; and
+- an accepted canonical-compatibility decision that keeps K1 version 1 native
+  and strict, shares a Python/JavaScript version matrix, and reserves an
+  additive version-2 extension
+  for approved source-plane references, openings, panels, optional symbol
+  orientation/bounds, and observed/generated route provenance; and
 - append-only canonical layout snapshots with per-floor sequential versions,
   one nullable current marker, reconstruction validation, and transactional
   current-version switching; and
@@ -280,9 +285,9 @@ processing-job history discovery, PRE3 reload-safe workspace reconciliation,
 PRE4 immutable source/page identity, PRE5 derived-artifact provenance, PRE6
 Designer-reviewed elevation/scale settings, PRE7 legend administration, and
 PRE8 conditional/idempotent layout saving and PRE9 engine-neutral execution
-controls and PRE10 dataset-approver authority are complete. PRE11-PRE12 are the
-current implementation priority. They explicitly own the canonical compatibility
-decision and readiness gate. U1-U14 begin only after PRE12 passes. L2 and later product tickets are
+controls, PRE10 dataset-approver authority, and the PRE11 canonical
+compatibility decision are complete. PRE12 is the current implementation
+priority and owns the readiness gate. U1-U14 begin only after PRE12 passes. L2 and later product tickets are
 paused unless the user explicitly chooses to resume them.
 
 ---
