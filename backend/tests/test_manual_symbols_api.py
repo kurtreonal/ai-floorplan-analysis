@@ -109,7 +109,7 @@ class ManualSymbolModelTests(unittest.TestCase):
                 "ix_manual_symbols_symbol_legend_id",
             },
         )
-        self.assertEqual(len(Base.metadata.tables), 20)
+        self.assertEqual(len(Base.metadata.tables), 22)
         self.assertEqual(set(inspect(self.engine).get_table_names()), set(Base.metadata.tables))
         self.assertEqual(FloorPlan.manual_symbols.property.back_populates, "floor_plan")
         self.assertEqual(ProcessingJob.manual_symbols.property.back_populates, "processing_job")
@@ -462,12 +462,12 @@ class ManualSymbolApiTests(unittest.TestCase):
         self.assertEqual(handoff[1].status, "manually_added")
         self.assertTrue(all(hasattr(item, "center_x_pixels") for item in handoff))
 
-    def test_openapi_has_exactly_twenty_one_operations(self) -> None:
+    def test_openapi_has_current_operation_count(self) -> None:
         schema = self.app.openapi()
         path = "/api/floor-plans/{floor_plan_id}/manual-symbols"
         self.assertEqual(set(schema["paths"][path]), {"post"})
         operations = {(method, route) for route, definitions in schema["paths"].items() for method in definitions if method in {"get", "post", "put", "patch", "delete"}}
-        self.assertEqual(len(operations), 29)
+        self.assertEqual(len(operations), 30)
 
 
 if __name__ == "__main__":

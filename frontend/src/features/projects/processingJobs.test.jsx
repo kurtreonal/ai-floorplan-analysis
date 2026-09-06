@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  cancelProcessingJob,
   fetchProcessingJob,
   ProcessingJobApiError,
   startFloorPlanProcessing,
@@ -18,6 +19,7 @@ vi.mock('../../api/processingJobs.js', async () => {
   const actual = await vi.importActual('../../api/processingJobs.js')
   return {
     ...actual,
+    cancelProcessingJob: vi.fn(),
     fetchProcessingJob: vi.fn(),
     startFloorPlanProcessing: vi.fn(),
   }
@@ -65,6 +67,7 @@ async function runNextPoll() {
 
 beforeEach(() => {
   window.location.hash = ''
+  cancelProcessingJob.mockReset()
 })
 
 afterEach(() => {
@@ -120,6 +123,35 @@ describe('processing job panel', () => {
     expect(screen.getAllByText('0%')).toHaveLength(2)
     expect(screen.getByText('JOB #31')).toBeTruthy()
     expect(screen.getByRole('progressbar').value).toBe(0)
+  })
+
+  it('immediately adopts queued cancellation and stops monitoring', async () => {
+    vi.useFakeTimers()
+    cancelProcessingJob.mockResolvedValueOnce({
+      job_id: JOB_ID, status: 'cancelled', cancellation_mode: 'queued_cancelled',
+    })
+    renderPanel()
+    await startJob()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel processing' }))
+    await settle()
+    expect(cancelProcessingJob).toHaveBeenCalledWith(JOB_ID, { signal: expect.any(AbortSignal) })
+    expect(screen.getByText('Processing was cancelled.')).toBeTruthy()
+    await act(async () => vi.advanceTimersByTimeAsync(PROCESSING_POLL_INTERVAL_MS * 2))
+    expect(fetchProcessingJob).not.toHaveBeenCalled()
+  })
+
+  it('reports cooperative cancellation while active monitoring continues', async () => {
+    vi.useFakeTimers()
+    fetchProcessingJob.mockResolvedValueOnce(job('processing', 30))
+    cancelProcessingJob.mockResolvedValueOnce({
+      job_id: JOB_ID, status: 'processing', cancellation_mode: 'cooperative_requested',
+    })
+    renderPanel()
+    await startJob()
+    await runNextPoll()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel processing' }))
+    await settle()
+    expect(screen.getByText(/stop cooperatively/)).toBeTruthy()
   })
 
   it('waits for the configured interval before the first status request', async () => {

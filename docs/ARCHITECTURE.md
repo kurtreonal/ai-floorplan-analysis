@@ -399,7 +399,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set contains twenty tables through PRE8:
+The live and SQLAlchemy model table set contains twenty-two tables through PRE9:
 
 ```text
 roles
@@ -412,6 +412,8 @@ floor_plan_pages
 floor_elevation_settings
 page_scale_settings
 processing_jobs
+processing_job_attempts
+processing_job_cancellations
 processing_artifacts
 walls
 detected_symbols
@@ -528,7 +530,7 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API contains 29 OpenAPI operations through PRE7. Floor-plan discovery
+The API contains 30 OpenAPI operations through PRE9. Floor-plan discovery
 returns safe persisted metadata to the owning Designer or an Admin, supports a
 positive project-scoped optional floor filter, and orders by floor sort order,
 floor ID, then floor-plan ID without reading files or exposing storage paths.
@@ -856,12 +858,12 @@ truth.
 
 ## 12. Current limitations and next decision
 
-- No persistent floor-plan listing/retrieval API
 - Start-processing creates a durable queued database row and status polling is
-  read-only, but no worker, external queue, cancellation endpoint, or automatic
-  upload hook exists
+  read-only. PRE9 adds engine-neutral claim/lease/heartbeat/retry controls and
+  an owning-Designer cancellation endpoint, but no worker, external queue, or
+  automatic upload hook exists
 - G1 through H3 are callable by backend code but are not automatically
-  orchestrated from F2; persistent processed-image metadata remains unimplemented
+  orchestrated from F2; PRE5 persists registered processed-image provenance
 - I1-I4 can load configured local YOLO weights, run isolated inference,
   classify confidence, and persist versioned machine output, but
   the repository has no trained model and no automatic OpenCV/YOLO pipeline
@@ -903,7 +905,10 @@ is required by the canonical contract, stored inside each complete snapshot, is 
 UUID across an uncertain-result check and retry. PRE0's documentation/privacy
 baseline is complete and
 published. PRE1 floor-plan discovery and PRE2 processing-job history are also
-complete and published. The next priority ticket is PRE9; no U ticket has started. U1 depends on the PRE12
+complete and published. PRE9 adds durable worker-attempt identity, single-owner
+claiming, bounded leases, named-stage heartbeats, deterministic retry/recovery,
+and queued/cooperative cancellation without implementing a worker or invoking
+AI/CV. The next priority ticket is PRE10; no U ticket has started. U1 depends on the PRE12
 readiness gate. L2 is paused unless explicitly
 selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
@@ -917,4 +922,4 @@ PRE4 gives originals and their pages immutable identity. PRE5 adds the
 now resolves the exact registered normalized image and revalidates its file,
 hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
 K1 snapshots. PRE7 makes the approved catalog operational without seeding a
-class or adding the deferred P4 UI. PRE8 is complete; PRE9 is next.
+class or adding the deferred P4 UI. PRE8 and PRE9 are complete; PRE10 is next.

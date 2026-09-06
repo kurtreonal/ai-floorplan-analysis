@@ -23,11 +23,12 @@ creation through two layout operations. K4 consumes only the existing `GET`
 operation and makes no backend or schema change. K5 consumes the existing K3
 GET and POST operations to reposition canonical symbols. PRE8 makes that POST
 conditional and idempotent and adds one request-record table without adding an
-operation. L1 adds only a protected, empty frontend 3D
+operation. PRE9 adds two execution-control tables and one owning-Designer
+cancellation operation without adding a worker or executing AI/CV. L1 adds only a protected, empty frontend 3D
 viewer and likewise makes no backend, API, schema, storage, or environment
 change. PRE1 and PRE2 each add one read-only operation, and PRE6 adds three
 analysis-setting operations, and PRE7 adds three Admin legend operations, so
-the API contains 29 operations.
+the API contains 30 operations.
 Workers, canonical 3D rendering,
 non-symbol geometry editing, routing, estimation, and reporting are not implemented.
 
@@ -43,10 +44,10 @@ baseline without changing backend behavior. PRE1 floor-plan discovery and PRE2
 bounded processing-job history discovery and PRE3 frontend recovery are also
 complete. PRE4 immutable source/page identity and PRE5 durable derived-artifact
 provenance, PRE6 approved scale/elevation inputs, and PRE7 legend administration
-are also complete. PRE8 conditional/idempotent layout saving is complete.
-PRE9-PRE12 now precede U1. They own
-engine-neutral execution controls, dataset-approver authority, and canonical
-compatibility decision. PRE0-PRE8 are complete; PRE9-PRE12 remain unimplemented.
+are also complete. PRE8 conditional/idempotent layout saving and PRE9
+engine-neutral execution controls are complete. PRE10-PRE12 now precede U1.
+They own dataset-approver authority, the canonical compatibility decision, and
+the readiness gate. PRE0-PRE9 are complete; PRE10-PRE12 remain unimplemented.
 
 ## Requirements
 
@@ -101,7 +102,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype schema has these twenty application tables:
+The current prototype schema has these twenty-two application tables:
 
 ```text
 roles
@@ -114,6 +115,8 @@ floor_plan_pages
 floor_elevation_settings
 page_scale_settings
 processing_jobs
+processing_job_attempts
+processing_job_cancellations
 processing_artifacts
 walls
 detected_symbols
@@ -237,6 +240,7 @@ POST /api/projects/{project_id}/floors/{project_floor_id}/layouts
 
 POST /api/floor-plans/{floor_plan_id}/process
 GET  /api/processing-jobs/{job_id}
+POST /api/processing-jobs/{job_id}/cancel
 GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
@@ -245,7 +249,8 @@ PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/classifica
 POST /api/floor-plans/{floor_plan_id}/manual-symbols?processing_job_id={job_id}
 ```
 
-The API has 29 OpenAPI operations through PRE7; K4, K5, L1, and PRE0 add no backend operation.
+The API has 30 OpenAPI operations through PRE9; K4, K5, L1, PRE0, PRE3-PRE5,
+and PRE8 add no backend operation.
 `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
@@ -350,8 +355,18 @@ limited to `job_id`, `type`, `status`, `progress`, and nullable
 database errors. Polling uses relationship-free read queries without row locks
 and does not modify job, floor-plan, or original-file state.
 
-F3 does not provide a worker, external queue, automatic upload hook,
-cancellation endpoint, or AI/CV behavior. F4's frontend can start and poll jobs
+F3 did not provide a worker, external queue, automatic upload hook,
+cancellation endpoint, or AI/CV behavior. PRE9 now adds engine-neutral
+`processing_job_attempts` and `processing_job_cancellations` records. Internal
+services atomically claim queued jobs by worker identity, enforce bounded
+leases and three attempts, renew heartbeats only at named measurable stages,
+recover expired leases, and finish success/failure/cancellation deterministically.
+Legacy `processing` rows without an attempt require explicit recovery. The
+owning Designer may request queued-immediate or active-cooperative cancellation
+through `POST /api/processing-jobs/{job_id}/cancel`; the frontend exposes that
+request while continuing to poll cooperative cancellation. PRE9 still provides
+no worker, scheduler, external queue, automatic upload hook, or AI/CV execution.
+F4's frontend can start and poll jobs
 for uploads returned during the current page session, but it adds no backend
 operation and cannot advance job lifecycle state. Job lifecycle changes do not
 modify the original upload or `floor_plans.processing_status`.

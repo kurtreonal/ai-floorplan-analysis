@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 
 import {
+  cancelProcessingJob,
   fetchProcessingJob,
   ProcessingJobApiError,
   startFloorPlanProcessing,
@@ -45,10 +46,12 @@ export function ProcessingJobPanel({
   const [viewState, setViewState] = useState(initialJob?.status || 'ready')
   const [job, setJob] = useState(initialJob)
   const [message, setMessage] = useState(null)
+  const [cancelling, setCancelling] = useState(false)
   const mountedRef = useRef(true)
   const timerRef = useRef(null)
   const startControllerRef = useRef(null)
   const statusControllerRef = useRef(null)
+  const cancellationControllerRef = useRef(null)
   const startLockedRef = useRef(false)
   const statusInFlightRef = useRef(false)
   const generationRef = useRef(0)
@@ -200,6 +203,39 @@ export function ProcessingJobPanel({
     pollJob(job.job_id, generationRef.current)
   }
 
+  async function requestCancellation() {
+    if (!job || cancelling || !ACTIVE_STATUSES.has(job.status)) return
+    const controller = new AbortController()
+    cancellationControllerRef.current?.abort()
+    cancellationControllerRef.current = controller
+    setCancelling(true)
+    try {
+      const result = await cancelProcessingJob(job.job_id, { signal: controller.signal })
+      if (!mountedRef.current || cancellationControllerRef.current !== controller) return
+      if (result.status === 'cancelled') {
+        cancelStatusRequest()
+        generationRef.current += 1
+        setJob((current) => ({ ...current, status: 'cancelled' }))
+        setViewState('cancelled')
+        setMessage(null)
+      } else {
+        setMessage('Cancellation requested. Active work will stop cooperatively at a safe checkpoint.')
+      }
+    } catch (error) {
+      if (error.name === 'AbortError' || !mountedRef.current) return
+      if (error instanceof ProcessingJobApiError && error.status === 401) {
+        redirectToSignIn()
+        return
+      }
+      setMessage('The cancellation request could not be completed safely.')
+    } finally {
+      if (cancellationControllerRef.current === controller) {
+        cancellationControllerRef.current = null
+        setCancelling(false)
+      }
+    }
+  }
+
   useEffect(() => {
     mountedRef.current = true
     if (initialJobRef.current && ACTIVE_STATUSES.has(initialJobRef.current.status)) {
@@ -211,6 +247,7 @@ export function ProcessingJobPanel({
       clearTimer()
       startControllerRef.current?.abort()
       statusControllerRef.current?.abort()
+      cancellationControllerRef.current?.abort()
     }
   }, [])
 
@@ -264,6 +301,11 @@ export function ProcessingJobPanel({
             {progress}%
           </progress>
           <p>Monitoring job #{job.job_id}. Progress is reported by the backend.</p>
+          {canStart && (
+            <button className="btn btn-outline-dark" type="button" disabled={cancelling} onClick={requestCancellation}>
+              {cancelling ? 'Requesting cancellation...' : 'Cancel processing'}
+            </button>
+          )}
         </div>
       )}
 
