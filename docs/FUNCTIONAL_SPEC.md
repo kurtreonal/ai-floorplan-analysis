@@ -88,7 +88,7 @@ API, or database migration.
 ## Current Implementation Status
 
 The application roadmap is implemented through L1, including the E3A
-project-floor prerequisite introduced between E3 and E4. PRE0-PRE11 are also
+project-floor prerequisite introduced between E3 and E4. PRE0-PRE12 are also
 complete.
 
 The current verified prototype contract contains twenty-three SQLAlchemy/MySQL tables
@@ -155,6 +155,7 @@ PRE8 — Add Conditional and Idempotent Layout Saving
 PRE9 — Add Processing Execution Controls
 PRE10 — Add Dataset-Approver Authority
 PRE11 — Freeze Canonical-Geometry Compatibility Decision
+PRE12 — Publish Passing Pre-VLM Readiness Gate
 ```
 
 The implemented application includes authentication and signed sessions,
@@ -179,8 +180,8 @@ geometry editing. In particular, there is no worker, external queue, automatic
 OpenCV/YOLO pipeline, canonical 3D reconstruction, routing, estimation, or
 report implementation. PRE9 provides execution-control records and primitives,
 not a worker or automatic pipeline. There is also no local VLM runtime, candidate schema,
-reviewed VLM gold set, adapter, or VLM orchestration. PRE0-PRE11 foundations are
-complete. PRE12 is the remaining readiness gate before U1. L2 and later tickets remain unimplemented and are paused unless
+reviewed VLM gold set, adapter, or VLM orchestration. PRE0-PRE12 foundations are
+complete and the readiness report passes. U1 has not started. L2 and later tickets remain unimplemented and are paused unless
 explicitly selected.
 
 `GET /api/projects/{project_id}/floor-plans` now returns authorized persisted
@@ -4323,13 +4324,13 @@ These tickets do not install or run a local model and do not retire YOLO.
 | PRE9 (complete) | Processing execution controls | Claim/lease/heartbeat/cancel/recovery primitives exist without running an AI pipeline |
 | PRE10 (complete) | Dataset-approver authority | Active human VED approver assignment is auditable and privacy-bounded |
 | PRE11 (complete) | Canonical compatibility decision | K1 v1 history is preserved and future page/opening/panel/route provenance ownership is frozen |
-| PRE12 | Readiness gate | Full functional, schema, storage, privacy, documentation, and Git evidence permits U1 |
+| PRE12 (complete) | Readiness gate | Full functional, schema, storage, privacy, documentation, and Git evidence permits U1 |
 
 Every PRE ticket inherits the detailed acceptance criteria in the pre-foundation
 plan. Each uses a separate feature branch and progress report. PRE12 must stop
 before U1.
 
-PRE0-PRE11 are complete. PRE1 adds read-only floor-plan discovery, PRE2 adds
+PRE0-PRE12 are complete. PRE1 adds read-only floor-plan discovery, PRE2 adds
 bounded read-only processing-job history, and PRE3 reconciles both in the
 workspace without a new table or backend operation. PRE4 adds two private
 source/page tables and a verification-first backfill. PRE5 adds one private
@@ -4344,8 +4345,8 @@ rejects Admin self-assignment and creates no review decision. PRE11 accepts
 `docs/decisions/0001-canonical-geometry-compatibility.md`: K1 version 1 stays
 strict and readable, evidence remains in candidate/review records, and version
 2 is reserved as a separately implemented additive canonical extension attached
-to a new version-1 snapshot. PRE12 is next;
-no U-series model work has started.
+to a new version-1 snapshot. PRE12 publishes a passing gate in
+`docs/PRE_VLM_READINESS_REPORT.md`; no U-series model work has started.
 
 ---
 

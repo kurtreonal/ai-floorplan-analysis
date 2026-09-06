@@ -47,8 +47,9 @@ provenance, PRE6 approved scale/elevation inputs, and PRE7 legend administration
 are also complete. PRE8 conditional/idempotent layout saving and PRE9
 engine-neutral execution controls and PRE10 dataset-approver authority are
 complete. PRE11 freezes the canonical compatibility decision without changing
-runtime behavior. PRE12 now precedes U1 and owns the readiness gate.
-PRE0-PRE11 are complete; PRE12 remains unimplemented.
+runtime behavior. PRE12 verifies and publishes the passing readiness gate in
+`../docs/PRE_VLM_READINESS_REPORT.md`. PRE0-PRE12 are complete; U1 has not
+started.
 
 ## Requirements
 
@@ -255,7 +256,7 @@ POST /api/admin/dataset-approver-assignments
 POST /api/admin/dataset-approver-assignments/{assignment_id}/deactivate
 ```
 
-The API has 34 OpenAPI operations through PRE10; K4, K5, L1, PRE0, PRE3-PRE5,
+The API has 34 OpenAPI operations through PRE12; K4, K5, L1, PRE0, PRE3-PRE5,
 and PRE8 add no backend operation.
 `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
@@ -714,8 +715,8 @@ updates weights. Private drawings, derivatives, references, prompts, labels,
 and model artifacts remain local and Git-ignored.
 
 The chosen model/runtime cannot be hard-coded in advance because target
-hardware has not been measured. PRE12 first verifies the application
-foundations; U1 records resources and privacy requirements; U5 freezes the gold
+hardware has not been measured. PRE12 verifies the application foundations;
+U1 records resources and privacy requirements; U5 freezes the gold
 evaluation; U6 performs the local bake-off; later tickets
 implement serving, review, tuning, persistence, orchestration, shadow rollout,
 and rollback. Planned environment variables must not be added to the live
@@ -992,7 +993,7 @@ focused G2 tests, 38 focused G1 tests, 11 focused F3 tests, 15 focused F2
 regression tests, 17 focused F1 regression tests, 39 focused K1 tests, 17
 focused K2 tests plus 27 subtests, 17 focused K3/PRE8 API tests, and 18 focused
 K2/PRE8 persistence tests. The full `unittest` discovery run contains 627
-tests through PRE11. Combined pytest discovery contains 667 tests plus 504
+tests through PRE12. Combined pytest discovery contains 667 tests plus 504
 passing subtests. The separate canonical-geometry pytest suite contains 40
 tests; 667 is not a single `unittest` discovery-run count. The required
 H2/H3/J1/J4/J5 K1 regression batch
