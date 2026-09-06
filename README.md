@@ -4,15 +4,15 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Application roadmap implemented through L1; PRE0-PRE9 foundations are complete.**
+**Application roadmap implemented through L1; PRE0-PRE10 foundations are complete.**
 
-The current backend surface contains 30 OpenAPI operations.
+The current backend surface contains 34 OpenAPI operations.
 
 The repository currently includes:
 
 - repository and environment foundations;
 - a React/Vite JavaScript frontend and FastAPI backend;
-- SQLAlchemy/PyMySQL connectivity and the twenty-two-table MySQL prototype schema;
+- SQLAlchemy/PyMySQL connectivity and the twenty-three-table MySQL prototype schema;
 - OAuth 2.0/OpenID Connect authentication with signed local sessions;
 - database-authoritative `ADMIN` and `DESIGNER` roles;
 - project create, list, and detail APIs plus the project dashboard;
@@ -30,6 +30,8 @@ The repository currently includes:
 - engine-neutral processing claim, bounded lease, named-stage heartbeat,
   attempt/retry recovery, and owning-Designer cancellation controls, without a
   worker or automatic AI/CV execution;
+- history-preserving, Admin-managed VED AI Dataset Approver authority with a
+  privacy-reduced current-assignment view and no dataset review decisions yet;
 - a backend-only PDF-to-PNG conversion service using bundled PDFium through
   `pypdfium2`, with safe job-failure persistence and separate derived storage;
 - a Pillow-based image-normalization service for uploaded JPEG/PNG images and
@@ -278,9 +280,9 @@ processing-job history discovery, PRE3 reload-safe workspace reconciliation,
 PRE4 immutable source/page identity, PRE5 derived-artifact provenance, PRE6
 Designer-reviewed elevation/scale settings, PRE7 legend administration, and
 PRE8 conditional/idempotent layout saving and PRE9 engine-neutral execution
-controls are complete. PRE10-PRE12 are the current implementation priority.
-They explicitly own reviewer authority and the canonical compatibility
-decision/readiness gate. U1-U14 begin only after PRE12 passes. L2 and later product tickets are
+controls and PRE10 dataset-approver authority are complete. PRE11-PRE12 are the
+current implementation priority. They explicitly own the canonical compatibility
+decision and readiness gate. U1-U14 begin only after PRE12 passes. L2 and later product tickets are
 paused unless the user explicitly chooses to resume them.
 
 ---

@@ -88,11 +88,11 @@ API, or database migration.
 ## Current Implementation Status
 
 The application roadmap is implemented through L1, including the E3A
-project-floor prerequisite introduced between E3 and E4. PRE0-PRE9 are also
+project-floor prerequisite introduced between E3 and E4. PRE0-PRE10 are also
 complete.
 
-The current verified prototype contract contains twenty-two SQLAlchemy/MySQL tables
-and 30 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
+The current verified prototype contract contains twenty-three SQLAlchemy/MySQL tables
+and 34 OpenAPI operations. J5 adds `manual_symbols` after J4's append-only
 `detection_class_corrections` table and the empty-safe J3A `symbol_legends`
 catalog. K1 changes neither count; K2 adds `layout_versions` while leaving the
 API count unchanged; K3 adds exactly two layout operations and no table; PRE4
@@ -102,7 +102,8 @@ adds `floor_plan_sources` and `floor_plan_pages`; PRE5 adds
 `symbol_legend_history` plus three Admin legend operations. PRE8 adds
 `layout_save_requests` and leaves the operation count unchanged. PRE9 adds
 `processing_job_attempts`, `processing_job_cancellations`, and one cancellation
-operation. K4, K5, and
+operation. PRE10 adds `dataset_approver_assignments` and four authority
+operations without adding a global role or review decision. K4, K5, and
 L1 otherwise leave both counts unchanged. PRE1 and PRE2 each
 add one GET operation and no table.
 
@@ -178,7 +179,7 @@ not a worker or automatic pipeline. There is also no local VLM runtime, candidat
 reviewed VLM gold set, adapter, or VLM orchestration. PRE9-PRE12 are the current
 foundation priority; they close the remaining non-model concurrency,
 worker-control, reviewer-authority, and canonical-contract
-gaps before U1. PRE10-PRE12 remain. L2 and later tickets remain unimplemented and are paused unless
+gaps before U1. PRE11-PRE12 remain. L2 and later tickets remain unimplemented and are paused unless
 explicitly selected.
 
 `GET /api/projects/{project_id}/floor-plans` now returns authorized persisted
@@ -4319,7 +4320,7 @@ These tickets do not install or run a local model and do not retire YOLO.
 | PRE7 (complete) | Symbol-legend administration | Admin can safely manage the existing catalog without guessed seed data or history loss |
 | PRE8 (complete) | Conditional/idempotent layout save | Stale saves and duplicate retry versions are rejected or reconciled deterministically |
 | PRE9 (complete) | Processing execution controls | Claim/lease/heartbeat/cancel/recovery primitives exist without running an AI pipeline |
-| PRE10 | Dataset-approver authority | Active human VED approver assignment is auditable and privacy-bounded |
+| PRE10 (complete) | Dataset-approver authority | Active human VED approver assignment is auditable and privacy-bounded |
 | PRE11 | Canonical compatibility decision | K1 v1 history is preserved and future page/opening/panel/route provenance ownership is frozen |
 | PRE12 | Readiness gate | Full functional, schema, storage, privacy, documentation, and Git evidence permits U1 |
 
@@ -4327,7 +4328,7 @@ Every PRE ticket inherits the detailed acceptance criteria in the pre-foundation
 plan. Each uses a separate feature branch and progress report. PRE12 must stop
 before U1.
 
-PRE0-PRE9 are complete. PRE1 adds read-only floor-plan discovery, PRE2 adds
+PRE0-PRE10 are complete. PRE1 adds read-only floor-plan discovery, PRE2 adds
 bounded read-only processing-job history, and PRE3 reconciles both in the
 workspace without a new table or backend operation. PRE4 adds two private
 source/page tables and a verification-first backfill. PRE5 adds one private
@@ -4336,7 +4337,9 @@ append-only reviewed metric settings and three safe operations. PRE7 adds the
 Admin legend API and append-only change history. PRE8 adds the conditional,
 idempotent layout-save contract and one request-record table. PRE9 adds two
 execution-control tables and one owning-Designer cancellation operation without
-running a worker or AI pipeline. PRE10 is next;
+running a worker or AI pipeline. PRE10 adds a history-preserving, Admin-managed
+human authority assignment and privacy-reduced current-assignment read. It
+rejects Admin self-assignment and creates no review decision. PRE11 is next;
 no U-series model work has started.
 
 ---

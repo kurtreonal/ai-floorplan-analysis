@@ -40,6 +40,7 @@ SESSION_SECRET = "j1-test-session-secret-with-sufficient-length"
 SESSION_COOKIE = "ved_session"
 PATH = "/api/floor-plans/{floor_plan_id}/detections"
 TABLES = (
+    "dataset_approver_assignments",
     "detected_symbols",
     "detection_class_corrections",
     "detection_reviews",
@@ -764,7 +765,7 @@ class DetectionResultsApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 30)
+        self.assertEqual(len(operations), 34)
 
     def test_schema_and_storage_remain_stable(self) -> None:
         self.assertEqual(tuple(sorted(Wall.metadata.tables)), TABLES)

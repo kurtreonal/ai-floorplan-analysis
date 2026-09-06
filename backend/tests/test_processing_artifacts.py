@@ -81,7 +81,7 @@ class ProcessingArtifactTests(unittest.TestCase):
 
     def test_live_schema_has_bounded_manifest_contract(self) -> None:
         inspector = inspect(get_engine())
-        self.assertEqual(len(inspector.get_table_names()), 22)
+        self.assertEqual(len(inspector.get_table_names()), 23)
         self.assertIn("processing_artifacts", inspector.get_table_names())
         checks = {item["name"] for item in inspector.get_check_constraints("processing_artifacts")}
         self.assertTrue({"ck_processing_artifacts_kind", "ck_processing_artifacts_byte_size", "ck_processing_artifacts_sha256_length", "ck_processing_artifacts_dimensions"}.issubset(checks))

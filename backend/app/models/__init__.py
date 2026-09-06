@@ -3,6 +3,7 @@ from app.models.analysis_settings import FloorElevationSetting, PageScaleSetting
 from app.models.detection_class_correction import DetectionClassCorrection
 from app.models.detected_symbol import DetectedSymbol
 from app.models.detection_review import DetectionReview
+from app.models.dataset_approver_assignment import DatasetApproverAssignment
 from app.models.floor_plan import FloorPlan
 from app.models.floor_plan_page import FloorPlanPage
 from app.models.floor_plan_source import FloorPlanSource
@@ -29,6 +30,7 @@ __all__ = (
     "DetectionClassCorrection",
     "DetectedSymbol",
     "DetectionReview",
+    "DatasetApproverAssignment",
     "FloorPlan",
     "FloorPlanPage",
     "FloorPlanSource",
