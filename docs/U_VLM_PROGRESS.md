@@ -6,8 +6,8 @@ to a trained or released model.
 
 | Ticket | Implementation | Real-data validation | Human approval | Activation | Publication | Current note |
 |---|---|---|---|---|---|---|
-| U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Feature completion commit `baa0258`; merge publication pending | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
-| U2 | Not started | Not started | Not applicable | Not applicable | Not published | Depends on passing U1 |
+| U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Published to `main` at merge `8c73183` | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
+| U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Feature implementation commit `90c90bb`; merge publication pending | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
 | U3 | Not started | Not started | Not started | Not applicable | Not published | Depends on passing U1 |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
@@ -38,7 +38,7 @@ to a trained or released model.
 - Device encryption is a documented temporary exception. U3 may not ingest
   additional real source data and U6 may not acquire model artifacts until the
   exception closes.
-- U2 has not started.
+- U2 started only after U1 publication completed.
 
 ## U1 completion checkpoint
 
@@ -58,3 +58,17 @@ to a trained or released model.
   PRE12 full-suite baseline remains 627 `unittest` tests with 3 skipped, 664
   `pytest` tests plus 504 subtests with 3 skipped, and 280 frontend tests across
   30 files, with frontend lint/build and Python compile checks passing.
+
+## U2 working state
+
+- Baseline: U1 merge `8c73183` on `main` and `origin/main`.
+- Branch: `codex/u2-candidate-contract-v1`.
+- Implementation commit: `90c90bb`.
+- The immutable Pydantic contract, host provenance envelope, U9 review identity,
+  U11 projection boundary, and representative/empty synthetic fixtures are
+  implemented without a database table, API operation, model, gateway, or K1
+  change.
+- Focused candidate and canonical-compatibility verification passes 62 tests;
+  the full backend regression passes 686 tests with 3 skipped, 2 dependency
+  deprecation warnings, and 504 subtests.
+- U3 has not started.

@@ -18,13 +18,14 @@ legacy comparison and rollback path until the migration release gate passes.
 Before this migration begins, PRE0-PRE12 in
 `docs/PRE_VLM_FOUNDATION_PLAN.md` close the repository's non-model readiness
 gaps. U1 must not start until PRE12 publishes a passing readiness report.
-PRE12 now passes in `docs/PRE_VLM_READINESS_REPORT.md`. U1 requirements
-measurement is in progress but blocked before model work as recorded in
-`docs/U1_HARDWARE_PRIVACY_BASELINE.md`. The complete U1-U14 handoff is
+PRE12 passes in `docs/PRE_VLM_READINESS_REPORT.md`, and U1's measured local-only
+operating baseline passes in `docs/U1_HARDWARE_PRIVACY_BASELINE.md`. U2's
+application-owned candidate contract is implemented and documented in
+`docs/FLOOR_PLAN_INTERPRETATION_CANDIDATE_V1.md`. The complete U1-U14 handoff is
 [`CODEX_U_VLM_MIGRATION_PROMPT.md`](CODEX_U_VLM_MIGRATION_PROMPT.md); when the
 user assigns it, it authorizes the sequential tickets and their publication,
-not bypassing human approvals or failed gates. Only U1 requirements measurement
-has started; no model/runtime implementation is implied.
+not bypassing human approvals or failed gates. No model/runtime implementation
+or model selection is implied by U1/U2 completion.
 PRE11 has accepted
 `docs/decisions/0001-canonical-geometry-compatibility.md`; U2 and U11 must
 follow its evidence ownership, fail-closed negotiation, and append-only

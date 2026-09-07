@@ -49,8 +49,10 @@ engine-neutral execution controls and PRE10 dataset-approver authority are
 complete. PRE11 freezes the canonical compatibility decision without changing
 runtime behavior. PRE12 verifies and publishes the passing readiness gate in
 `../docs/PRE_VLM_READINESS_REPORT.md`. PRE0-PRE12 are complete. U1 requirements
-measurement is in progress but blocked before model work; see
-`../docs/U1_HARDWARE_PRIVACY_BASELINE.md`.
+measurement and operating-policy approval are complete; see
+`../docs/U1_HARDWARE_PRIVACY_BASELINE.md`. U2's strict, immutable advisory
+candidate boundary is implemented under `app/ai/floor_plan_interpretation`;
+there is still no local model runtime or model artifact.
 
 ## Requirements
 

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "document_state": "completed",
+  "source_plane": {"coordinate_space": "source_pixel_top_left", "width_pixels": 640, "height_pixels": 480},
+  "page": {
+    "page_type": "cover",
+    "quality": "supported",
+    "signals": {
+      "electrical_content": "not_visible",
+      "legend": "not_visible",
+      "dimensions": "not_visible",
+      "scale_evidence": "not_visible",
+      "observed_wiring": "not_visible"
+    },
+    "quality_issues": []
+  },
+  "regions": [
+    {"id": "region-0001", "kind": "overview", "bounds": null, "local_to_source": {"a": 1, "b": 0, "c": 0, "d": 1, "e": 0, "f": 0}}
+  ],
+  "ocr": {"state": "empty", "items": [], "failure_reason": null, "truncated": false},
+  "scales": {"state": "empty", "items": [], "failure_reason": null, "truncated": false},
+  "walls": {"state": "empty", "items": [], "failure_reason": null, "truncated": false},
+  "rooms": {"state": "empty", "items": [], "failure_reason": null, "truncated": false},
+  "openings": {"state": "empty", "items": [], "failure_reason": null, "truncated": false},
+  "symbols": {"state": "empty", "items": [], "failure_reason": null, "truncated": false},
+  "panels": {"state": "empty", "items": [], "failure_reason": null, "truncated": false},
+  "observed_routes": {"state": "empty", "segments": [], "connections": [], "failure_reason": null, "truncated": false},
+  "warnings": []
+}

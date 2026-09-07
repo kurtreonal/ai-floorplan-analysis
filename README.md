@@ -176,6 +176,7 @@ Codex and contributors should use the documentation in this order:
 | `docs/LOCAL_VLM_MIGRATION_PLAN.md` | Local multimodal model selection, private corpus workflow, training, evaluation, rollout, and U1-U14 tickets | Governing plan for the current AI migration initiative. |
 | `docs/CODEX_PRE_VLM_FOUNDATION_PROMPT.md` | Ready-to-paste Codex execution prompt | Use to implement and publish PRE0-PRE12 with progress checkpoints. |
 | `docs/CODEX_U_VLM_MIGRATION_PROMPT.md` | Complete U1-U14 execution handoff | Includes per-ticket publication, human/data gates, and final release evidence. |
+| `docs/FLOOR_PLAN_INTERPRETATION_CANDIDATE_V1.md` | Strict U2 advisory machine-output contract | Defines host provenance, source-pixel evidence, validation, and future review/projection identities. |
 | `docs/PRE_VLM_READINESS_REPORT.md` | Consolidated PRE12 verification and stopping evidence | Confirms the non-model gate; it does not authorize U1 or model work. |
 | `docs/decisions/0001-canonical-geometry-compatibility.md` | Accepted K1/versioned-extension compatibility decision | Binding input for future U2 and U11 contracts. |
 | `docs/THESIS_SOURCE.md` | Markdown conversion of the original thesis/source manuscript | Reference-only source for project scope and academic requirements. Do not treat old Flask references as implementation instructions. |
@@ -295,9 +296,9 @@ PRE8 conditional/idempotent layout saving and PRE9 engine-neutral execution
 controls, PRE10 dataset-approver authority, and the PRE11 canonical
 compatibility decision are complete. PRE12's readiness gate passes and is
 published in `docs/PRE_VLM_READINESS_REPORT.md`. U1 requirements measurement is
-in progress on its feature branch and is blocked pending measurement of the
-separate inference/training machine plus approval of the proposed numeric
-operating and retention budgets. No model work has started. L2 and later product tickets are
+complete and published in `docs/U1_HARDWARE_PRIVACY_BASELINE.md`. U2 implements
+the strict advisory candidate contract without selecting or running a model.
+No model work has started. L2 and later product tickets are
 paused unless the user explicitly chooses to resume them.
 
 ---
