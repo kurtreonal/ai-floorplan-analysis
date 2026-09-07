@@ -214,8 +214,8 @@ Candidate/review records own source document, page, region, raw evidence, and
 human-decision provenance. An additive canonical extension version 2 is
 reserved, but not implemented,
 for approved source-plane references, first-class openings and panels, optional
-symbol orientation/bounds, and observed/generated route provenance. U2 must
-define compatible candidate data; U11 owns any extension dispatcher, exact
+symbol orientation/bounds, and observed/generated route provenance. U2 defines
+compatible candidate data in `FLOOR_PLAN_INTERPRETATION_CANDIDATE_V1.md`; U11 owns any extension dispatcher, exact
 version-2 extension validators, additive persistence, adapter, and new
 append-only version-1 base snapshots.
 
@@ -235,7 +235,8 @@ Konva nodes, and Three.js meshes are never canonical geometry.
 Routes visibly traced from the uploaded drawing are `observed` evidence. Future
 A* routes are `generated` geometry with separate algorithm/rule provenance. A
 page with no visible wiring contributes no observed route; the VLM must not
-design or infer one merely to populate `routes`. U2/U11 must implement the
+design or infer one merely to populate `routes`. U2 defines the candidate side
+and U11 must implement the
 accepted PRE11 ownership and versioning policy without changing K1 v1 in place.
 
 ## Downstream mapping and non-goals

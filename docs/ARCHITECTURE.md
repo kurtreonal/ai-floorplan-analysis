@@ -899,9 +899,11 @@ truth.
   classify confidence, and persist versioned machine output, but
   the repository has no trained model and no automatic OpenCV/YOLO pipeline
   exists
-- No local VLM runtime, model gateway, candidate schema, reviewed gold set,
-  adapter, or VLM worker exists yet. Unannotated source scans and provisional
-  boxes are not approved training truth.
+- U2 implements the strict immutable local-VLM candidate schema and synthetic
+  fixtures under `app/ai/floor_plan_interpretation`. No local VLM runtime,
+  model gateway, reviewed gold set, adapter, persistence, or VLM worker exists
+  yet. Unannotated source scans and provisional boxes are not approved training
+  truth.
 - J1/J1A/J2 retrieve and display stored walls, an explicitly selected symbol-job
   version, and its aligned normalized blueprint reference; J3 persists
   confirmation/rejection decisions without changing machine provenance
@@ -942,9 +944,9 @@ and queued/cooperative cancellation without implementing a worker or invoking
 AI/CV. PRE10 adds the human dataset-approver authority, and PRE11 accepts the
 canonical compatibility decision in
 `decisions/0001-canonical-geometry-compatibility.md`. PRE12 publishes the
-passing evidence in `PRE_VLM_READINESS_REPORT.md`. U1 requirements measurement
-is now in progress but blocked pending the measured target machine and approved
-numeric budgets; no model/runtime work has started. L2 is paused unless explicitly selected. L1's
+passing evidence in `PRE_VLM_READINESS_REPORT.md`. U1's measured local-only
+operating baseline passes, and U2 supplies only the strict advisory candidate
+contract; no model/runtime work has started. L2 is paused unless explicitly selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
 floor-plan, detection, or processing-job request. Canonical floor meshes,
 walls, openings, symbols, synchronization, and top/perspective switching remain
@@ -956,5 +958,6 @@ PRE4 gives originals and their pages immutable identity. PRE5 adds the
 now resolves the exact registered normalized image and revalidates its file,
 hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
 K1 snapshots. PRE7 makes the approved catalog operational without seeding a
-class or adding the deferred P4 UI. PRE0-PRE12 are complete; U1 is in progress
-only as a blocked hardware/privacy requirements ticket.
+class or adding the deferred P4 UI. PRE0-PRE12 and U1 are complete. U2 adds the
+separate source-pixel candidate contract without changing K1 v1 or adding
+persistence.

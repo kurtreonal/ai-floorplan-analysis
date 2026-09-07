@@ -179,10 +179,10 @@ K1/K2/K3 geometry. K5 provides canonical symbol repositioning, not general
 geometry editing. In particular, there is no worker, external queue, automatic
 OpenCV/YOLO pipeline, canonical 3D reconstruction, routing, estimation, or
 report implementation. PRE9 provides execution-control records and primitives,
-not a worker or automatic pipeline. There is also no local VLM runtime, candidate schema,
-reviewed VLM gold set, adapter, or VLM orchestration. PRE0-PRE12 foundations are
-complete and the readiness report passes. U1 requirements measurement is in
-progress but blocked before model work; see `docs/U1_HARDWARE_PRIVACY_BASELINE.md`.
+not a worker or automatic pipeline. There is also no local VLM runtime, reviewed
+VLM gold set, adapter, or VLM orchestration. PRE0-PRE12 foundations and the U1
+requirements baseline pass. U2 implements only the strict advisory candidate
+schema; see `docs/FLOOR_PLAN_INTERPRETATION_CANDIDATE_V1.md`.
 L2 and later tickets remain unimplemented and are paused unless
 explicitly selected.
 
@@ -4357,8 +4357,8 @@ rejects Admin self-assignment and creates no review decision. PRE11 accepts
 strict and readable, evidence remains in candidate/review records, and version
 2 is reserved as a separately implemented additive canonical extension attached
 to a new version-1 snapshot. PRE12 publishes a passing gate in
-`docs/PRE_VLM_READINESS_REPORT.md`; U1 requirements measurement is in progress,
-but no U-series model/runtime work has started.
+`docs/PRE_VLM_READINESS_REPORT.md`; U1 and the U2 candidate contract are
+complete, but no model/runtime work has started.
 
 ---
 
@@ -4390,11 +4390,11 @@ baseline.
 
 **Acceptance Criteria:**
 
-- [ ] CPU, RAM, GPU, VRAM, OS, driver/CUDA, disk, and supported deployment environment are measured.
-- [ ] Page, tile, context, latency, timeout, concurrency, and storage budgets are approved.
-- [ ] Local-only prohibits source upload, hosted inference, telemetry, and silent network fallback.
-- [ ] Model-license and permitted training/deployment policies are recorded.
-- [ ] No model is selected or downloaded in U1.
+- [x] CPU, RAM, GPU, VRAM, OS, driver/CUDA, disk, and supported deployment environment are measured.
+- [x] Page, tile, context, latency, timeout, concurrency, and storage budgets are approved.
+- [x] Local-only prohibits source upload, hosted inference, telemetry, and silent network fallback.
+- [x] Model-license and permitted training/deployment policies are recorded.
+- [x] No model is selected or downloaded in U1.
 
 ---
 
@@ -4406,11 +4406,11 @@ baseline.
 
 **Acceptance Criteria:**
 
-- [ ] Strict candidate data covers source/model provenance, page metadata, scale evidence, OCR, walls, rooms, openings, symbols, panels, observed routes, ambiguity, and warnings; host identity and approval cannot be supplied by the model.
-- [ ] Candidate geometry uses reversible source-pixel coordinates and is not K1 metric geometry.
-- [ ] Unknown, empty, partial, and ambiguous results are valid without invented values.
-- [ ] Valid, malformed, out-of-bounds, adversarial, and empty fixtures are tested.
-- [ ] The schema contains no Konva or Three.js state.
+- [x] Strict candidate data covers source/model provenance, page metadata, scale evidence, OCR, walls, rooms, openings, symbols, panels, observed routes, ambiguity, and warnings; host identity and approval cannot be supplied by the model.
+- [x] Candidate geometry uses reversible source-pixel coordinates and is not K1 metric geometry.
+- [x] Unknown, empty, partial, and ambiguous results are valid without invented values.
+- [x] Valid, malformed, out-of-bounds, adversarial, and empty fixtures are tested.
+- [x] The schema contains no Konva or Three.js state.
 
 ---
 
