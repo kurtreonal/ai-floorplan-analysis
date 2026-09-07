@@ -8,7 +8,7 @@ to a trained or released model.
 |---|---|---|---|---|---|---|
 | U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Published to `main` at merge `8c73183` | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
 | U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
-| U3 | Safe tooling implemented; ticket blocked | Synthetic validation pending final run | Missing structured purpose permission; encryption not restored | Not applicable | WIP publication pending; must not merge | Actual proven independent eligible groups: zero |
+| U3 | Safe tooling implemented; ticket blocked | Synthetic validation passes; real intake blocked | Missing structured purpose permission; encryption not restored | Not applicable | WIP implementation commit `cdb4684`; must not merge | Actual proven independent eligible groups: zero |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
@@ -77,6 +77,7 @@ to a trained or released model.
 
 - Baseline: U2 merge `3f12087` on `main` and `origin/main`.
 - Branch: `codex/u3-private-corpus-intake`.
+- Safe implementation commit: `cdb4684`.
 - Local-only intake, manifest, duplicate/leakage, path, permission, page and
   original-integrity controls are implemented with synthetic fixtures only.
 - Verification passes 72 focused tests with 1 conditional symlink test skipped
