@@ -44,6 +44,7 @@ storage/training/**
 /docs/electrical-symbols/
 
 # Local AI model weights and exports
+/models/vlm/
 models/**/*.pt
 models/**/*.pth
 models/**/*.onnx

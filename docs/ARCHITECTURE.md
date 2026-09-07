@@ -4,7 +4,7 @@
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
 > `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through L1, including E3A, J1A, and J3A, and labels
+> the architecture actually implemented through L1 and PRE0-PRE12, including E3A, J1A, and J3A, and labels
 > downstream concepts as planned or proposed. The approved target AI migration
 > is governed by `docs/LOCAL_VLM_MIGRATION_PLAN.md`; it does not retroactively
 > make the local VLM an implemented capability.
@@ -101,7 +101,8 @@ PRE0-PRE12 now form a passing non-model foundation gate. U1-U14
 define the planned migration from the implemented YOLO-only symbol path to local
 multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
 unimplemented, including canonical 3D geometry, routing, quantities, estimates,
-reports, administration, and audit logging.
+reports, remaining administration UI/material workflows, and general audit
+logging. PRE7/PRE10 administrative APIs and domain histories already exist.
 
 ## 2. Implemented application layers
 
@@ -209,9 +210,9 @@ cascade. J1 obtains all latest reviews with one deterministic bulk query and
 keeps its machine status unchanged. I4 explicitly rejects replacement of a job
 version once any of its detections has review history.
 
-J1A reuses that authorization context and resolves only the deterministic G2
-`normalized/floor-plan-<id>/job-<id>/image.png` artifact beneath the processed
-root. It validates containment, symlink safety, PNG content, RGB mode, byte
+J1A reuses that authorization context and PRE5's exact registered G2 artifact
+for the authorized job/source page beneath the processed root. It never trusts
+an unregistered filename fallback. It validates hash, containment, symlink safety, PNG content, RGB mode, byte
 size, and G2 dimensions before returning private, non-cacheable bytes. It does
 not generate missing images or mutate original files or database state.
 
@@ -271,10 +272,19 @@ authorization, or concurrency contracts midway through migration.
 The production target is a locally hosted open-weight **vision-language model
 (VLM)**, not a text-only LLM. Model choice is intentionally not frozen until U1
 records the actual CPU, RAM, GPU, VRAM, operating-system, privacy, and latency
-constraints and U6 runs the same frozen evaluation set against feasible
+constraints and U6 runs reviewed development validation against feasible
 candidates. The initial bake-off includes Qwen3-VL 4B/8B and a Qwen2.5-VL
 fallback, with Florence-2 and PaddleOCR/PaddleOCR-VL eligible as specialist
-grounding or OCR helpers rather than assumed sources of truth.
+grounding or OCR helpers rather than assumed sources of truth. Final test data
+remains sealed until U14; model/prompt selection must not read it.
+
+The complete execution handoff is `CODEX_U_VLM_MIGRATION_PROMPT.md`. U5
+bootstraps independent gold review offline; U9 owns the minimum durable
+candidate/review history; U11 reuses it for production retrieval and atomic v1
+snapshot/additive-extension adaptation with PRE8 concurrency protection.
+U7 keeps high-resolution evidence separate from the bounded G2 reference, with
+reversible transforms. U13 reuses PRE9 and rejects publication by stale attempts.
+These are planned boundaries, not implemented U capabilities.
 
 ```text
 Immutable uploaded PDF/image + SHA-256
@@ -529,7 +539,9 @@ GET  /api/projects/{project_id}/floors/{project_floor_id}/layouts
 POST /api/projects/{project_id}/floors/{project_floor_id}/layouts
 
 POST /api/floor-plans/{floor_plan_id}/process
+GET  /api/floor-plans/{floor_plan_id}/processing-jobs
 GET  /api/processing-jobs/{job_id}
+POST /api/processing-jobs/{job_id}/cancel
 GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
@@ -561,7 +573,8 @@ job-versioned, whereas walls remain the current floor-plan wall set.
 
 The layout `GET` returns only the current complete K2 snapshot. It permits the
 owning Designer and Admins. The matching `POST` is owning-Designer-only, accepts
-the exact complete K1 document, verifies path and persisted-floor identity, and
+PRE8's envelope containing the complete K1 document, expected version and
+idempotency key, verifies path and persisted-floor identity, and
 creates a new append-only current K2 version. K3 exposes no history or
 current-version-selection API and performs no floor-plan file writes.
 
@@ -620,8 +633,8 @@ Poll public job status sequentially until a terminal state
 The dashboard and project detail views include loading, empty, error, retry,
 submission, and authorization-appropriate states. Backend responses remain
 authoritative for project status, upload metadata, and job progress. Processing
-controls appear only on Designer upload cards returned during the current page
-session; Admins retain read-only floor visibility. Polling uses one abortable
+controls recover after reload through PRE1-PRE3; Admins retain read-only
+floor/job visibility. PRE9 adds Designer cancellation. Polling uses one abortable
 request at a time and schedules the next request only after the prior response.
 It stops for terminal states, authentication/authorization failures, unmounts,
 and non-retryable lookup errors. Temporary monitoring failures preserve the job
@@ -665,8 +678,8 @@ page to a collision-safe RGB PNG beneath:
 ```
 
 Page selection is one-based and defaults to page 1. Rendering defaults to 150
-DPI. The output reference is returned by the service and is not stored in a new
-table. Successful conversion leaves the broader job `processing`; a conversion
+DPI. PRE5 registers output references and job/page/content provenance in
+`processing_artifacts`. Successful conversion leaves the broader job `processing`; a conversion
 failure persists only the safe failed-state message. G1 is not connected to F2
 automatically because no worker exists.
 
@@ -678,7 +691,8 @@ G1 page for the same floor plan and job. Its separate output contract is:
 ```
 
 The typed result records encoded source, oriented, and normalized dimensions.
-No `processed_images` table or sidecar manifest exists. Success leaves the job
+PRE5 stores provenance in `processing_artifacts`, not a `processed_images`
+table. Success leaves the job
 `processing` with unchanged progress; failure persists only the stable safe
 normalization message. Uploaded originals and G1 pages are never modified.
 
@@ -894,8 +908,8 @@ truth.
 - Detection review supports J4 approved-catalog classification correction and
   J5 manual symbol creation; K1 geometry can be persisted through K2 and loaded
   or saved as the current snapshot through the protected K3 API
-- J3A exposes an empty-safe approved legend catalog, but no approved production
-  VED class values or Admin catalog-management operations have been supplied
+- J3A exposes an empty-safe approved legend catalog and PRE7 supplies Admin
+  management operations; approved production VED class values remain absent
 - K5 renders an immutable draft of the current K3 snapshot in K4's six
   always-mounted Konva layers. Symbols can be selected and repositioned by an
   owning Designer; visibility remains presentation-only. Walls, rooms, routes,
@@ -928,9 +942,9 @@ and queued/cooperative cancellation without implementing a worker or invoking
 AI/CV. PRE10 adds the human dataset-approver authority, and PRE11 accepts the
 canonical compatibility decision in
 `decisions/0001-canonical-geometry-compatibility.md`. PRE12 publishes the
-passing evidence in `PRE_VLM_READINESS_REPORT.md`; no U ticket has started.
-U1 is next but requires separate authorization. L2 is paused unless explicitly
-selected. L1's
+passing evidence in `PRE_VLM_READINESS_REPORT.md`. U1 requirements measurement
+is now in progress but blocked pending the measured target machine and approved
+numeric budgets; no model/runtime work has started. L2 is paused unless explicitly selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
 floor-plan, detection, or processing-job request. Canonical floor meshes,
 walls, openings, symbols, synchronization, and top/perspective switching remain
@@ -942,4 +956,5 @@ PRE4 gives originals and their pages immutable identity. PRE5 adds the
 now resolves the exact registered normalized image and revalidates its file,
 hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
 K1 snapshots. PRE7 makes the approved catalog operational without seeding a
-class or adding the deferred P4 UI. PRE0-PRE12 are complete; U1 has not started.
+class or adding the deferred P4 UI. PRE0-PRE12 are complete; U1 is in progress
+only as a blocked hardware/privacy requirements ticket.

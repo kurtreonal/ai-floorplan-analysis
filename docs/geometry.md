@@ -158,7 +158,8 @@ floor-plan or derived-image file.
 
 `GET` returns the current snapshot metadata and complete canonical geometry to
 the owning Designer or an Admin. `POST` is owning-Designer-only and accepts one
-complete strict K1 document; it validates path and persisted-floor identity and
+complete strict K1 document inside PRE8's expected-version/idempotency envelope;
+it validates path and persisted-floor identity and
 delegates append-only version creation to K2. The API does not expose history or
 current-version selection and does not write original or derived floor-plan
 files.
