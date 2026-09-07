@@ -7,8 +7,8 @@ to a trained or released model.
 | Ticket | Implementation | Real-data validation | Human approval | Activation | Publication | Current note |
 |---|---|---|---|---|---|---|
 | U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Published to `main` at merge `8c73183` | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
-| U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Feature implementation commit `90c90bb`; merge publication pending | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
-| U3 | Not started | Not started | Not started | Not applicable | Not published | Depends on passing U1 |
+| U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
+| U3 | Safe tooling implemented; ticket blocked | Synthetic validation pending final run | Missing structured purpose permission; encryption not restored | Not applicable | WIP publication pending; must not merge | Actual proven independent eligible groups: zero |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
@@ -71,4 +71,19 @@ to a trained or released model.
 - Focused candidate and canonical-compatibility verification passes 62 tests;
   the full backend regression passes 686 tests with 3 skipped, 2 dependency
   deprecation warnings, and 504 subtests.
-- U3 has not started.
+- U3 started only after U2 publication completed.
+
+## U3 blocked working state
+
+- Baseline: U2 merge `3f12087` on `main` and `origin/main`.
+- Branch: `codex/u3-private-corpus-intake`.
+- Local-only intake, manifest, duplicate/leakage, path, permission, page and
+  original-integrity controls are implemented with synthetic fixtures only.
+- Verification passes 72 focused tests with 1 conditional symlink test skipped
+  and 2 subtests; the full backend regression passes 700 tests with 4 skipped,
+  2 dependency deprecation warnings, and 504 subtests.
+- No real source was ingested. The existing private manifest was read only and
+  its sanitized coverage is recorded in `U3_PRIVATE_CORPUS_INTAKE_REPORT.md`.
+- Real intake and completion publication are blocked on restored device
+  encryption and VED-authorized purpose-specific source permissions.
+- U4 has not started.

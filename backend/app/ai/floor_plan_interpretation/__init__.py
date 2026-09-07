@@ -9,6 +9,12 @@ from app.ai.floor_plan_interpretation.candidate import (
     parse_candidate_payload_json,
     review_record_identity,
 )
+from app.ai.floor_plan_interpretation.corpus_intake import (
+    CorpusIntakeError,
+    CorpusIntakeRequest,
+    PermissionRecord,
+    build_private_corpus_manifest,
+)
 
 __all__ = [
     "CandidateContractError",
@@ -18,4 +24,8 @@ __all__ = [
     "build_candidate_envelope",
     "parse_candidate_payload_json",
     "review_record_identity",
+    "CorpusIntakeError",
+    "CorpusIntakeRequest",
+    "PermissionRecord",
+    "build_private_corpus_manifest",
 ]
