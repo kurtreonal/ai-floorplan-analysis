@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+from copy import deepcopy
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
+from math import ceil, isfinite
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pypdfium2 as pdfium
@@ -17,6 +19,10 @@ from app.services.upload_validation import FORMAT_BY_EXTENSION, validate_floor_p
 MANIFEST_VERSION = 1
 MAXIMUM_SOURCE_BYTES = 25 * 1024 * 1024
 MAXIMUM_PAGES = 50
+MAXIMUM_IMAGE_EDGE = 10_000
+MAXIMUM_IMAGE_PIXELS = 60_000_000
+MAXIMUM_MANIFEST_BYTES = 16 * 1024 * 1024
+FINGERPRINT_PDF_SCALE = 0.25
 ERROR_MESSAGE = "The private corpus intake request is invalid."
 
 
@@ -84,23 +90,20 @@ class CorpusIntakeRequest(IntakeModel):
 class CorpusIntakeResult:
     manifest_path: Path
     record_count: int
-    eligible_count: int
+    blueprint_source_count: int
+    eligible_blueprint_source_count: int
+    eligible_blueprint_drawing_group_count: int
+    independent_eligible_blueprint_project_count: int
+    reference_material_count: int
+    eligible_reference_material_count: int
     exact_duplicate_groups: int
     near_duplicate_pairs: int
     changed: bool
 
-
-def _eligible_group_count(records: list[dict[str, object]], exact: dict[str, list[str]]) -> int:
-    duplicate_hashes = set(exact)
-    keys = set()
-    for record in records:
-        if not record["eligible"]:
-            continue
-        if record["sha256"] in duplicate_hashes:
-            keys.add(("exact", record["sha256"]))
-        else:
-            keys.add(("drawing", record["project_group_id"], record["drawing_set_id"]))
-    return len(keys)
+    @property
+    def eligible_count(self) -> int:
+        """Backward-compatible aggregate; use the explicit coverage fields."""
+        return self.eligible_blueprint_source_count
 
 
 def _safe_source(root: Path, relative_path: str) -> Path:
@@ -126,6 +129,61 @@ def _safe_source(root: Path, relative_path: str) -> Path:
     return resolved
 
 
+def _read_source_bounded(source: Path) -> tuple[bytes, str]:
+    try:
+        before = source.stat()
+        if before.st_size <= 0:
+            _fail("SOURCE_EMPTY")
+        if before.st_size > MAXIMUM_SOURCE_BYTES:
+            _fail("SOURCE_TOO_LARGE")
+        with source.open("rb") as stream:
+            content = stream.read(MAXIMUM_SOURCE_BYTES + 1)
+        after = source.stat()
+    except CorpusIntakeError:
+        raise
+    except OSError:
+        _fail("SOURCE_UNAVAILABLE")
+    if len(content) > MAXIMUM_SOURCE_BYTES:
+        _fail("SOURCE_TOO_LARGE")
+    if len(content) != before.st_size or (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+        _fail("SOURCE_CHANGED_DURING_READ")
+    return content, sha256(content).hexdigest()
+
+
+def _verify_original_digest(source: Path, expected_digest: str) -> None:
+    digest = sha256()
+    total = 0
+    try:
+        with source.open("rb") as stream:
+            while chunk := stream.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAXIMUM_SOURCE_BYTES:
+                    _fail("SOURCE_TOO_LARGE")
+                digest.update(chunk)
+    except CorpusIntakeError:
+        raise
+    except OSError:
+        _fail("SOURCE_UNAVAILABLE")
+    if digest.hexdigest() != expected_digest:
+        _fail("ORIGINAL_CHANGED_DURING_INTAKE")
+
+
+def _validate_image_allocation(content: bytes) -> None:
+    try:
+        with Image.open(BytesIO(content)) as image:
+            width, height = image.size
+    except Exception:
+        _fail("INVALID_SOURCE")
+    if (
+        width <= 0
+        or height <= 0
+        or width > MAXIMUM_IMAGE_EDGE
+        or height > MAXIMUM_IMAGE_EDGE
+        or width * height > MAXIMUM_IMAGE_PIXELS
+    ):
+        _fail("IMAGE_ALLOCATION_LIMIT_EXCEEDED")
+
+
 def _image_hash(image: Image.Image) -> str:
     grayscale = image.convert("L").resize((9, 8), Image.Resampling.LANCZOS)
     try:
@@ -136,7 +194,7 @@ def _image_hash(image: Image.Image) -> str:
     return f"{sum(1 << index for index, bit in enumerate(bits) if bit):016x}"
 
 
-def _page_fingerprints(path: Path, content: bytes, extension: str, page_count: int) -> list[dict[str, object]]:
+def _page_fingerprints(content: bytes, extension: str, page_count: int) -> list[dict[str, object]]:
     pages: list[dict[str, object]] = []
     if extension != ".pdf":
         with Image.open(BytesIO(content)) as image:
@@ -144,13 +202,31 @@ def _page_fingerprints(path: Path, content: bytes, extension: str, page_count: i
         return pages
     document = None
     try:
-        document = pdfium.PdfDocument(str(path))
+        document = pdfium.PdfDocument(content)
         for index in range(page_count):
             page = document[index]
             bitmap = None
             pil_image = None
             try:
-                bitmap = page.render(scale=0.25)
+                width_points, height_points = page.get_size()
+                width = ceil(width_points * FINGERPRINT_PDF_SCALE)
+                height = ceil(height_points * FINGERPRINT_PDF_SCALE)
+                if (
+                    not all(isfinite(value) and value > 0 for value in (width_points, height_points))
+                    or width <= 0
+                    or height <= 0
+                    or width > MAXIMUM_IMAGE_EDGE
+                    or height > MAXIMUM_IMAGE_EDGE
+                    or width * height > MAXIMUM_IMAGE_PIXELS
+                ):
+                    _fail("PDF_RENDER_LIMIT_EXCEEDED")
+                bitmap = page.render(scale=FINGERPRINT_PDF_SCALE)
+                if (
+                    int(bitmap.width) > MAXIMUM_IMAGE_EDGE
+                    or int(bitmap.height) > MAXIMUM_IMAGE_EDGE
+                    or int(bitmap.width) * int(bitmap.height) > MAXIMUM_IMAGE_PIXELS
+                ):
+                    _fail("PDF_RENDER_LIMIT_EXCEEDED")
                 pil_image = bitmap.to_pil()
                 pages.append({"page_number": index + 1, "width_pixels": int(bitmap.width), "height_pixels": int(bitmap.height), "perceptual_hash": _image_hash(pil_image)})
             finally:
@@ -159,6 +235,8 @@ def _page_fingerprints(path: Path, content: bytes, extension: str, page_count: i
                 if bitmap is not None:
                     bitmap.close()
                 page.close()
+    except CorpusIntakeError:
+        raise
     except Exception:
         _fail("PAGE_FINGERPRINT_FAILED")
     finally:
@@ -181,12 +259,13 @@ def _near_duplicate(left: dict, right: dict) -> bool:
 
 def _record(root: Path, request: CorpusIntakeRequest) -> dict[str, object]:
     source = _safe_source(root, request.relative_path)
-    before = sha256(source.read_bytes()).hexdigest()
-    content = source.read_bytes()
     extension = source.suffix.casefold()
     policy = FORMAT_BY_EXTENSION.get(extension)
     if policy is None:
         _fail("UNSUPPORTED_SOURCE")
+    content, original_digest = _read_source_bounded(source)
+    if extension != ".pdf":
+        _validate_image_allocation(content)
     try:
         validated = validate_floor_plan_upload(
             filename=source.name,
@@ -194,24 +273,37 @@ def _record(root: Path, request: CorpusIntakeRequest) -> dict[str, object]:
             content=content,
             max_file_size_bytes=MAXIMUM_SOURCE_BYTES,
         )
+    except CorpusIntakeError:
+        raise
     except Exception:
         _fail("INVALID_SOURCE")
     page_count = validated.page_count or 1
     if page_count > MAXIMUM_PAGES:
         _fail("PAGE_LIMIT_EXCEEDED")
-    pages = _page_fingerprints(source, content, extension, page_count)
-    after = sha256(source.read_bytes()).hexdigest()
-    if before != after:
-        _fail("ORIGINAL_CHANGED_DURING_INTAKE")
-    complete_metadata = all((request.project_group_id, request.drawing_set_id)) and request.sheet_type != "pending" and request.quality != "pending"
-    eligible = request.permission.status == "approved" and complete_metadata and (
-        request.split != "pending" or request.source_type == "reference"
-    )
+    pages = _page_fingerprints(content, extension, page_count)
+    _verify_original_digest(source, original_digest)
+    reasons = []
+    if request.permission.status != "approved":
+        reasons.append("permission_not_approved")
+    if not request.project_group_id:
+        reasons.append("project_group_missing")
+    if not request.drawing_set_id:
+        reasons.append("drawing_set_missing")
+    if request.sheet_type == "pending":
+        reasons.append("sheet_type_pending")
+    if request.quality == "pending":
+        reasons.append("quality_pending")
+    elif request.quality == "degraded":
+        reasons.append("degraded_requires_quality_approval")
+    elif request.quality == "unsupported":
+        reasons.append("quality_unsupported")
+    if request.source_type == "blueprint" and request.split == "pending":
+        reasons.append("split_pending")
     return {
         "source_id": request.source_id,
         "relative_path": request.relative_path,
         "source_type": request.source_type,
-        "sha256": before,
+        "sha256": original_digest,
         "byte_size": len(content),
         "mime_type": validated.mime_type,
         "project_group_id": request.project_group_id,
@@ -221,20 +313,20 @@ def _record(root: Path, request: CorpusIntakeRequest) -> dict[str, object]:
         "quality": request.quality,
         "permission": request.permission.model_dump(mode="json"),
         "pages": pages,
-        "eligible": bool(eligible),
+        "eligible": not reasons,
+        "eligibility_reasons": sorted(reasons),
     }
 
 
 def _validate_groups(records: list[dict[str, object]]) -> tuple[dict[str, list[str]], list[dict[str, str]]]:
-    group_splits: dict[tuple[str, str], set[str]] = {}
+    project_splits: dict[str, set[str]] = {}
     hashes: dict[str, list[dict]] = {}
     for record in records:
-        if record["project_group_id"] and record["drawing_set_id"] and record["split"] != "pending":
-            key = (record["project_group_id"], record["drawing_set_id"])
-            group_splits.setdefault(key, set()).add(record["split"])
+        if record["source_type"] == "blueprint" and record["project_group_id"] and record["split"] != "pending":
+            project_splits.setdefault(record["project_group_id"], set()).add(record["split"])
         hashes.setdefault(record["sha256"], []).append(record)
-    if any(len(splits) > 1 for splits in group_splits.values()):
-        _fail("GROUP_CROSSES_SPLITS")
+    if any(len(splits) > 1 for splits in project_splits.values()):
+        _fail("PROJECT_CROSSES_SPLITS")
     exact = {digest: sorted(item["source_id"] for item in values) for digest, values in hashes.items() if len(values) > 1}
     for values in hashes.values():
         splits = {item["split"] for item in values if item["split"] != "pending"}
@@ -250,7 +342,157 @@ def _validate_groups(records: list[dict[str, object]]) -> tuple[dict[str, list[s
                 _fail("NEAR_DUPLICATE_CROSSES_SPLITS")
             left["eligible"] = False
             right["eligible"] = False
+            for record in (left, right):
+                reasons = set(record.get("eligibility_reasons", []))
+                reasons.add("near_duplicate_pending_resolution")
+                record["eligibility_reasons"] = sorted(reasons)
     return exact, near
+
+
+def _coverage(records: list[dict[str, object]], exact: dict[str, list[str]]) -> dict[str, int]:
+    blueprints = [record for record in records if record["source_type"] == "blueprint"]
+    eligible = [record for record in blueprints if record["eligible"]]
+    projects = {record["project_group_id"] for record in eligible}
+    parent = {project: project for project in projects}
+
+    def find(project):
+        while parent[project] != project:
+            parent[project] = parent[parent[project]]
+            project = parent[project]
+        return project
+
+    def union(left, right):
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    by_source = {record["source_id"]: record for record in eligible}
+    for source_ids in exact.values():
+        duplicate_projects = sorted({
+            by_source[source_id]["project_group_id"]
+            for source_id in source_ids
+            if source_id in by_source
+        })
+        for project in duplicate_projects[1:]:
+            union(duplicate_projects[0], project)
+
+    references = [record for record in records if record["source_type"] == "reference"]
+    return {
+        "source_count": len(records),
+        "blueprint_source_count": len(blueprints),
+        "eligible_blueprint_source_count": len(eligible),
+        "eligible_blueprint_drawing_group_count": len({
+            (record["project_group_id"], record["drawing_set_id"])
+            for record in eligible
+        }),
+        "independent_eligible_blueprint_project_count": len({find(project) for project in projects}),
+        "reference_material_count": len(references),
+        "eligible_reference_material_count": sum(record["eligible"] for record in references),
+    }
+
+
+def _load_existing_manifest(destination: Path) -> tuple[dict[str, object] | None, bytes | None]:
+    if not destination.exists():
+        return None, None
+    try:
+        size = destination.stat().st_size
+        if size <= 0 or size > MAXIMUM_MANIFEST_BYTES:
+            _fail("EXISTING_MANIFEST_INVALID")
+        with destination.open("rb") as stream:
+            raw = stream.read(MAXIMUM_MANIFEST_BYTES + 1)
+        existing = json.loads(raw.decode("utf-8"))
+    except CorpusIntakeError:
+        raise
+    except Exception:
+        _fail("EXISTING_MANIFEST_INVALID")
+    required = {
+        "schema_version", "manifest_revision", "previous_manifest_sha256",
+        "records", "exact_duplicate_groups", "near_duplicate_pairs", "coverage",
+    }
+    if (
+        type(existing) is not dict
+        or set(existing) != required
+        or existing["schema_version"] != MANIFEST_VERSION
+        or type(existing["manifest_revision"]) is not int
+        or existing["manifest_revision"] <= 0
+        or type(existing["records"]) is not list
+    ):
+        _fail("EXISTING_MANIFEST_INVALID")
+    identifiers = tuple(record.get("source_id") for record in existing["records"] if type(record) is dict)
+    if len(identifiers) != len(existing["records"]) or tuple(sorted(set(identifiers))) != identifiers:
+        _fail("EXISTING_MANIFEST_INVALID")
+    return existing, raw
+
+
+def _assert_incremental_compatibility(prior: dict[str, object], current: dict[str, object]) -> None:
+    if prior.get("sha256") != current["sha256"]:
+        _fail("CHANGED_SOURCE_CONFLICT")
+    for field in ("relative_path", "source_type", "byte_size", "mime_type", "pages"):
+        if prior.get(field) != current[field]:
+            _fail("ESTABLISHED_SOURCE_CONFLICT")
+    for field in ("project_group_id", "drawing_set_id"):
+        if prior.get(field) is not None and prior.get(field) != current[field]:
+            _fail("ESTABLISHED_GROUP_CONFLICT")
+    for field in ("split", "sheet_type", "quality"):
+        if prior.get(field) != "pending" and prior.get(field) != current[field]:
+            _fail("ESTABLISHED_MEMBERSHIP_CONFLICT")
+    prior_permission = prior.get("permission")
+    if type(prior_permission) is not dict:
+        _fail("EXISTING_MANIFEST_INVALID")
+    if prior_permission.get("status") == "approved" and prior_permission != current["permission"]:
+        _fail("ESTABLISHED_PERMISSION_CONFLICT")
+
+
+def _merge_incrementally(existing: dict[str, object] | None, incoming: list[dict[str, object]]) -> list[dict[str, object]]:
+    if existing is None:
+        return incoming
+    merged = {record["source_id"]: deepcopy(record) for record in existing["records"]}
+    for record in incoming:
+        prior = merged.get(record["source_id"])
+        if prior is not None:
+            _assert_incremental_compatibility(prior, record)
+        merged[record["source_id"]] = record
+    return [merged[source_id] for source_id in sorted(merged)]
+
+
+def _reset_eligibility(records: list[dict[str, object]]) -> None:
+    for record in records:
+        reasons = []
+        permission = record["permission"]
+        if permission["status"] != "approved":
+            reasons.append("permission_not_approved")
+        if not record["project_group_id"]:
+            reasons.append("project_group_missing")
+        if not record["drawing_set_id"]:
+            reasons.append("drawing_set_missing")
+        if record["sheet_type"] == "pending":
+            reasons.append("sheet_type_pending")
+        if record["quality"] == "pending":
+            reasons.append("quality_pending")
+        elif record["quality"] == "degraded":
+            reasons.append("degraded_requires_quality_approval")
+        elif record["quality"] == "unsupported":
+            reasons.append("quality_unsupported")
+        if record["source_type"] == "blueprint" and record["split"] == "pending":
+            reasons.append("split_pending")
+        record["eligibility_reasons"] = sorted(reasons)
+        record["eligible"] = not reasons
+
+
+def _result(destination: Path, coverage: dict[str, int], exact, near, changed: bool) -> CorpusIntakeResult:
+    return CorpusIntakeResult(
+        manifest_path=destination,
+        record_count=coverage["source_count"],
+        blueprint_source_count=coverage["blueprint_source_count"],
+        eligible_blueprint_source_count=coverage["eligible_blueprint_source_count"],
+        eligible_blueprint_drawing_group_count=coverage["eligible_blueprint_drawing_group_count"],
+        independent_eligible_blueprint_project_count=coverage["independent_eligible_blueprint_project_count"],
+        reference_material_count=coverage["reference_material_count"],
+        eligible_reference_material_count=coverage["eligible_reference_material_count"],
+        exact_duplicate_groups=len(exact),
+        near_duplicate_pairs=len(near),
+        changed=changed,
+    )
 
 
 def build_private_corpus_manifest(
@@ -270,27 +512,27 @@ def build_private_corpus_manifest(
     identifiers = tuple(request.source_id for request in requests)
     if not requests or tuple(sorted(set(identifiers))) != identifiers:
         _fail("INVALID_SOURCE_ORDER")
-    records = [_record(root, request) for request in requests]
+    existing, existing_raw = _load_existing_manifest(destination)
+    records = _merge_incrementally(existing, [_record(root, request) for request in requests])
+    _reset_eligibility(records)
     exact, near = _validate_groups(records)
-    manifest = {
-        "schema_version": MANIFEST_VERSION,
+    coverage = _coverage(records, exact)
+    semantic = {
         "records": records,
         "exact_duplicate_groups": exact,
         "near_duplicate_pairs": near,
+        "coverage": coverage,
+    }
+    if existing is not None and all(existing[key] == value for key, value in semantic.items()):
+        return _result(destination, coverage, exact, near, False)
+    revision = 1 if existing is None else existing["manifest_revision"] + 1
+    manifest = {
+        "schema_version": MANIFEST_VERSION,
+        "manifest_revision": revision,
+        "previous_manifest_sha256": None if existing_raw is None else sha256(existing_raw).hexdigest(),
+        **semantic,
     }
     serialized = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
-    if destination.exists():
-        try:
-            existing = json.loads(destination.read_text(encoding="utf-8"))
-        except Exception:
-            _fail("EXISTING_MANIFEST_INVALID")
-        existing_by_id = {item.get("source_id"): item for item in existing.get("records", [])}
-        for record in records:
-            prior = existing_by_id.get(record["source_id"])
-            if prior is not None and prior.get("sha256") != record["sha256"]:
-                _fail("CHANGED_SOURCE_CONFLICT")
-        if destination.read_text(encoding="utf-8") == serialized:
-            return CorpusIntakeResult(destination, len(records), _eligible_group_count(records, exact), len(exact), len(near), False)
     temporary = destination.with_name(f".{destination.name}.tmp")
     try:
         with temporary.open("x", encoding="utf-8", newline="\n") as output:
@@ -303,4 +545,4 @@ def build_private_corpus_manifest(
     except OSError:
         temporary.unlink(missing_ok=True)
         _fail("MANIFEST_WRITE_FAILED")
-    return CorpusIntakeResult(destination, len(records), _eligible_group_count(records, exact), len(exact), len(near), True)
+    return _result(destination, coverage, exact, near, True)

@@ -3,6 +3,7 @@ import json
 import os
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from PIL import Image
@@ -28,11 +29,11 @@ def image_bytes(image_format="PNG", *, reverse=False):
     return output.getvalue()
 
 
-def pdf_bytes(pages=2):
+def pdf_bytes(pages=2, *, width=72, height=72):
     output = BytesIO()
     writer = PdfWriter()
     for _ in range(pages):
-        writer.add_blank_page(width=72, height=72)
+        writer.add_blank_page(width=width, height=height)
     writer.write(output)
     return output.getvalue()
 
@@ -46,7 +47,7 @@ def permission(purpose="training"):
     )
 
 
-def request(source_id, relative_path, *, split="train", project="project-a", drawing="drawing-a", source_type="blueprint", permitted=None):
+def request(source_id, relative_path, *, split="train", project="project-a", drawing="drawing-a", source_type="blueprint", permitted=None, quality="supported"):
     if permitted is None:
         permitted = "reference_grounding" if source_type == "reference" else {
             "train": "training",
@@ -61,7 +62,7 @@ def request(source_id, relative_path, *, split="train", project="project-a", dra
         drawing_set_id=drawing,
         split=split,
         sheet_type="legend" if source_type == "reference" else "electrical_plan",
-        quality="supported",
+        quality=quality,
         permission=permission(permitted),
     )
 
@@ -95,6 +96,7 @@ def test_intake_is_idempotent_and_preserves_original_bytes(tmp_path):
     assert first.changed is True
     assert second.changed is False
     assert second.eligible_count == 1
+    assert second.independent_eligible_blueprint_project_count == 1
     assert manifest.read_bytes() == first_bytes
     assert manifest.stat().st_mtime_ns == first_mtime
     assert hashlib.sha256(path.read_bytes()).hexdigest() == digest
@@ -160,11 +162,22 @@ def test_exact_duplicates_are_grouped_and_cannot_cross_splits(tmp_path):
     ]
     result = build(tmp_path, same)
     assert result.exact_duplicate_groups == 1
-    assert result.eligible_count == 1
+    assert result.eligible_blueprint_source_count == 2
+    assert result.eligible_blueprint_drawing_group_count == 2
+    assert result.independent_eligible_blueprint_project_count == 1
     assert len(json.loads(manifest.read_text(encoding="utf-8"))["exact_duplicate_groups"]) == 1
 
     manifest.unlink()
-    cross = [same[0], request("source-b", "source-materials/b.png", split="sealed_test", drawing="drawing-b")]
+    cross = [
+        same[0],
+        request(
+            "source-b",
+            "source-materials/b.png",
+            split="sealed_test",
+            project="project-b",
+            drawing="drawing-b",
+        ),
+    ]
     with pytest.raises(CorpusIntakeError) as error:
         build(tmp_path, cross)
     assert error.value.code == "EXACT_DUPLICATE_CROSSES_SPLITS"
@@ -180,7 +193,54 @@ def test_related_drawing_group_cannot_cross_splits(tmp_path):
     ]
     with pytest.raises(CorpusIntakeError) as error:
         build(tmp_path, requests)
-    assert error.value.code == "GROUP_CROSSES_SPLITS"
+    assert error.value.code == "PROJECT_CROSSES_SPLITS"
+
+
+def test_different_drawing_sets_in_one_project_cannot_cross_splits(tmp_path):
+    source, _ = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    (source / "b.png").write_bytes(image_bytes(reverse=True))
+    with pytest.raises(CorpusIntakeError) as error:
+        build(tmp_path, [
+            request("source-a", "source-materials/a.png", drawing="drawing-a"),
+            request("source-b", "source-materials/b.png", split="sealed_test", drawing="drawing-b"),
+        ])
+    assert error.value.code == "PROJECT_CROSSES_SPLITS"
+
+
+def test_drawing_set_identity_is_scoped_by_project(tmp_path):
+    source, _ = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    (source / "b.png").write_bytes(image_bytes(reverse=True))
+    result = build(tmp_path, [
+        request("source-a", "source-materials/a.png", project="project-a", drawing="drawing-a"),
+        request("source-b", "source-materials/b.png", project="project-b", drawing="drawing-a"),
+    ])
+    assert result.eligible_blueprint_drawing_group_count == 2
+    assert result.independent_eligible_blueprint_project_count == 2
+
+
+def test_exact_duplicates_across_projects_count_as_one_independent_project_cluster(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    content = image_bytes()
+    (source / "a.png").write_bytes(content)
+    (source / "b.png").write_bytes(content)
+    result = build(tmp_path, [
+        request("source-a", "source-materials/a.png", project="project-a", drawing="drawing-a"),
+        request("source-b", "source-materials/b.png", project="project-b", drawing="drawing-b"),
+    ])
+    assert result.eligible_blueprint_source_count == 2
+    assert result.eligible_blueprint_drawing_group_count == 2
+    assert result.independent_eligible_blueprint_project_count == 1
+    assert json.loads(manifest.read_text(encoding="utf-8"))["coverage"] == {
+        "blueprint_source_count": 2,
+        "eligible_blueprint_drawing_group_count": 2,
+        "eligible_blueprint_source_count": 2,
+        "eligible_reference_material_count": 0,
+        "independent_eligible_blueprint_project_count": 1,
+        "reference_material_count": 0,
+        "source_count": 2,
+    }
 
 
 def test_near_duplicates_are_flagged_and_cross_split_rejected(tmp_path):
@@ -193,7 +253,13 @@ def test_near_duplicates_are_flagged_and_cross_split_rejected(tmp_path):
     (source / "b.jpg").write_bytes(output.getvalue())
     requests = [
         request("source-a", "source-materials/a.png", drawing="drawing-a"),
-        request("source-b", "source-materials/b.jpg", split="sealed_test", drawing="drawing-b"),
+        request(
+            "source-b",
+            "source-materials/b.jpg",
+            split="sealed_test",
+            project="project-b",
+            drawing="drawing-b",
+        ),
     ]
     with pytest.raises(CorpusIntakeError) as error:
         build(tmp_path, requests)
@@ -219,6 +285,20 @@ def test_symlink_source_is_rejected_when_supported(tmp_path):
         pytest.skip("Creating symlinks is unavailable for this Windows user.")
     with pytest.raises(CorpusIntakeError) as error:
         build(tmp_path, [request("source-a", "source-materials/link.png")])
+    assert error.value.code == "UNSAFE_SOURCE_PATH"
+
+
+def test_symlink_rejection_branch_is_covered_without_windows_privilege(tmp_path):
+    source, _ = setup_root(tmp_path)
+    (source / "plan.png").write_bytes(image_bytes())
+    original = Path.is_symlink
+
+    def reports_only_source_as_link(path):
+        return path.name == "plan.png" or original(path)
+
+    with patch.object(Path, "is_symlink", reports_only_source_as_link):
+        with pytest.raises(CorpusIntakeError) as error:
+            build(tmp_path, [request("source-a", "source-materials/plan.png")])
     assert error.value.code == "UNSAFE_SOURCE_PATH"
 
 
@@ -254,3 +334,120 @@ def test_request_order_is_deterministic(tmp_path):
             request("source-a", "source-materials/a.png", drawing="drawing-a"),
         ])
     assert error.value.code == "INVALID_SOURCE_ORDER"
+
+
+def test_incremental_intake_preserves_absent_records_and_versions_changes(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    (source / "b.png").write_bytes(image_bytes(reverse=True))
+    build(tmp_path, [request("source-a", "source-materials/a.png", project="project-a", drawing="drawing-a")])
+    first = json.loads(manifest.read_text(encoding="utf-8"))
+    result = build(tmp_path, [request("source-b", "source-materials/b.png", project="project-b", drawing="drawing-b")])
+    second = json.loads(manifest.read_text(encoding="utf-8"))
+    assert result.record_count == 2
+    assert [record["source_id"] for record in second["records"]] == ["source-a", "source-b"]
+    assert second["manifest_revision"] == 2
+    assert second["previous_manifest_sha256"] == hashlib.sha256(
+        (json.dumps(first, indent=2, sort_keys=True) + "\n").encode()
+    ).hexdigest()
+
+
+def test_incremental_intake_cannot_rewrite_established_split(tmp_path):
+    source, _ = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    build(tmp_path, [request("source-a", "source-materials/a.png")])
+    with pytest.raises(CorpusIntakeError) as error:
+        build(tmp_path, [request(
+            "source-a",
+            "source-materials/a.png",
+            split="development_validation",
+        )])
+    assert error.value.code == "ESTABLISHED_MEMBERSHIP_CONFLICT"
+
+
+def test_pending_record_can_be_enriched_without_removal(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    pending = CorpusIntakeRequest(
+        source_id="source-a",
+        relative_path="source-materials/a.png",
+        source_type="blueprint",
+        project_group_id=None,
+        drawing_set_id=None,
+        split="pending",
+        sheet_type="pending",
+        quality="pending",
+        permission=PermissionRecord(status="pending", allowed_purposes=()),
+    )
+    build(tmp_path, [pending])
+    result = build(tmp_path, [request("source-a", "source-materials/a.png")])
+    stored = json.loads(manifest.read_text(encoding="utf-8"))
+    assert result.eligible_blueprint_source_count == 1
+    assert stored["manifest_revision"] == 2
+    assert stored["records"][0]["split"] == "train"
+
+
+def test_degraded_and_unsupported_sources_are_inventoried_but_not_eligible(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    (source / "b.png").write_bytes(image_bytes(reverse=True))
+    result = build(tmp_path, [
+        request("source-a", "source-materials/a.png", project="project-a", drawing="drawing-a", quality="degraded"),
+        request("source-b", "source-materials/b.png", project="project-b", drawing="drawing-b", quality="unsupported"),
+    ])
+    stored = json.loads(manifest.read_text(encoding="utf-8"))
+    assert result.blueprint_source_count == 2
+    assert result.eligible_blueprint_source_count == 0
+    assert [record["eligibility_reasons"] for record in stored["records"]] == [
+        ["degraded_requires_quality_approval"],
+        ["quality_unsupported"],
+    ]
+
+
+def test_reference_material_is_reported_separately(tmp_path):
+    source, _ = setup_root(tmp_path)
+    (source / "plan.png").write_bytes(image_bytes())
+    (source / "reference.png").write_bytes(image_bytes(reverse=True))
+    result = build(tmp_path, [
+        request("source-a", "source-materials/plan.png"),
+        request("source-b", "source-materials/reference.png", source_type="reference", split="pending"),
+    ])
+    assert result.record_count == 2
+    assert result.blueprint_source_count == 1
+    assert result.reference_material_count == 1
+    assert result.eligible_reference_material_count == 1
+    assert result.independent_eligible_blueprint_project_count == 1
+
+
+def test_oversized_source_is_rejected_before_content_allocation(tmp_path):
+    source, _ = setup_root(tmp_path)
+    path = source / "large.png"
+    with path.open("wb") as stream:
+        stream.seek(25 * 1024 * 1024)
+        stream.write(b"x")
+    with patch.object(Path, "open", side_effect=AssertionError("oversized source must not be opened")):
+        with pytest.raises(CorpusIntakeError) as error:
+            build(tmp_path, [request("source-a", "source-materials/large.png")])
+    assert error.value.code == "SOURCE_TOO_LARGE"
+
+
+def test_image_dimensions_are_rejected_before_full_upload_decode(tmp_path):
+    source, _ = setup_root(tmp_path)
+    image = Image.new("RGB", (10001, 1), color="white")
+    image.save(source / "wide.png", format="PNG")
+    image.close()
+    with patch(
+        "app.ai.floor_plan_interpretation.corpus_intake.validate_floor_plan_upload",
+        side_effect=AssertionError("full decoder must not run"),
+    ):
+        with pytest.raises(CorpusIntakeError) as error:
+            build(tmp_path, [request("source-a", "source-materials/wide.png")])
+    assert error.value.code == "IMAGE_ALLOCATION_LIMIT_EXCEEDED"
+
+
+def test_pdf_render_dimensions_are_bounded_before_bitmap_allocation(tmp_path):
+    source, _ = setup_root(tmp_path)
+    (source / "huge.pdf").write_bytes(pdf_bytes(1, width=100000, height=72))
+    with pytest.raises(CorpusIntakeError) as error:
+        build(tmp_path, [request("source-a", "source-materials/huge.pdf")])
+    assert error.value.code == "PDF_RENDER_LIMIT_EXCEEDED"
