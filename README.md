@@ -108,7 +108,11 @@ PRE0-PRE12 close the non-model foundations documented in
 copy/paste execution handoff is maintained in
 [`docs/CODEX_PRE_VLM_FOUNDATION_PROMPT.md`](docs/CODEX_PRE_VLM_FOUNDATION_PROMPT.md).
 
-Do **not** ask Codex to build the entire system in one prompt.
+The U1-U14 execution handoff is maintained in
+[`docs/CODEX_U_VLM_MIGRATION_PROMPT.md`](docs/CODEX_U_VLM_MIGRATION_PROMPT.md).
+One explicit authorization may cover that sequence, but implementation,
+verification, publication, and reporting remain separate for every ticket.
+It does not include the remaining 3D, routing, estimation, or report epics.
 
 ---
 
@@ -171,6 +175,7 @@ Codex and contributors should use the documentation in this order:
 | `docs/PRE_VLM_FOUNDATION_PLAN.md` | Evidence-backed non-model foundations required before U1 | Governing PRE0-PRE12 ticket plan. |
 | `docs/LOCAL_VLM_MIGRATION_PLAN.md` | Local multimodal model selection, private corpus workflow, training, evaluation, rollout, and U1-U14 tickets | Governing plan for the current AI migration initiative. |
 | `docs/CODEX_PRE_VLM_FOUNDATION_PROMPT.md` | Ready-to-paste Codex execution prompt | Use to implement and publish PRE0-PRE12 with progress checkpoints. |
+| `docs/CODEX_U_VLM_MIGRATION_PROMPT.md` | Complete U1-U14 execution handoff | Includes per-ticket publication, human/data gates, and final release evidence. |
 | `docs/PRE_VLM_READINESS_REPORT.md` | Consolidated PRE12 verification and stopping evidence | Confirms the non-model gate; it does not authorize U1 or model work. |
 | `docs/decisions/0001-canonical-geometry-compatibility.md` | Accepted K1/versioned-extension compatibility decision | Binding input for future U2 and U11 contracts. |
 | `docs/THESIS_SOURCE.md` | Markdown conversion of the original thesis/source manuscript | Reference-only source for project scope and academic requirements. Do not treat old Flask references as implementation instructions. |
@@ -247,7 +252,7 @@ For each ticket:
 5. Implement only the current ticket.
 6. Run the required verification/tests.
 7. Report each acceptance criterion as `PASS`, `FAIL`, `BLOCKED`, or `NOT TESTED`.
-8. Do not continue into the next ticket automatically.
+8. Continue only within an explicitly authorized sequence after the current ticket passes and is published; otherwise stop.
 9. Review the diff before committing.
 10. Commit the completed ticket before starting the next one.
 
@@ -289,8 +294,10 @@ Designer-reviewed elevation/scale settings, PRE7 legend administration, and
 PRE8 conditional/idempotent layout saving and PRE9 engine-neutral execution
 controls, PRE10 dataset-approver authority, and the PRE11 canonical
 compatibility decision are complete. PRE12's readiness gate passes and is
-published in `docs/PRE_VLM_READINESS_REPORT.md`. U1 is the next migration
-ticket but has not started and still requires separate authorization. L2 and later product tickets are
+published in `docs/PRE_VLM_READINESS_REPORT.md`. U1 requirements measurement is
+in progress on its feature branch and is blocked pending measurement of the
+separate inference/training machine plus approval of the proposed numeric
+operating and retention budgets. No model work has started. L2 and later product tickets are
 paused unless the user explicitly chooses to resume them.
 
 ---
@@ -375,11 +382,11 @@ The folders that do not exist yet should be created by the appropriate developme
 
 ## Current Limitations
 
-- Persisted floor plans can be discovered after reload, but their processing-job
-  history cannot yet be listed unless an individual job ID is already known.
-- Current-session upload cards can start processing and poll the job-status
-  endpoint, but no worker, external queue, cancellation workflow, or automatic
-  job creation exists. Without a worker, queued jobs do not advance
+- PRE1-PRE3 recover persisted floor plans and bounded processing-job history
+  after reload and resume active polling.
+- Designer upload cards can start processing and poll job status. PRE9 provides
+  cancellation and execution controls, but no worker, external queue, or automatic
+  upload-triggered job creation exists. Without a worker, queued jobs do not advance
   automatically. Persisted results can be reviewed through the J2/J3 UI when a
   completed job and its normalized review image already exist.
 - G1 can convert one selected PDF page to a separate PNG when called directly by
@@ -388,8 +395,9 @@ The folders that do not exist yet should be created by the appropriate developme
 - G2 can normalize uploaded JPEG/PNG images or a validated G1 page when called
   directly. It applies EXIF orientation, composites transparency onto white,
   converts to RGB PNG, never upscales, and limits the longest edge to 4096
-  pixels. No worker invokes it automatically and no processed-image metadata is
-  persisted yet.
+  pixels. No worker invokes it automatically. PRE5 registers G1/G2 image
+  provenance in `processing_artifacts`; U7 must preserve higher-resolution
+  evidence separately rather than upscale this bounded reference image.
 - G3 can run grayscale, median denoising, optional Gaussian blur, and Otsu or
   fixed binary thresholding on a validated G2 normalized PNG. Debug images are
   optional and isolated beneath `storage/processed/preprocessed`; no worker
@@ -488,8 +496,9 @@ The folders that do not exist yet should be created by the appropriate developme
   HTTP operation, editor, renderer, or change to original floor-plan files.
 - K3 exposes the current snapshot at
   `GET /api/projects/{project_id}/floors/{project_floor_id}/layouts` to the
-  owning Designer or an Admin. The matching `POST` accepts exactly one complete
-  K1 canonical document from the owning Designer and creates the next K2
+  owning Designer or an Admin. The matching `POST` accepts a complete K1
+  document in PRE8's expected-version/idempotency envelope from the owning
+  Designer and creates the next K2
   snapshot. The API exposes no history or current-version-selection operation.
 - K4 adds a protected read-only route at
   `#/app/projects/{project_id}/floors/{project_floor_id}/layout`. It renders the
@@ -525,8 +534,9 @@ The folders that do not exist yet should be created by the appropriate developme
   2D/3D synchronization, and top/perspective switching remain future work.
 - The Konva 2D layout can reposition canonical symbols only. Other canonical
   geometry remains read-only.
-  `project_floors` does not persist elevation; each K2 snapshot
-  retains the explicit elevation inside its complete canonical document.
+  `project_floors` has no elevation column; PRE6 persists reviewed elevation
+  and page-scale revisions separately, and each K2 snapshot retains its explicit
+  elevation inside its complete canonical document.
 - Electrical routing, material quantification, cost estimation, and PDF reports
   are not implemented.
 - The current Vercel deployment is frontend-only unless a separately hosted

@@ -1,6 +1,6 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through K3; the
+This directory contains the FastAPI backend implemented through PRE12; the
 repository's frontend is implemented through L1. The backend
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
@@ -48,8 +48,9 @@ are also complete. PRE8 conditional/idempotent layout saving and PRE9
 engine-neutral execution controls and PRE10 dataset-approver authority are
 complete. PRE11 freezes the canonical compatibility decision without changing
 runtime behavior. PRE12 verifies and publishes the passing readiness gate in
-`../docs/PRE_VLM_READINESS_REPORT.md`. PRE0-PRE12 are complete; U1 has not
-started.
+`../docs/PRE_VLM_READINESS_REPORT.md`. PRE0-PRE12 are complete. U1 requirements
+measurement is in progress but blocked before model work; see
+`../docs/U1_HARDWARE_PRIVACY_BASELINE.md`.
 
 ## Requirements
 
@@ -61,8 +62,10 @@ PDF rendering uses `pypdfium2==5.13.0`, installed from its Windows wheel with
 bundled PDFium. It requires no Poppler, Ghostscript, Java, or separate rendering
 executable. The package is available under Apache-2.0/BSD-3-Clause licensing.
 
-The current automated backend suite uses Python `unittest`. Pytest is not an
-installed project dependency.
+The backend suite includes `unittest`-style tests and canonical pytest tests.
+Pytest is not a direct requirement in `requirements.txt`, but PRE12 ran both
+unittest and combined pytest discovery in the resolved development environment.
+Those totals overlap and must not be added together.
 
 ## Setup
 
@@ -235,6 +238,10 @@ GET  /api/projects/{project_id}
 GET  /api/projects/{project_id}/floors
 POST /api/projects/{project_id}/floors
 
+GET  /api/projects/{project_id}/floors/{floor_id}/analysis-settings
+PUT  /api/projects/{project_id}/floors/{floor_id}/analysis-settings/elevation
+PUT  /api/projects/{project_id}/floors/{floor_id}/analysis-settings/pages/{page_id}/scale
+
 GET  /api/projects/{project_id}/floor-plans?project_floor_id={optional_floor_id}
 POST /api/projects/{project_id}/floor-plans
 
@@ -242,6 +249,7 @@ GET  /api/projects/{project_id}/floors/{project_floor_id}/layouts
 POST /api/projects/{project_id}/floors/{project_floor_id}/layouts
 
 POST /api/floor-plans/{floor_plan_id}/process
+GET  /api/floor-plans/{floor_plan_id}/processing-jobs
 GET  /api/processing-jobs/{job_id}
 POST /api/processing-jobs/{job_id}/cancel
 GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
@@ -403,7 +411,8 @@ Derived pages are stored without overwriting beneath:
 ```
 
 The service returns a portable forward-slash reference plus the rendered page
-metadata. It does not store that derived reference in a new database table. The
+metadata. PRE5 registers that reference and content provenance in
+`processing_artifacts`. The
 configured processed directory must remain outside `<UPLOAD_DIR>/originals`, and
 source resolution accepts only a persisted relative PDF reference beneath that
 originals directory. Original PDF bytes and floor-plan metadata remain unchanged.
@@ -416,7 +425,8 @@ paths, stack traces, and SQL are not persisted or exposed.
 
 No worker invokes G1 automatically, and F2 remains a job-creation endpoint only.
 G2 consumes either G1 output or uploaded raster input through a separate callable;
-OpenCV, AI inference, and schema expansion remain unimplemented.
+OpenCV and legacy YOLO inference are implemented separately, but not automatically
+orchestrated.
 
 ## Image normalization
 
@@ -439,8 +449,9 @@ Normalized output is written exclusively without overwriting to:
 ```
 
 The returned `NormalizedImage` records encoded, orientation-corrected, and final
-dimensions plus orientation/resizing flags and output size. No
-`processed_images` table or existing database column stores this result yet.
+dimensions plus orientation/resizing flags and output size. PRE5 persists
+trusted derived-image provenance in `processing_artifacts`, not a
+`processed_images` table.
 Original uploads and G1-rendered pages remain unchanged.
 
 A queued job becomes `processing`; an already-processing job remains so. G2
@@ -498,7 +509,7 @@ The optional job wrapper requires an already-`processing`
 detection has not run. Failure stores only `Floor-plan preprocessing failed.`
 and marks the job failed. No API, worker, or automatic F2/G2 invocation exists.
 G3 deliberately excludes morphology, edges, contours, Hough transforms, wall
-detection, YOLO, and geometry work. H1 is the next roadmap ticket.
+detection, YOLO, and geometry work. H1 is implemented separately.
 
 ## Wall-line detection prototype
 
@@ -552,8 +563,8 @@ metric_coordinate = pixel_coordinate / pixels_per_meter
 There is no default scale. `pixels_per_meter` must be an ordinary positive,
 finite integer or float for every conversion. The value `100` in examples is
 illustrative only and is not measured project data. PDF rendering DPI is not an
-architectural scale and is never used to infer one; a floor-plan calibration
-workflow remains unimplemented.
+architectural scale and is never used to infer one. PRE6 now provides reviewed
+page-scale and elevation inputs with exact reference dimensions.
 
 The shared planar coordinate model uses meters, the normalized image's top-left
 origin, x increasing right, and y increasing down. This preserves exact image
@@ -629,7 +640,8 @@ adds no HTTP operation and performs no floor-plan or derived-file writes.
 K3 adds `GET` and `POST`
 `/api/projects/{project_id}/floors/{project_floor_id}/layouts`. The owning
 Designer may read and create snapshots; Admins may read but not save. `POST`
-requires one complete strict K1 document, verifies its path and persisted-floor
+requires one complete strict K1 document in PRE8's expected-version/idempotency
+envelope, verifies its path and persisted-floor
 identity, and delegates append-only creation to K2. Missing, inaccessible, or
 cross-context resources share `LAYOUT_NOT_FOUND`; invalid semantic geometry is
 `INVALID_LAYOUT_GEOMETRY`; storage failures use sanitized retrieval/save `503`
@@ -716,11 +728,18 @@ and model artifacts remain local and Git-ignored.
 
 The chosen model/runtime cannot be hard-coded in advance because target
 hardware has not been measured. PRE12 verifies the application foundations;
-U1 records resources and privacy requirements; U5 freezes the gold
-evaluation; U6 performs the local bake-off; later tickets
+U1 records resources and privacy requirements; U5 separates reviewed development
+validation from sealed final test data; U6 performs the local bake-off on
+development validation only; later tickets
 implement serving, review, tuning, persistence, orchestration, shadow rollout,
 and rollback. Planned environment variables must not be added to the live
 configuration until their owning implementation ticket.
+
+The full authorized-sequence handoff is
+`../docs/CODEX_U_VLM_MIGRATION_PROMPT.md`. U9 owns the minimum durable candidate
+and review store needed for review; U11 extends it into production retrieval
+and an atomic K1-v1 snapshot/additive-extension adapter. U13 reuses PRE9
+execution controls. No U implementation is implied by this documentation.
 
 ## Current legacy YOLO model loading
 

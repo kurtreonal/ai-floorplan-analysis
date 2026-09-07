@@ -18,8 +18,13 @@ legacy comparison and rollback path until the migration release gate passes.
 Before this migration begins, PRE0-PRE12 in
 `docs/PRE_VLM_FOUNDATION_PLAN.md` close the repository's non-model readiness
 gaps. U1 must not start until PRE12 publishes a passing readiness report.
-PRE12 now passes in `docs/PRE_VLM_READINESS_REPORT.md`; U1 has not started and
-still requires separate authorization.
+PRE12 now passes in `docs/PRE_VLM_READINESS_REPORT.md`. U1 requirements
+measurement is in progress but blocked before model work as recorded in
+`docs/U1_HARDWARE_PRIVACY_BASELINE.md`. The complete U1-U14 handoff is
+[`CODEX_U_VLM_MIGRATION_PROMPT.md`](CODEX_U_VLM_MIGRATION_PROMPT.md); when the
+user assigns it, it authorizes the sequential tickets and their publication,
+not bypassing human approvals or failed gates. Only U1 requirements measurement
+has started; no model/runtime implementation is implied.
 PRE11 has accepted
 `docs/decisions/0001-canonical-geometry-compatibility.md`; U2 and U11 must
 follow its evidence ownership, fail-closed negotiation, and append-only
@@ -141,6 +146,13 @@ Whole-page overview              Overlapping high-resolution tiles
                               Quantities and estimates
 ```
 
+The diagram describes logical inputs, not permission to derive all tiles from
+G2's reduced image. U7 preserves a bounded higher-resolution oriented raster
+or PDF render separately, with explicit reversible transforms into the G2/K1
+reference plane (currently at most 4096 pixels per edge). Cropping or upscaling
+a reduced reference does not recover lost glyph detail. PRE6 approval must
+match that reference plane; DPI is never architectural scale.
+
 G3 thresholded imagery and H1 line candidates may remain auxiliary evidence,
 but the local VLM receives the normalized RGB page because thresholding can
 remove text, line-weight, color, and legend information. OpenCV remains useful
@@ -176,8 +188,14 @@ polygons, impossible class IDs, missing provenance, and malformed route graphs.
 Model-written confidence text is not assumed to be calibrated probability. The
 application derives review priority from deterministic checks, cross-pass or
 cross-model agreement, source visibility, and later measured calibration. Every
-candidate begins as `needs_review` unless an explicitly approved release policy
-allows a narrower auto-accept path.
+candidate begins as `needs_review`. U1-U14 authorize no automatic acceptance
+into canonical geometry, regardless of model score.
+
+The application, not generated text, supplies and verifies job/source/artifact
+IDs, hashes, release identity, and human review state. Unknown-class candidates
+have an explicit unresolved mapping and cannot enter the approved catalog or
+canonical symbols. U2 includes openings and optional orientation/bounds under
+ADR 0001, without inferred dimensions or engineering attributes.
 
 ## 5. Local model strategy
 
@@ -282,7 +300,7 @@ make an uncertain mapping authoritative without VED approval.
 
 ### Stage A - zero/few-shot baseline
 
-Run pinned candidate models on the frozen evaluation pages using a stable prompt
+Run pinned candidate models on reviewed development/validation pages using a stable prompt
 and candidate schema. This establishes whether a model can read the page, locate
 symbols, and return usable coordinates before any training investment.
 
@@ -350,7 +368,13 @@ same coordinates even if the active VLM, prompt, or adapter later changes.
 
 ## 12. Evaluation and release gates
 
-U5 records numeric release thresholds after a baseline and VED review. The
+U5 records numeric release thresholds before U6 model/prompt selection or U10
+tuning, using VED requirements and non-test evidence. Development validation
+may guide selection; the sealed final test set is opened only for U14 after
+the candidate is fixed. Test results may not be fed back into tuning. A failed
+candidate requires a documented new independent holdout for a new release
+claim, or an explicit disclosure that reused data is no longer untouched test
+evidence. Reproducibility reruns must not change the candidate. The
 evaluation suite must report at least:
 
 - schema-valid response rate and retry rate;
@@ -391,7 +415,7 @@ baseline.
 
 - CPU, RAM, GPU, VRAM, operating system, CUDA/driver, and available disk are
   measured without guessing.
-- Local-only means no inference, telemetry, source upload, or remote fallback.
+- Local-only means no remote inference, telemetry, source upload, or hosted fallback.
 - VED approves whether training may use WSL/Docker or a separate GPU machine.
 - Maximum page, tile, context, timeout, concurrency, and storage budgets are
   documented.
@@ -614,10 +638,14 @@ more useful on the approved evaluation contract.
 
 ## 14. Git and stopping protocol for every U ticket
 
-Each ticket is a separate authorized task:
+Each ticket remains a separate implementation and publication unit. One explicit
+U1-U14 authorization may cover the sequence; it need not be requested again at
+each routine commit or merge:
 
 1. Verify `main` matches `origin/main` and record the protected baseline.
-2. Create `feature/u<ticket>-<short-name>` from the verified main commit.
+2. Create `codex/u<ticket>-<short-name>` from the verified main commit unless the
+   user explicitly selects another prefix; reuse an existing matching branch
+   only after inspecting its state.
 3. Implement only that ticket and preserve unrelated user changes.
 4. Run focused tests plus proportionate regression, privacy, artifact, and Git
    checks.
@@ -627,10 +655,56 @@ Each ticket is a separate authorized task:
 8. Recheck that remote main has not moved, merge with an explicit non-fast-forward
    merge commit, and run required post-merge verification on `main`.
 9. Push `main` and verify `origin/main...main` is `0 0`.
-10. Stop before the next ticket.
+10. Publish the ticket's progress report. Continue to the next ticket only when
+    it is included in the explicit authorization and prerequisites pass;
+    otherwise stop with the exact missing requirement.
 
 No commit, branch, merge, or push is authorized merely by this planning
-document. The user must authorize each implementation/publication task.
+document. Assigning `CODEX_U_VLM_MIGRATION_PROMPT.md` explicitly authorizes the
+whole sequence. It does not authorize private-data egress, invented approvals,
+destructive resets, paid resources, YOLO deletion, or later application epics.
+
+### Execution clarifications that apply to every U ticket
+
+- PRE12 proves foundation behavior, not populated production data. Its live
+  approver assignment, legend, and metric-setting tables are empty. Six equal
+  source hashes are duplicate content, not six independent evaluation drawings.
+- U1 checks the privacy boundary of synchronized storage too: Git ignore does
+  not disable OneDrive, backups, telemetry, or prior Roboflow publication.
+  Do not claim local-only storage until actual sync/egress is verified. Ask for
+  a permitted private location if needed; do not silently move existing files.
+- U4 reuses PRE7 catalog governance; U5/U9 reuse PRE10 authority. A Designer's
+  project correction is not automatically independent dataset-release approval.
+- U5 bootstraps independently reviewed gold using a local offline review/import
+  path with evidence and authenticated authority, before the U9 review UI exists.
+  It must not depend on that future UI or on a model to manufacture gold truth.
+- U6 uses a bounded offline experimental harness with U2 validation and recorded
+  transforms, not future U7/U8 production services. Selection uses development
+  validation only. Existing model names are candidates to reverify against
+  official model/runtime/license documentation, not mandatory downloads.
+- U9 owns the minimal immutable machine-run and append-only review persistence
+  necessary to survive reload and export approved records. U11 reuses that store
+  for production retrieval, atomic canonical adaptation, and extension-aware
+  API/editor integration. No duplicate interpretation/review subsystem.
+- U11 must implement ADR 0001's additive extension in both runtimes, preserve
+  PRE8 concurrency/idempotency atomically with the new base snapshot, and prevent
+  v1-only edits from silently losing an existing extension. Define stable VLM
+  symbol-to-canonical identity without fabricated YOLO confidence or collisions
+  with existing detected/manual identities; unresolved contract conflicts block
+  adaptation instead of weakening K1 validation.
+- U12 covers observed routes only. U13 reuses PRE9 claims, leases and cancellation;
+  an expired or cancelled attempt must not publish late output. Every page has
+  an inclusion/classification/outcome record; skipped or partial pages cannot
+  be silently presented as a fully processed document.
+- U10 requires an actual trained, hashed adapter and measured validation, not
+  just training scripts or mock tests. U14 requires actual signed release evidence.
+  If YOLO weights are unavailable, report comparison as unavailable; do not
+  fabricate baseline metrics or call an unusable YOLO loader a working rollback.
+  A tested disabled-interpreter/manual-review state may be the rollback target.
+- The detailed per-ticket work, tests, publication and reporting requirements
+  are consolidated in `CODEX_U_VLM_MIGRATION_PROMPT.md`. Missing human data or
+  approval is BLOCKED, not PASS. Stop dependent work; report any safely finished
+  infrastructure separately without claiming the entire ticket is complete.
 
 ## 15. Source basis for the model bake-off
 

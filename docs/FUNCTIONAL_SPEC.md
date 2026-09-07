@@ -181,7 +181,9 @@ OpenCV/YOLO pipeline, canonical 3D reconstruction, routing, estimation, or
 report implementation. PRE9 provides execution-control records and primitives,
 not a worker or automatic pipeline. There is also no local VLM runtime, candidate schema,
 reviewed VLM gold set, adapter, or VLM orchestration. PRE0-PRE12 foundations are
-complete and the readiness report passes. U1 has not started. L2 and later tickets remain unimplemented and are paused unless
+complete and the readiness report passes. U1 requirements measurement is in
+progress but blocked before model work; see `docs/U1_HARDWARE_PRIVACY_BASELINE.md`.
+L2 and later tickets remain unimplemented and are paused unless
 explicitly selected.
 
 `GET /api/projects/{project_id}/floor-plans` now returns authorized persisted
@@ -377,8 +379,8 @@ The currently implemented baseline uses OpenCV wall extraction and YOLO symbol
 recognition. New production work targets a local VLM pipeline. No model family
 is approved merely by appearing in the plan: U1 establishes hardware/privacy
 constraints and U6 measures feasible Qwen3-VL/Qwen2.5-VL candidates plus
-optional Florence-2 or PaddleOCR/PaddleOCR-VL helpers against the frozen U5
-evaluation set. The chosen model, runtime, revision, license, hash, prompt,
+optional Florence-2 or PaddleOCR/PaddleOCR-VL helpers against reviewed U5
+development validation, never the sealed U14 final test set. The model, runtime, revision, license, hash, prompt,
 adapter, and decoding configuration must be recorded.
 
 ## Processing Pipeline
@@ -1717,6 +1719,7 @@ Current implemented tooling:
 
 ```text
 Backend:  Python unittest
+          Combined pytest discovery includes canonical tests
 Frontend: Vitest + Testing Library + jsdom
 ```
 
@@ -1724,13 +1727,15 @@ Run the current backend suite from `backend/` with:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
 `pytest` is not declared as a direct project dependency in
 `backend/requirements.txt`, although it may be present in a resolved development
 environment through installed tooling or transitive dependencies. The current
-suite remains `unittest`-style, and the documented canonical command uses
-`unittest`. Ticket S1 below describes a future explicit pytest testing
+suite includes `unittest`-style cases and canonical pytest cases; full coverage
+requires the latter as well. PRE12 ran both commands and their totals overlap.
+Ticket S1 below describes a future explicit pytest testing
 foundation and must not be read as a claim about the current dependency file.
 
 The thesis specifies:
@@ -2083,7 +2088,7 @@ Each ticket should:
 7. Preserve existing working functionality.
 8. Include or update tests where practical.
 9. Update documentation when the ticket changes an API, schema, environment variable, or shared data contract.
-10. Stop when the ticket scope is complete instead of continuing into the next feature automatically.
+10. Report and publish the completed ticket before continuing only within an explicitly authorized sequence; otherwise stop.
 
 ## Ticket Completion Format
 
@@ -2106,6 +2111,12 @@ A ticket is not complete until its acceptance criteria are satisfied.
 ---
 
 # 57. Isolated Development Ticket Breakdown
+
+Completed ticket descriptions below record what each ticket introduced at that
+time. PRE1-PRE12 supersede older limitations around discovery, reload, artifact
+manifests, metric inputs, catalog administration, save concurrency, execution
+controls and reviewer authority. Current behavior is summarized above and in
+the PRE section; do not rebuild those foundations inside U tickets.
 
 ## Epic A — Repository Foundation
 
@@ -4346,7 +4357,8 @@ rejects Admin self-assignment and creates no review decision. PRE11 accepts
 strict and readable, evidence remains in candidate/review records, and version
 2 is reserved as a separately implemented additive canonical extension attached
 to a new version-1 snapshot. PRE12 publishes a passing gate in
-`docs/PRE_VLM_READINESS_REPORT.md`; no U-series model work has started.
+`docs/PRE_VLM_READINESS_REPORT.md`; U1 requirements measurement is in progress,
+but no U-series model/runtime work has started.
 
 ---
 
@@ -4354,8 +4366,19 @@ to a new version-1 snapshot. PRE12 publishes a passing gate in
 
 `docs/LOCAL_VLM_MIGRATION_PLAN.md` contains the normative rationale, data
 levels, candidate contract, metrics, privacy boundary, ticket details, and Git
-stopping protocol. Every U ticket requires separate implementation and
-publication authorization. None is implemented by this documentation update.
+publication protocol. `docs/CODEX_U_VLM_MIGRATION_PROMPT.md` consolidates the
+complete U1-U14 execution instructions. One explicit authorization may cover
+all fourteen tickets, each separately implemented, tested, committed, merged,
+pushed, and reported. No U ticket is implemented by this documentation update.
+
+The migration plan's execution clarifications are binding scope details:
+U5 provides an offline bootstrap review/import path; U6 selects on development
+validation, not sealed final test data; U9 persists the minimum candidate/review
+history before U11 extends it. U11 implements the PRE11 additive extension and
+PRE8-safe saving without modifying K1 v1 or dropping extension data during edits.
+U13 reuses PRE9 execution fencing. Missing approved data, authority, or hardware
+is a real gate, not permission to substitute mock evidence. U14 ends this sequence;
+L2+, generated routing, quantities, estimates, and reports remain out of scope.
 
 ### TICKET U1 — Freeze Hardware, Privacy, and Runtime Requirements
 
@@ -4383,7 +4406,7 @@ baseline.
 
 **Acceptance Criteria:**
 
-- [ ] Strict candidate data covers source/model provenance, page metadata, scale evidence, OCR, walls, rooms, symbols, panels, observed routes, ambiguity, and warnings.
+- [ ] Strict candidate data covers source/model provenance, page metadata, scale evidence, OCR, walls, rooms, openings, symbols, panels, observed routes, ambiguity, and warnings; host identity and approval cannot be supplied by the model.
 - [ ] Candidate geometry uses reversible source-pixel coordinates and is not K1 metric geometry.
 - [ ] Unknown, empty, partial, and ambiguous results are valid without invented values.
 - [ ] Valid, malformed, out-of-bounds, adversarial, and empty fixtures are tested.
@@ -4438,7 +4461,7 @@ prompt selection or fine-tuning.
 - [ ] The set covers empty/hard-negative, dense, multi-scale, degraded supported scans, and sheets with and without visible wiring.
 - [ ] Metrics cover schema validity, page type, per-class symbol precision/recall/F1/count/IoU/center error, wall/room geometry, scale, wiring presence/topology/length, hallucination, latency, RAM, and VRAM.
 - [ ] Numeric promotion thresholds and allowed regressions are approved before tuning.
-- [ ] Frozen test examples are inaccessible to training and prompt-selection workflows.
+- [ ] Frozen test examples are inaccessible to training, model selection, and prompt-selection workflows; U5 includes independent offline gold review before U9 exists.
 
 ---
 
@@ -4454,7 +4477,7 @@ prompt selection or fine-tuning.
 - [ ] Revision, hashes, license, runtime, memory, latency, schema validity, and quality are recorded.
 - [ ] Network-egress checks confirm local-only inference.
 - [ ] The selected candidate passes approved gates, or the ticket reports that no candidate qualifies.
-- [ ] Legacy YOLO results remain visible as a comparison.
+- [ ] Available legacy YOLO results remain visible as a comparison; missing weights are reported as unavailable rather than fabricated scores.
 
 ---
 
@@ -4503,7 +4526,7 @@ targets.
 
 - [ ] Pseudo-labels retain source, model, prompt, tile, and evidence provenance.
 - [ ] Review covers the U2 symbols, structure, panels, scale, and observed-wiring fields.
-- [ ] Accept, correct, add, reject, and ambiguous decisions are append-only.
+- [ ] Accept, correct, add, reject, and ambiguous decisions are append-only and durable in the minimal U9 store that U11 reuses.
 - [ ] Partially reviewed pages cannot enter supervised or gold releases.
 - [ ] Codex and models cannot approve their own proposals.
 
@@ -4538,7 +4561,7 @@ approved evidence into canonical geometry.
 - [ ] Every machine run is immutable and linked to its processing job and model release.
 - [ ] Raw candidate, validation warnings, evidence, and latest human decisions are retrievable.
 - [ ] Metric conversion requires explicit approved scale evidence.
-- [ ] Only approved structure, symbols, panels, and observed routes reach K1/K2.
+- [ ] Only approved structure, symbols, panels, and observed routes reach K1/K2 through ADR 0001's atomic new v1 base plus additive extension, matching Python/JavaScript validation, and PRE8-safe saves.
 - [ ] Historical YOLO detections and layout snapshots remain readable.
 
 ---
@@ -4586,7 +4609,7 @@ approved release contract.
 
 **Acceptance Criteria:**
 
-- [ ] New and legacy paths run in non-authoritative shadow comparison on approved inputs.
+- [ ] The new path runs in non-authoritative shadow mode; available legacy results are compared on approved inputs and missing legacy weights are disclosed. A real tested rollback is mandatory.
 - [ ] Numeric quality, privacy, schema, latency, and resource gates pass with a signed VED decision.
 - [ ] Activation uses a versioned switch and a tested rollback target.
 - [ ] Existing YOLO records remain readable and auditable.
@@ -4665,6 +4688,9 @@ verification, and synchronized `main`, then reports progress. The
 `CODEX_PRE_VLM_FOUNDATION_PROMPT.md` handoff explicitly authorizes PRE0-PRE12
 publication when the user pastes it as the active task; this planning document
 alone does not authorize U work, model download, or dependency installation.
+Assigning `CODEX_U_VLM_MIGRATION_PROMPT.md` as the active task authorizes its
+U1-U14 sequence and routine publication without repeated per-ticket permission,
+subject to its data, human-approval, privacy, resource, and verification gates.
 
 ---
 
