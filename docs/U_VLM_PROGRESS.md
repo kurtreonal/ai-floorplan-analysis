@@ -7,7 +7,7 @@ to a trained or released model.
 | Ticket | Implementation | Real-data validation | Human approval | Activation | Publication | Current note |
 |---|---|---|---|---|---|---|
 | U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Published to `main` at merge `8c73183` | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
-| U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Completion publication pending | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
+| U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Feature implementation commit `90c90bb`; merge publication pending | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
 | U3 | Not started | Not started | Not started | Not applicable | Not published | Depends on passing U1 |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
@@ -63,6 +63,7 @@ to a trained or released model.
 
 - Baseline: U1 merge `8c73183` on `main` and `origin/main`.
 - Branch: `codex/u2-candidate-contract-v1`.
+- Implementation commit: `90c90bb`.
 - The immutable Pydantic contract, host provenance envelope, U9 review identity,
   U11 projection boundary, and representative/empty synthetic fixtures are
   implemented without a database table, API operation, model, gateway, or K1
