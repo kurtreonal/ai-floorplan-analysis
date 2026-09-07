@@ -2,8 +2,7 @@
 
 - Ticket: U1
 - Measurement date: 2026-09-07 (Asia/Manila)
-- Status: BLOCKED pending target inference/training-machine measurement and
-  explicit approval of the numeric operating budgets below
+- Status: PASS
 - Application baseline: `81ecd83` (PRE12 published, L1 implemented)
 - Model selected or downloaded: no
 
@@ -15,22 +14,23 @@ private hashes, credentials, and drawing contents.
 
 | Resource | Measured result | U1 interpretation |
 |---|---|---|
-| Operating system | Windows 11 Home Single Language, 64-bit, build 22631 | Supported for application development only |
-| CPU | Intel Celeron N4500, 2 physical and 2 logical cores | Insufficient for the planned VLM bake-off or training |
-| Physical RAM | 4,091,207,680 bytes | Insufficient for the planned VLM bake-off or training |
-| Available RAM at inspection | 408,600,576 bytes | Transient measurement; no model workload was started |
-| GPU | Intel UHD integrated graphics | No supported discrete model-training accelerator established |
-| GPU memory | Windows reported 1,073,741,824 adapter bytes | Integrated/shared reporting; dedicated VRAM is unavailable and must not be represented as CUDA VRAM |
-| NVIDIA/CUDA | `nvidia-smi` unavailable | No NVIDIA driver/CUDA capability established |
-| Local fixed-disk free space | 12,059,586,560 bytes | Insufficient for pinned VLM artifacts and training scratch space |
-| Python | 3.13.7 in the system and backend environments | Existing application runtime only; model environment remains separate |
-| WSL | Unavailable or not configured | Not approved or required for this machine |
-| Docker | Unavailable | Not approved or required for this machine |
+| Operating system | Windows 11 Home Single Language, 64-bit, version 10.0.26200/build 26200 | Approved native-Windows target |
+| CPU | AMD Ryzen 7 7435HS, 8 physical and 16 logical cores | Approved for bounded U6 measurement; not a performance claim |
+| Physical RAM | 16,989,728,768 bytes (about 15.8 GiB) | Approved with single-worker limits |
+| Available RAM at inspection | 5,376,929,792 bytes (about 5.01 GiB) | Transient measurement; no model workload was started |
+| GPU | NVIDIA GeForce RTX 3050 Laptop GPU | Approved for measured candidate evaluation only |
+| Dedicated GPU memory | 4,096 MiB | U6/U10 must stop if a candidate or training configuration cannot fit honestly |
+| NVIDIA/CUDA | Driver 566.07; `nvidia-smi` reports CUDA 12.7 | Runtime compatibility still must be proven in the isolated U6 environment |
+| Local fixed disk | 480,338,317,312 bytes total; 189,087,903,744 bytes free (about 176.1 GiB) | Fits only the approved bounded storage allocation below |
+| Python | CPython 3.11 and 3.13 available | Any model environment remains separate; U6 must choose a compatible interpreter without changing the application environment |
+| WSL | Not installed | Not authorized or required for this target |
+| Docker | Unavailable | Not authorized or required for this target |
 
-The measured laptop remains a development/control machine. It is not approved
-for local VLM inference, model acquisition, or adapter training. A separate
-VED-controlled target machine must be measured before U1 can pass. U6 and U10
-must not substitute guessed specifications or cloud rental.
+The measured laptop is the approved native-Windows target for bounded local
+evaluation and, only if later resource gates pass, adapter training. This is
+not a claim that a qualifying model or training configuration will fit. U6 and
+U10 must report a resource failure and stop dependent work rather than use
+cloud rental, another host, WSL, Docker, or unapproved system changes.
 
 ## Approved privacy boundary
 
@@ -59,18 +59,26 @@ Local-only means:
 - safe public errors containing no private path, source text, model internals,
   prompt, or stack trace.
 
-The repository is under a directory named `OneDrive`. No running or installed
-OneDrive client was detected during U1 inspection, but that does not prove that
-historical synchronization, backup, or another endpoint never received the
-files. The earlier Roboflow visibility and declared-license concern remains a
-human/external-service issue; U1 performs no hosted-service mutation.
+The restored repository and private workspace are both outside the user's
+OneDrive hierarchy. The private workspace ACL grants access to the current
+Windows user and `SYSTEM`; this is a local observation, not proof that historical
+copies never reached another endpoint. The earlier Roboflow visibility and
+declared-license concern remains a human/external-service issue; U1 performs no
+hosted-service mutation.
 
-## Proposed operating budgets requiring explicit approval
+Device encryption was being disabled during inspection. The user explicitly
+approved a temporary exception on 2026-09-07 and intends to re-enable it later.
+The exception ends before U3 may ingest any additional real source data or U6
+may acquire model artifacts, whichever comes first. Existing private material
+remains at risk until encryption is restored; ACLs and local-only operation do
+not replace full-disk encryption.
 
-These are conservative U1 requirements, not measured throughput claims and not
-an approved model selection.
+## Approved operating budgets
 
-| Area | Proposed limit or objective |
+The user approved these limits on 2026-09-07. They are safety bounds and
+objectives, not measured throughput claims or an approved model selection.
+
+| Area | Approved limit or objective |
 |---|---|
 | Uploaded file | Existing 25 MiB maximum; JPEG/JPG, PNG, or PDF only |
 | Document inventory | At most 50 source pages inventoried per job; every page receives an explicit outcome |
@@ -89,17 +97,20 @@ an approved model selection.
 | Model request timeout | 300 seconds |
 | Page processing timeout | 30 minutes |
 | Whole-job timeout | 120 minutes |
-| Latency objective | Median at most 5 minutes and p95 at most 10 minutes per supported page on the future measured target |
-| Base-model storage | At most 50 GiB per pinned candidate |
-| Adapter/checkpoint storage | At most 20 GiB per experiment/release family |
-| Corpus plus derivatives | 200 GiB planned capacity |
-| Training scratch | 300 GiB planned capacity, with at least 20% free-space reserve |
+| Latency objective | Median at most 5 minutes and p95 at most 10 minutes per supported page on the measured target |
+| Base-model storage | At most 20 GiB total; retain only one evaluation candidate at a time unless a later approval changes the aggregate cap |
+| Adapter/checkpoint storage | At most 10 GiB total |
+| Corpus plus derivatives | At most 20 GiB total |
+| Training scratch | At most 30 GiB total |
+| Aggregate new private AI storage | At most 80 GiB, while maintaining at least 20% of the fixed disk's capacity free |
 
 U2 may impose tighter entity/string/array bounds. U6 may recommend lower limits
 after real measurements, but it must not silently increase these limits without
 a new approval.
 
-## Proposed retention policy requiring explicit approval
+## Approved retention policy
+
+The user approved this policy on 2026-09-07.
 
 - Immutable consented source data: retained until explicit VED-authorized
   deletion; never deleted automatically by a processing or training job.
@@ -133,21 +144,22 @@ a new approval.
 | Acceptance criterion | Status | Evidence |
 |---|---|---|
 | Development-machine OS/CPU/RAM/GPU/VRAM/CUDA/disk measured without guessing | PASS | Read-only Windows inventory; unavailable CUDA/dedicated-VRAM information is stated explicitly |
-| Intended inference/training target measured | BLOCKED | Separate VED-controlled machine has been authorized in principle but not supplied or measured |
+| Intended inference/training target measured | PASS | The restored native-Windows target is measured above; later tickets retain independent fit and performance gates |
 | Local-only privacy boundary defined and locally created outside OneDrive | PASS | Read/write/delete probe passed; no existing corpus was moved |
-| Page/tile/context/output/concurrency/timeout/latency/storage budgets approved | BLOCKED | Numeric proposal above awaits explicit user approval |
-| Retention policy approved | BLOCKED | Proposed policy above awaits explicit user approval |
+| Page/tile/context/output/concurrency/timeout/latency/storage budgets approved | PASS | User approved the bounded policy recorded above on 2026-09-07 |
+| Retention policy approved | PASS | User approved the policy recorded above on 2026-09-07 |
 | Model/license acquisition policy defined | PASS | Policy above permits only controlled, pinned, reviewed acquisition in a later ticket |
 | No model selection, download, dependency, API, schema, or runtime change | PASS | Repository and environment audit found no VLM artifact or U runtime change |
 
-U2 must not start until every U1 blocker is resolved, U1 is verified and
-published, and the ticket report records the actual target-machine inventory.
+U2 may start after this passing U1 baseline is verified and published. The
+device-encryption exception remains a hard gate before additional U3 real-data
+intake or U6 model acquisition.
 
 ## Device-transfer checkpoint exception
 
 On 2026-09-07 the user authorized a feature-branch WIP commit and push so the
-new device can resume this unfinished ticket. The user also authorized physical
-transfer of database, private files and credentials outside Git. This is not a
-U1 completion release or approval of the unresolved numeric/retention budgets.
-The new device must measure its own resources and finish the remaining gates.
-No incomplete-U1 merge into main is part of this checkpoint.
+new device could resume this unfinished ticket. The user also authorized
+physical transfer of database, private files and credentials outside Git. This
+was not a U1 completion release. The restored device has now been measured and
+the user has approved the operating and retention policy recorded above. The
+checkpoint commit remains part of the final U1 publication history.

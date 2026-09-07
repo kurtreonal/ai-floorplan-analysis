@@ -6,7 +6,7 @@ to a trained or released model.
 
 | Ticket | Implementation | Real-data validation | Human approval | Activation | Publication | Current note |
 |---|---|---|---|---|---|---|
-| U1 | In progress | Development machine measured | Partial | Not applicable | Authorized WIP checkpoint; not a completion release | Target machine and proposed numeric budgets/retention remain blocked |
+| U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Completion publication pending | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
 | U2 | Not started | Not started | Not applicable | Not applicable | Not published | Depends on passing U1 |
 | U3 | Not started | Not started | Not started | Not applicable | Not published | Depends on passing U1 |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
@@ -27,11 +27,15 @@ to a trained or released model.
 - Branch: `codex/u1-hardware-privacy-baseline`.
 - On 2026-09-07 the user explicitly authorized committing and pushing unfinished
   U1 and the reviewed planning documents as a device-transfer WIP checkpoint.
-  This exception does not mark U1 complete, approve pending budgets, authorize
-  U2, or merge the incomplete ticket into main. Actual publication IDs are
-  recorded in the post-push report and private device handoff.
+  The restored native-Windows target was subsequently measured and the user
+  approved the bounded operating and retention policy on 2026-09-07. The
+  checkpoint commit is retained as part of U1 history; completion publication
+  identifiers are recorded after merge and push.
 - The device-migration Markdown, credentials, database backup and private files
   remain local-only and excluded from this publication.
 - No model, adapter, inference dependency, API operation, database table, or
   application behavior has been added.
+- Device encryption is a documented temporary exception. U3 may not ingest
+  additional real source data and U6 may not acquire model artifacts until the
+  exception closes.
 - U2 has not started.
