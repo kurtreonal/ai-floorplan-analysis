@@ -66,11 +66,13 @@ copies never reached another endpoint. The earlier Roboflow visibility and
 declared-license concern remains a human/external-service issue; U1 performs no
 hosted-service mutation.
 
-Device encryption was being disabled during inspection. The user explicitly
-approved a temporary exception on 2026-09-07 and intends to re-enable it later.
-The exception ends before U3 may ingest any additional real source data or U6
-may acquire model artifacts, whichever comes first. Existing private material
-remains at risk until encryption is restored; ACLs and local-only operation do
+Device encryption was being disabled during inspection. On 2026-09-08 the user
+explicitly deferred device encryption until later, accepted the resulting risk,
+and approved no replacement deadline. This is a policy exception, not a passing
+encryption control. It supersedes the former U3 real-intake and U6 acquisition
+encryption gates; all purpose-specific permission, local-only storage, privacy,
+resource, and controlled-acquisition gates remain. Existing private material
+remains at risk while encryption is deferred; ACLs and local-only operation do
 not replace full-disk encryption.
 
 ## Approved operating budgets
@@ -149,11 +151,12 @@ The user approved this policy on 2026-09-07.
 | Page/tile/context/output/concurrency/timeout/latency/storage budgets approved | PASS | User approved the bounded policy recorded above on 2026-09-07 |
 | Retention policy approved | PASS | User approved the policy recorded above on 2026-09-07 |
 | Model/license acquisition policy defined | PASS | Policy above permits only controlled, pinned, reviewed acquisition in a later ticket |
+| Device encryption control | DEFERRED | User accepted the unencrypted-at-rest risk on 2026-09-08; this is not a passing control and has no approved restoration deadline |
 | No model selection, download, dependency, API, schema, or runtime change | PASS | Repository and environment audit found no VLM artifact or U runtime change |
 
-U2 may start after this passing U1 baseline is verified and published. The
-device-encryption exception remains a hard gate before additional U3 real-data
-intake or U6 model acquisition.
+U2 may start after this passing U1 baseline is verified and published. Device
+encryption is recorded as deferred risk and is no longer a U3 real-intake or U6
+model-acquisition gate under the 2026-09-08 user policy amendment.
 
 ## Device-transfer checkpoint exception
 

@@ -6,9 +6,9 @@ to a trained or released model.
 
 | Ticket | Implementation | Real-data validation | Human approval | Activation | Publication | Current note |
 |---|---|---|---|---|---|---|
-| U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Published to `main` at merge `8c73183` | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
+| U1 | Complete | Native-Windows target measured | Approved operating/retention policy; encryption deferred with accepted risk, not passed | Not applicable | Published to `main` at merge `8c73183` | 2026-09-08 amendment removes encryption as U3/U6 gate; all other gates remain |
 | U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
-| U3 | Safe tooling implemented; ticket blocked | Synthetic validation passes; real intake blocked | Missing structured purpose permission; encryption not restored | Not applicable | WIP implementation commit `cdb4684`; must not merge | Actual proven independent eligible groups: zero |
+| U3 | Safe tooling corrected; ticket blocked | Synthetic validation passes; real intake blocked | Missing structured purpose permission and grouping/classification metadata | Not applicable | Feature-branch WIP through correction `941eb9b`; must not merge | Actual proven independent eligible blueprint projects: zero; encryption is deferred risk, not blocker |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
@@ -35,9 +35,10 @@ to a trained or released model.
   remain local-only and excluded from this publication.
 - No model, adapter, inference dependency, API operation, database table, or
   application behavior has been added.
-- Device encryption is a documented temporary exception. U3 may not ingest
-  additional real source data and U6 may not acquire model artifacts until the
-  exception closes.
+- Device encryption is explicitly deferred under the 2026-09-08 user policy
+  amendment. The user accepts the risk, no restoration deadline is approved,
+  and the control is not marked passing. It is no longer a U3 or U6 gate; all
+  other local-only privacy, permission, resource, and acquisition gates remain.
 - U2 started only after U1 publication completed.
 
 ## U1 completion checkpoint
@@ -78,13 +79,19 @@ to a trained or released model.
 - Baseline: U2 merge `3f12087` on `main` and `origin/main`.
 - Branch: `codex/u3-private-corpus-intake`.
 - Safe implementation commit: `cdb4684`.
-- Local-only intake, manifest, duplicate/leakage, path, permission, page and
-  original-integrity controls are implemented with synthetic fixtures only.
-- Verification passes 72 focused tests with 1 conditional symlink test skipped
-  and 2 subtests; the full backend regression passes 700 tests with 4 skipped,
-  2 dependency deprecation warnings, and 504 subtests.
+- Planning-review correction implementation commit: `941eb9b`.
+- Local-only intake now enforces project-level split isolation, safe incremental
+  preservation/versioning, bounded source and image/PDF allocations, explicit
+  independent-project coverage, and supported-quality eligibility with
+  synthetic fixtures only.
+- The U3 suite passes 26 tests with 1 native Windows symlink test skipped. A
+  broader focused suite passes 182 tests with the same skip, 2 dependency
+  deprecation warnings and 10 subtests. The full backend regression passes 712
+  tests with 4 skipped, the same 2 warnings, and 504 subtests.
 - No real source was ingested. The existing private manifest was read only and
   its sanitized coverage is recorded in `U3_PRIVATE_CORPUS_INTAKE_REPORT.md`.
-- Real intake and completion publication are blocked on restored device
-  encryption and VED-authorized purpose-specific source permissions.
+- Device encryption is deferred accepted risk and no longer blocks intake. Real
+  intake and completion publication are blocked on VED-authorized,
+  purpose-specific permission plus required grouping and classification fields
+  for the four opaque source IDs listed in the U3 report.
 - U4 has not started.
