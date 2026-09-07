@@ -6,7 +6,7 @@ to a trained or released model.
 
 | Ticket | Implementation | Real-data validation | Human approval | Activation | Publication | Current note |
 |---|---|---|---|---|---|---|
-| U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Completion publication pending | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
+| U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Feature completion commit `baa0258`; merge publication pending | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
 | U2 | Not started | Not started | Not applicable | Not applicable | Not published | Depends on passing U1 |
 | U3 | Not started | Not started | Not started | Not applicable | Not published | Depends on passing U1 |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
@@ -39,3 +39,22 @@ to a trained or released model.
   additional real source data and U6 may not acquire model artifacts until the
   exception closes.
 - U2 has not started.
+
+## U1 completion checkpoint
+
+- Completion implementation commit: `baa0258`.
+- Hardware evidence: Windows 11 build 26200, Ryzen 7 7435HS (8 cores/16
+  logical), 16,989,728,768 bytes RAM, RTX 3050 Laptop GPU with 4,096 MiB VRAM,
+  NVIDIA driver 566.07/CUDA 12.7 capability, and bounded local disk recorded in
+  the U1 baseline.
+- Privacy evidence: private root outside OneDrive; explicit user-only and
+  `SYSTEM` ACL; full `models/vlm/` Git ignore probe passed; no local model
+  weights found.
+- Integrity evidence: `git diff --check` passed; ticket paths were limited to
+  U1 documentation and `.gitignore`; the protected `project_service.py` blob
+  matched `main` at `44e01c22ede76f30182b1056b0cb4e6fce3df96a`.
+- Application regression: not rerun because U1 changes no application,
+  dependency, API, schema, database, or canonical-geometry code. The restored
+  PRE12 full-suite baseline remains 627 `unittest` tests with 3 skipped, 664
+  `pytest` tests plus 504 subtests with 3 skipped, and 280 frontend tests across
+  30 files, with frontend lint/build and Python compile checks passing.
