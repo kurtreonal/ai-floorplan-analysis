@@ -88,6 +88,9 @@ to a trained or released model.
   broader focused suite passes 182 tests with the same skip, 2 dependency
   deprecation warnings and 10 subtests. The full backend regression passes 712
   tests with 4 skipped, the same 2 warnings, and 504 subtests.
+- Read-only interface reconciliation confirms 34 unique OpenAPI operations and
+  an exact 23-modeled/23-live-table match. Live row counts and all six original
+  file sizes/hashes match the published PRE12 baseline.
 - No real source was ingested. The existing private manifest was read only and
   its sanitized coverage is recorded in `U3_PRIVATE_CORPUS_INTAKE_REPORT.md`.
 - Device encryption is deferred accepted risk and no longer blocks intake. Real

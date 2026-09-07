@@ -97,5 +97,11 @@ test skipped, two dependency deprecation warnings, and 10 subtests. After the
 final scoped adjustment, the full backend regression passes 712 tests with 4
 skipped, the same 2 dependency warnings, and 504 subtests.
 
+Read-only contract and integrity reconciliation found 34 unique OpenAPI
+operations and 23 modeled tables exactly matching the 23 live tables. Live row
+counts match the PRE12 baseline. The six application originals remain 146,958
+bytes total and retain their previously published common SHA-256; no derived
+application artifact was created by U3.
+
 U4 and all later dependent work must not start until these U3 blockers are
 resolved and the completed ticket is independently verified and published.
