@@ -8,12 +8,17 @@ from hashlib import sha256
 from io import BytesIO
 from math import ceil, isfinite
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Literal
 
 import pypdfium2 as pdfium
 from PIL import Image
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, model_validator
 
-from app.services.upload_validation import FORMAT_BY_EXTENSION, validate_floor_plan_upload
+from app.services.upload_validation import (
+    FORMAT_BY_EXTENSION,
+    UploadValidationError,
+    validate_floor_plan_upload,
+)
 
 
 MANIFEST_VERSION = 1
@@ -83,6 +88,135 @@ class CorpusIntakeRequest(IntakeModel):
             raise ValueError("Reference material is not a floor-plan split member.")
         if self.source_type == "reference" and self.permission.status == "approved" and "reference_grounding" not in self.permission.allowed_purposes:
             raise ValueError("Approved reference material requires grounding permission.")
+        return self
+
+
+class _StoredPage(IntakeModel):
+    page_number: StrictInt = Field(ge=1, le=MAXIMUM_PAGES)
+    width_pixels: StrictInt = Field(ge=1, le=MAXIMUM_IMAGE_EDGE)
+    height_pixels: StrictInt = Field(ge=1, le=MAXIMUM_IMAGE_EDGE)
+    perceptual_hash: str = Field(pattern=r"^[0-9a-f]{16}$")
+
+    @model_validator(mode="after")
+    def allocation_is_bounded(self):
+        if self.width_pixels * self.height_pixels > MAXIMUM_IMAGE_PIXELS:
+            raise ValueError("Stored page exceeds the allocation limit.")
+        return self
+
+
+class _StoredRecord(IntakeModel):
+    source_id: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9_-]*$")
+    relative_path: str = Field(min_length=1, max_length=500)
+    source_type: Literal["blueprint", "reference"]
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    byte_size: StrictInt = Field(ge=1, le=MAXIMUM_SOURCE_BYTES)
+    mime_type: Literal["image/jpeg", "image/png", "application/pdf"]
+    project_group_id: str | None = Field(default=None, min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9_-]*$")
+    drawing_set_id: str | None = Field(default=None, min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9_-]*$")
+    split: Literal["pending", "train", "development_validation", "sealed_test"]
+    sheet_type: Literal["pending", "electrical_plan", "architectural_plan", "legend", "schedule", "cover", "detail", "other"]
+    quality: Literal["pending", "supported", "degraded", "unsupported"]
+    permission: PermissionRecord
+    pages: tuple[_StoredPage, ...] = Field(min_length=1, max_length=MAXIMUM_PAGES)
+    eligible: StrictBool
+    eligibility_reasons: tuple[
+        Literal[
+            "degraded_requires_quality_approval",
+            "drawing_set_missing",
+            "near_duplicate_pending_resolution",
+            "permission_not_approved",
+            "project_group_missing",
+            "quality_pending",
+            "quality_unsupported",
+            "sheet_type_pending",
+            "split_pending",
+        ],
+        ...,
+    ]
+
+    @model_validator(mode="after")
+    def stored_contract_is_coherent(self):
+        portable = PurePosixPath(self.relative_path)
+        if (
+            PureWindowsPath(self.relative_path).is_absolute()
+            or portable.is_absolute()
+            or "\\" in self.relative_path
+            or any(part in {"", ".", ".."} for part in portable.parts)
+        ):
+            raise ValueError("Stored source path is unsafe.")
+        extension = portable.suffix.casefold()
+        policy = FORMAT_BY_EXTENSION.get(extension)
+        if policy is None or policy[0] != self.mime_type:
+            raise ValueError("Stored source format is inconsistent.")
+        if tuple(page.page_number for page in self.pages) != tuple(range(1, len(self.pages) + 1)):
+            raise ValueError("Stored pages must be contiguous and one-based.")
+        if tuple(sorted(set(self.eligibility_reasons))) != self.eligibility_reasons:
+            raise ValueError("Stored eligibility reasons must be unique and ordered.")
+        if self.eligible != (not self.eligibility_reasons):
+            raise ValueError("Stored eligibility state is inconsistent.")
+        purpose = {
+            "train": "training",
+            "development_validation": "development_evaluation",
+            "sealed_test": "sealed_evaluation",
+        }.get(self.split)
+        if purpose is not None and purpose not in self.permission.allowed_purposes:
+            raise ValueError("Stored split is not permitted.")
+        if self.source_type == "reference" and self.split != "pending":
+            raise ValueError("Stored reference cannot belong to a floor-plan split.")
+        if (
+            self.source_type == "reference"
+            and self.permission.status == "approved"
+            and "reference_grounding" not in self.permission.allowed_purposes
+        ):
+            raise ValueError("Stored reference permission is inconsistent.")
+        return self
+
+
+class _NearDuplicatePair(IntakeModel):
+    left_source_id: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9_-]*$")
+    right_source_id: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9_-]*$")
+
+    @model_validator(mode="after")
+    def pair_is_ordered(self):
+        if self.left_source_id >= self.right_source_id:
+            raise ValueError("Near-duplicate pair must be ordered.")
+        return self
+
+
+class _Coverage(IntakeModel):
+    source_count: StrictInt = Field(ge=0)
+    blueprint_source_count: StrictInt = Field(ge=0)
+    eligible_blueprint_source_count: StrictInt = Field(ge=0)
+    eligible_blueprint_drawing_group_count: StrictInt = Field(ge=0)
+    independent_eligible_blueprint_project_count: StrictInt = Field(ge=0)
+    reference_material_count: StrictInt = Field(ge=0)
+    eligible_reference_material_count: StrictInt = Field(ge=0)
+
+
+class _StoredManifest(IntakeModel):
+    schema_version: Literal[MANIFEST_VERSION]
+    manifest_revision: StrictInt = Field(ge=1)
+    previous_manifest_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    records: tuple[_StoredRecord, ...]
+    exact_duplicate_groups: dict[str, tuple[str, ...]]
+    near_duplicate_pairs: tuple[_NearDuplicatePair, ...]
+    coverage: _Coverage
+
+    @model_validator(mode="after")
+    def revision_contract_is_coherent(self):
+        if (self.manifest_revision == 1) != (self.previous_manifest_sha256 is None):
+            raise ValueError("Stored revision link is inconsistent.")
+        identifiers = tuple(record.source_id for record in self.records)
+        if tuple(sorted(set(identifiers))) != identifiers:
+            raise ValueError("Stored source identifiers must be unique and ordered.")
+        for digest, source_ids in self.exact_duplicate_groups.items():
+            if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+                raise ValueError("Stored duplicate digest is invalid.")
+            if len(source_ids) < 2 or tuple(sorted(set(source_ids))) != source_ids:
+                raise ValueError("Stored exact-duplicate members must be unique and ordered.")
+        pairs = tuple((pair.left_source_id, pair.right_source_id) for pair in self.near_duplicate_pairs)
+        if tuple(sorted(set(pairs))) != pairs:
+            raise ValueError("Stored near-duplicate pairs must be unique and ordered.")
         return self
 
 
@@ -245,6 +379,21 @@ def _page_fingerprints(content: bytes, extension: str, page_count: int) -> list[
     return pages
 
 
+def _recoverable_pdf_page_count(content: bytes) -> int:
+    document = None
+    try:
+        document = pdfium.PdfDocument(content)
+        page_count = len(document)
+    except Exception:
+        _fail("INVALID_SOURCE")
+    finally:
+        if document is not None:
+            document.close()
+    if page_count <= 0:
+        _fail("INVALID_SOURCE")
+    return page_count
+
+
 def _hamming(left: str, right: str) -> int:
     return (int(left, 16) ^ int(right, 16)).bit_count()
 
@@ -266,6 +415,7 @@ def _record(root: Path, request: CorpusIntakeRequest) -> dict[str, object]:
     content, original_digest = _read_source_bounded(source)
     if extension != ".pdf":
         _validate_image_allocation(content)
+    mime_type = policy[0]
     try:
         validated = validate_floor_plan_upload(
             filename=source.name,
@@ -273,11 +423,19 @@ def _record(root: Path, request: CorpusIntakeRequest) -> dict[str, object]:
             content=content,
             max_file_size_bytes=MAXIMUM_SOURCE_BYTES,
         )
-    except CorpusIntakeError:
-        raise
+    except UploadValidationError as error:
+        if (
+            extension != ".pdf"
+            or request.quality not in {"degraded", "unsupported"}
+            or error.code != "UPLOAD_PDF_CORRUPT"
+        ):
+            _fail("INVALID_SOURCE")
+        page_count = _recoverable_pdf_page_count(content)
     except Exception:
         _fail("INVALID_SOURCE")
-    page_count = validated.page_count or 1
+    else:
+        page_count = validated.page_count or 1
+        mime_type = validated.mime_type
     if page_count > MAXIMUM_PAGES:
         _fail("PAGE_LIMIT_EXCEEDED")
     pages = _page_fingerprints(content, extension, page_count)
@@ -305,7 +463,7 @@ def _record(root: Path, request: CorpusIntakeRequest) -> dict[str, object]:
         "source_type": request.source_type,
         "sha256": original_digest,
         "byte_size": len(content),
-        "mime_type": validated.mime_type,
+        "mime_type": mime_type,
         "project_group_id": request.project_group_id,
         "drawing_set_id": request.drawing_set_id,
         "split": request.split,
@@ -391,37 +549,119 @@ def _coverage(records: list[dict[str, object]], exact: dict[str, list[str]]) -> 
     }
 
 
+def _read_manifest_bytes(path: Path) -> bytes:
+    try:
+        if path.is_symlink() or not path.is_file():
+            _fail("EXISTING_MANIFEST_INVALID")
+        size = path.stat().st_size
+        if size <= 0 or size > MAXIMUM_MANIFEST_BYTES:
+            _fail("EXISTING_MANIFEST_INVALID")
+        with path.open("rb") as stream:
+            raw = stream.read(MAXIMUM_MANIFEST_BYTES + 1)
+    except CorpusIntakeError:
+        raise
+    except OSError:
+        _fail("EXISTING_MANIFEST_INVALID")
+    if len(raw) != size:
+        _fail("EXISTING_MANIFEST_INVALID")
+    return raw
+
+
+def _validate_manifest_payload(raw: bytes) -> dict[str, object]:
+    try:
+        decoded = json.loads(raw.decode("utf-8"))
+        existing = _StoredManifest.model_validate(decoded).model_dump(mode="json")
+        records = deepcopy(existing["records"])
+        _reset_eligibility(records)
+        exact, near = _validate_groups(records)
+        coverage = _coverage(records, exact)
+    except Exception:
+        _fail("EXISTING_MANIFEST_INVALID")
+    if (
+        records != existing["records"]
+        or exact != existing["exact_duplicate_groups"]
+        or near != existing["near_duplicate_pairs"]
+        or coverage != existing["coverage"]
+    ):
+        _fail("EXISTING_MANIFEST_INVALID")
+    return existing
+
+
+def _revision_directory(destination: Path) -> Path:
+    return destination.with_name(f".{destination.name}.revisions")
+
+
+def _validate_revision_history(destination: Path, existing: dict[str, object], existing_raw: bytes) -> None:
+    revision_directory = _revision_directory(destination)
+    expected_paths: set[Path] = set()
+    expected_digest = existing["previous_manifest_sha256"]
+    revision = existing["manifest_revision"] - 1
+    while revision:
+        archive = revision_directory / f"{revision:08d}-{expected_digest}.json"
+        expected_paths.add(archive)
+        raw = _read_manifest_bytes(archive)
+        if sha256(raw).hexdigest() != expected_digest:
+            _fail("EXISTING_MANIFEST_INVALID")
+        archived = _validate_manifest_payload(raw)
+        if archived["manifest_revision"] != revision:
+            _fail("EXISTING_MANIFEST_INVALID")
+        expected_digest = archived["previous_manifest_sha256"]
+        revision -= 1
+    if expected_digest is not None:
+        _fail("EXISTING_MANIFEST_INVALID")
+    if revision_directory.exists():
+        try:
+            if revision_directory.is_symlink() or not revision_directory.is_dir():
+                _fail("EXISTING_MANIFEST_INVALID")
+            actual_paths = set(revision_directory.iterdir())
+        except CorpusIntakeError:
+            raise
+        except OSError:
+            _fail("EXISTING_MANIFEST_INVALID")
+        staged_archive = revision_directory / (
+            f"{existing['manifest_revision']:08d}-{sha256(existing_raw).hexdigest()}.json"
+        )
+        if staged_archive in actual_paths and _read_manifest_bytes(staged_archive) == existing_raw:
+            expected_paths.add(staged_archive)
+        if actual_paths != expected_paths:
+            _fail("EXISTING_MANIFEST_INVALID")
+    elif expected_paths:
+        _fail("EXISTING_MANIFEST_INVALID")
+
+
 def _load_existing_manifest(destination: Path) -> tuple[dict[str, object] | None, bytes | None]:
     if not destination.exists():
         return None, None
+    raw = _read_manifest_bytes(destination)
+    existing = _validate_manifest_payload(raw)
+    _validate_revision_history(destination, existing, raw)
+    return existing, raw
+
+
+def _archive_manifest_revision(destination: Path, existing: dict[str, object], existing_raw: bytes) -> None:
+    revision_directory = _revision_directory(destination)
     try:
-        size = destination.stat().st_size
-        if size <= 0 or size > MAXIMUM_MANIFEST_BYTES:
-            _fail("EXISTING_MANIFEST_INVALID")
-        with destination.open("rb") as stream:
-            raw = stream.read(MAXIMUM_MANIFEST_BYTES + 1)
-        existing = json.loads(raw.decode("utf-8"))
+        if revision_directory.exists():
+            if revision_directory.is_symlink() or not revision_directory.is_dir():
+                _fail("MANIFEST_WRITE_CONFLICT")
+        else:
+            revision_directory.mkdir()
+        digest = sha256(existing_raw).hexdigest()
+        archive = revision_directory / f"{existing['manifest_revision']:08d}-{digest}.json"
+        if archive.exists():
+            if _read_manifest_bytes(archive) != existing_raw:
+                _fail("MANIFEST_WRITE_CONFLICT")
+            return
+        with archive.open("xb") as output:
+            output.write(existing_raw)
+            output.flush()
+            os.fsync(output.fileno())
     except CorpusIntakeError:
         raise
-    except Exception:
-        _fail("EXISTING_MANIFEST_INVALID")
-    required = {
-        "schema_version", "manifest_revision", "previous_manifest_sha256",
-        "records", "exact_duplicate_groups", "near_duplicate_pairs", "coverage",
-    }
-    if (
-        type(existing) is not dict
-        or set(existing) != required
-        or existing["schema_version"] != MANIFEST_VERSION
-        or type(existing["manifest_revision"]) is not int
-        or existing["manifest_revision"] <= 0
-        or type(existing["records"]) is not list
-    ):
-        _fail("EXISTING_MANIFEST_INVALID")
-    identifiers = tuple(record.get("source_id") for record in existing["records"] if type(record) is dict)
-    if len(identifiers) != len(existing["records"]) or tuple(sorted(set(identifiers))) != identifiers:
-        _fail("EXISTING_MANIFEST_INVALID")
-    return existing, raw
+    except FileExistsError:
+        _fail("MANIFEST_WRITE_CONFLICT")
+    except OSError:
+        _fail("MANIFEST_WRITE_FAILED")
 
 
 def _assert_incremental_compatibility(prior: dict[str, object], current: dict[str, object]) -> None:
@@ -539,7 +779,12 @@ def build_private_corpus_manifest(
             output.write(serialized)
             output.flush()
             os.fsync(output.fileno())
+        if existing is not None:
+            _archive_manifest_revision(destination, existing, existing_raw)
         temporary.replace(destination)
+    except CorpusIntakeError:
+        temporary.unlink(missing_ok=True)
+        raise
     except FileExistsError:
         _fail("MANIFEST_WRITE_CONFLICT")
     except OSError:

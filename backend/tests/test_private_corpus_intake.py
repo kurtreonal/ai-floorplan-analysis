@@ -16,6 +16,7 @@ from app.ai.floor_plan_interpretation import (
     PermissionRecord,
     build_private_corpus_manifest,
 )
+from app.services.upload_validation import UploadValidationError
 
 
 def image_bytes(image_format="PNG", *, reverse=False):
@@ -352,6 +353,64 @@ def test_incremental_intake_preserves_absent_records_and_versions_changes(tmp_pa
     ).hexdigest()
 
 
+def test_incremental_intake_archives_exact_prior_manifest_bytes(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    (source / "b.png").write_bytes(image_bytes(reverse=True))
+    build(tmp_path, [request("source-a", "source-materials/a.png", project="project-a", drawing="drawing-a")])
+    first_bytes = manifest.read_bytes()
+    first_digest = hashlib.sha256(first_bytes).hexdigest()
+
+    build(tmp_path, [request("source-b", "source-materials/b.png", project="project-b", drawing="drawing-b")])
+
+    archive = manifest.with_name(f".{manifest.name}.revisions") / f"00000001-{first_digest}.json"
+    assert archive.read_bytes() == first_bytes
+
+
+def test_tampered_manifest_revision_archive_is_rejected(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    (source / "b.png").write_bytes(image_bytes(reverse=True))
+    (source / "c.png").write_bytes(image_bytes("JPEG"))
+    build(tmp_path, [request("source-a", "source-materials/a.png", project="project-a", drawing="drawing-a")])
+    first_digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+    build(tmp_path, [request("source-b", "source-materials/b.png", project="project-b", drawing="drawing-b")])
+    archive = manifest.with_name(f".{manifest.name}.revisions") / f"00000001-{first_digest}.json"
+    archive.write_bytes(b"{}\n")
+
+    with pytest.raises(CorpusIntakeError) as error:
+        build(tmp_path, [request("source-c", "source-materials/c.png", project="project-c", drawing="drawing-c")])
+    assert error.value.code == "EXISTING_MANIFEST_INVALID"
+
+
+def test_malformed_preserved_record_is_rejected_before_incremental_merge(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    (source / "b.png").write_bytes(image_bytes(reverse=True))
+    build(tmp_path, [request("source-a", "source-materials/a.png", project="project-a", drawing="drawing-a")])
+    stored = json.loads(manifest.read_text(encoding="utf-8"))
+    stored["records"][0]["pages"][0]["page_number"] = True
+    manifest.write_text(json.dumps(stored, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(CorpusIntakeError) as error:
+        build(tmp_path, [request("source-b", "source-materials/b.png", project="project-b", drawing="drawing-b")])
+    assert error.value.code == "EXISTING_MANIFEST_INVALID"
+
+
+def test_tampered_derived_manifest_coverage_is_rejected(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    (source / "b.png").write_bytes(image_bytes(reverse=True))
+    build(tmp_path, [request("source-a", "source-materials/a.png", project="project-a", drawing="drawing-a")])
+    stored = json.loads(manifest.read_text(encoding="utf-8"))
+    stored["coverage"]["independent_eligible_blueprint_project_count"] = 99
+    manifest.write_text(json.dumps(stored, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(CorpusIntakeError) as error:
+        build(tmp_path, [request("source-b", "source-materials/b.png", project="project-b", drawing="drawing-b")])
+    assert error.value.code == "EXISTING_MANIFEST_INVALID"
+
+
 def test_incremental_intake_cannot_rewrite_established_split(tmp_path):
     source, _ = setup_root(tmp_path)
     (source / "a.png").write_bytes(image_bytes())
@@ -402,6 +461,48 @@ def test_degraded_and_unsupported_sources_are_inventoried_but_not_eligible(tmp_p
         ["degraded_requires_quality_approval"],
         ["quality_unsupported"],
     ]
+
+
+def test_recoverable_pdf_rejected_by_strict_validator_requires_degraded_quality(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "plan.pdf").write_bytes(pdf_bytes())
+    strict_rejection = UploadValidationError(
+        "UPLOAD_PDF_CORRUPT",
+        "The floor-plan PDF is corrupt or unreadable.",
+    )
+    with patch(
+        "app.ai.floor_plan_interpretation.corpus_intake.validate_floor_plan_upload",
+        side_effect=strict_rejection,
+    ):
+        result = build(tmp_path, [
+            request(
+                "source-a",
+                "source-materials/plan.pdf",
+                quality="degraded",
+            )
+        ])
+    stored = json.loads(manifest.read_text(encoding="utf-8"))
+    assert result.eligible_blueprint_source_count == 0
+    assert stored["records"][0]["eligibility_reasons"] == [
+        "degraded_requires_quality_approval"
+    ]
+    assert len(stored["records"][0]["pages"]) == 2
+
+
+def test_strictly_invalid_pdf_cannot_be_marked_supported(tmp_path):
+    source, _ = setup_root(tmp_path)
+    (source / "plan.pdf").write_bytes(pdf_bytes())
+    strict_rejection = UploadValidationError(
+        "UPLOAD_PDF_CORRUPT",
+        "The floor-plan PDF is corrupt or unreadable.",
+    )
+    with patch(
+        "app.ai.floor_plan_interpretation.corpus_intake.validate_floor_plan_upload",
+        side_effect=strict_rejection,
+    ):
+        with pytest.raises(CorpusIntakeError) as error:
+            build(tmp_path, [request("source-a", "source-materials/plan.pdf")])
+    assert error.value.code == "INVALID_SOURCE"
 
 
 def test_reference_material_is_reported_separately(tmp_path):
