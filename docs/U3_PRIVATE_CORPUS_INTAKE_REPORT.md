@@ -2,12 +2,12 @@
 
 - Ticket: U3
 - Inspection dates: 2026-09-07 through 2026-09-08 (Asia/Manila)
-- Status: BLOCKED before real intake
+- Status: BLOCKED after safe real intake
 - Baseline: U2 merge `3f12087`
-- Safe correction implementation: `941eb9b`
+- Latest integrity implementation: `b4b4d57`
 
-This report is sanitized. It contains no source names, paths, hashes, drawing
-text, labels, reviewer identity, or private approval evidence.
+This report is sanitized. It contains no source names, paths, full hashes,
+drawing text, labels, reviewer identity, or private approval evidence.
 
 ## Safe implementation completed
 
@@ -22,6 +22,11 @@ wrapper at `scripts/intake_vlm_corpus.py`. Synthetic tests prove:
 - safe incremental re-intake that preserves absent records, versions manifest
   changes, and rejects changes to established source identity, grouping, split,
   classification, quality, or approved permission;
+- strict validation of every preserved record and page plus recomputation of
+  eligibility, exact/near duplicate groups, and coverage before any merge;
+- exact prior manifest bytes archived under exclusive filenames, with every
+  revision hash link validated so prior revisions remain recoverable and
+  tampering stops intake;
 - exact-duplicate grouping plus separate source, drawing-group, reference, and
   independent eligible blueprint-project coverage;
 - perceptual near-duplicate flagging and cross-split rejection;
@@ -29,6 +34,9 @@ wrapper at `scripts/intake_vlm_corpus.py`. Synthetic tests prove:
 - 25 MiB bounded reads before content allocation and 10,000-edge/60-megapixel
   image and PDF-render preflight limits from the U1 baseline;
 - unsupported and degraded sources remain inventoried but are not eligible;
+  a PDF rejected by the strict application validator may be inventoried only
+  when explicitly classified degraded/unsupported and safely renderable within
+  the same page/allocation bounds;
 - unsupported/corrupt input, traversal, absolute path, symlink, and private
   manifest-boundary rejection; and
 - unchanged original bytes.
@@ -37,37 +45,44 @@ The tool writes only a private manifest beneath the explicitly supplied private
 root. It prints aggregate counts, not private metadata. No database or HTTP API
 is involved.
 
-## Actual private inventory finding
+## Actual private intake
 
-The restored legacy source manifest contains four records. Two have non-empty
-legacy free-text approval declarations and two do not. None has the structured
-purpose permission, project/drawing-set grouping, preassigned split, quality,
-or sheet classification required by U3. The six live application originals are
-exact duplicates and count as one source group, not six independent examples.
+The restored transfer contains four source records: two historical VED blueprint
+projects and two private third-party reference documents. Transfer verification
+rechecked all 112 private-manifest entries with zero missing files, size
+mismatches, or hash mismatches before intake.
 
-Accordingly, the number of currently proven independent eligible blueprint
-projects is zero. Source count, drawing-group count, independent blueprint
-projects, exact-duplicate clusters, and reference materials are not treated as
-interchangeable coverage. No real source was passed to the new tooling and no
-existing private manifest or original was changed.
+The 2026-09-08 standing VED collection authorization was bound to both covered
+blueprint records using the user-confirmed authority wording and private session
+reference. The records were grouped as two independent historical projects and
+assigned to train and development-validation respectively. Neither was assigned
+to sealed test because no genuinely new independent project exists. Legacy
+free-text declarations were not treated as the new evidence.
 
-## Consolidated missing real-intake fields
+The first run wrote private manifest revision 1; a second identical run reported
+`changed=false`. Original hashes remained identical to the transfer baseline.
+Actual counts are four records, two blueprint sources, two reference sources,
+zero eligible blueprint sources, zero eligible drawing groups, zero independent
+eligible blueprint projects, zero eligible references, zero exact-duplicate
+groups, and zero near-duplicate pairs. The separate 87-file legacy training
+workspace remains preserved privately; its crops, provisional labels, scripts,
+and exports were not miscounted as independent source projects.
 
-Legacy free-text declarations were not promoted to approved permission. The
-only public identifiers below are opaque inventory IDs:
+## Consolidated remaining decisions
 
-| Source | Type | Missing fields required before intake |
+The only public identifiers below are opaque private-manifest IDs:
+
+| Source | Type | Smallest remaining action |
 |---|---|---|
-| `source-0001` | Blueprint | Permission status, allowed purpose, VED approver, local evidence reference, project group, drawing set, split, sheet type, quality |
-| `source-0002` | Blueprint | Permission status, allowed purpose, VED approver, local evidence reference, project group, drawing set, split, sheet type, quality |
-| `source-0003` | Reference | Permission status, `reference_grounding` purpose, VED approver, local evidence reference, project group, drawing set, sheet type, quality |
-| `source-0004` | Reference | Permission status, `reference_grounding` purpose, VED approver, local evidence reference, project group, drawing set, sheet type, quality |
+| `source-384fe30d` | Blueprint | Decide whether its safely renderable but strict-validator-rejected PDF is accepted as supported degraded data; otherwise it remains inventory-only |
+| `source-cef52bcc` | Blueprint | Classify the mixed eight-sheet source at an adequate page/sheet boundary; do not force one inaccurate source-level type |
+| `source-7638337a` | Reference | Supply purpose-specific rights/provenance evidence for private reference grounding, or keep it excluded |
+| `source-d51f60d0` | Reference | Supply rights/provenance evidence and decide whether the degraded scan is acceptable for reference grounding, or keep it excluded |
 
-After those records exist, U3 must run the real manifest locally and report the
-resulting independent eligible blueprint-project coverage. Insufficient
-independent projects remains a blocking result. Degraded sources require an
-explicit later quality-approval decision; unsupported sources remain inventory
-only and cannot satisfy eligible coverage.
+U3 additionally needs a genuinely new independent blueprint project reserved for
+sealed test. Re-scanning or deriving crops from either historical project does
+not satisfy that requirement. Source, drawing-group, independent-project,
+duplicate-cluster, and reference counts remain separate.
 
 Device encryption is explicitly deferred with user acceptance as of
 2026-09-08. It is not a passing control and does not block U3 intake under the
@@ -79,7 +94,8 @@ all other privacy and permission gates remain unchanged.
 | Criterion | Status | Evidence |
 |---|---|---|
 | Local strict intake tooling and private manifest boundary | PASS | Synthetic implementation and tests |
-| Safe incremental preservation, manifest revision, idempotency, and conflict controls | PASS | Synthetic tests preserve omitted members and reject established split rewrites |
+| Safe incremental preservation, recoverable immutable revisions, idempotency, and conflict controls | PASS | Synthetic tests preserve omitted members, archive exact prior bytes, validate the hash chain, reject tampering, and reject established split rewrites |
+| Full validation of preserved records and derived manifest data | PASS | Malformed stored page and falsified coverage regression tests fail closed before merge |
 | Bounded reads and image/PDF pre-allocation limits | PASS | Synthetic oversize source, image-edge, and PDF-render tests |
 | Supported/corrupt, multipage, traversal and original integrity | PASS | Synthetic tests |
 | Native Windows symlink creation case | NOT TESTED | Current account cannot create a native symlink; the same rejection branch passes with deterministic simulation |
@@ -87,15 +103,16 @@ all other privacy and permission gates remain unchanged.
 | Independent coverage dimensions and unsupported/degraded eligibility | PASS | Synthetic tests report sources, drawing groups, independent projects and references separately |
 | Structured permission and pre-label split enforcement | PASS | Synthetic tests |
 | Device encryption | DEFERRED | User-accepted risk; not a passing control and no longer an intake blocker |
-| Real approved source intake | BLOCKED | Structured purpose permission and grouping/classification metadata are missing |
-| Actual independent eligible blueprint-project coverage | BLOCKED | Current proven count is zero |
+| Real private source intake | PASS | Revision 1 created locally; idempotent rerun reported no change; original hashes match |
+| Covered VED blueprint permission and historical grouping/splits | PASS | Collection authorization bound privately; two historical projects assigned train/development-validation |
+| Third-party reference rights and degraded-source decisions | BLOCKED | Rights evidence is missing for two references; two sources have unresolved degraded-quality decisions |
+| Actual independent eligible blueprint-project coverage | BLOCKED | Current proven count is zero; no genuine sealed-test project exists |
 | U3 completion publication and merge | BLOCKED | Real-data gates have not passed |
 
-The U3-specific suite passes 26 tests with one native Windows symlink test
-skipped. The broader focused suite passes 182 tests with one native symlink
-test skipped, two dependency deprecation warnings, and 10 subtests. After the
-final scoped adjustment, the full backend regression passes 712 tests with 4
-skipped, the same 2 dependency warnings, and 504 subtests.
+The U3-specific suite passes 32 tests with one native Windows symlink test
+skipped. The focused U3/candidate/upload suite passes 85 tests with the same
+skip and 2 subtests. The full backend regression passes 718 tests with 4
+skipped, 2 known dependency deprecation warnings, and 504 subtests.
 
 Read-only contract and integrity reconciliation found 34 unique OpenAPI
 operations and 23 modeled tables exactly matching the 23 live tables. Live row

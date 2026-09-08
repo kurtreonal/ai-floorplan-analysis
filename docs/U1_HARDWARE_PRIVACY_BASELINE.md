@@ -75,6 +75,15 @@ resource, and controlled-acquisition gates remain. Existing private material
 remains at risk while encryption is deferred; ACLs and local-only operation do
 not replace full-disk encryption.
 
+On 2026-09-08 the user also confirmed standing VED collection-level permission
+for VED-supplied project documents and later VED-provided scans for training,
+development evaluation, sealed evaluation, and reference grounding. U3 binds
+that statement to covered private records as `VED approval confirmed by user`
+with the private session date as evidence; it does not invent a named signer.
+This permission does not automatically cover unrelated third-party material and
+does not constitute annotation completion, quality acceptance, independent gold
+approval, training-record approval, or release sign-off.
+
 ## Approved operating budgets
 
 The user approved these limits on 2026-09-07. They are safety bounds and
@@ -150,6 +159,7 @@ The user approved this policy on 2026-09-07.
 | Local-only privacy boundary defined and locally created outside OneDrive | PASS | Read/write/delete probe passed; no existing corpus was moved |
 | Page/tile/context/output/concurrency/timeout/latency/storage budgets approved | PASS | User approved the bounded policy recorded above on 2026-09-07 |
 | Retention policy approved | PASS | User approved the policy recorded above on 2026-09-07 |
+| VED collection data-use authorization recorded | PASS | User confirmed the bounded purposes on 2026-09-08; source eligibility and third-party rights remain separate downstream gates |
 | Model/license acquisition policy defined | PASS | Policy above permits only controlled, pinned, reviewed acquisition in a later ticket |
 | Device encryption control | DEFERRED | User accepted the unencrypted-at-rest risk on 2026-09-08; this is not a passing control and has no approved restoration deadline |
 | No model selection, download, dependency, API, schema, or runtime change | PASS | Repository and environment audit found no VLM artifact or U runtime change |

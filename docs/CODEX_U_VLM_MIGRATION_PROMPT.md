@@ -17,7 +17,8 @@ Do not ask again for routine commit/merge/push permission between tickets.
 After each passing published ticket, report progress and continue to the next
 authorized ticket. Stop after U14's real release/rollback gate and final report.
 Do not implement L2+, M-series generated routing, material quantities, costing,
-reports, general Admin UI, or unrelated refactors.
+reports, general Admin UI outside the scoped dataset annotation workspace
+defined in U5/U9 below, or unrelated refactors.
 
 This authorization does NOT grant permission to:
 - impersonate a human approver or invent VED classes, labels, scale or elevation;
@@ -35,6 +36,48 @@ release gate is missing, finish only safe work within the current ticket,
 report BLOCKED with the exact missing item and resume instructions, and stop
 dependent work. Infrastructure tests alone do not complete data/model tickets.
 Do not silently skip failed gates to announce all U tickets complete.
+
+### Planning amendments confirmed by the user on 2026-09-08
+
+Resume the actual current ticket rather than restarting published U1/U2.
+The standing U1-U14 implementation/publication authorization remains active;
+passing ticket checkpoints do not require another planning-chat approval.
+
+The user confirms VED collection-level permission for the supplied documents,
+including additional VED-supplied hard-copy documents still being scanned,
+for training, development evaluation, sealed evaluation and reference grounding.
+Bind source records to this collection authorization privately. Record the
+authority as VED approval confirmed by the user and reference the confirmation;
+do not invent a named signer or require repeated per-source permission within
+this scope. Unrelated third-party material is not automatically covered.
+This permission does not manufacture annotation correctness, independent PRE10
+review, approved gold, numeric thresholds or release sign-off.
+
+Historical projects supply training and independent development-validation
+groups. New independent projects are intended for final testing. Assign splits
+before tuning; keep related pages, revisions, crops and rescans together.
+Scanning an old drawing now does not turn it into an independent test project.
+Incomplete scans/metadata remain pending. Missing actual test coverage must
+remain visible at the owning gate; do not fabricate it to continue.
+
+Device encryption is DEFERRED with user-accepted risk and no approved deadline.
+It no longer blocks U3 intake or U6 acquisition. Do not mark encryption PASS.
+All remaining local-only, data-integrity and resource boundaries still apply.
+
+The user delegates preparation of annotation proposals to the assistant and
+will review completeness, corrections and unresolved areas. Record the actual
+author and reviewer; never invent approval or claim an automatic connection
+between a conversation and the application. Support explicit validated import
+of assistant-prepared proposals where appropriate, with source/legend hashes,
+dimensions and coordinate conventions. No hosted inference integration is
+authorized by this amendment.
+
+Implement the future workspace at Admin > AI Datasets > Annotation inside the
+existing VED application, using React/JavaScript and React-Konva. U5 owns the
+minimum local bootstrap review/import capability; U9 extends it with durable
+pseudo-label review and richer editing. Do not create a standalone competing
+annotation application or bring the full U9 scope into U3. Maintain these
+requirements in existing documentation; add no new Markdown planning files.
 
 ## 2. Mandatory context review and baseline
 
@@ -259,6 +302,19 @@ completeness, actual active PRE10 authority, authorship independence, decision
 time and revision; a client-written approver ID/signature is insufficient.
 Retain reviewable evidence locally and auditable decision provenance.
 
+Expose the minimum bootstrap workflow under Admin > AI Datasets > Annotation.
+It must work without U6 inference or U9 pseudo-labeling: display original scans
+and associated legends, import validated proposals or accept manual labels,
+support correction and explicit completeness review, and preserve revisioned
+outputs for reuse by U9. Keep source pixels and original files unchanged.
+Separate annotation complete, review complete and approved for training states.
+Scope access to explicitly authorized dataset sources; Admin navigation alone
+does not grant dataset-approver authority or access to all Designer projects.
+Enforce the role/access and PRE10 approval checks on the backend, including an
+authorized review path for assigned approvers without granting them general
+Admin privileges. Do not treat the user's standing data-use permission as a
+completed independent gold/quality decision.
+
 Collect independently corrected representative examples across supported classes,
 source projects, empty/hard negatives, dense/small glyphs, multiple scales,
 supported degraded scans and wiring/no-wiring pages. Resolve sample sufficiency
@@ -375,6 +431,34 @@ Extend the existing review feature instead of creating an unrelated parallel app
 Support accept/correct/add/reject/unresolved for symbols, walls, rooms, openings,
 panels, scale evidence and observed wiring, with accessible overlays/inspectors,
 page navigation, safe reload and stale-review conflict handling.
+
+Extend the U5 Admin > AI Datasets > Annotation workspace using shared existing
+review components/services. Provide project/floor/sheet/revision navigation,
+an associated legend view, a zoomable/pannable original-image canvas and a
+selected-annotation inspector. Use separate editable layers for:
+
+- symbols: boxes/locations, approved legend mappings and associated text;
+- geometry: wall lines, room polygons and door/window locations;
+- observed wiring: visible polylines and reviewed connections, not invented
+  paths or circuits;
+- text/dimensions: readable labels and dimension evidence with uncertainty;
+- review markers: missing items, unresolved areas and page completeness.
+
+Support drawing, moving, resizing and deleting appropriate annotation shapes,
+class correction and accept/reject/add/unresolved actions. Keep legend examples
+distinct from installed devices and unknown glyphs distinct from approved
+classes. Retain original proposals alongside corrections and review history.
+Readable degraded scans may become eligible only through an explicit supported
+quality/review policy; unreadable targets stay unresolved. Do not equate all
+degraded scans with unusable data or silently declare them supported.
+
+Persist revisioned annotations and reload them safely. Export only eligible,
+fully reviewed and independently approved training records. Keep annotation
+completeness, user review and training approval visibly distinct. Verify
+original-pixel overlay alignment, each editing operation, proposal import
+validation, layer visibility, save/reload and stale-edit handling, cross-source
+and cross-role denial, and exclusion of pending/rejected/sealed-test records
+from training export. Reuse this storage in U11; no parallel source of truth.
 
 Separate owner-scoped project review from dataset approval. An ordinary project
 approval does not grant training permission. Implement a completeness checklist,
