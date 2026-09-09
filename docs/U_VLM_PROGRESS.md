@@ -16,7 +16,7 @@ development pages, not a confidence threshold or a release-accuracy claim.
 
 | Checkpoint | Current status | Required evidence |
 |---|---|---|
-| DEMO-0 inspection and narrow plan | NOT STARTED by implementation task | Actual reusable inference, review, canonical and 3D components; readable development inputs |
+| DEMO-0 inspection and narrow plan | COMPLETE | Main baseline, bounded OpenCV provider decision, and one immutable authorized development page with pending human truth |
 | DEMO-1 local detection | NOT STARTED | Real new-upload inference; source-bound room/wall and symbol proposals |
 | DEMO-2 review and persistence | NOT STARTED | Explicit corrections/approval; validated scale; safe shared canonical save/reload |
 | DEMO-3 basic 2D/3D | NOT STARTED | Minimum L2-L5 rendering, known coordinates and synchronized saved edits |
@@ -32,9 +32,9 @@ the original sequence only after the demo handoff and further user direction.
 
 | Ticket | Implementation | Real-data validation | Human approval | Activation | Publication | Current note |
 |---|---|---|---|---|---|---|
-| U1 | Complete | Native-Windows target measured | Approved operating and retention policy; temporary encryption exception recorded | Not applicable | Published to `main` at merge `8c73183` | No model selected/downloaded; U3 real-data intake and U6 acquisition remain gated on restored device encryption |
-| U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Feature implementation commit `90c90bb`; merge publication pending | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
-| U3 | Not started | Not started | Not started | Not applicable | Not published | Depends on passing U1 |
+| U1 | Complete | Native-Windows target measured | Approved operating and retention policy; device encryption explicitly deferred with user acceptance | Not applicable | Published to `main` at merge `8c73183` | No model selected/downloaded; deferred encryption is recorded risk, not a passing control and no longer blocks U3 intake or U6 acquisition |
+| U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
+| U3 | Safe tooling complete; blocked on data gates | Real VED sources inventoried; zero eligible independent projects | VED collection permission recorded; page classification, quality review and sealed-test evidence remain incomplete | Not applicable | Isolated on `codex/u3-private-corpus-intake`; not merged to demo branch | Eight page classifications and one quality decision remain pending; third-party rights unresolved and independent sealed-test project missing |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
@@ -61,9 +61,10 @@ the original sequence only after the demo handoff and further user direction.
   remain local-only and excluded from this publication.
 - No model, adapter, inference dependency, API operation, database table, or
   application behavior has been added.
-- Device encryption is a documented temporary exception. U3 may not ingest
-  additional real source data and U6 may not acquire model artifacts until the
-  exception closes.
+- Device encryption is explicitly deferred with user acceptance and is tracked
+  as a risk rather than a passing control. No replacement deadline is approved;
+  all other local-only privacy, permission, storage and acquisition controls
+  remain mandatory.
 - U2 started only after U1 publication completed.
 
 ## U1 completion checkpoint
@@ -97,4 +98,33 @@ the original sequence only after the demo handoff and further user direction.
 - Focused candidate and canonical-compatibility verification passes 62 tests;
   the full backend regression passes 686 tests with 3 skipped, 2 dependency
   deprecation warnings, and 504 subtests.
-- U3 has not started.
+- U3 safe tooling and authorized-source inventory work are isolated on
+  `codex/u3-private-corpus-intake`; U3 remains blocked on its real data,
+  review, quality and independent sealed-test gates and is not merged here.
+
+## DEMO-0 completion checkpoint
+
+- Baseline: published `main`/`origin/main` merge `3f12087`; branch
+  `codex/demo-floorplan-2d-3d`. The isolated U3 implementation was not merged.
+- The selected bounded runtime is the installed local OpenCV pipeline. No
+  usable local YOLO weight or VLM artifact exists, so neither is represented as
+  available and no model download is part of upload processing.
+- Reusable foundations: protected uploads and source identity, one-based PDF
+  rendering and normalization, preprocessing and deterministic wall evidence,
+  PRE9 job leases, the U2 strict source-pixel candidate envelope, detection
+  review, metric approval, K1 canonical geometry, append-only K2 snapshots,
+  K3 reload and the Konva editor.
+- Demo gaps requiring scoped implementation: an executable local worker,
+  document-room and generic symbol proposal extraction, durable unified review
+  revisions, reviewed-candidate-to-canonical adaptation, and a canonical-backed
+  Three.js scene.
+- One readable, purpose-authorized private development page is frozen outside
+  the repository with its source/page identity, render bounds and unchanged
+  original hash recorded. It is a historical development source, not the U3
+  sealed test project. Unselected pages are not processed.
+- Measurement truth is `pending_human_review`; therefore room and symbol recall
+  remain `NOT TESTED` at DEMO-0. The >=50% targets and IoU >=0.5 matching rule
+  are frozen and will not be lowered to manufacture a pass.
+- Explicit exclusions remain wiring/routing, costing/reporting, model training,
+  full U5/U9 annotation administration, U10/U12/U14 release claims and any
+  assertion that the U3 corpus or sealed-test gates passed.
