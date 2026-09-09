@@ -17,7 +17,7 @@ development pages, not a confidence threshold or a release-accuracy claim.
 | Checkpoint | Current status | Required evidence |
 |---|---|---|
 | DEMO-0 inspection and narrow plan | COMPLETE | Main baseline, bounded OpenCV provider decision, and one immutable authorized development page with pending human truth |
-| DEMO-1 local detection | NOT STARTED | Real new-upload inference; source-bound room/wall and symbol proposals |
+| DEMO-1 local detection | COMPLETE | Bounded deterministic OpenCV inference emits strict source-bound room/wall and unknown-class symbol proposals from real pixels |
 | DEMO-2 review and persistence | NOT STARTED | Explicit corrections/approval; validated scale; safe shared canonical save/reload |
 | DEMO-3 basic 2D/3D | NOT STARTED | Minimum L2-L5 rendering, known coordinates and synchronized saved edits |
 | DEMO-4 demonstration and metrics | NOT TESTED | Real browser upload-to-3D run; separate room/symbol recall, precision and FP/FN |
@@ -128,3 +128,28 @@ the original sequence only after the demo handoff and further user direction.
 - Explicit exclusions remain wiring/routing, costing/reporting, model training,
   full U5/U9 annotation administration, U10/U12/U14 release claims and any
   assertion that the U3 corpus or sealed-test gates passed.
+
+## DEMO-1 completion checkpoint
+
+- Provider: local deterministic OpenCV only (`demo_cv_baseline` for downstream
+  provenance). It performs no network access, file lookup, database mutation,
+  filename matching, hosted inference, weight loading or download-on-upload.
+- The provider accepts bounded decoded RGB pixels and emits the published U2
+  source-pixel contract with a source-bound plan evidence region. Room, wall and
+  circular-symbol proposals all remain review-only; symbols use
+  `mapping_state=unknown` until a designer maps them to an approved live legend.
+- The frozen private development page was normalized to 4096 x 2731 for the
+  measured run. It produced 300 wall proposals (bounded and explicitly
+  partial), 37 room proposals, and 129 unknown-class circular-symbol proposals.
+  The strict serialized candidate was 86,480 bytes, below the 256 KiB contract
+  limit. One measured warm-process run took 884.6 ms on the U1 Windows host.
+- The first measured implementation used Hough-circle extraction, reached the
+  500-symbol cap and took 24,752.6 ms. It was replaced before publication by
+  bounded contour extraction; this failed experiment is retained here so the
+  provider choice is auditable rather than silently optimized after the fact.
+- Focused verification covers synthetic real-pixel extraction, empty input,
+  deterministic unchanged input, rotation/scale variation, explicit
+  truncation, unsafe input, sanitized OpenCV failure and isolation from files,
+  HTTP, database and job state. Recall, precision, TP, FP and FN remain
+  `NOT TESTED` pending reviewed development truth; proposal counts are not
+  accuracy measurements.
