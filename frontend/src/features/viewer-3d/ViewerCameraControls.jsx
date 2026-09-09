@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 
 export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
-  { onReady },
+  { onReady, target, extent },
   ref,
 ) {
   const { camera, gl, invalidate } = useThree()
@@ -16,16 +16,23 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
       controlsRef.current?.update()
       invalidate()
     },
-  }), [invalidate])
+    top() {
+      const controls = controlsRef.current
+      if (!controls) return
+      camera.position.set(controls.target.x, controls.target.y + (extent || 20) * 1.6, controls.target.z + 0.001)
+      controls.update()
+      invalidate()
+    },
+  }), [camera, extent, invalidate])
 
   useEffect(() => {
     const controls = new OrbitControls(camera, gl.domElement)
     controls.enableRotate = true
     controls.enablePan = true
     controls.enableZoom = true
-    controls.minDistance = 2
-    controls.maxDistance = 80
-    controls.target.set(0, 0, 0)
+    controls.minDistance = 0.1
+    controls.maxDistance = (extent || 20) * 8
+    controls.target.set(...(target || [0, 0, 0]))
     controls.update()
     controls.saveState()
     controls.addEventListener('change', invalidate)
@@ -38,7 +45,7 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
       controls.dispose()
       controlsRef.current = null
     }
-  }, [camera, gl, invalidate, onReady])
+  }, [camera, gl, invalidate, onReady, target, extent])
 
   return null
 })

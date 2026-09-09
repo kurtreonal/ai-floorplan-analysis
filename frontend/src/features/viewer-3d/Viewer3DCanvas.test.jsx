@@ -27,7 +27,7 @@ describe('3D canvas foundation', () => {
     expect(Canvas).toHaveBeenCalledWith(
       expect.objectContaining({
         frameloop: 'demand',
-        camera: { position: [8, 6, 8], fov: 50, near: 0.1, far: 1000 },
+        camera: { position: [8, 6, 8], fov: 50, near: 0.01, far: 1000 },
       }),
       undefined,
     )

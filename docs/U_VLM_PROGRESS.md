@@ -19,7 +19,7 @@ development pages, not a confidence threshold or a release-accuracy claim.
 | DEMO-0 inspection and narrow plan | COMPLETE | Main baseline, bounded OpenCV provider decision, and one immutable authorized development page with pending human truth |
 | DEMO-1 local detection | COMPLETE | Bounded deterministic OpenCV inference emits strict source-bound room/wall and unknown-class symbol proposals from real pixels |
 | DEMO-2 review and persistence | IMPLEMENTED; automated checks PASS | Real worker and immutable reviews; explicit Designer placements; canonical save/reload; real human review pending |
-| DEMO-3 basic 2D/3D | NOT STARTED | Minimum L2-L5 rendering, known coordinates and synchronized saved edits |
+| DEMO-3 basic 2D/3D | IMPLEMENTED; automated checks PASS | Shared saved canonical document, coordinate tests and reload; actual WebGL browser inspection NOT TESTED |
 | DEMO-4 demonstration and metrics | NOT TESTED | Real browser upload-to-3D run; separate room/symbol recall, precision and FP/FN |
 
 The original amendment was planning only; subsequent implementation evidence
@@ -184,3 +184,23 @@ the original sequence only after the demo handoff and further user direction.
   legacy detection review remains reachable alongside the demo review.
 - Real Designer approval and browser demonstration remain pending. No active
   symbol legend exists on the local database; no classes were invented.
+
+## DEMO-3 implementation checkpoint
+
+- DEMO-2 published as `637054e` on the demo branch. DEMO-3 adds only the
+  canonical 3D consumer and its tests; it changes no API or database contract.
+- The existing layout API supplies both views. Canonical `(x, y)` maps to
+  Three `(x, floor elevation, z=y)` in meters. Wall endpoints determine rotation,
+  length and midpoint; approved thickness/height determine extrusion. Room
+  polygons remain the same boundaries. Markers indicate floor positions with
+  display-only glyph size and make no mounting-height claim.
+- Missing wall height/thickness produces a visible error. Unverified walls
+  are excluded. Top/perspective, orbit/pan/zoom, reset and persisted-layout
+  reload are available. The 2D editor continues to use its existing save path.
+- Verification: 292 frontend tests passed across 33 files, including negative
+  elevation, vertical/rotated walls, changed saved symbol positions, removed
+  symbols, input immutability, missing dimensions and saved-layout loading.
+  Lint and production build passed; the bundle-size warning remains.
+- Browser/WebGL inspection and an actual user 2D edit followed by 3D reload are
+  NOT TESTED: browser discovery returned no browsers, and URL selection returned
+  `No browser is available`. Automated geometry tests do not replace this gate.

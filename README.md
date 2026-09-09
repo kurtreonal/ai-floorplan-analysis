@@ -83,15 +83,16 @@ The repository currently includes:
 - canonical detected/manual symbol selection and Designer-only repositioning by
   drag or accessible meter inputs, with explicit save/cancel controls and K3
   append-only snapshot persistence; and
-- a protected, lazy-loaded empty Three.js/React Three Fiber viewer at
+- a protected, lazy-loaded Three.js/React Three Fiber viewer at
   `#/app/projects/{project_id}/floors/{project_floor_id}/viewer-3d`, with a
-  demand-rendered neutral scene, orbit/pan/zoom controls, deterministic reset,
-  and viewer-local loading, WebGL fallback, and error isolation.
+  demand-rendered saved canonical room/floor surfaces, verified walls and symbol
+  markers, orbit/pan/zoom, top/perspective views, reset and reload controls,
+  WebGL fallback and error isolation. Missing wall dimensions block metric 3D.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing L1 provides only the empty 3D foundation
-and does not imply canonical 3D geometry, wall/room/route editing, routing,
-estimation, or reporting exists.
+`docs/FUNCTIONAL_SPEC.md`. The September demo brings forward only the bounded
+canonical floor/wall/symbol rendering subset of L2-L5; the full tickets,
+routing, estimation and reporting remain incomplete.
 
 The approved target AI direction is now a **locally hosted multimodal
 vision-language model (VLM)** rather than a YOLO-only production pipeline. The
@@ -112,7 +113,8 @@ The U1-U14 execution handoff is maintained in
 [`docs/CODEX_U_VLM_MIGRATION_PROMPT.md`](docs/CODEX_U_VLM_MIGRATION_PROMPT.md).
 One explicit authorization may cover that sequence, but implementation,
 verification, publication, and reporting remain separate for every ticket.
-It does not include the remaining 3D, routing, estimation, or report epics.
+Its active section 0 authorizes the bounded demo rendering subset. It does not
+complete the remaining 3D, routing, estimation or report epics.
 
 ---
 
@@ -533,11 +535,10 @@ The folders that do not exist yet should be created by the appropriate developme
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.
-- L1 installs `three@0.185.1` and `@react-three/fiber@9.7.0` and adds an empty,
-  floor-scoped viewer foundation that makes no layout, floor-plan, detection,
-  or processing-job request. Its grid and axes are orientation helpers, not
-  project geometry. Canonical floor rendering, walls, openings, symbols,
-  2D/3D synchronization, and top/perspective switching remain future work.
+- L1 introduced the empty viewer foundation. DEMO-3 now reads the saved K1
+  layout and renders floor/room surfaces, verified walls and symbol markers.
+  Reload retrieves later saved 2D edits. Openings, full L2-L5 completion and
+  production reconstruction quality remain outside this bounded demo.
 - The Konva 2D layout can reposition canonical symbols only. Other canonical
   geometry remains read-only.
   `project_floors` has no elevation column; PRE6 persists reviewed elevation
