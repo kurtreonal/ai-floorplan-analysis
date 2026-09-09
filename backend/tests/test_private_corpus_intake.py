@@ -13,7 +13,9 @@ from pypdf import PdfWriter
 from app.ai.floor_plan_interpretation import (
     CorpusIntakeError,
     CorpusIntakeRequest,
+    PageIntakeMetadata,
     PermissionRecord,
+    QualityReviewDecision,
     build_private_corpus_manifest,
 )
 from app.services.upload_validation import UploadValidationError
@@ -48,7 +50,20 @@ def permission(purpose="training"):
     )
 
 
-def request(source_id, relative_path, *, split="train", project="project-a", drawing="drawing-a", source_type="blueprint", permitted=None, quality="supported"):
+def request(
+    source_id,
+    relative_path,
+    *,
+    split="train",
+    project="project-a",
+    drawing="drawing-a",
+    source_type="blueprint",
+    permitted=None,
+    quality="supported",
+    sheet_type=None,
+    page_metadata=(),
+    inventory_recoverable_pdf=False,
+):
     if permitted is None:
         permitted = "reference_grounding" if source_type == "reference" else {
             "train": "training",
@@ -62,9 +77,11 @@ def request(source_id, relative_path, *, split="train", project="project-a", dra
         project_group_id=project,
         drawing_set_id=drawing,
         split=split,
-        sheet_type="legend" if source_type == "reference" else "electrical_plan",
+        sheet_type=sheet_type or ("legend" if source_type == "reference" else "electrical_plan"),
         quality=quality,
         permission=permission(permitted),
+        page_metadata=page_metadata,
+        inventory_recoverable_pdf=inventory_recoverable_pdf,
     )
 
 
@@ -81,6 +98,28 @@ def build(tmp_path, requests):
         private_root=tmp_path,
         manifest_path=tmp_path / "manifests" / "corpus-v1.json",
         requests=tuple(requests),
+    )
+
+
+def quality_decision(
+    manifest,
+    *,
+    decision="accepted",
+    readability="readable",
+    purpose="training",
+    revision=1,
+):
+    record = json.loads(manifest.read_text(encoding="utf-8"))["records"][0]
+    return QualityReviewDecision(
+        decision_revision=revision,
+        decision=decision,
+        readability=readability,
+        reviewed_purposes=(purpose,),
+        reviewed_by="VED quality reviewer",
+        evidence_reference=f"local visible review {revision}",
+        decided_at=f"2026-09-09T00:00:0{revision}Z",
+        source_sha256=record["sha256"],
+        page_perceptual_hash=record["pages"][0]["perceptual_hash"],
     )
 
 
@@ -122,6 +161,74 @@ def test_multipage_pdf_inventory_is_one_based(tmp_path):
     stored = json.loads(manifest.read_text(encoding="utf-8"))
     assert result.record_count == 1
     assert [page["page_number"] for page in stored["records"][0]["pages"]] == [1, 2, 3]
+
+
+def test_mixed_document_uses_page_level_sheet_classification(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "plan.pdf").write_bytes(pdf_bytes(3))
+    result = build(tmp_path, [
+        request(
+            "source-a",
+            "source-materials/plan.pdf",
+            sheet_type="pending",
+            page_metadata=(
+                PageIntakeMetadata(page_number=1, sheet_type="cover", quality="supported"),
+                PageIntakeMetadata(page_number=2, sheet_type="architectural_plan", quality="supported"),
+                PageIntakeMetadata(page_number=3, sheet_type="pending", quality="supported"),
+            ),
+        )
+    ])
+    record = json.loads(manifest.read_text(encoding="utf-8"))["records"][0]
+    assert record["sheet_type"] == "pending"
+    assert [page["sheet_type"] for page in record["pages"]] == [
+        "cover",
+        "architectural_plan",
+        "pending",
+    ]
+    assert [page["eligible"] for page in record["pages"]] == [True, True, False]
+    assert record["eligible"] is True
+    assert result.eligible_blueprint_page_count == 2
+
+
+def test_page_metadata_must_cover_every_source_page(tmp_path):
+    source, _ = setup_root(tmp_path)
+    (source / "plan.pdf").write_bytes(pdf_bytes(2))
+    with pytest.raises(CorpusIntakeError) as error:
+        build(tmp_path, [
+            request(
+                "source-a",
+                "source-materials/plan.pdf",
+                page_metadata=(
+                    PageIntakeMetadata(
+                        page_number=1,
+                        sheet_type="electrical_plan",
+                        quality="supported",
+                    ),
+                ),
+            )
+        ])
+    assert error.value.code == "PAGE_METADATA_MISMATCH"
+
+
+def test_unrenderable_page_is_inventoried_but_ineligible(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "plan.png").write_bytes(image_bytes())
+    with patch(
+        "app.ai.floor_plan_interpretation.corpus_intake._page_fingerprints",
+        return_value=[{
+            "page_number": 1,
+            "width_pixels": 32,
+            "height_pixels": 24,
+            "perceptual_hash": None,
+            "renderability": "unrenderable",
+            "render_findings": ["PAGE_RENDER_FAILED"],
+        }],
+    ):
+        result = build(tmp_path, [request("source-a", "source-materials/plan.png")])
+    page = json.loads(manifest.read_text(encoding="utf-8"))["records"][0]["pages"][0]
+    assert result.eligible_blueprint_page_count == 0
+    assert page["renderability"] == "unrenderable"
+    assert page["eligibility_reasons"] == ["page_unrenderable"]
 
 
 def test_pending_permission_and_metadata_are_not_eligible(tmp_path):
@@ -234,11 +341,16 @@ def test_exact_duplicates_across_projects_count_as_one_independent_project_clust
     assert result.eligible_blueprint_drawing_group_count == 2
     assert result.independent_eligible_blueprint_project_count == 1
     assert json.loads(manifest.read_text(encoding="utf-8"))["coverage"] == {
+        "blueprint_page_count": 2,
         "blueprint_source_count": 2,
+        "eligible_blueprint_page_count": 2,
         "eligible_blueprint_drawing_group_count": 2,
         "eligible_blueprint_source_count": 2,
+        "eligible_reference_page_count": 0,
         "eligible_reference_material_count": 0,
         "independent_eligible_blueprint_project_count": 1,
+        "page_count": 2,
+        "reference_page_count": 0,
         "reference_material_count": 0,
         "source_count": 2,
     }
@@ -367,6 +479,66 @@ def test_incremental_intake_archives_exact_prior_manifest_bytes(tmp_path):
     assert archive.read_bytes() == first_bytes
 
 
+def test_schema_v1_manifest_upgrades_without_losing_revision_history(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "a.png").write_bytes(image_bytes())
+    item = request("source-a", "source-materials/a.png")
+    build(tmp_path, [item])
+    current_record = json.loads(manifest.read_text(encoding="utf-8"))["records"][0]
+    legacy_record = {
+        key: current_record[key]
+        for key in (
+            "source_id",
+            "relative_path",
+            "source_type",
+            "sha256",
+            "byte_size",
+            "mime_type",
+            "project_group_id",
+            "drawing_set_id",
+            "split",
+            "sheet_type",
+            "quality",
+            "permission",
+            "eligible",
+            "eligibility_reasons",
+        )
+    }
+    legacy_record["pages"] = [{
+        key: current_record["pages"][0][key]
+        for key in ("page_number", "width_pixels", "height_pixels", "perceptual_hash")
+    }]
+    legacy = {
+        "schema_version": 1,
+        "manifest_revision": 1,
+        "previous_manifest_sha256": None,
+        "records": [legacy_record],
+        "exact_duplicate_groups": {},
+        "near_duplicate_pairs": [],
+        "coverage": {
+            "source_count": 1,
+            "blueprint_source_count": 1,
+            "eligible_blueprint_source_count": 1,
+            "eligible_blueprint_drawing_group_count": 1,
+            "independent_eligible_blueprint_project_count": 1,
+            "reference_material_count": 0,
+            "eligible_reference_material_count": 0,
+        },
+    }
+    legacy_bytes = (json.dumps(legacy, indent=2, sort_keys=True) + "\n").encode()
+    manifest.write_bytes(legacy_bytes)
+
+    result = build(tmp_path, [item])
+
+    upgraded = json.loads(manifest.read_text(encoding="utf-8"))
+    legacy_digest = hashlib.sha256(legacy_bytes).hexdigest()
+    archive = manifest.with_name(f".{manifest.name}.revisions") / f"00000001-{legacy_digest}.json"
+    assert result.changed is True
+    assert upgraded["schema_version"] == 2
+    assert upgraded["manifest_revision"] == 2
+    assert archive.read_bytes() == legacy_bytes
+
+
 def test_tampered_manifest_revision_archive_is_rejected(tmp_path):
     source, manifest = setup_root(tmp_path)
     (source / "a.png").write_bytes(image_bytes())
@@ -458,9 +630,160 @@ def test_degraded_and_unsupported_sources_are_inventoried_but_not_eligible(tmp_p
     assert result.blueprint_source_count == 2
     assert result.eligible_blueprint_source_count == 0
     assert [record["eligibility_reasons"] for record in stored["records"]] == [
-        ["degraded_requires_quality_approval"],
+        ["degraded_quality_review_pending"],
         ["quality_unsupported"],
     ]
+
+
+def test_accepted_degraded_page_is_eligible_only_for_reviewed_purpose(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    path = source / "plan.png"
+    path.write_bytes(image_bytes())
+    original_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    build(tmp_path, [request("source-a", "source-materials/plan.png", quality="degraded")])
+    accepted = quality_decision(manifest)
+
+    result = build(tmp_path, [
+        request(
+            "source-a",
+            "source-materials/plan.png",
+            quality="degraded",
+            page_metadata=(
+                PageIntakeMetadata(
+                    page_number=1,
+                    sheet_type="electrical_plan",
+                    quality="degraded",
+                    quality_review_history=(accepted,),
+                ),
+            ),
+        )
+    ])
+    stored = json.loads(manifest.read_text(encoding="utf-8"))
+    assert result.eligible_blueprint_source_count == 1
+    assert result.eligible_blueprint_page_count == 1
+    assert stored["manifest_revision"] == 2
+    assert stored["records"][0]["pages"][0]["quality"] == "degraded"
+    assert stored["records"][0]["pages"][0]["quality_review_history"][0]["decision"] == "accepted"
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == original_digest
+
+
+def test_rejected_or_wrong_purpose_degraded_review_remains_ineligible(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "plan.png").write_bytes(image_bytes())
+    build(tmp_path, [request("source-a", "source-materials/plan.png", quality="degraded")])
+    rejected = quality_decision(manifest, decision="rejected", readability="unreadable")
+    result = build(tmp_path, [
+        request(
+            "source-a",
+            "source-materials/plan.png",
+            quality="degraded",
+            page_metadata=(
+                PageIntakeMetadata(
+                    page_number=1,
+                    sheet_type="electrical_plan",
+                    quality="degraded",
+                    quality_review_history=(rejected,),
+                ),
+            ),
+        )
+    ])
+    assert result.eligible_blueprint_page_count == 0
+    assert json.loads(manifest.read_text(encoding="utf-8"))["records"][0]["pages"][0]["eligibility_reasons"] == [
+        "degraded_quality_rejected"
+    ]
+
+    other_root = tmp_path / "other"
+    other_root.mkdir()
+    other_source, other_manifest = setup_root(other_root)
+    (other_source / "plan.png").write_bytes(image_bytes())
+    build(other_root, [request("source-a", "source-materials/plan.png", quality="degraded")])
+    wrong_purpose = quality_decision(other_manifest, purpose="development_evaluation")
+    result = build(other_root, [
+        request(
+            "source-a",
+            "source-materials/plan.png",
+            quality="degraded",
+            page_metadata=(
+                PageIntakeMetadata(
+                    page_number=1,
+                    sheet_type="electrical_plan",
+                    quality="degraded",
+                    quality_review_history=(wrong_purpose,),
+                ),
+            ),
+        )
+    ])
+    assert result.eligible_blueprint_page_count == 0
+
+
+def test_quality_review_history_is_append_only_and_latest_purpose_decision_wins(tmp_path):
+    source, manifest = setup_root(tmp_path)
+    (source / "plan.png").write_bytes(image_bytes())
+    build(tmp_path, [request("source-a", "source-materials/plan.png", quality="degraded")])
+    accepted = quality_decision(manifest)
+    accepted_metadata = PageIntakeMetadata(
+        page_number=1,
+        sheet_type="electrical_plan",
+        quality="degraded",
+        quality_review_history=(accepted,),
+    )
+    build(tmp_path, [request(
+        "source-a",
+        "source-materials/plan.png",
+        quality="degraded",
+        page_metadata=(accepted_metadata,),
+    )])
+    rejected = quality_decision(
+        manifest,
+        decision="rejected",
+        readability="unreadable",
+        revision=2,
+    )
+    result = build(tmp_path, [request(
+        "source-a",
+        "source-materials/plan.png",
+        quality="degraded",
+        page_metadata=(PageIntakeMetadata(
+            page_number=1,
+            sheet_type="electrical_plan",
+            quality="degraded",
+            quality_review_history=(accepted, rejected),
+        ),),
+    )])
+    assert result.eligible_blueprint_page_count == 0
+    stored = json.loads(manifest.read_text(encoding="utf-8"))
+    assert stored["manifest_revision"] == 3
+    assert len(stored["records"][0]["pages"][0]["quality_review_history"]) == 2
+
+    changed_first = accepted.model_copy(update={"reviewed_by": "different reviewer"})
+    with pytest.raises(CorpusIntakeError) as error:
+        build(tmp_path, [request(
+            "source-a",
+            "source-materials/plan.png",
+            quality="degraded",
+            page_metadata=(PageIntakeMetadata(
+                page_number=1,
+                sheet_type="electrical_plan",
+                quality="degraded",
+                quality_review_history=(changed_first, rejected),
+            ),),
+        )])
+    assert error.value.code == "ESTABLISHED_QUALITY_REVIEW_CONFLICT"
+
+
+def test_degraded_quality_acceptance_requires_readable_page():
+    with pytest.raises(ValidationError):
+        QualityReviewDecision(
+            decision_revision=1,
+            decision="accepted",
+            readability="unreadable",
+            reviewed_purposes=("training",),
+            reviewed_by="VED quality reviewer",
+            evidence_reference="local visible review",
+            decided_at="2026-09-09T00:00:00Z",
+            source_sha256="a" * 64,
+            page_perceptual_hash="b" * 16,
+        )
 
 
 def test_recoverable_pdf_rejected_by_strict_validator_requires_degraded_quality(tmp_path):
@@ -479,12 +802,13 @@ def test_recoverable_pdf_rejected_by_strict_validator_requires_degraded_quality(
                 "source-a",
                 "source-materials/plan.pdf",
                 quality="degraded",
+                inventory_recoverable_pdf=True,
             )
         ])
     stored = json.loads(manifest.read_text(encoding="utf-8"))
     assert result.eligible_blueprint_source_count == 0
     assert stored["records"][0]["eligibility_reasons"] == [
-        "degraded_requires_quality_approval"
+        "degraded_quality_review_pending"
     ]
     assert len(stored["records"][0]["pages"]) == 2
 
@@ -501,8 +825,26 @@ def test_strictly_invalid_pdf_cannot_be_marked_supported(tmp_path):
         side_effect=strict_rejection,
     ):
         with pytest.raises(CorpusIntakeError) as error:
-            build(tmp_path, [request("source-a", "source-materials/plan.pdf")])
+            build(tmp_path, [request(
+                "source-a",
+                "source-materials/plan.pdf",
+                inventory_recoverable_pdf=True,
+            )])
     assert error.value.code == "INVALID_SOURCE"
+
+
+def test_degraded_source_cannot_bypass_review_with_supported_page_metadata():
+    with pytest.raises(ValidationError):
+        request(
+            "source-a",
+            "source-materials/plan.pdf",
+            quality="degraded",
+            page_metadata=(PageIntakeMetadata(
+                page_number=1,
+                sheet_type="electrical_plan",
+                quality="supported",
+            ),),
+        )
 
 
 def test_reference_material_is_reported_separately(tmp_path):

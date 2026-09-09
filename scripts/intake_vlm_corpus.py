@@ -39,11 +39,15 @@ def main() -> int:
         return 2
     print(
         f"records={result.record_count} blueprints={result.blueprint_source_count} "
+        f"pages={result.page_count} blueprint_pages={result.blueprint_page_count} "
         f"eligible_blueprint_sources={result.eligible_blueprint_source_count} "
+        f"eligible_blueprint_pages={result.eligible_blueprint_page_count} "
         f"eligible_drawing_groups={result.eligible_blueprint_drawing_group_count} "
         f"independent_blueprint_projects={result.independent_eligible_blueprint_project_count} "
         f"references={result.reference_material_count} "
+        f"reference_pages={result.reference_page_count} "
         f"eligible_references={result.eligible_reference_material_count} "
+        f"eligible_reference_pages={result.eligible_reference_page_count} "
         f"exact_duplicate_groups={result.exact_duplicate_groups} "
         f"near_duplicate_pairs={result.near_duplicate_pairs} changed={str(result.changed).lower()}"
     )

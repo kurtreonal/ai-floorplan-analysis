@@ -12,7 +12,9 @@ from app.ai.floor_plan_interpretation.candidate import (
 from app.ai.floor_plan_interpretation.corpus_intake import (
     CorpusIntakeError,
     CorpusIntakeRequest,
+    PageIntakeMetadata,
     PermissionRecord,
+    QualityReviewDecision,
     build_private_corpus_manifest,
 )
 
@@ -26,6 +28,8 @@ __all__ = [
     "review_record_identity",
     "CorpusIntakeError",
     "CorpusIntakeRequest",
+    "PageIntakeMetadata",
     "PermissionRecord",
+    "QualityReviewDecision",
     "build_private_corpus_manifest",
 ]
