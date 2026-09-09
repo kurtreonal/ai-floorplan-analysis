@@ -2,6 +2,104 @@
 
 ## 1. Decision and status
 
+### Active priority: September 10, 2026 development demo
+
+On September 9 the user changed the immediate objective: upload a floor plan,
+obtain automatic room and electrical-symbol proposals, review/correct them,
+and see aligned 2D and basic 3D output by September 10 (Asia/Singapore).
+This is a target date, not a guarantee of measured quality or completion.
+The demo track below takes priority over sequential U3-U14 execution.
+It is a bounded development milestone, not completion of the full product MVP.
+
+**Scope and gate exception:** U3 remains blocked for the original corpus/release
+sequence. Its eight pending classifications, degraded-quality decision and
+missing independent sealed-test project are not silently approved. They do
+not block implementing and exercising the separate demo on readable,
+VED-authorized development inputs. Do not repeatedly recheck an unchanged U3
+gate instead of implementing the demo. Fine-tuning (U10), observed wiring
+(U12), generated routing, costing, full Admin dataset tooling and production
+promotion (U14) are deferred for this milestone. Sealed-test evidence remains
+required for a later production-release claim, not for this development demo.
+Existing test members must stay sealed; development-exposed drawings cannot be
+renamed as untouched tests. No corpus-eligibility validator is weakened.
+
+**Minimum user-visible flow:** existing authenticated project/floor workflow
+-> immutable image upload (or explicit selection of one PDF plan page)
+-> Analyze -> real persisted room/wall and symbol proposals with 2D overlays
+-> explicit Designer correction/approval and scale/height input
+-> saved shared canonical geometry -> aligned Konva 2D and Three/R3F 3D
+floor/room surfaces, wall extrusion and simple symbol markers -> reload.
+No upload-time annotations are required. Human-reviewed annotations are only
+needed to measure detection quality or later prepare training data.
+
+**Measured development target:** at least 50% room recall and 50% symbol recall,
+separately, on a small fixed set of readable development pages reviewed by the
+user. This is not a detector-confidence setting or a 50% whole-plan accuracy
+claim. Freeze the page list and matching rules before measuring: one-to-one
+room-polygon matches at IoU >= 0.5, and one-to-one same-class symbol-box matches
+at IoU >= 0.5. Count unmatched/duplicate predictions as false positives; report
+TP, FP, FN, precision and recall for rooms and symbols, per page and symbol
+class, with raw denominators. Room-name OCR accuracy is separate. Exclude
+legend examples from installed-device truth. Use at least two reviewed pages
+with both target types if available; otherwise report limited sample coverage.
+Unresolved ground-truth regions must be declared and excluded transparently,
+not used to inflate recall. Missing reviewed truth means quality NOT TESTED;
+below-target results mean target FAIL even if the integration works. Manual
+corrections never count as automatic detections. Report development-set reuse;
+do not imply independent generalization evidence.
+
+**Time-boxed implementation order (separate small checkpoints):**
+
+| Step | Deliverable and owners to reuse | Acceptance / stopping point |
+|---|---|---|
+| DEMO-0 | Inspect current code, weights, hardware and working tree; freeze a narrow single-floor demo and baseline | State actual reusable components and missing integration; do not restart U1/U2 or wait for a sealed test project |
+| DEMO-1 | Real bounded local room/wall and symbol inference; reuse G/H/I and U2 validation, with only necessary U4/U6-U8-style pieces | New uploaded pixels produce finite source-bound candidates; supported classes use the drawing legend; unknowns and failures remain visible |
+| DEMO-2 | Durable Analyze/review/save path; minimum U9/U11/U13-style integration with PRE4-PRE10 and K1-K5 | Correct/add/reject rooms, walls and symbols; approve project geometry explicitly; save/reload the same source-bound canonical snapshot |
+| DEMO-3 | Bring forward the minimum L2-L5 behavior | Render canonical room/floor surfaces, walls and simple verified-symbol markers; 2D edits survive save/reload in 3D; known-coordinate tests pass |
+| DEMO-4 | Actual upload-to-2D/3D demonstration and quality measurement | Real browser run, source integrity, restart/reload and failure checks; report integration separately from the two 50% recall targets |
+
+Start with the existing implementation, not a mandatory new large-model bake-off.
+Within the first implementation checkpoint, inspect whether usable local YOLO
+weights actually exist and whether a small pinned local VLM is already usable.
+The measured GPU has 4 GiB VRAM; do not assume a model fits. Select the fastest
+honest local path: existing usable detector plus OpenCV room/wall proposals,
+or a bounded local VLM only when its real load/inference fits existing U1 limits.
+If weights are absent, do not claim the YOLO path works; a clearly identified
+legend-template/CV prototype may be used and measured instead. Do not label
+heuristics as a trained VLM. Controlled public-model acquisition follows U1
+privacy/license/budget rules and never downloads during startup/upload. No
+hosted fallback, driver changes, cloud rental or training on unreviewed labels.
+Time-box model exploration; preserve a running integration path and report
+the actual provider and limitations rather than spending the entire window
+on training or model downloads. Never return canned or filename-matched boxes
+as detection output; synthetic fixtures are tests only.
+
+**Non-negotiable geometry and review safeguards:** use one validated candidate
+contract and one saved canonical model, not a parallel demo geometry database.
+Persist provider/version/source provenance without fabricating YOLO identities
+or confidence. Follow ADR 0001 and PRE8 for any required additive adaptation.
+Pixels, render pixels and metric coordinates remain distinct. Obtain explicit
+scale, floor elevation, wall height/thickness and any needed display parameters
+through the existing approved-input workflow; do not guess measurements from
+DPI or silently use a model-house preset. Missing metric inputs keep 2D
+candidates reviewable and explain what is needed for metric 3D. Simple 3D
+symbol markers need not imply real mounting height or equipment specifications.
+Only explicitly reviewed geometry enters the canonical 2D/3D views; show
+candidate overlays separately. Project review is not training approval.
+
+Wiring is **not attempted** in this demo: retain an explicit not-attempted
+capability/outcome, with no generated routes and no claim that an empty route
+array proves the source has no wiring. Do not run quantities, costing or
+engineering-compliance logic from this partial output. Legends are interpreted
+in this order: current drawing's supplied legend, PEC, then other references;
+none may silently invent an approved application class.
+
+The full U/L ticket definitions below remain their completion criteria.
+Track DEMO-0 through DEMO-4 separately in `U_VLM_PROGRESS.md`; partial reuse
+does not complete U4-U14 or L2-L5. The earlier U-only prohibition on L2+ is
+overridden only for this demo's floor/wall/symbol rendering and synchronization.
+Use the demo execution amendment at the top of the existing handoff file.
+
 The target AI architecture is changing from YOLO-only electrical-symbol
 detection to a **locally hosted multimodal vision-language model (VLM)** that
 interprets scanned floor plans. A text-only LLM is not suitable because it
