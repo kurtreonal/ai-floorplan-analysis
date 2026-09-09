@@ -20,7 +20,7 @@ development pages, not a confidence threshold or a release-accuracy claim.
 | DEMO-1 local detection | COMPLETE | Bounded deterministic OpenCV inference emits strict source-bound room/wall and unknown-class symbol proposals from real pixels |
 | DEMO-2 review and persistence | IMPLEMENTED; automated checks PASS | Real worker and immutable reviews; explicit Designer placements; canonical save/reload; real human review pending |
 | DEMO-3 basic 2D/3D | IMPLEMENTED; automated checks PASS | Shared saved canonical document, coordinate tests and reload; actual WebGL browser inspection NOT TESTED |
-| DEMO-4 demonstration and metrics | NOT TESTED | Real browser upload-to-3D run; separate room/symbol recall, precision and FP/FN |
+| DEMO-4 demonstration and metrics | BLOCKED; partial diagnostics PASS | Browser unavailable, active legend absent and human review/truth pending; end-to-end demo and recall NOT TESTED |
 
 The original amendment was planning only; subsequent implementation evidence
 is recorded in the checkpoint entries below. U3 remains blocked under its original
@@ -204,3 +204,40 @@ the original sequence only after the demo handoff and further user direction.
 - Browser/WebGL inspection and an actual user 2D edit followed by 3D reload are
   NOT TESTED: browser discovery returned no browsers, and URL selection returned
   `No browser is available`. Automated geometry tests do not replace this gate.
+
+## DEMO-4 partial handoff and remaining evidence
+
+- DEMO-3 published as `70cd33a`; DEMO-2 as `637054e`. Both are on
+  `codex/demo-floorplan-2d-3d`. Main merge and post-merge verification are
+  withheld because the required real demonstration is incomplete.
+- Fresh real-pixel measurement using the same G2 Pillow LANCZOS normalization
+  as the worker: 4096 x 2731 pixels, 37 room proposals, 300 walls (partial/capped),
+  129 unknown-class circular-symbol proposals, 1088.6 ms detector latency.
+  This is one timing sample, not an end-to-end latency percentile. The frozen
+  development image hash matches and its bytes are unchanged.
+- A diagnostic using OpenCV AREA resize instead gave 36 rooms and 118 symbols
+  in 1075.2 ms. It is not the worker preprocessing configuration or the scored
+  baseline; the difference demonstrates sensitivity to normalization.
+- Room/symbol TP, FP, FN, precision and recall: NOT TESTED. Reviewed polygons,
+  same-class symbol boxes and excluded unresolved regions are absent. The
+  >=50% recall targets remain unchanged. Manual placements cannot count as
+  automatic correct detections, and unknown classes cannot count as class matches.
+- Final verification on the committed implementation: backend `pytest -q
+  --tb=short` passed 701 tests and 509 subtests, 3 skipped, 2 dependency warnings.
+  Frontend full suite passed 292 tests; the later affected review/upload subset
+  passed 72. Final lint/build passed with the large-chunk warning. The API
+  health endpoint and Vite root each responded successfully on loopback.
+- Three existing queued jobs were left untouched because no specific one was
+  selected for this demo. No signed user session was forged for a real-data
+  demonstration. The worker can target the new job ID using README commands.
+- Exact remaining requirements: connect a browser to this session; an
+  authorized Admin must configure the actual approved VED legend identities;
+  the owning Designer must review/correct the page and approve its scale,
+  elevation and wall dimensions. Then exercise upload, Analyze, save, 2D edit,
+  3D reload and restart in that browser. Human-reviewed development truth is
+  separately required to measure accuracy.
+- The API and frontend were started locally for handoff. Startup and review
+  steps are in the existing README. No new Markdown planning file was added.
+  U3 remains isolated and blocked on its own gates; encryption remains deferred.
+  No U4-U14 or other epic was started. Demo handoff is partial, not a verified
+  release or a claim that the requested complete workflow has been demonstrated.
