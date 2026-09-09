@@ -8,7 +8,7 @@ to a trained or released model.
 |---|---|---|---|---|---|---|
 | U1 | Complete | Native-Windows target measured | Approved operating/retention policy and standing VED collection authorization; encryption deferred with accepted risk, not passed | Not applicable | Published to `main` at merge `8c73183` | Collection authorization does not replace source rights, quality, annotation, gold, training-record, or release decisions |
 | U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
-| U3 | Safe tooling corrected; ticket blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero | Covered blueprint permission recorded; one quality decision, one mixed-set classification, two reference-rights decisions remain | Not applicable | Feature-branch WIP through integrity correction `b4b4d57`; must not merge | Encryption is deferred risk, not blocker; no genuine frozen-test project exists |
+| U3 | Safe tooling corrected; ticket blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero sources/pages | Covered blueprint permission recorded; one degraded-page decision and eight page classifications remain; third-party references stay excluded | Not applicable | Feature-branch WIP through page/quality implementation `d427be2`; must not merge | Private visual review is ready; encryption is deferred risk, not blocker; no genuine frozen-test project exists |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
@@ -84,25 +84,30 @@ to a trained or released model.
 - Safe implementation commit: `cdb4684`.
 - Planning-review correction implementation commit: `941eb9b`.
 - Manifest-integrity implementation commit: `b4b4d57`.
+- Real-intake/report reconciliation commit: `e4c0c85`.
+- Page-classification and quality-review implementation commit: `d427be2`.
 - Local-only intake now enforces project-level split isolation, safe incremental
   preservation/versioning, immutable recoverable prior revisions, full stored
   record/derived-data validation, bounded source and image/PDF allocations,
-  explicit independent-project coverage, and supported-quality eligibility.
-- The U3 suite passes 32 tests with 1 native Windows symlink test skipped. The
-  focused U3/candidate/upload suite passes 85 tests with the same skip and 2
-  subtests. The full backend regression passes 718 tests with 4 skipped, 2 known
+  explicit independent-project coverage, page-level mixed-document
+  classification, and purpose-specific append-only degraded-quality review.
+- The U3 suite passes 41 tests with 1 native Windows symlink test skipped. The
+  focused U3/candidate/upload suite passes 94 tests with the same skip and 2
+  subtests. The full backend regression passes 727 tests with 4 skipped, 2 known
   dependency warnings, and 504 subtests.
 - Read-only interface reconciliation confirms 34 unique OpenAPI operations and
   an exact 23-modeled/23-live-table match. Live row counts and all six original
   file sizes/hashes match the published PRE12 baseline.
-- Real intake ran idempotently inside the approved private boundary. It records
-  four source records, two historical project groups, their train/development
-  assignments, and the standing permission for the covered blueprint sources.
-  Original hashes still match the transfer baseline.
-- Actual eligible blueprint source, drawing-group, and independent-project
-  counts are all zero. One recoverable but strictly invalid PDF needs degraded
-  quality approval, one mixed eight-sheet source needs page/sheet classification,
-  and two third-party references need rights evidence; one reference also needs
-  degraded-quality approval. A genuinely new independent frozen-test project is
-  still absent. Device encryption is deferred accepted risk, not the blocker.
+- Real intake ran idempotently inside the approved private boundary. Schema 1
+  revision 1 was validated and archived byte-for-byte before the manifest was
+  upgraded to schema 2 revision 2. It records four sources and 18 pages: nine
+  blueprint pages and nine reference pages. Original hashes still match.
+- Actual eligible blueprint source/page, drawing-group, and independent-project
+  counts are all zero. A private ten-page visual review shows the degraded VED
+  page and all eight pages of the mixed VED document with assistant proposals.
+  One purpose-specific degraded-page decision and eight page classifications
+  remain pending. The two third-party references remain inventoried and excluded
+  while rights are unresolved; they do not block VED blueprint inventory. A
+  genuinely new independent frozen-test project is still absent. Device
+  encryption is deferred accepted risk, not the blocker.
 - U4 has not started.

@@ -1,10 +1,10 @@
 # U3 Private Corpus Intake Report
 
 - Ticket: U3
-- Inspection dates: 2026-09-07 through 2026-09-08 (Asia/Manila)
+- Inspection dates: 2026-09-07 through 2026-09-09 (Asia/Manila)
 - Status: BLOCKED after safe real intake
 - Baseline: U2 merge `3f12087`
-- Latest integrity implementation: `b4b4d57`
+- Latest safe implementation: `d427be2`
 
 This report is sanitized. It contains no source names, paths, full hashes,
 drawing text, labels, reviewer identity, or private approval evidence.
@@ -19,6 +19,8 @@ wrapper at `scripts/intake_vlm_corpus.py`. Synthetic tests prove:
 - deterministic source/project/drawing-set identity and pre-label split, with
   every blueprint from one project isolated to one split;
 - immutable SHA-256 and one-based multipage inventory;
+- page-level sheet classification for mixed documents while retaining the
+  document, project, drawing-set, and one-based page identities;
 - safe incremental re-intake that preserves absent records, versions manifest
   changes, and rejects changes to established source identity, grouping, split,
   classification, quality, or approved permission;
@@ -33,10 +35,14 @@ wrapper at `scripts/intake_vlm_corpus.py`. Synthetic tests prove:
 - related-project cross-split rejection;
 - 25 MiB bounded reads before content allocation and 10,000-edge/60-megapixel
   image and PDF-render preflight limits from the U1 baseline;
-- unsupported and degraded sources remain inventoried but are not eligible;
-  a PDF rejected by the strict application validator may be inventoried only
-  when explicitly classified degraded/unsupported and safely renderable within
-  the same page/allocation bounds;
+- structural validation, per-page renderability, visual-quality classification,
+  and dataset eligibility are recorded separately;
+- unsupported pages remain inventoried but ineligible, while degraded pages
+  require an append-only, source/page-bound quality-review decision for the
+  exact intended purpose; accepted pages retain their degraded classification;
+- a PDF rejected by the strict application validator may be inventoried only
+  through an explicit recoverable-document option, with degraded/unsupported
+  page classifications and the same page/allocation bounds;
 - unsupported/corrupt input, traversal, absolute path, symlink, and private
   manifest-boundary rejection; and
 - unchanged original bytes.
@@ -59,14 +65,24 @@ assigned to train and development-validation respectively. Neither was assigned
 to sealed test because no genuinely new independent project exists. Legacy
 free-text declarations were not treated as the new evidence.
 
-The first run wrote private manifest revision 1; a second identical run reported
+The original intake wrote manifest schema 1 revision 1. The corrected tooling
+fully validated that revision, archived its exact bytes, and upgraded the live
+private manifest to schema 2 revision 2. An identical schema-2 run reported
 `changed=false`. Original hashes remained identical to the transfer baseline.
-Actual counts are four records, two blueprint sources, two reference sources,
-zero eligible blueprint sources, zero eligible drawing groups, zero independent
-eligible blueprint projects, zero eligible references, zero exact-duplicate
-groups, and zero near-duplicate pairs. The separate 87-file legacy training
-workspace remains preserved privately; its crops, provisional labels, scripts,
-and exports were not miscounted as independent source projects.
+Actual inventory is four sources and 18 pages: two blueprint sources with nine
+pages and two reference sources with nine pages. Current eligible coverage is
+zero blueprint sources/pages, zero drawing groups, zero independent blueprint
+projects, and zero reference sources/pages. Exact- and near-duplicate counts are
+both zero. The separate 87-file legacy training workspace remains preserved
+privately; its crops, provisional labels, scripts, and exports were not
+miscounted as independent source projects.
+
+A private ten-page visual review preview was rendered and inspected. It contains
+a cover, the single degraded VED blueprint page, and all eight pages of the mixed
+VED document. It uses opaque source IDs and shows the original page beside the
+proposed sheet type, strict structural status, local renderability, visible
+quality assessment, and pending decision. It is not tracked by Git and is not
+an approval record.
 
 ## Consolidated remaining decisions
 
@@ -74,10 +90,10 @@ The only public identifiers below are opaque private-manifest IDs:
 
 | Source | Type | Smallest remaining action |
 |---|---|---|
-| `source-384fe30d` | Blueprint | Decide whether its safely renderable but strict-validator-rejected PDF is accepted as supported degraded data; otherwise it remains inventory-only |
-| `source-cef52bcc` | Blueprint | Classify the mixed eight-sheet source at an adequate page/sheet boundary; do not force one inaccurate source-level type |
-| `source-7638337a` | Reference | Supply purpose-specific rights/provenance evidence for private reference grounding, or keep it excluded |
-| `source-d51f60d0` | Reference | Supply rights/provenance evidence and decide whether the degraded scan is acceptable for reference grounding, or keep it excluded |
+| `source-384fe30d` | Blueprint | Review the visible page evidence and accept it as readable degraded data for training, or reject it; the degraded classification and structural finding remain either way |
+| `source-cef52bcc` | Blueprint | Confirm the eight page-level proposals, or return corrections by one-based page number; the current private manifest keeps all eight classifications pending |
+| `source-7638337a` | Reference | Remains inventoried and excluded while purpose-specific third-party rights are unresolved; no decision is required to inventory eligible VED blueprints |
+| `source-d51f60d0` | Reference | Remains inventoried and excluded while third-party rights and degraded-quality use are unresolved; no decision is required to inventory eligible VED blueprints |
 
 U3 additionally needs a genuinely new independent blueprint project reserved for
 sealed test. Re-scanning or deriving crops from either historical project does
@@ -101,17 +117,21 @@ all other privacy and permission gates remain unchanged.
 | Native Windows symlink creation case | NOT TESTED | Current account cannot create a native symlink; the same rejection branch passes with deterministic simulation |
 | Exact/near duplicate, project-level split, and related-source leakage controls | PASS | Synthetic tests |
 | Independent coverage dimensions and unsupported/degraded eligibility | PASS | Synthetic tests report sources, drawing groups, independent projects and references separately |
+| Mixed-document page classification | PASS | Synthetic three-page fixture records distinct one-based types and leaves an uncertain page pending |
+| Revisioned degraded-quality review | PASS | Accepted, rejected, pending and wrong-purpose cases recompute eligibility; review history is append-only and bound to unchanged source/page identity |
 | Structured permission and pre-label split enforcement | PASS | Synthetic tests |
 | Device encryption | DEFERRED | User-accepted risk; not a passing control and no longer an intake blocker |
-| Real private source intake | PASS | Revision 1 created locally; idempotent rerun reported no change; original hashes match |
+| Real private source intake | PASS | Schema 2 revision 2 created locally with the exact schema-1 revision archived; idempotent rerun reported no change; all four source hashes match |
 | Covered VED blueprint permission and historical grouping/splits | PASS | Collection authorization bound privately; two historical projects assigned train/development-validation |
-| Third-party reference rights and degraded-source decisions | BLOCKED | Rights evidence is missing for two references; two sources have unresolved degraded-quality decisions |
+| Private visual review preview | PASS | Ten-page PDF was generated and visually inspected outside Git; it exposes the two outstanding VED decisions with visible evidence |
+| VED page classification and degraded-quality decisions | BLOCKED | Eight page classifications and one purpose-specific degraded-quality decision await human review |
+| Third-party reference eligibility | BLOCKED | Rights evidence remains unresolved, so both references remain inventoried and excluded without blocking VED blueprint inventory |
 | Actual independent eligible blueprint-project coverage | BLOCKED | Current proven count is zero; no genuine sealed-test project exists |
 | U3 completion publication and merge | BLOCKED | Real-data gates have not passed |
 
-The U3-specific suite passes 32 tests with one native Windows symlink test
-skipped. The focused U3/candidate/upload suite passes 85 tests with the same
-skip and 2 subtests. The full backend regression passes 718 tests with 4
+The U3-specific suite passes 41 tests with one native Windows symlink test
+skipped. The focused U3/candidate/upload suite passes 94 tests with the same
+skip and 2 subtests. The full backend regression passes 727 tests with 4
 skipped, 2 known dependency deprecation warnings, and 504 subtests.
 
 Read-only contract and integrity reconciliation found 34 unique OpenAPI
