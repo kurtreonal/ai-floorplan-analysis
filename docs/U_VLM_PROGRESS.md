@@ -18,12 +18,12 @@ development pages, not a confidence threshold or a release-accuracy claim.
 |---|---|---|
 | DEMO-0 inspection and narrow plan | COMPLETE | Main baseline, bounded OpenCV provider decision, and one immutable authorized development page with pending human truth |
 | DEMO-1 local detection | COMPLETE | Bounded deterministic OpenCV inference emits strict source-bound room/wall and unknown-class symbol proposals from real pixels |
-| DEMO-2 review and persistence | NOT STARTED | Explicit corrections/approval; validated scale; safe shared canonical save/reload |
+| DEMO-2 review and persistence | IMPLEMENTED; automated checks PASS | Real worker and immutable reviews; explicit Designer placements; canonical save/reload; real human review pending |
 | DEMO-3 basic 2D/3D | NOT STARTED | Minimum L2-L5 rendering, known coordinates and synchronized saved edits |
 | DEMO-4 demonstration and metrics | NOT TESTED | Real browser upload-to-3D run; separate room/symbol recall, precision and FP/FN |
 
-This is a planning amendment only; no runtime, training or 3D implementation
-was added in this planning task. U3 remains blocked under its original
+The original amendment was planning only; subsequent implementation evidence
+is recorded in the checkpoint entries below. U3 remains blocked under its original
 criteria; its data decisions and sealed-test source are deferred dependencies
 for the demo only. U10/U12/U14 and complete Admin annotation tooling are not
 demo prerequisites. Do not relabel partially reused U/L tickets as complete,
@@ -153,3 +153,34 @@ the original sequence only after the demo handoff and further user direction.
   HTTP, database and job state. Recall, precision, TP, FP and FN remain
   `NOT TESTED` pending reviewed development truth; proposal counts are not
   accuracy measurements.
+
+## DEMO-2 implementation checkpoint
+
+- Branch: `codex/demo-floorplan-2d-3d`, following DEMO-1 `38bffde`.
+- Adds a separately started local worker using PRE9 leases and PRE4/PRE5
+  source/artifact identity. Upload and Analyze remain separate operations.
+  The worker handles page 1; all later document pages remain unprocessed.
+- Adds immutable interpretation runs and append-only review revisions, with
+  source-pixel room/wall/symbol correction and accepted/rejected decisions.
+  Current schema: 25 tables and 37 OpenAPI operations.
+- Explicit Designer approval creates real `manual_symbols` placements from
+  reviewed positions, with deterministic run/review/symbol request identity.
+  K1 remains unchanged and references the actual placement database IDs.
+  Raw CV candidates and reviews remain separate immutable evidence; no YOLO
+  record or confidence is fabricated. This is a human placement projection,
+  not implementation of U11's machine-symbol extension contract.
+- Save checks current review approval, live legend identity, exact approved
+  scale/elevation and explicit wall dimensions. It uses the existing atomic
+  conditional layout save; failed saves roll back placements. Repeated save
+  requests preserve placement identity. Unsaved review changes disable publish.
+- Regression: full backend run passed 700 tests and 509 subtests, with 3 skipped
+  and 2 dependency deprecation warnings. A subsequent focused run after adding
+  stale-approval rejection passed 7 worker/review tests. Full frontend run
+  passed 292 tests including the in-progress DEMO-3 tests; the subsequent
+  review/upload subset passed 72 tests. Lint, build and diff whitespace checks
+  passed. Build reports the existing large-chunk warning.
+- Tests use disposable synthetic pixels/records and restore their row counts.
+  The protected project service and private originals are unchanged. Existing
+  legacy detection review remains reachable alongside the demo review.
+- Real Designer approval and browser demonstration remain pending. No active
+  symbol legend exists on the local database; no classes were invented.

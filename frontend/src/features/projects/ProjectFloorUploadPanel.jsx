@@ -331,6 +331,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                     <ProcessingJobPanel
                       key={`${upload.id}-${upload.latest_job?.job_id || 'none'}-${upload.latest_job?.updated_at || 'none'}`}
                       projectId={projectId}
+                      projectFloorId={Number(selectedFloorId)}
                       floorPlanId={upload.id}
                       originalFilename={upload.original_filename}
                       initialJob={upload.latest_job}

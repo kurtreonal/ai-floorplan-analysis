@@ -6,7 +6,7 @@ import {
   ProcessingJobApiError,
   startFloorPlanProcessing,
 } from '../../api/processingJobs.js'
-import { getDetectionReviewHref } from '../../routes/projectRoutes.js'
+import { getDemoInterpretationHref, getDetectionReviewHref } from '../../routes/projectRoutes.js'
 
 
 export const PROCESSING_POLL_INTERVAL_MS = 2000
@@ -38,6 +38,7 @@ function startFailureMessage(error) {
 
 export function ProcessingJobPanel({
   projectId,
+  projectFloorId,
   floorPlanId,
   originalFilename,
   initialJob = null,
@@ -312,7 +313,10 @@ export function ProcessingJobPanel({
       {viewState === 'completed' && (
         <div className="processing-job-result processing-job-success" role="status">
           <strong>Processing completed.</strong>
-          <p>Persisted AI results are ready for read-only review.</p>
+          <p>Persisted local proposals are ready for correction and explicit approval.</p>
+          <a className="btn btn-outline-dark" href={getDemoInterpretationHref(projectId, projectFloorId, floorPlanId, job.job_id)}>
+            Review floor-plan proposals
+          </a>
           <a className="btn btn-outline-dark" href={getDetectionReviewHref(projectId, floorPlanId, job.job_id)}>
             Review detections
           </a>

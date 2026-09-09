@@ -18,6 +18,23 @@ export function parseProjectRoute(route) {
     return { view: 'viewer-3d', projectId, projectFloorId }
   }
 
+  const interpretationMatch = route.match(
+    /^\/app\/projects\/([^/]+)\/floors\/([^/]+)\/floor-plans\/([^/]+)\/interpretation\/([^/]+)$/,
+  )
+  if (interpretationMatch) {
+    const identifiers = interpretationMatch.slice(1)
+    if (!identifiers.every((value) => /^[1-9]\d*$/.test(value))) {
+      return { view: 'invalid', projectId: null }
+    }
+    const [projectId, projectFloorId, floorPlanId, processingJobId] = identifiers.map(Number)
+    if (![projectId, projectFloorId, floorPlanId, processingJobId].every(Number.isSafeInteger)) {
+      return { view: 'invalid', projectId: null }
+    }
+    return {
+      view: 'demo-interpretation', projectId, projectFloorId, floorPlanId, processingJobId,
+    }
+  }
+
   const layoutMatch = route.match(
     /^\/app\/projects\/([^/]+)\/floors\/([^/]+)\/layout$/,
   )
@@ -85,4 +102,11 @@ export function getDetectionReviewHref(projectId, floorPlanId, processingJobId) 
     (value) => Number.isSafeInteger(value) && value > 0,
   )) throw new Error('Invalid detection review route identifiers.')
   return `#/app/projects/${projectId}/floor-plans/${floorPlanId}/detections/${processingJobId}`
+}
+
+export function getDemoInterpretationHref(projectId, projectFloorId, floorPlanId, processingJobId) {
+  if (![projectId, projectFloorId, floorPlanId, processingJobId].every(
+    (value) => Number.isSafeInteger(value) && value > 0,
+  )) throw new Error('Invalid demo interpretation route identifiers.')
+  return `#/app/projects/${projectId}/floors/${projectFloorId}/floor-plans/${floorPlanId}/interpretation/${processingJobId}`
 }

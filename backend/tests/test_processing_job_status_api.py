@@ -579,9 +579,12 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
                 ("get", "/api/admin/dataset-approver-assignments"),
                 ("post", "/api/admin/dataset-approver-assignments"),
                 ("post", "/api/admin/dataset-approver-assignments/{assignment_id}/deactivate"),
+                ("get", "/api/floor-plans/{floor_plan_id}/interpretation"),
+                ("post", "/api/floor-plans/{floor_plan_id}/interpretation/reviews"),
+                ("post", "/api/projects/{project_id}/floors/{project_floor_id}/floor-plans/{floor_plan_id}/interpretation/layout"),
             },
         )
-        self.assertEqual(len(operations), 34)
+        self.assertEqual(len(operations), 37)
 
 
 if __name__ == "__main__":

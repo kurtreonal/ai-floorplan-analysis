@@ -1,7 +1,8 @@
 # VED Electrical Services API
 
-This directory contains the FastAPI backend implemented through PRE12; the
-repository's frontend is implemented through L1. The backend
+This directory contains the FastAPI backend implemented through PRE12 and the
+bounded September upload-to-layout demo; the frontend includes the matching
+unified review workflow. The backend
 provides application liveness, OAuth/OIDC authentication with signed local
 sessions, database-authoritative role authorization, project APIs,
 project-floor APIs, original floor-plan upload validation and storage,
@@ -24,13 +25,14 @@ operation and makes no backend or schema change. K5 consumes the existing K3
 GET and POST operations to reposition canonical symbols. PRE8 makes that POST
 conditional and idempotent and adds one request-record table without adding an
 operation. PRE9 adds two execution-control tables and one owning-Designer
-cancellation operation without adding a worker or executing AI/CV. L1 adds only a protected, empty frontend 3D
+cancellation operation without adding a worker or executing AI/CV. The scoped
+demo adds the first explicit local worker on top of those controls. L1 adds a protected frontend 3D
 viewer and likewise makes no backend, API, schema, storage, or environment
 change. PRE1 and PRE2 each add one read-only operation, and PRE6 adds three
-analysis-setting operations, and PRE7 adds three Admin legend operations, so
-the API contains 34 operations.
-Workers, canonical 3D rendering,
-non-symbol geometry editing, routing, estimation, and reporting are not implemented.
+analysis-setting operations, and PRE7 adds three Admin legend operations. The
+demo adds three interpretation/review/layout-adaptation operations, so the API
+contains 37 operations. Routing, estimation, reporting, VLM acquisition,
+training, and release activation are not implemented by this demo.
 
 The approved target AI direction is a locally hosted multimodal VLM described
 in `../docs/LOCAL_VLM_MIGRATION_PLAN.md`. This backend has not yet installed or
@@ -51,8 +53,9 @@ runtime behavior. PRE12 verifies and publishes the passing readiness gate in
 `../docs/PRE_VLM_READINESS_REPORT.md`. PRE0-PRE12 are complete. U1 requirements
 measurement and operating-policy approval are complete; see
 `../docs/U1_HARDWARE_PRIVACY_BASELINE.md`. U2's strict, immutable advisory
-candidate boundary is implemented under `app/ai/floor_plan_interpretation`;
-there is still no local model runtime or model artifact.
+candidate boundary is implemented under `app/ai/floor_plan_interpretation`.
+The demo uses deterministic OpenCV as an honest local bootstrap provider;
+there is still no local VLM artifact, download, fine-tuning, or release claim.
 
 ## Requirements
 
@@ -109,7 +112,7 @@ The explicit development-only schema command is:
 
 It imports registered models and calls `Base.metadata.create_all()` to create
 missing tables. It does not run during startup and is not a migration system.
-The current prototype schema has these twenty-three application tables:
+The current prototype schema has these twenty-five application tables:
 
 ```text
 roles
@@ -126,6 +129,8 @@ processing_jobs
 processing_job_attempts
 processing_job_cancellations
 processing_artifacts
+floor_plan_interpretation_runs
+floor_plan_interpretation_reviews
 walls
 detected_symbols
 detection_reviews
@@ -254,6 +259,9 @@ POST /api/floor-plans/{floor_plan_id}/process
 GET  /api/floor-plans/{floor_plan_id}/processing-jobs
 GET  /api/processing-jobs/{job_id}
 POST /api/processing-jobs/{job_id}/cancel
+GET  /api/floor-plans/{floor_plan_id}/interpretation
+POST /api/floor-plans/{floor_plan_id}/interpretation/reviews
+POST /api/projects/{project_id}/floors/{project_floor_id}/floor-plans/{floor_plan_id}/interpretation/layout
 GET  /api/floor-plans/{floor_plan_id}/detections?processing_job_id={job_id}
 GET  /api/floor-plans/{floor_plan_id}/review-image?processing_job_id={job_id}
 PUT  /api/floor-plans/{floor_plan_id}/detections/{detected_symbol_id}/review?processing_job_id={job_id}
@@ -266,8 +274,8 @@ POST /api/admin/dataset-approver-assignments
 POST /api/admin/dataset-approver-assignments/{assignment_id}/deactivate
 ```
 
-The API has 34 OpenAPI operations through PRE12; K4, K5, L1, PRE0, PRE3-PRE5,
-and PRE8 add no backend operation.
+The API has 37 OpenAPI operations after the three scoped demo operations; K4,
+K5, L1, PRE0, PRE3-PRE5, and PRE8 add no backend operation.
 `GET /api/symbol-legends`
 permits authenticated Designers and Admins, returns active records ordered by
 model class ID then row ID, and returns `[]` when the catalog is empty. No
@@ -391,8 +399,10 @@ recover expired leases, and finish success/failure/cancellation deterministicall
 Legacy `processing` rows without an attempt require explicit recovery. The
 owning Designer may request queued-immediate or active-cooperative cancellation
 through `POST /api/processing-jobs/{job_id}/cancel`; the frontend exposes that
-request while continuing to poll cooperative cancellation. PRE9 still provides
-no worker, scheduler, external queue, automatic upload hook, or AI/CV execution.
+request while continuing to poll cooperative cancellation. PRE9 itself
+provides no worker, scheduler, external queue, automatic upload hook, or AI/CV
+execution. The later bounded demo worker deliberately consumes those existing
+leases and cancellation checkpoints from a separately started local process.
 F4's frontend can start and poll jobs
 for uploads returned during the current page session, but it adds no backend
 operation and cannot advance job lifecycle state. Job lifecycle changes do not
@@ -967,9 +977,23 @@ error envelope.
 
 ## Run
 
+Initialize only missing prototype tables once after reviewing the configured
+development database:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.core.schema
+```
+
+Run the API and bounded local worker in separate PowerShell windows:
+
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m app.workers.demo_worker
 ```
+
+The worker processes the oldest queued `floor_plan_analysis` job, page 1 only.
+Use `--once` for one polling pass or `--job-id <positive-id>` for one explicit
+job. It never downloads a model and never changes the original upload.
 
 `GET /health` returns:
 

@@ -9,6 +9,7 @@ from app.api.routes.dataset_approver_assignments import (
     admin_router as dataset_approver_admin_router,
     router as dataset_approver_router,
 )
+from app.api.routes.demo_interpretation import router as demo_interpretation_router
 from app.api.routes.floor_plans import router as floor_plans_router
 from app.api.routes.health import router as health_router
 from app.api.routes.layouts import router as layouts_router
@@ -71,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(analysis_settings_router)
     application.include_router(dataset_approver_router)
     application.include_router(dataset_approver_admin_router)
+    application.include_router(demo_interpretation_router)
     application.include_router(auth_router)
     application.include_router(projects_router)
     application.include_router(project_floors_router)

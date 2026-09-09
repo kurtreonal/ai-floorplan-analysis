@@ -62,6 +62,8 @@ class SymbolLegendModelTests(unittest.TestCase):
             "floor_plans",
             "floor_plan_pages",
             "floor_plan_sources",
+            "floor_plan_interpretation_reviews",
+            "floor_plan_interpretation_runs",
             "layout_versions",
             "layout_save_requests",
             "manual_symbols",
@@ -81,7 +83,7 @@ class SymbolLegendModelTests(unittest.TestCase):
         }
         self.assertEqual(set(Base.metadata.tables), expected)
         self.assertEqual(set(inspect(self.engine).get_table_names()), expected)
-        self.assertEqual(len(Base.metadata.tables), 23)
+        self.assertEqual(len(Base.metadata.tables), 25)
 
 
 class SymbolLegendApiTests(unittest.TestCase):
@@ -354,7 +356,7 @@ class SymbolLegendApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 34)
+        self.assertEqual(len(operations), 37)
 
 
 if __name__ == "__main__":

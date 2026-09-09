@@ -385,11 +385,16 @@ The folders that do not exist yet should be created by the appropriate developme
 
 - PRE1-PRE3 recover persisted floor plans and bounded processing-job history
   after reload and resume active polling.
-- Designer upload cards can start processing and poll job status. PRE9 provides
-  cancellation and execution controls, but no worker, external queue, or automatic
-  upload-triggered job creation exists. Without a worker, queued jobs do not advance
-  automatically. Persisted results can be reviewed through the J2/J3 UI when a
-  completed job and its normalized review image already exist.
+- Designer upload cards can start processing and poll job status. The bounded
+  September demo worker claims those queued jobs through PRE9, validates the
+  unchanged original, normalizes page 1, runs local deterministic OpenCV room,
+  wall, and circular-symbol proposals, and stores one immutable U2 candidate.
+  It is a separately started local process, not an external queue or an
+  upload-triggered background task. Other PDF pages are not processed.
+- The unified demo review keeps machine proposals separate from append-only
+  Designer revisions. Accepted symbols require a live approved VED legend;
+  exact scale, floor elevation, wall thickness, and wall height require explicit
+  review before the server can create a shared K1/K2 canonical snapshot.
 - G1 can convert one selected PDF page to a separate PNG when called directly by
   backend code, but F2 does not invoke it automatically. Page numbers are
   one-based, page 1 is the default, and the default resolution is 150 DPI.

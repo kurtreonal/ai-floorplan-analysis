@@ -122,7 +122,7 @@ class DatasetApproverAssignmentTests(unittest.TestCase):
 
     def test_schema_and_openapi_contract(self) -> None:
         inspector = inspect(self.engine)
-        self.assertEqual(len(Base.metadata.tables), 23)
+        self.assertEqual(len(Base.metadata.tables), 25)
         self.assertEqual(set(inspector.get_table_names()), set(Base.metadata.tables))
         self.assertEqual(
             [column["name"] for column in inspector.get_columns("dataset_approver_assignments")],
@@ -176,7 +176,7 @@ class DatasetApproverAssignmentTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 34)
+        self.assertEqual(operations, 37)
 
     def test_safe_current_read_and_admin_authorization(self) -> None:
         current_path = "/api/dataset-approver-assignment"

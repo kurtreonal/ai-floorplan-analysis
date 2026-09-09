@@ -6,6 +6,7 @@ import { parseProjectRoute } from '../../routes/projectRoutes.js'
 import { ProjectDashboardPage } from '../projects/ProjectDashboardPage.jsx'
 import { ProjectDetailPage } from '../projects/ProjectDetailPage.jsx'
 import { DetectionReviewPage } from '../detection-review/DetectionReviewPage.jsx'
+import { DemoInterpretationPage } from '../detection-review/DemoInterpretationPage.jsx'
 import { LayoutEditorPage } from '../editor-2d/LayoutEditorPage.jsx'
 import { Viewer3DErrorBoundary } from '../viewer-3d/Viewer3DErrorBoundary.jsx'
 import '../projects/projects.css'
@@ -87,6 +88,15 @@ export function ProtectedAppPage({ route, session }) {
           <DetectionReviewPage
             key={`${projectRoute.projectId}-${projectRoute.floorPlanId}-${projectRoute.processingJobId}`}
             projectId={projectRoute.projectId}
+            floorPlanId={projectRoute.floorPlanId}
+            processingJobId={projectRoute.processingJobId}
+          />
+        )}
+        {projectRoute.view === 'demo-interpretation' && (
+          <DemoInterpretationPage
+            key={`${projectRoute.projectId}-${projectRoute.projectFloorId}-${projectRoute.floorPlanId}-${projectRoute.processingJobId}`}
+            projectId={projectRoute.projectId}
+            projectFloorId={projectRoute.projectFloorId}
             floorPlanId={projectRoute.floorPlanId}
             processingJobId={projectRoute.processingJobId}
           />

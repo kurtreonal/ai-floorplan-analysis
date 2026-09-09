@@ -40,3 +40,12 @@
 .detection-review-announcement.is-success { color: #23643e; }
 .detection-review-announcement.is-error { color: #8b2f2f; }
 @media (max-width: 700px) { .detection-review-header { align-items: start; flex-direction: column; } }
+.demo-canvas-card, .demo-review-tools, .demo-approval-panel { background: #fff; border: 1px solid #d5dde4; padding: 1rem; margin-bottom: 1rem; }
+.demo-review-tools label, .demo-approval-panel label { display: grid; gap: .35rem; margin: .75rem 0; font-weight: 700; }
+.demo-review-tools select, .demo-review-tools input, .demo-approval-panel input, .demo-approval-panel textarea { padding: .55rem; max-width: 32rem; }
+.demo-add-actions, .demo-wall-dimensions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.demo-selected-editor { margin-top: 1rem; padding: 1rem; background: #f3f6f8; }
+.demo-point-fields { display: flex; flex-wrap: wrap; gap: .75rem; margin: .75rem 0; border: 1px solid #c9d3dc; }
+.demo-point-fields label { margin: 0; }
+.demo-point-fields input { width: 9rem; }
+.demo-room-points { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem; }
