@@ -1,10 +1,95 @@
-# Codex execution prompt: complete U1-U14 local VLM migration
+# Codex execution prompt: development demo first, then local VLM migration
 
 This is a reusable execution handoff, not a report of implemented U work.
 Preparing this file starts no ticket. Assign the instructions below explicitly
-to authorize implementation. All fourteen tickets are included.
+to authorize implementation. All fourteen tickets remain documented, but the
+September 9 demo amendment below is the current execution priority.
+
+## 0. CURRENT ASSIGNMENT: September 10 upload-to-2D/3D demo
+
+When the user assigns this updated prompt, execute DEMO-0 through DEMO-4 from
+the active-priority section of `docs/LOCAL_VLM_MIGRATION_PLAN.md` first.
+The target is September 10, 2026, Asia/Singapore; no exact delivery hour was
+specified. Do not promise the date or 50% quality before measuring. This
+amendment takes precedence over the sequential-U dependency and L2+ exclusion
+wording below ONLY for the bounded demo. This is implementation work in the
+existing application, not another standalone annotation HTML workspace.
+
+The user wants to upload a previously unannotated floor plan, click Analyze,
+receive actual room/wall and electrical-symbol proposals in 2D, review/correct
+them, and obtain aligned basic 3D after explicit geometry/metric approval.
+Single floor / one explicitly selected PDF plan page is sufficient initially;
+report other PDF pages as not processed rather than claiming document success.
+Target >=50% room recall AND >=50% symbol recall on reviewed development pages,
+with the plan's fixed IoU matching, precision, FP/FN and denominators. Do not
+confuse this target with confidence=0.50. Missing truth is NOT TESTED, not PASS.
+No wiring extraction/routing, quantities, costing, fine-tuning or full Admin
+dataset-workspace implementation is required for this demo.
+
+1. Inspect the repository, current branch, dirty files, model artifacts and
+   real execution paths before editing. Read the mandatory context below and
+   verify current evidence. Preserve existing work and the protected service.
+   Report the smallest implementation plan and actual gaps. Published U1/U2
+   are not to be restarted. L1 currently initializes an empty 3D scene; do not
+   mistake it for floor-plan reconstruction. Recheck this against current code.
+2. Freeze a small readable, VED-authorized development page set for evaluation.
+   Do not wait for all scans/annotations, the eight U3 decisions, a degraded
+   training record or a new sealed-test project to implement this demo. Keep
+   those corpus/release gates BLOCKED in their existing records. Do not approve
+   records, weaken intake validation or claim U3 passed. Unreadable/unsafe
+   input still fails visibly; use a readable alternative for the demo.
+3. Implement DEMO-1 using the fastest working local provider within U1 bounds.
+   Verify usable weights before selecting YOLO; inspect existing OpenCV walls
+   and add bounded room-boundary proposals where missing. If a small local VLM
+   is genuinely usable, isolate and validate it; otherwise use a disclosed CV /
+   legend-template baseline. A template prototype is not VLM completion or
+   trained-model accuracy. Keep inference opt-in for local development and
+   separate from production model promotion. Do not spend the entire deadline
+   on acquisition, a broad bake-off or LoRA. No fake/precomputed detections,
+   hosted inference, upload-triggered downloads or automatic training.
+4. Implement DEMO-2: reuse the actual upload/source/artifact/job lifecycle,
+   PRE9 bounded worker controls and existing review/save services. Return
+   promptly, persist real results, show partial/empty/failure outcomes and
+   provide room/wall/symbol correction. Reuse U2 and canonical contracts, with
+   honest provider identity and no fabricated legacy confidence. Preserve
+   authorization, original files, immutable evidence, idempotency and review.
+5. Implement DEMO-3: the minimum L2-L5 floor/room-surface, wall-extrusion and
+   simple symbol-marker rendering using the SAME saved canonical document as
+   Konva. Implement real 2D-to-3D coordinate transforms and reload synchronization,
+   not hard-coded meshes. Require explicit scale/elevation and wall parameters;
+   missing values remain visible and cannot be guessed. Keep the review step
+   usable, not an undocumented database-edit prerequisite. No raw inference
+   output may silently become approved geometry.
+6. Complete DEMO-4 with at least one actual unannotated-upload -> Analyze ->
+   review/correct -> approve metric inputs -> save -> 2D + 3D -> reload browser
+   demonstration. Also measure the separate 50% targets on the fixed reviewed
+   development pages, excluding manual corrections from inference scores.
+   Test rotated/scaled coordinates, rejected-symbol exclusion, changed 2D
+   positions in 3D after reload, unavailable-model/invalid-input failures,
+   persisted results after restart, authorization and original-file integrity.
+   Run relevant backend/frontend tests and build. If actual browser validation
+   is unavailable, say NOT TESTED; mocked tests do not replace the demonstration.
+7. Deliver a runnable local application with exact startup commands, any model
+   requirements, page/legend/scale setup, controls to reach both views, measured
+   results and honest limitations. A static screenshot, manual annotation file,
+   empty grid or fixture-only success does not satisfy the requested output.
+
+Use separate small demo commits/checkpoints, not an oversized U3 change. Inspect
+and reuse an existing matching demo branch, or create
+`codex/demo-floorplan-2d-3d` from verified main. Preserve the blocked U3 branch
+and safely carry only explicitly scoped planning inputs/dependencies; do not
+merge blocked U3 wholesale. Existing publication permissions apply to passing
+scoped demo work when this prompt is assigned, subject to protection and tests.
+Never claim an entire U/L ticket passed because its demo subset works. Update
+the existing progress ledger after each checkpoint; create no new Markdown
+planning files. Stop at the demo handoff and request direction before returning
+to the full U sequence. Do not repeatedly poll the unchanged U3 data gate.
 
 ## 1. Authorized objective and stopping point
+
+The remainder describes the full migration path retained for later resumption.
+Section 0 is the active assignment and its stopping point until the user
+explicitly returns to the full sequence.
 
 Implement U1 through U14 from docs/FUNCTIONAL_SPEC.md and
 docs/LOCAL_VLM_MIGRATION_PLAN.md, in order, through verified publication.

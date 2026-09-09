@@ -4,6 +4,32 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+## Active priority: September 10 development demo
+
+User-authorized planning change on September 9, 2026: execute the bounded
+DEMO-0 through DEMO-4 track in `LOCAL_VLM_MIGRATION_PLAN.md` before resuming
+the full U sequence. The current assignment is section 0 of
+`CODEX_U_VLM_MIGRATION_PROMPT.md`. Target: real upload -> room/wall and symbol
+proposals -> explicit review/metric approval -> shared saved geometry -> 2D
+and basic 3D. Room and symbol recall targets are each >=50% on reviewed
+development pages, not a confidence threshold or a release-accuracy claim.
+
+| Checkpoint | Current status | Required evidence |
+|---|---|---|
+| DEMO-0 inspection and narrow plan | NOT STARTED by implementation task | Actual reusable inference, review, canonical and 3D components; readable development inputs |
+| DEMO-1 local detection | NOT STARTED | Real new-upload inference; source-bound room/wall and symbol proposals |
+| DEMO-2 review and persistence | NOT STARTED | Explicit corrections/approval; validated scale; safe shared canonical save/reload |
+| DEMO-3 basic 2D/3D | NOT STARTED | Minimum L2-L5 rendering, known coordinates and synchronized saved edits |
+| DEMO-4 demonstration and metrics | NOT TESTED | Real browser upload-to-3D run; separate room/symbol recall, precision and FP/FN |
+
+This is a planning amendment only; no runtime, training or 3D implementation
+was added in this planning task. U3 remains blocked under its original
+criteria; its data decisions and sealed-test source are deferred dependencies
+for the demo only. U10/U12/U14 and complete Admin annotation tooling are not
+demo prerequisites. Do not relabel partially reused U/L tickets as complete,
+fabricate human approvals or weaken the intake/release validators. Resume
+the original sequence only after the demo handoff and further user direction.
+
 | Ticket | Implementation | Real-data validation | Human approval | Activation | Publication | Current note |
 |---|---|---|---|---|---|---|
 | U1 | Complete | Native-Windows target measured | Approved operating/retention policy and standing VED collection authorization; encryption deferred with accepted risk, not passed | Not applicable | Published to `main` at merge `8c73183` | Collection authorization does not replace source rights, quality, annotation, gold, training-record, or release decisions |
