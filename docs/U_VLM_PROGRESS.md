@@ -12,7 +12,7 @@ Verify live code/Git when resuming; do not replay all prior checks.
 
 | Need | Read |
 |---|---|
-| Current room demo | Active priority → Latest: room geometry preview and navigation improvement |
+| Current room demo | Active priority → Latest verification, then room geometry preview and navigation improvement |
 | Provisional training | September 10 checkpoint → provisional subset training completed |
 | U1 / U2 evidence | Matching working/completion entries below and owning contract/baseline |
 | U3 gate | Existing U3_PRIVATE_CORPUS_INTAKE_REPORT.md and actual private manifest |
@@ -57,11 +57,15 @@ decisions, publication IDs and historical evidence. No new planning files.
 - The protected project service has no diff. No source/model/dataset files were
   edited by this checkpoint. Private original-file behavior is covered by the
   synthetic worker regression; no new live-original hash audit is claimed.
+- Worker/data-test checkpoint published as `c0254c2`. The preserved room CV,
+  draft-preview controls, corner editing and navigation changes are included
+  in the following separate demo checkpoint after the passing full suites.
+  Unrelated PRE planning-document edits remain in the working tree.
 
 ### Latest: room geometry preview and navigation improvement
 
 The user authorized unfinished room-only 2D/3D output and simpler navigation.
-Implemented in the working tree on `codex/demo-floorplan-2d-3d`:
+Implemented on `codex/demo-floorplan-2d-3d`, verified for scoped publication:
 
 - Room detection now considers the lower page, extracts longer structural
   lines, bridges small gaps and preserves concave room contours. Short wiring
@@ -86,8 +90,9 @@ Implemented in the working tree on `codex/demo-floorplan-2d-3d`:
 - The provisional trained symbol model is not active. Room detection remains
   deterministic CV. Recall, full new-upload browser flow and measured canonical
   approval remain NOT TESTED for this change. U3 data gates remain blocked.
-- Changes are not committed or published by this planning task. Existing
-  concurrent worker-startup changes and earlier training notes are preserved.
+- Originally uncommitted by the planning task; the later implementation
+  verification/publication checkpoint above supersedes that publication state.
+  Earlier training notes and unrelated planning changes are preserved.
 
 The older checkpoint table below describes the pre-preview demo gates; draft
 WebGL display is now verified as stated above, while measured layout approval

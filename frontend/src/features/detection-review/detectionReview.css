@@ -49,3 +49,23 @@
 .demo-point-fields label { margin: 0; }
 .demo-point-fields input { width: 9rem; }
 .demo-room-points { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem; }
+.demo-steps { display: flex; flex-wrap: wrap; gap: .8rem 1.4rem; padding: 1rem; margin-bottom: 1.4rem; border-radius: 12px; background: #e8eef0; font-size: .9rem; }
+.demo-steps a { color: #405564; }
+.demo-steps strong { color: #19493f; }
+.demo-preview-workspace { border: 1px solid #cdd9d7; border-radius: 16px; background: white; padding: 1rem; margin: 1rem 0; }
+.demo-workspace-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; }
+.demo-view-switch { display: flex; padding: 4px; border-radius: 12px; background: #eaf0ef; gap: 4px; }
+.demo-review-page button { cursor: pointer; }
+.demo-workspace-toolbar button, .demo-preview-workspace .demo-add-actions button { border: 1px solid #bacdca; border-radius: 8px; padding: .7rem 1rem; background: white; color: #254c42; font: inherit; font-weight: 650; }
+.demo-view-switch button[aria-pressed="true"] { background: #254c42; color: white; border-color: #254c42; }
+.demo-review-page button:focus-visible, .demo-review-page a:focus-visible { outline: 3px solid #dc8a27; outline-offset: 3px; }
+.demo-preview-workspace button:disabled { opacity: .5; cursor: not-allowed; }
+.demo-next-step { padding: .7rem 0; color: #405564; line-height: 1.5; }
+.demo-layer-controls { display: flex; flex-wrap: wrap; gap: 1rem; padding: .75rem; background: #f2f5f4; border-radius: 8px; margin-bottom: .75rem; }
+.demo-layer-controls label { display: inline-flex; align-items: center; gap: .4rem; }
+.demo-preview-notice { padding: .8rem 1rem; background: #fff5df; border-left: 4px solid #dca13c; line-height: 1.5; }
+.demo-preview-workspace .demo-canvas-card { border: 0; padding: 0; margin: 0; }
+.demo-preview-workspace .detection-canvas-wrap { background: #f5f7f7; border-radius: 8px; }
+.demo-approval-panel { border-radius: 12px; background: #f5f7f7; margin-top: 2rem; }
+.demo-review-tools[hidden] { display: none; }
+@media (max-width: 600px) { .demo-view-switch { width: 100%; } .demo-view-switch button { flex: 1; padding: .6rem; } .demo-workspace-toolbar > button { width: 100%; } }

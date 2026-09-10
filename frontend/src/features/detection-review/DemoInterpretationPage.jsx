@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 
 import {
   DemoInterpretationApiError,
@@ -16,6 +16,8 @@ import {
 } from '../../routes/projectRoutes.js'
 import { DemoInterpretationCanvas } from './DemoInterpretationCanvas.jsx'
 import './detectionReview.css'
+
+const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
 
 
 function decodeImage(url) {
@@ -103,6 +105,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const [approveLayout, setApproveLayout] = useState(false)
   const [saveState, setSaveState] = useState({ status: 'idle', message: null })
   const [savedLayout, setSavedLayout] = useState(null)
+  const [view, setView] = useState('2d')
+  const [layers, setLayers] = useState({ rooms: true, walls: false, symbols: false, source: true })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -159,42 +163,58 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       [key]: current[key].map((item) => item.id === selected.id ? replacement : item),
     }))
     setSaveState({ status: 'idle', message: null })
+    setReviewComplete(false)
+    setApproveLayout(false)
+  }
+
+  function updateRoom(room) {
+    setDraft((current) => ({ ...current, rooms: current.rooms.map((item) => item.id === room.id ? room : item) }))
+    setReviewComplete(false)
+    setApproveLayout(false)
   }
 
   function addEntity(kind) {
     const plane = state.record.candidate.payload.source_plane
     const center = { x: Math.round(plane.width_pixels / 2), y: Math.round(plane.height_pixels / 2) }
+    const radius = Math.min(50, plane.width_pixels / 4, plane.height_pixels / 4)
     const key = `${kind}s`
     const prefix = `manual-${kind}`
     const id = nextManualId(draft[key], prefix)
     const entity = kind === 'wall'
-      ? { id, disposition: 'accepted', start: { x: center.x - 50, y: center.y }, end: { x: center.x + 50, y: center.y } }
+      ? { id, disposition: 'accepted', start: { x: center.x - radius, y: center.y }, end: { x: center.x + radius, y: center.y } }
       : kind === 'room'
         ? { id, disposition: 'accepted', name: null, boundary: [
-            { x: center.x - 50, y: center.y - 50 }, { x: center.x + 50, y: center.y - 50 },
-            { x: center.x + 50, y: center.y + 50 }, { x: center.x - 50, y: center.y + 50 },
+            { x: center.x - radius, y: center.y - radius }, { x: center.x + radius, y: center.y - radius },
+            { x: center.x + radius, y: center.y + radius }, { x: center.x - radius, y: center.y + radius },
           ] }
         : { id, disposition: 'accepted', center, symbol_legend_id: null }
     setDraft((current) => ({ ...current, [key]: [...current[key], entity] }))
     setSelected({ kind, id })
+    setLayers((current) => ({ ...current, [`${kind}s`]: true }))
+    setView('2d')
+    setReviewComplete(false)
+    setApproveLayout(false)
   }
 
-  async function saveReview() {
+  async function saveReview({ draftOnly = false } = {}) {
     if (saveState.status === 'saving') return
     setSaveState({ status: 'saving', message: 'Saving immutable review revision…' })
     try {
       const record = await saveDemoReview(floorPlanId, {
         candidate_run_id: state.record.candidate_run_id,
         expected_revision_number: state.record.review?.revision_number ?? null,
-        review_complete: reviewComplete,
-        approved_for_layout: approveLayout,
-        wall_thickness_meters: approveLayout ? Number(wallThickness) : null,
-        wall_height_meters: approveLayout ? Number(wallHeight) : null,
-        evidence_notes: notes.trim(),
+        review_complete: draftOnly ? false : reviewComplete,
+        approved_for_layout: draftOnly ? false : approveLayout,
+        wall_thickness_meters: !draftOnly && approveLayout ? Number(wallThickness) : null,
+        wall_height_meters: !draftOnly && approveLayout ? Number(wallHeight) : null,
+        evidence_notes: notes.trim() || (draftOnly ? 'Unfinished room-first demo draft. Not approved for canonical layout.' : ''),
         ...draft,
       })
       setState((current) => ({ ...current, record }))
       setDraft(initialDraft(record))
+      setNotes(record.review.evidence_notes)
+      setReviewComplete(record.review.review_complete)
+      setApproveLayout(record.review.approved_for_layout)
       setSaveState({ status: 'success', message: `Review revision ${record.review.revision_number} saved.` })
     } catch (error) {
       if (error?.status === 401) window.location.replace('#/signin?reason=session-expired')
@@ -237,17 +257,37 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   return (
     <article className="detection-review-page demo-review-page">
       <a className="detection-back-link" href={getProjectHref(projectId)}>← Back to project</a>
+      <nav className="demo-steps" aria-label="Floor-plan workflow">
+        <a href={getProjectHref(projectId)}>1 · Upload &amp; analyze</a>
+        <strong aria-current="step">2 · Explore rooms in 2D / 3D</strong>
+        <a href="#demo-approval-title" onClick={(event) => { event.preventDefault(); document.getElementById('demo-approval-title')?.scrollIntoView({ behavior: 'smooth' }) }}>3 · Save &amp; approve when ready</a>
+      </nav>
       <header className="detection-review-header">
         <div><span className="mono">LOCAL DEMO REVIEW · JOB #{processingJobId}</span><h1>Correct floor-plan proposals</h1></div>
-        <p>{draft.walls.length} walls · {draft.rooms.length} rooms · {draft.symbols.length} symbols</p>
+        <p>{draft.rooms.filter((item) => item.disposition !== 'rejected').length} room proposals · unfinished demo</p>
       </header>
-      <p role="note">These deterministic OpenCV proposals are suggestions. Review against the visible source; no model confidence or professional approval is implied.</p>
+      <p role="note">Draft room shapes from image processing—not measured or approved. Correct mistakes in 2D before using them.</p>
       {truncated.length > 0 && <p className="detection-limit-warning" role="alert">Bounded proposal cap reached for: {truncated.join(', ')}. Add missing geometry manually where needed.</p>}
-      {state.legends.length === 0 && <p className="detection-limit-warning" role="alert">No approved VED symbol legend is configured. You may review geometry, but cannot complete symbol mapping or approve a canonical layout.</p>}
+      {state.legends.length === 0 && <details><summary>Do I need a symbol legend?</summary><p>Not for this room preview. Electrical-symbol approval still needs an approved VED legend.</p></details>}
 
-      <DemoInterpretationCanvas image={state.image} width={plane.width_pixels} height={plane.height_pixels} draft={draft} selected={selected} onSelect={setSelected} />
+      <section className="demo-preview-workspace" aria-label="Room-first workspace">
+        <div className="demo-workspace-toolbar">
+          <div className="demo-view-switch" role="group" aria-label="Preview mode">
+            <button type="button" aria-pressed={view === '2d'} onClick={() => setView('2d')}>2D · Review rooms</button>
+            <button type="button" aria-pressed={view === '3d'} onClick={() => setView('3d')}>3D · Draft preview</button>
+          </div>
+          <button type="button" disabled={saveState.status === 'saving'} onClick={() => saveReview({ draftOnly: true })}>Save unfinished draft</button>
+        </div>
+        <p className="demo-next-step">{view === '2d' ? 'Start here: click a purple room to select it. Drag its corner handles to correct the shape, then open 3D. Nothing is approved automatically.' : 'This is an illustrative preview of your current room shapes. You can return to 2D at any time.'}</p>
+        {view === '2d' ? <>
+          <div className="demo-layer-controls">{Object.keys(layers).map((key) => <label key={key}><input type="checkbox" checked={layers[key]} onChange={(event) => setLayers((current) => ({ ...current, [key]: event.target.checked }))} />Show {key === 'source' ? 'original plan' : `${key} proposals`}</label>)}</div>
+          {draft.rooms.length === 0 && <p role="status">No enclosed rooms were found. Add a missing room below and drag its corners over the plan.</p>}
+          <DemoInterpretationCanvas image={state.image} width={plane.width_pixels} height={plane.height_pixels} draft={draft} selected={selected} onSelect={setSelected} layers={layers} onUpdateRoom={updateRoom} />
+        </> : <Suspense fallback={<p role="status">Opening draft 3D preview…</p>}><DraftRoomPreview draft={draft} width={plane.width_pixels} height={plane.height_pixels} projectId={projectId} /></Suspense>}
+        {saveState.message && <p role={saveState.status === 'error' ? 'alert' : 'status'}>{saveState.message}</p>}
+      </section>
 
-      <section className="demo-review-tools" aria-labelledby="demo-tools-title">
+      <section className="demo-review-tools" aria-labelledby="demo-tools-title" hidden={view !== '2d'}>
         <h2 id="demo-tools-title">Review and correct</h2>
         <div className="demo-add-actions">
           {['wall', 'room', 'symbol'].map((kind) => <button key={kind} type="button" className="btn btn-outline-dark" onClick={() => addEntity(kind)}>Add missing {kind}</button>)}
@@ -256,9 +296,10 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           <select value={selected ? `${selected.kind}:${selected.id}` : ''} onChange={(event) => {
             const [kind, id] = event.target.value.split(':')
             setSelected(event.target.value ? { kind, id } : null)
+            if (event.target.value) setLayers((current) => ({ ...current, [`${kind}s`]: true }))
           }}>
             <option value="">Choose an item</option>
-            {['wall', 'room', 'symbol'].flatMap((kind) => draft[`${kind}s`].map((item) => <option key={`${kind}:${item.id}`} value={`${kind}:${item.id}`}>{kind} · {item.id} · {item.disposition}</option>))}
+            {['room', 'wall', 'symbol'].filter((kind) => layers[`${kind}s`]).flatMap((kind) => draft[`${kind}s`].map((item) => <option key={`${kind}:${item.id}`} value={`${kind}:${item.id}`}>{kind} · {item.name || item.id} · {item.disposition === 'rejected' ? 'excluded' : 'in draft'}</option>))}
           </select>
         </label>
         {selectedEntity && <div className="demo-selected-editor">
@@ -283,7 +324,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       </section>
 
       <section className="demo-approval-panel" aria-labelledby="demo-approval-title">
-        <h2 id="demo-approval-title">Save review and canonical geometry</h2>
+        <h2 id="demo-approval-title">Optional: approve a measured, saved layout</h2>
+        <p>You do not need this step for the draft 2D / 3D preview above. Use it only after reviewing geometry and real dimensions. Saving an unfinished draft does not approve it.</p>
         <p>Before layout approval, use “Review scale and elevation” on the project page. Required normalized dimensions: {plane.width_pixels} × {plane.height_pixels} pixels.</p>
         <label>Review evidence notes<textarea required maxLength="1000" value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
         <label><input type="checkbox" checked={reviewComplete} onChange={(event) => { setReviewComplete(event.target.checked); if (!event.target.checked) setApproveLayout(false) }} /> I reviewed every proposed and manually added item against the visible page.</label>
@@ -296,7 +338,6 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           <button type="button" className="btn btn-dark" disabled={!notes.trim() || saveState.status === 'saving'} onClick={saveReview}>Save review revision</button>
           <button type="button" className="btn btn-accent" disabled={!state.record.review?.approved_for_layout || !savedReviewMatches || saveState.status === 'saving'} onClick={publishCanonicalLayout}>Save shared canonical layout</button>
         </div>
-        {saveState.message && <p role={saveState.status === 'error' ? 'alert' : 'status'} className={`detection-review-announcement is-${saveState.status}`}>{saveState.message}</p>}
         {savedLayout && <p><a href={getLayoutHref(projectId, projectFloorId)}>Open aligned 2D layout</a> · <a href={getViewer3dHref(projectId, projectFloorId)}>Open aligned 3D layout</a></p>}
       </section>
     </article>

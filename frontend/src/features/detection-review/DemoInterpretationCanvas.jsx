@@ -16,6 +16,8 @@ export function DemoInterpretationCanvas({
   draft,
   selected,
   onSelect,
+  layers = { source: true, rooms: true, walls: true, symbols: true },
+  onUpdateRoom,
 }) {
   const containerRef = useRef(null)
   const [availableWidth, setAvailableWidth] = useState(900)
@@ -52,10 +54,10 @@ export function DemoInterpretationCanvas({
       <div ref={containerRef} className="detection-canvas-wrap">
         <Stage width={stage.width} height={stage.height} scaleX={stage.scale} scaleY={stage.scale}>
           <Layer listening={false}>
-            <KonvaImage image={image} width={width} height={height} />
+            {layers.source && <KonvaImage image={image} width={width} height={height} />}
           </Layer>
           <Layer>
-            {draft.rooms.map((room) => (
+            {layers.rooms && draft.rooms.map((room) => (
               <Line
                 key={room.id}
                 points={points(room.boundary)}
@@ -68,7 +70,7 @@ export function DemoInterpretationCanvas({
             ))}
           </Layer>
           <Layer>
-            {draft.walls.map((wall) => (
+            {layers.walls && draft.walls.map((wall) => (
               <Line
                 key={wall.id}
                 points={[wall.start.x, wall.start.y, wall.end.x, wall.end.y]}
@@ -79,7 +81,7 @@ export function DemoInterpretationCanvas({
             ))}
           </Layer>
           <Layer>
-            {draft.symbols.map((symbol) => (
+            {layers.symbols && draft.symbols.map((symbol) => (
               <Circle
                 key={symbol.id}
                 x={symbol.center.x}
@@ -92,9 +94,20 @@ export function DemoInterpretationCanvas({
               />
             ))}
           </Layer>
+          <Layer>
+            {layers.rooms && selected?.kind === 'room' && onUpdateRoom && draft.rooms.filter((room) => room.id === selected.id).flatMap((room) => room.boundary.map((point, index) => <Circle
+              key={`${room.id}-handle-${index}`} x={point.x} y={point.y} radius={7 / stage.scale}
+              fill="#ffffff" stroke="#6d28d9" strokeWidth={2 / stage.scale} draggable
+              onDragEnd={(event) => {
+                const next = { x: Math.max(0, Math.min(width, event.target.x())), y: Math.max(0, Math.min(height, event.target.y())) }
+                event.target.position(next)
+                onUpdateRoom({ ...room, boundary: room.boundary.map((item, i) => i === index ? next : item) })
+              }}
+            />))}
+          </Layer>
         </Stage>
       </div>
-      <p className="detection-canvas-note">Purple rooms, blue walls, and orange unknown-class symbol proposals share exact normalized source pixels. Dashed red items are rejected but retained in review history.</p>
+      <p className="detection-canvas-note">Purple = room proposals. Select a room to move its corners. Other layers are optional; dashed red items remain in review history.</p>
     </section>
   )
 }

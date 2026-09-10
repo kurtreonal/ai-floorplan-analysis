@@ -88,7 +88,6 @@ def _plan_bounds(ink: np.ndarray) -> tuple[int, int, int, int]:
     working[-margin:, :] = 0
     working[:, :margin] = 0
     working[:, -margin:] = 0
-    working[round(height * 0.84) :, :] = 0
     join_size = max(3, round(min(width, height) * 0.003))
     if join_size % 2 == 0:
         join_size += 1
@@ -106,7 +105,7 @@ def _plan_bounds(ink: np.ndarray) -> tuple[int, int, int, int]:
             continue
         candidates.append((area, x, y, component_width, component_height))
     if not candidates:
-        return margin, margin, width - 2 * margin, max(1, round(height * 0.84) - margin)
+        return margin, margin, width - 2 * margin, max(1, height - 2 * margin)
     _, x, y, component_width, component_height = max(
         candidates,
         key=lambda item: (item[0], item[3] * item[4], -item[2], -item[1]),
@@ -115,7 +114,7 @@ def _plan_bounds(ink: np.ndarray) -> tuple[int, int, int, int]:
     left = max(margin, x - padding)
     top = max(margin, y - padding)
     right = min(width - margin, x + component_width + padding)
-    bottom = min(round(height * 0.84), y + component_height + padding)
+    bottom = min(height - margin, y + component_height + padding)
     return left, top, max(1, right - left), max(1, bottom - top)
 
 
@@ -133,7 +132,25 @@ def _room_boundaries(
         cv2.MORPH_ELLIPSE,
         (barrier_size, barrier_size),
     )
-    barriers = cv2.morphologyEx(plan_ink, cv2.MORPH_CLOSE, kernel)
+    # Prefer long wall-like strokes to short wiring dashes and text. Bridge short
+    # doorway-sized gaps only in the advisory room mask, never observed wiring.
+    span = max(12, round(min(width, height) * 0.12))
+    horizontal = cv2.morphologyEx(plan_ink, cv2.MORPH_OPEN,
+                                 cv2.getStructuringElement(cv2.MORPH_RECT, (span, 1)))
+    vertical = cv2.morphologyEx(plan_ink, cv2.MORPH_OPEN,
+                               cv2.getStructuringElement(cv2.MORPH_RECT, (1, span)))
+    structural = cv2.bitwise_or(horizontal, vertical)
+    span = max(12, round(min(width, height) * 0.16))
+    # A rotated or thin-stroke drawing may not support the axis-aligned mask.
+    if cv2.countNonZero(structural) >= width * height * 0.005:
+        horizontal = cv2.morphologyEx(structural, cv2.MORPH_CLOSE,
+                                     cv2.getStructuringElement(cv2.MORPH_RECT, (span, 1)))
+        vertical = cv2.morphologyEx(structural, cv2.MORPH_CLOSE,
+                                   cv2.getStructuringElement(cv2.MORPH_RECT, (1, span)))
+        room_ink = cv2.bitwise_or(horizontal, vertical)
+    else:
+        room_ink = plan_ink
+    barriers = cv2.morphologyEx(room_ink, cv2.MORPH_CLOSE, kernel)
     barriers = cv2.dilate(barriers, kernel, iterations=1)
     free_space = cv2.bitwise_not(barriers)
     component_count, labels, stats, _ = cv2.connectedComponentsWithStats(
@@ -154,7 +171,8 @@ def _room_boundaries(
             or component_x + component_width >= width
             or component_y + component_height >= height
         )
-        if touches_edge or not minimum_area <= area <= maximum_area:
+        if (touches_edge or not minimum_area <= area <= maximum_area
+                or min(component_width, component_height) < min(width, height) * 0.06):
             continue
         component = np.where(labels == index, 255, 0).astype(np.uint8)
         contours, _ = cv2.findContours(
@@ -164,7 +182,8 @@ def _room_boundaries(
         )
         if not contours:
             continue
-        contour = cv2.convexHull(max(contours, key=cv2.contourArea))
+        # Preserve L-shaped interiors rather than filling them with a convex hull.
+        contour = max(contours, key=cv2.contourArea)
         epsilon = max(1.0, cv2.arcLength(contour, True) * 0.008)
         polygon = cv2.approxPolyDP(contour, epsilon, True).reshape(-1, 2)
         if len(polygon) < 3:

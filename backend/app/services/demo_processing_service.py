@@ -288,7 +288,7 @@ def process_demo_job(
                 model_release_id=PROVIDER,
                 base_model_revision=f"opencv-{cv2.__version__}",
                 adapter_revision=None,
-                prompt_version="demo-cv-v1",
+                prompt_version="demo-cv-room-v2",
                 runtime_version=f"opencv-{cv2.__version__}",
                 inference_parameters=(
                     InferenceParameter(name="provider", value=PROVIDER),

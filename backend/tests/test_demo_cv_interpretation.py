@@ -21,6 +21,22 @@ def synthetic_plan(width=400, height=300):
 
 
 class DemoCVInterpretationTests(unittest.TestCase):
+    def test_room_proposals_ignore_short_wiring_dashes_and_keep_lower_page(self):
+        image = synthetic_plan()
+        for x in range(60, 330, 18):
+            cv2.line(image, (x, 125), (x + 8, 125), (0, 0, 0), 1)
+        result = interpret_floor_plan_demo(image)
+        self.assertEqual(len(result.rooms.items), 2)
+        self.assertGreater(max(p.y for room in result.rooms.items for p in room.boundary), 250)
+
+    def test_room_gap_bridging_is_advisory_and_does_not_create_wiring(self):
+        image = synthetic_plan()
+        cv2.line(image, (200, 125), (200, 140), (255, 255, 255), 9)
+        result = interpret_floor_plan_demo(image)
+        self.assertGreaterEqual(len(result.rooms.items), 2)
+        self.assertTrue(all(room.ambiguity == 'ambiguous' for room in result.rooms.items))
+        self.assertEqual(result.observed_routes.state, 'unavailable')
+
     def test_real_pixels_produce_strict_review_only_candidates(self):
         result = interpret_floor_plan_demo(synthetic_plan())
 

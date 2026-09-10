@@ -122,13 +122,15 @@ complete the remaining 3D, routing, estimation or report epics.
 
 ### Local September demo startup
 
-Use three PowerShell terminals. Start configured MySQL first. The existing
+Use two PowerShell terminals. Start configured MySQL first. The existing
 backend environment and frontend dependencies are required; the CV provider
 needs no downloaded weights. Do not start a second server on an occupied port.
 
 ```powershell
 # API
 cd C:\Users\kupal\Documents\ai-floorplan-analysis\backend
+$env:APP_ENV = 'development'
+$env:AUTO_START_DEMO_WORKER = 'true'
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -140,23 +142,23 @@ $env:Path = "$nodeDir;$env:Path"
 npm.cmd run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
-```powershell
-# Process the specific demo job ID shown after clicking Analyze
-cd C:\Users\kupal\Documents\ai-floorplan-analysis\backend
-$demoJobId = Read-Host 'Demo job ID'
-.\.venv\Scripts\python.exe -m app.workers.demo_worker --job-id $demoJobId
-```
-
 Open `http://localhost:5173/`, sign in as the owning Designer, create/select a
 project and floor, upload a readable PNG/JPEG, and click Analyze. Use a raster
-of the explicitly selected PDF page for this demo; the worker only processes
-page 1 of a PDF and leaves later pages unprocessed. After the worker completes,
-open **Review floor-plan proposals**. Correct/add/reject room, wall and symbol
-items. Accepted symbols require an approved active VED legend entry, configured
+of the explicitly selected PDF page for this demo; the automatically started
+worker only processes page 1 of a PDF and leaves later pages unprocessed. After
+processing completes, open **Review floor-plan proposals**. The workspace starts
+with rooms over the original image. Select a room to move its corner handles,
+add a missing room, or exclude an incorrect proposal. Switch to **3D · Draft
+preview** to inspect the same draft boundaries as raised outlines. These use
+relative display height, so scale approval and symbol legends are unnecessary
+for this preview. **Save unfinished draft** preserves edits for later review.
+Wall and symbol layers are optional; neither is required to preview rooms.
+
+Accepted symbols require an approved active VED legend entry, configured
 by an authorized Admin through the existing legend API. An empty catalog blocks
 symbol mapping; the demo does not seed invented classes.
 
-Use **Review scale and elevation** on the project page to approve scale for the
+For an approved measured layout, use **Review scale and elevation** on the project page to approve scale for the
 exact normalized dimensions and floor elevation. In the review page enter wall
 height/thickness, record review notes, explicitly approve the placements, save
 the review revision, then save the shared canonical layout. Open 2D or 3D from

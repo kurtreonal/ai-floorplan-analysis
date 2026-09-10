@@ -29,6 +29,7 @@ vi.mock('./DemoInterpretationCanvas.jsx', () => ({
     <button type="button" onClick={() => onSelect({ kind: 'symbol', id: 'symbol-0001' })}>Select first symbol</button>
   </div>,
 }))
+vi.mock('./DraftRoomPreview.jsx', () => ({ DraftRoomPreview: ({ draft }) => <div data-testid="draft-3d">{draft.rooms.length} draft rooms</div> }))
 
 
 const record = {
@@ -76,6 +77,18 @@ afterEach(() => {
 
 
 describe('unified demo interpretation review', () => {
+  it('previews rooms in 3D with no legend or approval and saves only an unfinished draft', async () => {
+    fetchSymbolLegends.mockResolvedValue([])
+    render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
+    await screen.findByRole('heading', { name: 'Correct floor-plan proposals' })
+    fireEvent.click(screen.getByRole('button', { name: '3D · Draft preview' }))
+    expect((await screen.findByTestId('draft-3d')).textContent).toContain('1 draft rooms')
+    expect(saveDemoLayout).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Save unfinished draft' }))
+    await waitFor(() => expect(saveDemoReview).toHaveBeenCalledTimes(1))
+    expect(saveDemoReview.mock.calls[0][1]).toEqual(expect.objectContaining({ review_complete: false, approved_for_layout: false, wall_height_meters: null }))
+    expect(saveDemoLayout).not.toHaveBeenCalled()
+  })
   it('loads aligned room wall and symbol proposals with explicit review controls', async () => {
     render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
     expect(await screen.findByRole('heading', { name: 'Correct floor-plan proposals' })).toBeTruthy()

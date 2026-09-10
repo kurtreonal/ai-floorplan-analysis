@@ -313,13 +313,15 @@ export function ProcessingJobPanel({
       {viewState === 'completed' && (
         <div className="processing-job-result processing-job-success" role="status">
           <strong>Processing completed.</strong>
-          <p>Persisted local proposals are ready for correction and explicit approval.</p>
+          <p>Next: open the room workspace to explore 2D and unfinished 3D. No symbol legend or dimension approval is needed for the draft preview.</p>
           <a className="btn btn-outline-dark" href={getDemoInterpretationHref(projectId, projectFloorId, floorPlanId, job.job_id)}>
             Review floor-plan proposals
           </a>
-          <a className="btn btn-outline-dark" href={getDetectionReviewHref(projectId, floorPlanId, job.job_id)}>
+          <p><strong>2D / 3D room preview is inside “Review floor-plan proposals”.</strong></p>
+          {canStart && <button className="btn btn-outline-dark" type="button" onClick={startProcessing}>Re-analyze room geometry</button>}
+          <details><summary>Advanced symbol review</summary><a className="btn btn-outline-dark" href={getDetectionReviewHref(projectId, floorPlanId, job.job_id)}>
             Review detections
-          </a>
+          </a></details>
         </div>
       )}
 
