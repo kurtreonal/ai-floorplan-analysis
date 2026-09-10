@@ -984,16 +984,25 @@ development database:
 .\.venv\Scripts\python.exe -m app.core.schema
 ```
 
-Run the API and bounded local worker in separate PowerShell windows:
+Opt in to the development worker when starting the API. Automatic execution
+defaults off and is disabled outside `APP_ENV=development`:
 
 ```powershell
+$env:APP_ENV = 'development'
+$env:AUTO_START_DEMO_WORKER = 'true'
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+The worker processes the oldest queued `floor_plan_analysis` job, page 1 only,
+after each Analyze request. Set `AUTO_START_DEMO_WORKER=false` when an external
+worker process should own job execution. The explicit worker command remains
+available for recovery or isolated runs:
+
+```powershell
 .\.venv\Scripts\python.exe -m app.workers.demo_worker
 ```
 
-The worker processes the oldest queued `floor_plan_analysis` job, page 1 only.
-Use `--once` for one polling pass or `--job-id <positive-id>` for one explicit
-job. It never downloads a model and never changes the original upload.
+It never downloads a model and never changes the original upload.
 
 `GET /health` returns:
 

@@ -4,7 +4,94 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+## Resume index
+
+Read this index, then only the relevant checkpoint below. Historical entries
+are evidence at their recorded time, not additional instructions to execute.
+Verify live code/Git when resuming; do not replay all prior checks.
+
+| Need | Read |
+|---|---|
+| Current room demo | Active priority → Latest: room geometry preview and navigation improvement |
+| Provisional training | September 10 checkpoint → provisional subset training completed |
+| U1 / U2 evidence | Matching working/completion entries below and owning contract/baseline |
+| U3 gate | Existing U3_PRIVATE_CORPUS_INTAKE_REPORT.md and actual private manifest |
+| Ticket requirements | Matching plan/handoff section; use handoff §2 reading map |
+
+Maintain current status once and add compact evidence updates. Link earlier
+unchanged tests/approvals rather than copying them; preserve failures, pending
+decisions, publication IDs and historical evidence. No new planning files.
+
 ## Active priority: September 10 development demo
+
+### Latest verification: worker startup and existing-data regression
+
+- User direction: finish the demo, then resume U3–U14 under the existing gates.
+  U1/U2 are already published. No full-U restart or model activation occurred.
+- Preserved and inspected the pending room-preview work and planning changes.
+  Automatic worker startup is now explicit opt-in and development-only;
+  README commands set both environment flags. Production/default application
+  startup does not claim queued jobs. New tests cover opt-in startup, shutdown,
+  disabled/production behavior and an idle worker that claims no job.
+- Reproduced the two scale-setting regression failures (existing global counts
+  2/4 versus assumed 0/2). Tests now compare the read-only result with the actual
+  before-state and scope created revisions to their fixture page, additionally
+  verifying existing setting rows remain unchanged. No user rows were deleted.
+- PASS: focused backend 29 tests and 20 subtests; final full backend 706 tests,
+  509 subtests, 3 skipped and 2 existing dependency warnings. Frontend 296 tests
+  across 34 files; lint/build and whitespace checks pass. One new lifecycle
+  test initially hung because its thread mock also intercepted the async test
+  executor; the test was stopped and corrected before the passing rerun.
+- Browser discovery in this implementation session returns no browsers. Earlier
+  draft WebGL evidence remains historical PASS; no fresh browser run is claimed.
+  Live read-only checks report zero active legends, zero approved demo reviews,
+  and zero current canonical layouts. Draft preview does not satisfy measured
+  layout or quality gates. Recall remains NOT TESTED; the experimental model
+  remains inactive and its failed useful-output result is preserved.
+- U3 branch/report reconciliation confirms pending page/quality reviews and
+  independent sealed-test project requirements; no new source approval is
+  inferred from the later provisional crop-training experiment. Dependent U4+
+  implementation and main merge remain blocked. Reconnect the browser, provide
+  actual legend identities and human geometry/metric review, then complete the
+  measured demo and reviewed-truth evaluation before declaring it complete.
+- The protected project service has no diff. No source/model/dataset files were
+  edited by this checkpoint. Private original-file behavior is covered by the
+  synthetic worker regression; no new live-original hash audit is claimed.
+
+### Latest: room geometry preview and navigation improvement
+
+The user authorized unfinished room-only 2D/3D output and simpler navigation.
+Implemented in the working tree on `codex/demo-floorplan-2d-3d`:
+
+- Room detection now considers the lower page, extracts longer structural
+  lines, bridges small gaps and preserves concave room contours. Short wiring
+  dashes and narrow fragments are filtered more conservatively.
+- Room-first 2D defaults, selectable corner editing, optional overlay layers,
+  clear next-step guidance and an explicit unfinished-draft save action.
+- Relative-height 3D outlines from the same room draft, using the existing
+  Three.js viewer. This preview does not assert measured walls, openings,
+  quantities, approved geometry or calibrated scale.
+- PASS: sample browser displayed eight room proposals in 2D and actual WebGL
+  3D; unfinished review revision 1 was saved without approval and restored
+  after reload on job 23140. Eight is a
+  proposal count, not eight verified rooms or a recall measurement.
+- PASS: 296 frontend tests, lint and production build. Build retains large
+  chunk warnings. Latest focused room/processing check: 11 tests passed;
+  review API checks: 6 tests passed (17 total). Diff whitespace check passed.
+- Full backend checkpoint: 644 tests ran, 2 failed and 3 skipped. Both failures
+  were global scale-setting row-count assertions affected by existing saved
+  records. Those records were preserved; the full suite is not marked PASS.
+  One follow-up command named a nonexistent processing-service test module;
+  the corrected command above passed.
+- The provisional trained symbol model is not active. Room detection remains
+  deterministic CV. Recall, full new-upload browser flow and measured canonical
+  approval remain NOT TESTED for this change. U3 data gates remain blocked.
+- Changes are not committed or published by this planning task. Existing
+  concurrent worker-startup changes and earlier training notes are preserved.
+
+The older checkpoint table below describes the pre-preview demo gates; draft
+WebGL display is now verified as stated above, while measured layout approval
+and development-set quality evaluation remain separate outstanding work.
 
 User-authorized planning change on September 9, 2026: execute the bounded
 DEMO-0 through DEMO-4 track in `LOCAL_VLM_MIGRATION_PLAN.md` before resuming
@@ -20,7 +107,106 @@ development pages, not a confidence threshold or a release-accuracy claim.
 | DEMO-1 local detection | COMPLETE | Bounded deterministic OpenCV inference emits strict source-bound room/wall and unknown-class symbol proposals from real pixels |
 | DEMO-2 review and persistence | IMPLEMENTED; automated checks PASS | Real worker and immutable reviews; explicit Designer placements; canonical save/reload; real human review pending |
 | DEMO-3 basic 2D/3D | IMPLEMENTED; automated checks PASS | Shared saved canonical document, coordinate tests and reload; actual WebGL browser inspection NOT TESTED |
-| DEMO-4 demonstration and metrics | BLOCKED; partial diagnostics PASS | Browser unavailable, active legend absent and human review/truth pending; end-to-end demo and recall NOT TESTED |
+| DEMO-4 demonstration and metrics | BLOCKED; partial browser inspection PASS | Browser connected and user signed in; persisted proposal canvas displayed. Active legend absent, canonical save/human review/truth pending; end-to-end demo and recall NOT TESTED |
+
+### September 10 planning-chat browser and temporary-data checkpoint
+
+#### Latest: user-authorized provisional subset training completed
+
+The user subsequently requested training now and explicitly approved corrected
+or manually added symbols with clear legend matches as provisional labels for
+a local experiment, excluding ambiguous, unresolved, deleted and untouched
+proposals. This supersedes the earlier not-started status below for this narrow
+experiment only; no dataset-approver assignment or production approval was
+invented, and the live OpenCV demo remains unchanged.
+
+- PASS: derived private dataset version 2 at
+  `storage/training/demo-reviewed-v002/manifest.json`, linked by hash to the
+  initial import. The original annotation export is unchanged; version 2 is a
+  new approved-subset derivation, not a falsely claimed new source export.
+- 38 corrected/manually added symbol records examined; 7 excluded by mapping
+  and geometry eligibility. Of 31 candidate crops, visual inspection excluded
+  10 clipped, ambiguous or multi-object crops. A further tiny 4x4 padded crop
+  was rejected by the first training loader and explicitly excluded in run 2.
+  Effective run-2 data: 12 training crops and 8 validation crops.
+- Four provisional legend-backed classes: NEMA-3R enclosure symbol, panelboard,
+  circuit home-run notation, and duplex 3-prong power outlet. No new production
+  catalog entries were created. Training has 4/1/2/5 samples respectively;
+  validation has only 8 homeruns. Groups 1 and 4 train; group 2 validates.
+  Numbered groups are preserved, but independent-project status is not certified.
+- Crops use their source bounding boxes plus synthetic white padding. Full
+  partially annotated pages were not treated as negative/background truth.
+  This crop experiment is not full-plan training/evaluation and trains no rooms,
+  walls, lighting fixtures, switches or wiring routes.
+- PASS: local CPU-only YOLOv8n training from the installed architecture, with
+  random initialization and no pretrained-weight download. Runtime verified:
+  PyTorch `2.14.0+cpu`, Ultralytics `8.4.131`, CUDA unavailable to this interpreter.
+  Network connections blocked in the isolated process; telemetry/integrations
+  disabled. Live HTTP processing, model configuration and app tables untouched.
+- Run 1: 10 epochs, 13.14 seconds, zero crop-validation metrics. Run 2: 100
+  epochs, 54.01 seconds. Both checkpoints/results retained under the private
+  version directory. Run-2 best-checkpoint validation: precision 0.3838449,
+  recall 0.125, mAP50 0.3905952, mAP50-95 0.1491061. These are library-reported
+  metrics on eight provisional padded homerun crops, NOT full-plan accuracy or
+  independent/sealed-test evidence. Do not call this a 50% demo-target pass.
+- PASS execution / FAIL useful sample output: separate local inference from
+  the run-2 best checkpoint on the user-supplied demo plan produced zero boxes
+  at threshold 0.50; source bytes remained unchanged. Result persisted as
+  `run-002/sample-inference.json`. No app model activation was performed.
+- PASS: repeat dataset preparation verified the existing hash-bound version
+  and returned unchanged. This does not implement arbitrary later-export merges.
+- Operational notes: sandbox execution of the project interpreter was denied;
+  approved escalated execution succeeded. Run 1 created a settings directory at
+  repository root after a config-directory fallback; that run-owned directory
+  was moved recoverably into its ignored run archive. Run 2 precreated the
+  intended private settings directory. No global settings/dependencies changed.
+- Next work: improve reviewed label coverage and source-box quality, establish
+  suitable training/validation examples for every intended class, and evaluate
+  a suitable initialization/training strategy. Do not activate this checkpoint
+  merely because training completed. Initial-import data, versions and model
+  artifacts remain private and Git-ignored. Full backend/frontend regression
+  not rerun: this checkpoint changes no application code or schema.
+
+Follow-up: the user explicitly requested an evolving supervised-training dataset,
+not test use alone. The initial collection has been copied into the Git-ignored
+local file store `storage/training/demo-initial-20260910/manifest.json`: 105 files,
+51 copied image hashes verified, original export unchanged, all files confirmed
+Git-ignored. At that import checkpoint there was no application-table ingestion,
+detector integration, offline training or model activation. The
+active OpenCV provider did not learn from this dataset. Subsequent-export merge,
+target approval, offline training and versioned activation are newly recorded
+implementation requirements in the existing handoff, not completed capabilities.
+The export still contains unresolved labels and no blanket training-truth flag;
+user authorization to use the collection does not certify every proposal.
+One initial import attempt stopped before copying because the child process's
+Git ownership check failed; the successful run used an exact-repository,
+command-scoped read-only Git check without changing global Git settings.
+
+- Inspected the running application at implementation commit `98f5105` after
+  the user signed in. An existing uploaded development image already had a
+  completed processing job; this chat did not perform a fresh upload or job.
+- PASS: opened its persisted source-aligned proposal canvas in the browser:
+  167 wall-line, 4 room and 4 unknown-class symbol proposals. These counts
+  describe this page, not the different page in the earlier timing report.
+- Visual quality remains poor: visible text and wiring are included in geometry
+  proposals. No precision/recall claim is supported by these counts.
+- BLOCKED: saved 2D reports no current layout; 3D reports no saved layout.
+  The review page reports no approved active VED legend. No review-completion,
+  placement, scale, elevation or wall-parameter approval was made by this chat.
+  Displaying the 3D error screen is not a successful WebGL reconstruction test.
+- Prepared a private temporary development pack from the supplied 52-page
+  correction export. All 52 image hashes and annotation coordinate/legend
+  bindings validated; the original review export is preserved byte-for-byte.
+  The pack contains 30 active plan inputs, 21 reference-only pages and one
+  explicitly excluded plan. All 20 deleted annotations remain audit tombstones
+  and are omitted from active hints. Existing annotation-editor tests: 17 PASS.
+- This pack is prepared, NOT imported into application review/canonical tables,
+  NOT training-approved, NOT sealed-test data and NOT accuracy ground truth.
+  No model weights, original images or application behavior were changed.
+- The requested unfinished 3D preview is a remaining product gap: current 3D
+  consumes reviewed canonical geometry only. Do not fake a completed review to
+  unlock it. A separate clearly unapproved preview requires an explicitly scoped
+  implementation decision; it is not evidence that DEMO-3/4 already supplies it.
 
 The original amendment was planning only; subsequent implementation evidence
 is recorded in the checkpoint entries below. U3 remains blocked under its original

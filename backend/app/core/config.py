@@ -77,6 +77,7 @@ class Settings(BaseSettings):
 
     yolo_model_path: Path | None = None
     yolo_confidence_threshold: float = Field(default=0.50, ge=0, le=1)
+    auto_start_demo_worker: bool = False
 
     cors_allowed_origins: str = "http://localhost:5173"
     log_level: str = "INFO"

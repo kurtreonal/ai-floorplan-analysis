@@ -1,3 +1,8 @@
+import asyncio
+import os
+import threading
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -29,6 +34,34 @@ from app.core.config import (
     get_oauth_oidc_configuration,
     get_settings,
 )
+from app.workers.demo_worker import run_demo_worker
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    worker_thread = None
+    stop_event = None
+    settings = application.state.settings
+    if settings.auto_start_demo_worker and settings.app_env == "development":
+        stop_event = threading.Event()
+        worker_thread = threading.Thread(
+            target=run_demo_worker,
+            kwargs={
+                "stop_event": stop_event,
+                "worker_identity": f"demo-worker:{os.getpid()}",
+                "settings": settings,
+            },
+            daemon=True,
+            name="ved-demo-worker",
+        )
+        worker_thread.start()
+    try:
+        yield
+    finally:
+        if stop_event is not None:
+            stop_event.set()
+        if worker_thread is not None:
+            await asyncio.to_thread(worker_thread.join, 5)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -36,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application = FastAPI(
         title=f"{application_settings.app_name} API",
         debug=application_settings.app_debug,
+        lifespan=lifespan,
     )
     application.state.settings = application_settings
 
