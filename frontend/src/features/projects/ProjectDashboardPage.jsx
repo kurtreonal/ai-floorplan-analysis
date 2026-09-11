@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { listProjects, ProjectApiError } from '../../api/projects.js'
 import { getProjectHref } from '../../routes/projectRoutes.js'
 import { CreateProjectForm } from './CreateProjectForm.jsx'
+import { AdminLegendPanel } from '../admin/AdminLegendPanel.jsx'
 
 
 function formatStatus(status) {
@@ -78,6 +79,7 @@ export function ProjectDashboardPage({ session }) {
         </div>
       </section>
 
+      {session.user.role === 'ADMIN' && <AdminLegendPanel />}
       {isDesigner && <CreateProjectForm onCreated={handleCreated} />}
 
       <section className="project-list-panel" aria-labelledby="project-list-title">

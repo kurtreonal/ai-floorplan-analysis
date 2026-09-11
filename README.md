@@ -122,6 +122,15 @@ complete the remaining 3D, routing, estimation or report epics.
 
 ### Local September demo startup
 
+Admins can open **Manage symbol legends** on the project dashboard to add
+classes from reviewed drawing legends or activate/deactivate existing entries.
+Designers use active classes in correction controls. Catalog registration does
+not train a detector or approve project geometry.
+
+The U4 offline reference-pack command and its private provenance requirements
+are documented in `backend/README.md`. It snapshots approved catalog state but
+cannot create classes, approve unknown glyphs, or expose private references.
+
 Use two PowerShell terminals. Start configured MySQL first. The existing
 backend environment and frontend dependencies are required; the CV provider
 needs no downloaded weights. Do not start a second server on an occupied port.

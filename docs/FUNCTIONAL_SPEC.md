@@ -4053,9 +4053,9 @@ still owns the future management UI.
 
 - [ ] Admin sees material management.
 - [ ] Admin can update a material price.
-- [ ] Admin sees symbol legend management.
-- [ ] Designer does not receive Admin controls.
-- [ ] Backend still rejects unauthorized direct API attempts.
+- [x] Admin sees symbol legend management.
+- [x] Designer does not receive Admin controls.
+- [x] Backend still rejects unauthorized direct API attempts.
 
 ---
 
@@ -4461,6 +4461,13 @@ protecting originals and preventing evaluation leakage.
 drawing/PEC evidence.
 
 **Dependencies:** U3, J3A.
+
+**Implementation status:** The local immutable pack builder, strict provenance,
+rights and drawing-mapping contract, historical parent hash chain, unknown-glyph
+separation, sanitized CLI and authenticated Admin catalog panel are implemented.
+They add no API operation, database table, model dependency or catalog mutation.
+The real approved pack remains pending until every active VED class has reviewed
+aliases, description, glyph evidence and permitted-use metadata.
 
 **Acceptance Criteria:**
 

@@ -841,10 +841,37 @@ frontend; J3 adds the review-decision boundary documented below.
 J3A adds `symbol_legends` as the tenth prototype table. Each row has a unique
 nonnegative model/dataset `class_id`, a unique normalized name using the
 case-sensitive `utf8mb4_bin` collation, an active flag, and timestamps. The
-active/class/ID index supports deterministic read-only retrieval. J3A adds no
-Admin mutation endpoint, production seed, model loading, inference, or
-classification correction. An empty catalog is valid until approved VED class
-data is supplied.
+active/class/ID index supports deterministic read-only retrieval. PRE7 adds the
+Admin-only create/update/activate/deactivate API with append-only history. U4
+adds the dashboard management panel without weakening backend authorization.
+No production seed, model loading, inference, or classification correction is
+performed by these controls. An empty catalog remains valid.
+
+U4 also adds an offline, local-only reference-pack builder. It snapshots every
+active catalog identity and requires approved aliases, descriptions, at least
+one hash-bound source/page/region glyph, approval revision, drawing-specific
+mapping provenance, and explicit source rights. Drawing mappings must match the
+source drawing set; unresolved glyphs remain in a separate unknown collection.
+PEC references require edition, part, page, rights holder, permitted use and an
+evidence reference. Building or reading a pack never creates or activates a
+catalog class.
+
+Each manifest version is immutable. Version 2 and later must name and hash the
+immediately preceding manifest; a changed existing version fails closed. The
+definition, sources and output must remain below the approved private root:
+
+```powershell
+cd C:\Users\kupal\Documents\ai-floorplan-analysis
+$privateRoot = 'D:\approved-private-location'
+.\backend\.venv\Scripts\python.exe .\scripts\build_vlm_reference_pack.py `
+  --private-root $privateRoot `
+  --definition (Join-Path $privateRoot 'reference-pack-v1.json') `
+  --manifest (Join-Path $privateRoot 'reference-packs\ved\v0001\manifest.json')
+```
+
+The command prints aggregate counts and the manifest hash, not private source
+paths or contents. A complete real pack still requires reviewed class metadata,
+glyph regions and purpose-specific rights; synthetic tests prove mechanics only.
 
 ## Detection classification corrections API
 

@@ -230,8 +230,8 @@ the original sequence only after the demo handoff and further user direction.
 |---|---|---|---|---|---|---|
 | U1 | Complete | Native-Windows target measured | Approved operating/retention policy and standing VED collection authorization; encryption deferred with accepted risk, not passed | Not applicable | Published to `main` at merge `8c73183` | Collection authorization does not replace source rights, quality, annotation, gold, training-record, or release decisions |
 | U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
-| U3 | Implementation PASS; real-data acceptance blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero sources/pages | Covered blueprint permission recorded; one degraded-page decision and eight page classifications remain; third-party references stay excluded | Not applicable | Implementation publication in progress after demo reconciliation | Private visual review is ready; encryption is deferred risk, not blocker; no genuine frozen-test project exists |
-| U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
+| U3 | Implementation PASS; real-data acceptance blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero sources/pages | Covered blueprint permission recorded; one degraded-page decision and eight page classifications remain; third-party references stay excluded | Not applicable | Published to `main` at merge `b909e12` | Private visual review is ready; encryption is deferred risk, not blocker; no genuine frozen-test project exists |
+| U4 | Implementation PASS; real pack pending | Synthetic private-pack fixtures pass; six active live catalog classes rechecked | Reviewed aliases, descriptions, glyph regions and source rights remain pending | Not applicable | Feature publication in progress | Builder and Admin UI do not mutate approval state or train/activate a model |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
 | U7 | Not started | Not started | Not applicable | Not applicable | Not published | Depends on U2 and U6 |
@@ -343,7 +343,35 @@ the original sequence only after the demo handoff and further user direction.
   `20751d51ff7c6240274f075ee5237f93c44d48a79e7cf103baca34fc1b6fc2f3`.
 - U3 implementation is eligible for publication under the updated section 0;
   real-data acceptance remains blocked and is not relabeled as complete.
-- U4 has not started.
+- U3 implementation was published to `main` at merge `b909e12`; feature and
+  main upstream divergence were both `0 0` after push.
+
+## U4 implementation checkpoint
+
+- Baseline: U3 implementation merge `b909e12`; branch
+  `codex/u4-approved-legend-reference-pack`.
+- Added a strict local-only builder and sanitized CLI for immutable, parent-linked
+  legend/reference manifests. Every active catalog record must have the same
+  stable database/class identity, approved name, active state, aliases,
+  description, approval revision and at least one source/page/region glyph.
+- Source records are size-bounded and hash-verified inside the approved private
+  root. Drawing mappings cannot cross drawing sets. PEC/reference metadata keeps
+  edition, part, page, rights holder, explicit permitted use and evidence identity.
+  Unknown glyphs remain separate and cannot be coerced into known classes.
+- Restored the authenticated Admin dashboard catalog panel and its API client.
+  Designers do not receive the control; FastAPI still enforces authorization.
+  Catalog saves remain explicit and do not train a detector or approve geometry.
+- Focused verification: 24 backend tests with 12 subtests in an isolated database;
+  15 frontend tests. Full verification: 756 backend tests with 4 skipped and
+  509 subtests in a removed isolated database; 300 frontend tests across 36 files;
+  Python compilation, dependency check, CLI help, lint and production build PASS.
+  Existing dependency deprecations and large-bundle warnings remain.
+- No API, SQLAlchemy table, live row, dependency, runtime-model or canonical
+  geometry change. No real private pack was created. Six active live catalog
+  classes exist, but real U4 acceptance remains BLOCKED on reviewed aliases,
+  descriptions, glyph evidence and purpose-specific source rights.
+- Next: publish this implementation checkpoint, then start independently
+  testable U5 gold-import and metric tooling without claiming real gold exists.
 
 ## DEMO-0 completion checkpoint
 
