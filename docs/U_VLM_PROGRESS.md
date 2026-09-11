@@ -238,7 +238,7 @@ the original sequence only after the demo handoff and further user direction.
 | U8 | Implementation PASS; real-runtime activation pending | Lazy loading, loopback constraint, offline egress guard, timeout/cancellation, strict candidate validation, and error sanitization pass; 12 focused / 820 backend / 300 frontend tests pass | Independent model selection and weights pending | Not activated | Published to `main` at merge `a44a97e` | Isolated schema-constrained local VLM gateway implemented; zero external downloads or network egress |
 | U9 | Implementation PASS; real human review decisions pending | Synthetic authority/monotonic/checklist/export fixtures pass; 144 backend / 300 frontend tests pass | Independent dataset approver review missing | Not activated | Published to `main` at merge `13b7dae` | Requires actual human review decisions |
 | U10 | Implementation PASS; real adapter training pending | Sealed isolation, grounding formatting, checkpoint resume, and offline egress pass; 153 backend / 300 frontend tests pass | Independent training target and compute approval missing | Not activated | Published to `main` at merge `9f222e4` | Requires approved training records and compute |
-| U11 | Not started | Not started | Not started | Not activated | Not published | Depends on U9 durable review records |
+| U11 | Implementation PASS; real human review decisions pending | Extension v2 schemas, fail-closed validation, canonical adaptation, and atomic persistence pass; 169 backend / 313 frontend tests pass | Independent designer review and approved canonical snapshot missing | Not activated | Published to `main` at merge `ed67dc2` | Requires approved candidate review and scale evidence |
 | U12 | Not started | Not started | Not started | Not activated | Not published | Observed wiring only |
 | U13 | Not started | Not started | Not applicable | Not activated | Not published | Depends on production gateway/persistence |
 | U14 | Not started | Not started | Missing | Not activated | Not published | Requires sealed evaluation and independent signed release decision |
@@ -626,6 +626,45 @@ the original sequence only after the demo handoff and further user direction.
   - Full frontend regression: 36 test files passed, 300 tests passed; lint and production build passed cleanly.
   - `git diff --check`: passed cleanly.
 - Real adapter training and compute allocation remain PENDING until approved training datasets exist. Zero unapproved downloads or external compute used.
+
+## U11 implementation and verification checkpoint (completed)
+
+- Baseline: published U10 merge `9f222e4` (progress ledger `806d424`); branch
+  `codex/u11-candidate-persistence-k1-adapter`. Recovery stash `stash@{0}` remains preserved untouched.
+- Shared compatibility fixtures created in `fixtures/`:
+  - `fixtures/canonical_extension_v2.json`: representative valid extension document matching `canonical_geometry_v1.json`.
+  - `fixtures/canonical_extension_v2_empty.json`: valid empty collections document.
+  - `fixtures/canonical_extension_v2_partial.json`: partial collections with unclassified openings.
+  - `fixtures/canonical_extension_v2_malformed.json`: negative coordinate rejection test fixture.
+  - `fixtures/canonical_extension_v2_unsupported.json`: unsupported `extension_schema_version = 3` fail-closed test fixture.
+- Implemented `backend/app/geometry/canonical_extension.py` and exported in `__init__.py`:
+  - Data structures: `SourcePlaneReference`, `CanonicalOpening`, `CanonicalPanel`, `CanonicalPanelBounds`, `CanonicalSymbolDetail`, `CanonicalSymbolBounds`, `CanonicalRouteDetail`, and `CanonicalExtensionV2`.
+  - Exact-key, fail-closed deserializer and validator `canonical_extension_from_dict` enforcing `extension_schema_version == 2`, `base_schema_version == 1`, strict types, and cross-reference integrity against base K1 geometry.
+  - View composer `compose_canonical_view(base_doc, extension)`.
+  - Adaptation engine `adapt_reviewed_candidate_to_canonical` strictly translating approved entities from U9 `ReviewDocument` + U2 `FloorPlanInterpretationCandidate` with approved scale/elevation validation from PRE6, producing a verified `(CanonicalGeometryDocument, CanonicalExtensionV2)` pair.
+- Implemented `backend/app/services/canonical_extension_storage.py`:
+  - Atomic JSON persistence and sha256 hashing at `<storage>/canonical_extensions/layout_<id>_extension_v2.json`.
+  - Preserves live database constraint `schema_version = 1` in `layout_versions` without table schema mutation or 26th table addition.
+- Updated layout persistence and interpretation services:
+  - `backend/app/services/layout_version_service.py`: updated `LayoutVersionRecord` and `save_layout_snapshot_conditionally` to atomically persist and load extension documents alongside base geometry in one transaction.
+  - `backend/app/services/layout_service.py`: updated `save_owned_layout` to accept and validate extension payloads.
+  - `backend/app/services/demo_interpretation_service.py`: updated `save_approved_interpretation_layout` to construct `CanonicalExtensionV2` with source-plane references and pass to atomic layout save.
+- Implemented frontend module `frontend/src/geometry/canonicalExtension.js`:
+  - `normalizeCanonicalExtension(value, baseGeometry)`: deep-frozen normalization, exact-key validation, fail-closed checking, and base cross-referencing.
+  - `composeCanonicalView(baseGeometry, extension)`: composable view utility.
+  - `preserveExtensionOnSymbolMove(extension, symbolId, newPosition)`: updates symbol coordinates while retaining detailed provenance.
+- Verification results:
+  - Focused U11 backend suite: 16 passed in 1.37s.
+  - Combined U2–U11 AI suite (10 test files): 169 passed, 1 skipped in 19.34s.
+  - Layout and canonical regression: 75 passed in 5.73s.
+  - Demo interpretation API regression: 6 passed in 3.81s.
+  - Full frontend suite: 37 test files, 313 passed in 10.69s.
+  - `npm.cmd --prefix frontend run lint`: 0 errors.
+  - `npm.cmd --prefix frontend run build`: passed cleanly.
+  - `python -m compileall backend/app backend/tests`: passed cleanly.
+  - `git diff --check`: 0 issues.
+  - MySQL database isolation verified: exactly 25 tables in `Base.metadata`, zero mutations to dev database.
+- Real human review decisions and model weights remain PENDING. Zero unapproved downloads or external compute used.
 
 ## DEMO-0 completion checkpoint
 
