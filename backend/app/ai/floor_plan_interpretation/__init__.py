@@ -23,6 +23,18 @@ from app.ai.floor_plan_interpretation.demo_cv import (
     DemoCVParameters,
     interpret_floor_plan_demo,
 )
+from app.ai.floor_plan_interpretation.legend_reference_pack import (
+    CatalogLegendSnapshot,
+    DrawingLegendMapping,
+    GlyphReference,
+    LegendClassDefinition,
+    LegendReferencePackError,
+    LegendReferencePackRequest,
+    SourceReference,
+    SourceRegion,
+    UnknownGlyph,
+    build_legend_reference_pack,
+)
 
 __all__ = [
     "CandidateContractError",
@@ -42,4 +54,14 @@ __all__ = [
     "DemoCVError",
     "DemoCVParameters",
     "interpret_floor_plan_demo",
+    "CatalogLegendSnapshot",
+    "DrawingLegendMapping",
+    "GlyphReference",
+    "LegendClassDefinition",
+    "LegendReferencePackError",
+    "LegendReferencePackRequest",
+    "SourceReference",
+    "SourceRegion",
+    "UnknownGlyph",
+    "build_legend_reference_pack",
 ]
