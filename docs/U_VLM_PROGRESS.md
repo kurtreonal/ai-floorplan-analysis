@@ -231,8 +231,8 @@ the original sequence only after the demo handoff and further user direction.
 | U1 | Complete | Native-Windows target measured | Approved operating/retention policy and standing VED collection authorization; encryption deferred with accepted risk, not passed | Not applicable | Published to `main` at merge `8c73183` | Collection authorization does not replace source rights, quality, annotation, gold, training-record, or release decisions |
 | U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
 | U3 | Implementation PASS; real-data acceptance blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero sources/pages | Covered blueprint permission recorded; one degraded-page decision and eight page classifications remain; third-party references stay excluded | Not applicable | Published to `main` at merge `b909e12` | Private visual review is ready; encryption is deferred risk, not blocker; no genuine frozen-test project exists |
-| U4 | Implementation PASS; real pack pending | Synthetic private-pack fixtures pass; six active live catalog classes rechecked | Reviewed aliases, descriptions, glyph regions and source rights remain pending | Not applicable | Feature publication in progress | Builder and Admin UI do not mutate approval state or train/activate a model |
-| U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
+| U4 | Implementation PASS; real pack pending | Synthetic private-pack fixtures pass; six active live catalog classes rechecked | Reviewed aliases, descriptions, glyph regions and source rights remain pending | Not applicable | Published to `main` at merge `5845512` | Builder and Admin UI do not mutate approval state or train/activate a model |
+| U5 | Implementation complete; real gold pending | Synthetic authority/hash/split/sealed-access and known-answer metric fixtures pass | Independent gold review and numeric threshold approval missing | Not applicable | Pending focused/full verification and publication | Unsupported metrics are explicit N/A; unavailable evidence remains pending |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
 | U7 | Not started | Not started | Not applicable | Not applicable | Not published | Depends on U2 and U6 |
 | U8 | Not started | Not started | Not applicable | Not activated | Not published | Depends on U2, U6, and U7 |
@@ -372,6 +372,62 @@ the original sequence only after the demo handoff and further user direction.
   descriptions, glyph evidence and purpose-specific source rights.
 - Next: publish this implementation checkpoint, then start independently
   testable U5 gold-import and metric tooling without claiming real gold exists.
+
+## U5 implementation checkpoint (reconstructed, superseded)
+
+- Baseline: published U4 merge `5845512`; branch `codex/u5-gold-metric-tooling`.
+  Recovery stash `stash@{0}` remains preserved; its planning/dashboard changes
+  were reconciled without applying or discarding the stash.
+- Added an offline private-root gold builder and database-authority CLI. Source
+  and annotation hashes, page identity, five-layer completeness, project-level
+  split isolation, immutable parent revisions, and non-removable prior records
+  are validated. Incorrect, inactive, expired, self, and client-only approval
+  authority fails closed.
+- Development loading requires an expected manifest hash and returns eligible
+  development records only; sealed-test records are excluded from U6/U10
+  workflows. Original source bytes remain untouched.
+- The metric contract requires all migration-plan metrics and hard gates.
+  Unsupported deterministic outputs are N/A with reasons; missing measurements
+  are pending. Known-answer overall/per-class symbol precision, recall, F1,
+  count error, IoU and center error are implemented.
+- Focused verification: 14 U5 tests; combined U2-U5 boundary suite: 86 passed,
+  1 native-Windows symlink skip. Compileall, pip check, frontend 300 tests,
+  lint and build passed. Full backend verification is still required in an
+  isolated database before publication.
+- Real U5 acceptance remains BLOCKED: representative independently approved
+  gold membership and approved numeric promotion/regression thresholds are not
+  available. No model selection or release claim is made.
+
+## U5 implementation checkpoint (reconstructed)
+
+- Baseline: published U4 merge `5845512`; active branch
+  `codex/u5-gold-metric-tooling`. The recovery stash remains preserved as
+  `stash@{0}`; its planning/dashboard changes are already present in this tree.
+- Added an offline, private-root gold-manifest builder and sanitized CLI. It
+  validates source/page identity, bounded reads, source and annotation hashes,
+  complete five-layer annotations, project-level split isolation, immutable
+  parent revisions, and recoverable membership (records cannot silently vanish
+  or change split).
+- Review decisions require active PRE10 authority snapshots, decision time,
+  independent author/approver identities and matching annotation hashes.
+  Incomplete and rejected records remain inventoried but are ineligible.
+  The development loader requires an expected manifest hash and omits all
+  sealed-test records; it never supplies sealed labels to model workflows.
+- The metric contract requires all migration-plan metrics and hard gates. Missing
+  evidence is `pending`; unsupported calculator outputs are `not_applicable`
+  with a reason, never zero. Known-answer symbol matching is deterministic and
+  reports overall and per-class precision, recall, F1, count error, box IoU and
+  center error.
+- Focused verification: 14 U5 tests; combined U2-U5 AI boundary tests: 86
+  passed, 1 native-Windows symlink test skipped. Compileall, pip check, frontend
+  300-test suite, lint and production build passed. The first full backend run
+  was interrupted after unrelated shared-development-database failures; it is
+  not evidence against U5 and requires a disposable isolated database rerun.
+- Real U5 acceptance remains BLOCKED: no representative independently approved
+  gold membership or approved promotion/regression thresholds exists. Current
+  unsupported deterministic metrics are wall endpoint/angle/segment/duplicate,
+  room IoU, opening/panel F1, scale errors, wiring presence/segment/topology/
+  length and peak VRAM. No model selection or release claim is made.
 
 ## DEMO-0 completion checkpoint
 

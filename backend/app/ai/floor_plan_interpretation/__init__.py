@@ -35,6 +35,23 @@ from app.ai.floor_plan_interpretation.legend_reference_pack import (
     UnknownGlyph,
     build_legend_reference_pack,
 )
+from app.ai.floor_plan_interpretation.gold_evaluation import (
+    ApproverAuthoritySnapshot,
+    GoldAnnotationDocument,
+    GoldEvaluationError,
+    GoldManifestRequest,
+    GoldRecordRequest,
+    MetricContract,
+    MetricDeclaration,
+    ReviewDecision,
+    SymbolTruth,
+    build_gold_manifest,
+    build_metric_report,
+    evaluate_symbols,
+    evaluate_symbols_by_class,
+    load_development_gold,
+    validate_metric_contract_authority,
+)
 
 __all__ = [
     "CandidateContractError",
@@ -64,4 +81,19 @@ __all__ = [
     "SourceRegion",
     "UnknownGlyph",
     "build_legend_reference_pack",
+    "ApproverAuthoritySnapshot",
+    "GoldAnnotationDocument",
+    "GoldEvaluationError",
+    "GoldManifestRequest",
+    "GoldRecordRequest",
+    "MetricContract",
+    "MetricDeclaration",
+    "ReviewDecision",
+    "SymbolTruth",
+    "build_gold_manifest",
+    "build_metric_report",
+    "evaluate_symbols",
+    "evaluate_symbols_by_class",
+    "load_development_gold",
+    "validate_metric_contract_authority",
 ]

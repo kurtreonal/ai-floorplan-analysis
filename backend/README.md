@@ -873,6 +873,25 @@ The command prints aggregate counts and the manifest hash, not private source
 paths or contents. A complete real pack still requires reviewed class metadata,
 glyph regions and purpose-specific rights; synthetic tests prove mechanics only.
 
+## Private gold-evaluation bootstrap
+
+U5 provides an offline, private-root builder for immutable gold manifests. It
+hash-checks source/page identity and five-layer annotations, rejects project
+split leakage and membership removal, and verifies review decisions against
+PRE10 assignment history. Its development loader requires the manifest hash and
+omits sealed-test records. Unsupported metric outputs are `not_applicable` with
+a reason; missing evidence is `pending`, never zero. Real independently
+approved gold and numeric thresholds remain pending.
+
+```powershell
+cd C:\Users\kupal\Documents\ai-floorplan-analysis
+$privateRoot = 'D:\approved-private-location'
+.\backend\.venv\Scripts\python.exe .\scripts\build_vlm_gold_manifest.py `
+  --private-root $privateRoot `
+  --definition (Join-Path $privateRoot 'gold-v1.json') `
+  --manifest (Join-Path $privateRoot 'gold\ved\v0001\manifest.json')
+```
+
 ## Detection classification corrections API
 
 ```http
