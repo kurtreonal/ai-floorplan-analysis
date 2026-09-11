@@ -234,7 +234,7 @@ the original sequence only after the demo handoff and further user direction.
 | U4 | Implementation PASS; real pack pending | Synthetic private-pack fixtures pass; six active live catalog classes rechecked | Reviewed aliases, descriptions, glyph regions and source rights remain pending | Not applicable | Published to `main` at merge `5845512` | Builder and Admin UI do not mutate approval state or train/activate a model |
 | U5 | Implementation PASS; real gold pending | Synthetic authority/hash/split/sealed-access and comprehensive known-answer metric fixtures pass; 775 backend / 300 frontend tests pass | Independent gold review and numeric threshold approval missing | Not applicable | Published to `main` at merge `8076db8` | Complete calculable geometry evaluators implemented; unavailable real evidence remains pending |
 | U6 | Implementation PASS; real bake-off selection pending | Offline egress guard, resource tracking, U2 candidate validation, and U5 metric reporting pass; 783 backend / 300 frontend tests pass | Independent model selection approval missing | Not activated | Published to `main` at merge `a578fae` | Local evaluation harness implemented; zero external downloads or unauthorized training |
-| U7 | Not started | Not started | Not applicable | Not applicable | Not published | Depends on U2 and U6 |
+| U7 | Implementation PASS | Deterministic overview, legend, plan-region, and overlapping tile transforms pass; 25 focused / 808 backend / 300 frontend tests pass | Not applicable | Not applicable | Published to `main` at merge | Multi-resolution page, region, tile and OCR preparation implemented; memory limits checked before allocation |
 | U8 | Not started | Not started | Not applicable | Not activated | Not published | Depends on U2, U6, and U7 |
 | U9 | Not started | Not started | Missing | Not activated | Not published | Requires actual human review decisions |
 | U10 | Not started | Not started | Missing | Not activated | Not published | Requires approved training records and compute |
@@ -490,6 +490,41 @@ the original sequence only after the demo handoff and further user direction.
   - Development database `ved_electrical` row counts strictly verified unchanged before and after test executions (25 tables, 178 rows intact).
   - `git diff --check`: passed cleanly.
 - Real model selection and hardware activation remain PENDING until approved datasets and model decisions exist. Zero unapproved downloads or external inference performed.
+
+## U7 implementation and verification checkpoint (completed)
+
+- Baseline: published U6 merge `a578fae` (progress ledger `60d69ee`); branch
+  `codex/u7-multi-resolution-page-context`. Recovery stash `stash@{0}` remains preserved untouched.
+- Implemented `preparation.py` in `backend/app/ai/floor_plan_interpretation/` and exported in `__init__.py`:
+  - `PreparationConfig`: strict bounds configuration for tile dimensions, tile overlap, overview size, pixel budgets, and resource limits.
+  - `PreparationResourceExhaustion`, `InvalidGeometryError`, `ArtifactPersistenceError`: safe error hierarchy.
+  - Reversible coordinate transforms: `invert_affine_transform`, `local_to_source_coords`, `source_to_local_coords`, `transform_bounds_local_to_source`, and `transform_bounds_source_to_local` with verified round-trip precision.
+  - Enforced isotropic scaling check: `assert_isotropic_scaling` prevents asymmetric floor plan distortion.
+  - Multi-resolution region extraction: `generate_overview_region`, `detect_plan_region`, and `detect_legend_region`.
+  - Overlapping tile slicing: `generate_tiles` guarantees full image coverage with pre-allocation safety bounds checking `max_tiles` and `max_source_pixels` before any allocation.
+  - Auxiliary evidence extraction: `extract_auxiliary_thresholded`, `extract_line_evidence` (classifying horizontal, vertical, and diagonal orientations), and `extract_ocr_evidence`.
+  - Page classification and signals: `assess_page_signals` detecting electrical content, scale, dimensions, legend, and flagging degraded/unsupported/blank pages with sorted unique issues.
+  - Cross-tile deduplication and fusion: `fuse_detected_symbols` merging duplicates in overlaps while strictly preserving distinct adjacent true symbols, and `fuse_detected_walls`.
+  - PRE5 persistence: `persist_prepared_tiles` registering tile slices with `artifact_kind="vlm_tile"` without mutating original files.
+- Added comprehensive unit and boundary tests in `backend/tests/test_vlm_preparation.py` covering:
+  - Invertible affine round-trips and bounding box transformations.
+  - Rejection of zero-determinant transforms and non-square/asymmetric scaling.
+  - EXIF orientation transposition and RGBA transparency flattening.
+  - Pre-allocation resource exhaustion guards against excessive tile count and image pixels.
+  - Overview aspect ratio preservation, plan region detection, and legend extraction.
+  - Auxiliary thresholding and line orientation classification.
+  - Page signals and blank page detection.
+  - Duplicate symbol fusion across tile overlaps, conflict marking for mismatched classes, and preservation of adjacent true symbols.
+  - Collinear wall fusion across tile boundaries.
+  - Full end-to-end page preparation and PRE5 tile artifact persistence.
+  - Verification that original uploaded blueprints remain bit-for-bit identical (SHA-256 match).
+- Verification results:
+  - Focused U7 suite: 25 passed in 1.33s.
+  - Combined U2–U7 AI suite: 124 passed, 1 skipped in 4.97s.
+  - Full backend regression in isolated test database: 808 passed, 4 skipped, 2 warnings in 24.76s.
+  - Full frontend regression: 36 test files passed, 300 tests passed; lint and production build passed cleanly.
+  - Development database `ved_electrical` row counts strictly verified unchanged before and after test executions (25 tables, 178 rows intact).
+  - `git diff --check`: passed cleanly.
 
 ## DEMO-0 completion checkpoint
 
