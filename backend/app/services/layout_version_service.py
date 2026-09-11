@@ -10,9 +10,16 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.geometry import (
+    CanonicalExtensionV2,
     CanonicalGeometryDocument,
     CanonicalGeometryError,
+    canonical_extension_from_dict,
     canonical_geometry_from_dict,
+)
+from app.services.canonical_extension_storage import (
+    delete_canonical_extension,
+    retrieve_canonical_extension,
+    save_canonical_extension,
 )
 from app.models import LayoutSaveRequest, LayoutVersion
 from app.repositories.layout_version_repository import (
@@ -59,6 +66,7 @@ class LayoutVersionRecord:
     is_current: bool
     created_at: datetime
     geometry: CanonicalGeometryDocument
+    extension: CanonicalExtensionV2 | None = None
 
 
 @dataclass(frozen=True)
@@ -102,6 +110,7 @@ def _record(
     layout_version: LayoutVersion,
     *,
     current_override: bool | None = None,
+    extension: CanonicalExtensionV2 | None = None,
 ) -> LayoutVersionRecord:
     geometry = _reconstruct(layout_version.geometry_document)
     if (
@@ -111,6 +120,8 @@ def _record(
         or geometry.floor_plan_id != layout_version.floor_plan_id
     ):
         _fail("INVALID_STORED_GEOMETRY")
+    if extension is None:
+        extension = retrieve_canonical_extension(layout_version.id, geometry)
     return LayoutVersionRecord(
         id=layout_version.id,
         project_id=layout_version.project_id,
@@ -125,6 +136,7 @@ def _record(
         ),
         created_at=layout_version.created_at,
         geometry=geometry,
+        extension=extension,
     )
 
 
@@ -282,8 +294,21 @@ def save_layout_snapshot_conditionally(
     expected_version_number: int | None,
     idempotency_key: str,
     created_by_user_id: int,
+    extension: CanonicalExtensionV2 | None = None,
 ) -> LayoutVersionRecord:
     document, serialized = _validated_document(document)
+    if extension is not None:
+        if type(extension) is not CanonicalExtensionV2:
+            try:
+                extension = canonical_extension_from_dict(extension, document)
+            except Exception:
+                _fail("INVALID_LAYOUT_DOCUMENT")
+        else:
+            try:
+                canonical_extension_from_dict(extension.to_dict(), document)
+            except Exception:
+                _fail("INVALID_LAYOUT_DOCUMENT")
+
     expected_version_number = _expected_version(expected_version_number)
     idempotency_key = _request_key(idempotency_key)
     created_by_user_id = _identifier(created_by_user_id)
@@ -308,7 +333,7 @@ def save_layout_snapshot_conditionally(
             )
             if layout_version is None:
                 _fail("IDEMPOTENCY_RECORD_INTEGRITY_FAILED")
-            record = _record(layout_version, current_override=True)
+            record = _record(layout_version, current_override=True, extension=extension)
             database_session.rollback()
             return record
 
@@ -321,6 +346,8 @@ def save_layout_snapshot_conditionally(
             serialized=serialized,
             maximum=maximum,
         )
+        if extension is not None:
+            save_canonical_extension(layout_version.id, extension)
         add_layout_save_request(
             database_session,
             LayoutSaveRequest(
@@ -332,13 +359,17 @@ def save_layout_snapshot_conditionally(
                 layout_version_id=layout_version.id,
             ),
         )
-        record = _record(layout_version)
+        record = _record(layout_version, extension=extension)
         database_session.commit()
         return record
     except LayoutVersionServiceError:
+        if extension is not None and "layout_version" in locals() and hasattr(layout_version, "id"):
+            delete_canonical_extension(layout_version.id)
         database_session.rollback()
         raise
     except SQLAlchemyError:
+        if extension is not None and "layout_version" in locals() and hasattr(layout_version, "id"):
+            delete_canonical_extension(layout_version.id)
         database_session.rollback()
         _fail("LAYOUT_PERSISTENCE_FAILED")
 

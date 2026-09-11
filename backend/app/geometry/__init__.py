@@ -25,6 +25,19 @@ from app.geometry.canonical import (
     build_canonical_geometry,
     canonical_geometry_from_dict,
 )
+from app.geometry.canonical_extension import (
+    CanonicalExtensionV2,
+    CanonicalOpening,
+    CanonicalPanel,
+    CanonicalPanelBounds,
+    CanonicalRouteDetail,
+    CanonicalSymbolBounds,
+    CanonicalSymbolDetail,
+    SourcePlaneReference,
+    adapt_reviewed_candidate_to_canonical,
+    canonical_extension_from_dict,
+    compose_canonical_view,
+)
 
 __all__ = (
     "CanonicalCoordinateSystem",
@@ -46,4 +59,15 @@ __all__ = (
     "CanonicalSymbol",
     "build_canonical_geometry",
     "canonical_geometry_from_dict",
+    "CanonicalExtensionV2",
+    "CanonicalOpening",
+    "CanonicalPanel",
+    "CanonicalPanelBounds",
+    "CanonicalRouteDetail",
+    "CanonicalSymbolBounds",
+    "CanonicalSymbolDetail",
+    "SourcePlaneReference",
+    "adapt_reviewed_candidate_to_canonical",
+    "canonical_extension_from_dict",
+    "compose_canonical_view",
 )

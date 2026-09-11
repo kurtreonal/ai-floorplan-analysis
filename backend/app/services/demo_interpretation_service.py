@@ -541,6 +541,63 @@ def save_approved_interpretation_layout(
             "symbols": symbols,
             "routes": [],
         })
+        openings = []
+        for index, op in enumerate(
+            (item for item in document.get("openings", []) if item.get("disposition") in ("accepted", "corrected", "added")),
+            start=1,
+        ):
+            pts = op.get("points", [])
+            if len(pts) >= 2:
+                openings.append({
+                    "id": index,
+                    "source_candidate_id": op.get("id"),
+                    "opening_type": op.get("kind", "unknown"),
+                    "start": {axis: round(float(pts[0][axis]) / scale, 9) for axis in ("x", "y")},
+                    "end": {axis: round(float(pts[1][axis]) / scale, 9) for axis in ("x", "y")},
+                    "associated_wall_id": None,
+                })
+
+        panels = []
+        for index, pan in enumerate(
+            (item for item in document.get("panels", []) if item.get("disposition") in ("accepted", "corrected", "added")),
+            start=1,
+        ):
+            pts = pan.get("points", [])
+            if pts:
+                panels.append({
+                    "id": index,
+                    "source_candidate_id": pan.get("id"),
+                    "name": pan.get("name"),
+                    "position": {axis: round(float(pts[0][axis]) / scale, 9) for axis in ("x", "y")},
+                    "orientation_degrees": None,
+                    "bounds": None,
+                })
+
+        symbol_details = [
+            {
+                "symbol_id": sym["id"],
+                "orientation_degrees": None,
+                "bounds": None,
+                "provenance": f"vlm:{candidate_run_id}:symbol:{sym['id']}",
+            }
+            for sym in symbols
+        ]
+
+        extension = {
+            "extension_schema_version": 2,
+            "base_schema_version": 1,
+            "source_plane_reference": {
+                "floor_plan_page_id": run.floor_plan_page_id,
+                "source_artifact_id": run.source_artifact_id,
+                "width_pixels": candidate.payload.source_plane.width_pixels,
+                "height_pixels": candidate.payload.source_plane.height_pixels,
+            },
+            "openings": openings,
+            "panels": panels,
+            "symbol_details": symbol_details,
+            "route_details": [],
+        }
+
         return save_owned_layout(
             session,
             current_user=current_user,
@@ -549,6 +606,7 @@ def save_approved_interpretation_layout(
             geometry_payload=geometry.to_dict(),
             expected_version_number=expected_layout_version_number,
             idempotency_key=idempotency_key,
+            extension_payload=extension,
         )
     except DemoInterpretationError:
         session.rollback()
