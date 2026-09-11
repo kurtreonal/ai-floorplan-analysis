@@ -28,9 +28,14 @@ router = APIRouter(tags=["demo floor-plan interpretation"])
 def _error(error: DemoInterpretationError) -> HTTPException:
     status_code = {
         "AUTHORIZATION_DENIED": status.HTTP_403_FORBIDDEN,
+        "DATASET_APPROVER_AUTHORITY_INVALID": status.HTTP_403_FORBIDDEN,
+        "DATASET_APPROVER_SELF_APPROVAL_DENIED": status.HTTP_403_FORBIDDEN,
         "INTERPRETATION_NOT_FOUND": status.HTTP_404_NOT_FOUND,
+        "REVIEW_NOT_FOUND": status.HTTP_404_NOT_FOUND,
         "STALE_INTERPRETATION_RUN": status.HTTP_409_CONFLICT,
         "STALE_REVIEW_REVISION": status.HTTP_409_CONFLICT,
+        "REVIEW_HAS_UNRESOLVED_TARGETS": status.HTTP_409_CONFLICT,
+        "CHECKLIST_PENDING": status.HTTP_409_CONFLICT,
         "METRIC_INPUTS_UNRESOLVED": status.HTTP_409_CONFLICT,
         "SCALE_REFERENCE_MISMATCH": status.HTTP_409_CONFLICT,
         "SYMBOL_MAPPING_REQUIRED": status.HTTP_409_CONFLICT,
@@ -38,10 +43,15 @@ def _error(error: DemoInterpretationError) -> HTTPException:
     }.get(error.code, status.HTTP_422_UNPROCESSABLE_CONTENT)
     public_codes = {
         "AUTHORIZATION_DENIED",
+        "DATASET_APPROVER_AUTHORITY_INVALID",
+        "DATASET_APPROVER_SELF_APPROVAL_DENIED",
         "INTERPRETATION_NOT_FOUND",
+        "REVIEW_NOT_FOUND",
         "STALE_INTERPRETATION_RUN",
         "STALE_REVIEW_REVISION",
         "REVIEW_INCOMPLETE",
+        "REVIEW_HAS_UNRESOLVED_TARGETS",
+        "CHECKLIST_PENDING",
         "REVIEW_COORDINATE_OUT_OF_BOUNDS",
         "UNKNOWN_CANDIDATE_IDENTITY",
         "DUPLICATE_WALL_IDENTITY",
@@ -54,6 +64,7 @@ def _error(error: DemoInterpretationError) -> HTTPException:
         "SCALE_REFERENCE_MISMATCH",
         "STALE_LAYOUT_VERSION",
         "IDEMPOTENCY_KEY_CONFLICT",
+        "WALL_DIMENSIONS_REQUIRED",
     }
     code = error.code if error.code in public_codes else "DEMO_INTERPRETATION_FAILED"
     return HTTPException(

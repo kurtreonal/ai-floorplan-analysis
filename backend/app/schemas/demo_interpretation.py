@@ -10,8 +10,12 @@ Finite = Annotated[StrictInt | StrictFloat, Field(ge=0, le=1_000_000, allow_inf_
 Positive = Annotated[StrictInt | StrictFloat, Field(gt=0, le=1_000, allow_inf_nan=False)]
 EntityId = Annotated[
     str,
-    Field(pattern=r"^(wall|room|symbol|manual-wall|manual-room|manual-symbol)-[0-9]{4}$"),
+    Field(
+        pattern=r"^(wall|room|symbol|opening|panel|scale|route|wiring|manual-wall|manual-room|manual-symbol|manual-opening|manual-panel|manual-scale|manual-route|manual-wiring)-[0-9]{4}$"
+    ),
 ]
+ReviewDisposition = Literal["accepted", "corrected", "added", "rejected", "unresolved"]
+MarkerState = Literal["complete", "pending", "not_applicable"]
 
 
 class DemoSchema(BaseModel):
@@ -25,7 +29,7 @@ class DemoPoint(DemoSchema):
 
 class DemoWallReview(DemoSchema):
     id: EntityId
-    disposition: Literal["accepted", "rejected"]
+    disposition: ReviewDisposition
     start: DemoPoint
     end: DemoPoint
 
@@ -38,16 +42,75 @@ class DemoWallReview(DemoSchema):
 
 class DemoRoomReview(DemoSchema):
     id: EntityId
-    disposition: Literal["accepted", "rejected"]
+    disposition: ReviewDisposition
     name: Annotated[str, Field(min_length=1, max_length=255)] | None = None
     boundary: Annotated[list[DemoPoint], Field(min_length=3, max_length=256)]
 
 
 class DemoSymbolReview(DemoSchema):
     id: EntityId
-    disposition: Literal["accepted", "rejected"]
+    disposition: ReviewDisposition
     center: DemoPoint
     symbol_legend_id: Annotated[StrictInt, Field(gt=0)] | None = None
+
+
+class DemoOpeningReview(DemoSchema):
+    id: EntityId
+    disposition: ReviewDisposition
+    kind: Literal["door", "window"]
+    points: Annotated[list[DemoPoint], Field(min_length=2, max_length=256)]
+
+
+class DemoPanelReview(DemoSchema):
+    id: EntityId
+    disposition: ReviewDisposition
+    name: Annotated[str, Field(min_length=1, max_length=255)] | None = None
+    points: Annotated[list[DemoPoint], Field(min_length=2, max_length=256)]
+
+
+class DemoScaleEvidenceReview(DemoSchema):
+    id: EntityId
+    disposition: ReviewDisposition
+    text: Annotated[str, Field(min_length=1, max_length=1000)]
+    measured_pixels: Annotated[StrictInt | StrictFloat, Field(gt=0, le=100_000)]
+    real_world_meters: Annotated[StrictInt | StrictFloat, Field(gt=0, le=10_000)]
+
+
+class DemoObservedWiringReview(DemoSchema):
+    id: EntityId
+    disposition: ReviewDisposition
+    points: Annotated[list[DemoPoint], Field(min_length=2, max_length=2048)]
+    completeness: Literal["complete", "partial", "unreadable"]
+
+
+class DemoCompletenessChecklist(DemoSchema):
+    symbols: MarkerState = "complete"
+    walls: MarkerState = "complete"
+    rooms: MarkerState = "complete"
+    openings: MarkerState = "not_applicable"
+    panels: MarkerState = "not_applicable"
+    scale_evidence: MarkerState = "not_applicable"
+    observed_wiring: MarkerState = "not_applicable"
+
+    @property
+    def complete(self) -> bool:
+        return "pending" not in (
+            self.symbols,
+            self.walls,
+            self.rooms,
+            self.openings,
+            self.panels,
+            self.scale_evidence,
+            self.observed_wiring,
+        )
+
+
+class DemoDatasetApprovalDecision(DemoSchema):
+    decision: Literal["approved", "rejected"]
+    assignment_id: Annotated[StrictInt, Field(gt=0)]
+    approver_user_id: Annotated[StrictInt, Field(gt=0)]
+    decided_at: datetime
+    decision_notes: Annotated[str, Field(min_length=1, max_length=2000)]
 
 
 class DemoReviewRequest(DemoSchema):
@@ -61,6 +124,12 @@ class DemoReviewRequest(DemoSchema):
     walls: Annotated[list[DemoWallReview], Field(max_length=2048)]
     rooms: Annotated[list[DemoRoomReview], Field(max_length=2048)]
     symbols: Annotated[list[DemoSymbolReview], Field(max_length=2048)]
+    openings: Annotated[list[DemoOpeningReview], Field(max_length=2048)] = []
+    panels: Annotated[list[DemoPanelReview], Field(max_length=2048)] = []
+    scale_evidence: Annotated[list[DemoScaleEvidenceReview], Field(max_length=2048)] = []
+    observed_wiring: Annotated[list[DemoObservedWiringReview], Field(max_length=2048)] = []
+    checklist: DemoCompletenessChecklist | None = None
+    dataset_approval: DemoDatasetApprovalDecision | None = None
 
     @model_validator(mode="after")
     def approval_is_explicit(self):
@@ -73,8 +142,8 @@ class DemoReviewRequest(DemoSchema):
 
 
 class DemoReviewedSymbol(DemoSymbolReview):
-    class_id: int | None
-    class_name: str | None
+    class_id: int | None = None
+    class_name: str | None = None
 
 
 class DemoReviewResponse(DemoSchema):
@@ -84,12 +153,18 @@ class DemoReviewResponse(DemoSchema):
     reviewed_by_user_id: int
     review_complete: bool
     approved_for_layout: bool
-    wall_thickness_meters: float | None
-    wall_height_meters: float | None
+    wall_thickness_meters: float | None = None
+    wall_height_meters: float | None = None
     evidence_notes: str
-    walls: list[DemoWallReview]
-    rooms: list[DemoRoomReview]
-    symbols: list[DemoReviewedSymbol]
+    walls: list[DemoWallReview] = []
+    rooms: list[DemoRoomReview] = []
+    symbols: list[DemoReviewedSymbol] = []
+    openings: list[DemoOpeningReview] = []
+    panels: list[DemoPanelReview] = []
+    scale_evidence: list[DemoScaleEvidenceReview] = []
+    observed_wiring: list[DemoObservedWiringReview] = []
+    checklist: DemoCompletenessChecklist | None = None
+    dataset_approval: DemoDatasetApprovalDecision | None = None
     created_at: datetime
 
 
