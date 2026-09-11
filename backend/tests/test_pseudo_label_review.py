@@ -48,6 +48,7 @@ from app.models import (
     ProcessingArtifact,
     ProcessingJob,
     ProcessingJobAttempt,
+    ProcessingJobCancellation,
     Project,
     ProjectFloor,
     Role,
@@ -241,6 +242,7 @@ class PseudoLabelReviewTests(unittest.TestCase):
             session.execute(delete(FloorPlanInterpretationReview))
             session.execute(delete(FloorPlanInterpretationRun))
             session.execute(delete(ProcessingJobAttempt))
+            session.execute(delete(ProcessingJobCancellation))
             session.execute(delete(ProcessingArtifact))
             session.execute(delete(ProcessingJob))
             session.execute(delete(FloorPlanPage))

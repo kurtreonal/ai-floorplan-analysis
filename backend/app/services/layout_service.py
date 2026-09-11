@@ -1,7 +1,12 @@
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.geometry import CanonicalGeometryError, canonical_geometry_from_dict
+from app.geometry import (
+    CanonicalExtensionV2,
+    CanonicalGeometryError,
+    canonical_extension_from_dict,
+    canonical_geometry_from_dict,
+)
 from app.models import ProjectFloor, User
 from app.repositories.project_floor_repository import (
     find_project_floor_by_id_and_project,
@@ -130,6 +135,7 @@ def save_owned_layout(
     geometry_payload: object,
     expected_version_number: int | None,
     idempotency_key: str,
+    extension_payload: object | None = None,
 ) -> LayoutVersionRecord:
     project_id = _identifier(project_id)
     project_floor_id = _identifier(project_floor_id)
@@ -149,6 +155,17 @@ def save_owned_layout(
             or document.floor.sort_order != project_floor.sort_order
         ):
             _fail("INVALID_LAYOUT_GEOMETRY")
+
+        extension = None
+        if extension_payload is not None:
+            try:
+                if type(extension_payload) is CanonicalExtensionV2:
+                    extension = canonical_extension_from_dict(extension_payload.to_dict(), document)
+                else:
+                    extension = canonical_extension_from_dict(extension_payload, document)
+            except (CanonicalGeometryError, TypeError, ValueError, OverflowError, AttributeError):
+                _fail("INVALID_LAYOUT_GEOMETRY")
+
         try:
             return save_layout_snapshot_conditionally(
                 database_session,
@@ -156,6 +173,7 @@ def save_owned_layout(
                 expected_version_number=expected_version_number,
                 idempotency_key=idempotency_key,
                 created_by_user_id=current_user.id,
+                extension=extension,
             )
         except LayoutVersionServiceError as error:
             if error.code in {
