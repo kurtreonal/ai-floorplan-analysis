@@ -232,7 +232,7 @@ the original sequence only after the demo handoff and further user direction.
 | U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
 | U3 | Implementation PASS; real-data acceptance blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero sources/pages | Covered blueprint permission recorded; one degraded-page decision and eight page classifications remain; third-party references stay excluded | Not applicable | Published to `main` at merge `b909e12` | Private visual review is ready; encryption is deferred risk, not blocker; no genuine frozen-test project exists |
 | U4 | Implementation PASS; real pack pending | Synthetic private-pack fixtures pass; six active live catalog classes rechecked | Reviewed aliases, descriptions, glyph regions and source rights remain pending | Not applicable | Published to `main` at merge `5845512` | Builder and Admin UI do not mutate approval state or train/activate a model |
-| U5 | Implementation complete; real gold pending | Synthetic authority/hash/split/sealed-access and known-answer metric fixtures pass | Independent gold review and numeric threshold approval missing | Not applicable | Pending focused/full verification and publication | Unsupported metrics are explicit N/A; unavailable evidence remains pending |
+| U5 | Implementation PASS; real gold pending | Synthetic authority/hash/split/sealed-access and comprehensive known-answer metric fixtures pass; 775 backend / 300 frontend tests pass | Independent gold review and numeric threshold approval missing | Not applicable | Published to `main` at merge | Complete calculable geometry evaluators implemented; unavailable real evidence remains pending |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
 | U7 | Not started | Not started | Not applicable | Not applicable | Not published | Depends on U2 and U6 |
 | U8 | Not started | Not started | Not applicable | Not activated | Not published | Depends on U2, U6, and U7 |
@@ -428,6 +428,33 @@ the original sequence only after the demo handoff and further user direction.
   unsupported deterministic metrics are wall endpoint/angle/segment/duplicate,
   room IoU, opening/panel F1, scale errors, wiring presence/segment/topology/
   length and peak VRAM. No model selection or release claim is made.
+
+## U5 implementation and verification checkpoint (completed)
+
+- Baseline: published U4 merge `5845512`; active branch `codex/u5-gold-metric-tooling`.
+  Recovery stash `stash@{0}` remains preserved untouched (`bb78854e87833124a1725b51f0be6099a8ac0cfa`).
+- Safe test-database isolation established: dedicated user `ved_test` scoped strictly
+  to `ved_electrical_verify` with zero access to development data. Verified before
+  and after full backend regression: `ved_electrical` row counts remained 100%
+  unchanged (25 tables, 178 rows intact).
+- Implemented calculable geometry evaluators in `gold_evaluation.py` and exported
+  in `floor_plan_interpretation/__init__.py`:
+  - `evaluate_walls` (match rate, precision, recall, F1, mean endpoint error, mean angle error, duplicate rate)
+  - `evaluate_rooms` (polygon IoU using `cv2.fillPoly` raster mask and bounding box fallback, precision, recall, F1, mean IoU)
+  - `evaluate_entities_by_kind`, `evaluate_openings`, `evaluate_panels` (center distance matching, precision, recall, F1, mean center error)
+  - `evaluate_scale` (absolute error, relative error)
+  - `evaluate_wiring` (presence accuracy, route matching, precision, recall, F1, topology error, length error ratio)
+- Comprehensive known-answer unit tests added in `test_gold_evaluation.py` covering
+  perfect matches, displacements, duplicate predictions, partial overlaps, empty
+  inputs, and error conditions.
+- Verification results:
+  - Focused U5 tests: 19 passed in 0.88s.
+  - Combined U2–U5 boundary suite: 91 passed, 1 skipped in 1.95s.
+  - Full backend regression in isolated test database: 775 passed, 4 skipped, 2 warnings, 509 subtests passed in 23.25s.
+  - Full frontend regression: 36 test files passed, 300 tests passed; lint and production build passed cleanly.
+  - `git diff --check`: passed cleanly.
+- Real gold membership and approved numeric promotion/regression thresholds remain
+  pending evidence. No model selection or release claim is made.
 
 ## DEMO-0 completion checkpoint
 

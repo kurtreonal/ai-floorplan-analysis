@@ -16,6 +16,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Sequence
 
+try:
+    import cv2
+    import numpy as np
+except ImportError:  # pragma: no cover
+    cv2 = None
+    np = None
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 HASH = re.compile(r"^[0-9a-f]{64}$")
@@ -308,6 +315,66 @@ class SymbolMetricResult:
 
 
 @dataclass(frozen=True)
+class WallMetricResult:
+    true_positive: int
+    false_positive: int
+    false_negative: int
+    match_rate: float
+    precision: float
+    recall: float
+    f1: float
+    mean_endpoint_error_pixels: float | None
+    mean_angle_error_degrees: float | None
+    duplicate_rate: float
+
+
+@dataclass(frozen=True)
+class RoomMetricResult:
+    true_positive: int
+    false_positive: int
+    false_negative: int
+    precision: float
+    recall: float
+    f1: float
+    mean_polygon_iou: float | None
+
+
+@dataclass(frozen=True)
+class EntityMetricResult:
+    kind: Literal["opening", "panel"]
+    true_positive: int
+    false_positive: int
+    false_negative: int
+    precision: float
+    recall: float
+    f1: float
+    mean_center_error_pixels: float | None
+
+
+@dataclass(frozen=True)
+class ScaleMetricResult:
+    truth_pixels_per_meter: float
+    predicted_pixels_per_meter: float
+    absolute_error: float
+    relative_error: float
+
+
+@dataclass(frozen=True)
+class WiringMetricResult:
+    presence_accuracy: float
+    true_positive_routes: int
+    false_positive_routes: int
+    false_negative_routes: int
+    precision: float
+    recall: float
+    f1: float
+    topology_error: float
+    length_error_ratio: float
+    truth_total_length_pixels: float
+    predicted_total_length_pixels: float
+
+
+@dataclass(frozen=True)
 class MetricReportEntry:
     name: str
     status: Literal["measured", "not_applicable", "pending"]
@@ -487,6 +554,277 @@ def evaluate_symbols(truth: Sequence[SymbolTruth], predictions: Sequence[SymbolT
 def evaluate_symbols_by_class(truth: Sequence[SymbolTruth], predictions: Sequence[SymbolTruth], *, iou_threshold: float) -> dict[int, SymbolMetricResult]:
     classes = sorted({x.class_id for x in truth} | {x.class_id for x in predictions})
     return {class_id: evaluate_symbols(tuple(x for x in truth if x.class_id == class_id), tuple(x for x in predictions if x.class_id == class_id), iou_threshold=iou_threshold) for class_id in classes}
+
+
+def _polygon_iou(poly_a: Sequence[PixelPoint], poly_b: Sequence[PixelPoint]) -> float:
+    if len(poly_a) < 3 or len(poly_b) < 3:
+        return 0.0
+    min_x = min(min(p.x for p in poly_a), min(p.x for p in poly_b))
+    min_y = min(min(p.y for p in poly_a), min(p.y for p in poly_b))
+    max_x = max(max(p.x for p in poly_a), max(p.x for p in poly_b))
+    max_y = max(max(p.y for p in poly_a), max(p.y for p in poly_b))
+    box_a = (min(p.x for p in poly_a), min(p.y for p in poly_a), max(p.x for p in poly_a), max(p.y for p in poly_a))
+    box_b = (min(p.x for p in poly_b), min(p.y for p in poly_b), max(p.x for p in poly_b), max(p.y for p in poly_b))
+    inter_w = max(0.0, min(box_a[2], box_b[2]) - max(box_a[0], box_b[0]))
+    inter_h = max(0.0, min(box_a[3], box_b[3]) - max(box_a[1], box_b[1]))
+    if inter_w <= 0.0 or inter_h <= 0.0:
+        return 0.0
+    width = max_x - min_x
+    height = max_y - min_y
+    if width <= 0 or height <= 0:
+        return 0.0
+    if cv2 is not None and np is not None:
+        scale = min(1.0, 1024.0 / max(width, height))
+        canvas_w = int(math.ceil(width * scale)) + 2
+        canvas_h = int(math.ceil(height * scale)) + 2
+        pts_a = np.array([[(p.x - min_x) * scale, (p.y - min_y) * scale] for p in poly_a], dtype=np.int32)
+        pts_b = np.array([[(p.x - min_x) * scale, (p.y - min_y) * scale] for p in poly_b], dtype=np.int32)
+        mask_a = np.zeros((canvas_h, canvas_w), dtype=np.uint8)
+        mask_b = np.zeros((canvas_h, canvas_w), dtype=np.uint8)
+        cv2.fillPoly(mask_a, [pts_a], 1)
+        cv2.fillPoly(mask_b, [pts_b], 1)
+        intersection = int(np.count_nonzero(mask_a & mask_b))
+        union = int(np.count_nonzero(mask_a | mask_b))
+        return intersection / union if union > 0 else 0.0
+    area_a = (box_a[2] - box_a[0]) * (box_a[3] - box_a[1])
+    area_b = (box_b[2] - box_b[0]) * (box_b[3] - box_b[1])
+    intersection = inter_w * inter_h
+    union = area_a + area_b - intersection
+    return intersection / union if union else 0.0
+
+
+def evaluate_rooms(
+    truth: Sequence[GeometryTruth],
+    predictions: Sequence[GeometryTruth],
+    *,
+    iou_threshold: float = 0.5,
+) -> RoomMetricResult:
+    if not 0 < iou_threshold <= 1:
+        _fail("INVALID_IOU_THRESHOLD")
+    rooms_truth = [x for x in truth if x.kind == "room"]
+    rooms_pred = [x for x in predictions if x.kind == "room"]
+    candidates = []
+    for t in rooms_truth:
+        for p in rooms_pred:
+            iou = _polygon_iou(t.points, p.points)
+            if iou >= iou_threshold:
+                candidates.append((-iou, t.entity_id, p.entity_id, t, p))
+    candidates.sort(key=lambda x: x[:3])
+    matched_truth: set[str] = set()
+    matched_pred: set[str] = set()
+    overlaps: list[float] = []
+    for neg_iou, _, _, expected, predicted in candidates:
+        if expected.entity_id in matched_truth or predicted.entity_id in matched_pred:
+            continue
+        matched_truth.add(expected.entity_id)
+        matched_pred.add(predicted.entity_id)
+        overlaps.append(-neg_iou)
+    tp = len(matched_truth)
+    fp = len(rooms_pred) - tp
+    fn = len(rooms_truth) - tp
+    precision = tp / (tp + fp) if (tp + fp) else 1.0
+    recall = tp / (tp + fn) if (tp + fn) else 1.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    mean_iou = sum(overlaps) / len(overlaps) if overlaps else None
+    return RoomMetricResult(tp, fp, fn, precision, recall, f1, mean_iou)
+
+
+def _wall_angle(p0: PixelPoint, p1: PixelPoint) -> float:
+    return math.degrees(math.atan2(p1.y - p0.y, p1.x - p0.x)) % 180.0
+
+
+def _angle_difference(a1: float, a2: float) -> float:
+    diff = abs(a1 - a2) % 180.0
+    return min(diff, 180.0 - diff)
+
+
+def evaluate_walls(
+    truth: Sequence[GeometryTruth],
+    predictions: Sequence[GeometryTruth],
+    *,
+    endpoint_tolerance_pixels: float = 10.0,
+    angle_tolerance_degrees: float = 5.0,
+) -> WallMetricResult:
+    if endpoint_tolerance_pixels <= 0 or angle_tolerance_degrees <= 0:
+        _fail("INVALID_TOLERANCE")
+    walls_truth = [x for x in truth if x.kind == "wall"]
+    walls_pred = [x for x in predictions if x.kind == "wall"]
+    candidates = []
+    for t in walls_truth:
+        t0, t1 = t.points[0], t.points[-1]
+        angle_t = _wall_angle(t0, t1)
+        for p in walls_pred:
+            p0, p1 = p.points[0], p.points[-1]
+            angle_p = _wall_angle(p0, p1)
+            angle_err = _angle_difference(angle_t, angle_p)
+            fwd = (math.dist((t0.x, t0.y), (p0.x, p0.y)) + math.dist((t1.x, t1.y), (p1.x, p1.y))) / 2.0
+            rev = (math.dist((t0.x, t0.y), (p1.x, p1.y)) + math.dist((t1.x, t1.y), (p0.x, p0.y))) / 2.0
+            endpoint_err = min(fwd, rev)
+            if endpoint_err <= endpoint_tolerance_pixels and angle_err <= angle_tolerance_degrees:
+                candidates.append((endpoint_err, angle_err, t.entity_id, p.entity_id, t, p))
+    candidates.sort(key=lambda x: (x[0], x[1], x[2], x[3]))
+    matched_truth: set[str] = set()
+    matched_pred: set[str] = set()
+    endpoint_errors: list[float] = []
+    angle_errors: list[float] = []
+    duplicates_seen: set[str] = set()
+    for ep_err, ang_err, _, _, expected, predicted in candidates:
+        if expected.entity_id in matched_truth:
+            if predicted.entity_id not in matched_pred:
+                duplicates_seen.add(predicted.entity_id)
+            continue
+        if predicted.entity_id in matched_pred:
+            continue
+        matched_truth.add(expected.entity_id)
+        matched_pred.add(predicted.entity_id)
+        endpoint_errors.append(ep_err)
+        angle_errors.append(ang_err)
+    tp = len(matched_truth)
+    fp = len(walls_pred) - tp
+    fn = len(walls_truth) - tp
+    match_rate = tp / len(walls_truth) if walls_truth else 1.0
+    precision = tp / (tp + fp) if (tp + fp) else 1.0
+    recall = tp / (tp + fn) if (tp + fn) else 1.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    mean_ep = sum(endpoint_errors) / len(endpoint_errors) if endpoint_errors else None
+    mean_ang = sum(angle_errors) / len(angle_errors) if angle_errors else None
+    dup_rate = len(duplicates_seen) / len(walls_pred) if walls_pred else 0.0
+    return WallMetricResult(tp, fp, fn, match_rate, precision, recall, f1, mean_ep, mean_ang, dup_rate)
+
+
+def _entity_center(points: Sequence[PixelPoint]) -> tuple[float, float]:
+    return (sum(p.x for p in points) / len(points), sum(p.y for p in points) / len(points))
+
+
+def evaluate_entities_by_kind(
+    truth: Sequence[GeometryTruth],
+    predictions: Sequence[GeometryTruth],
+    *,
+    kind: Literal["opening", "panel"],
+    distance_threshold_pixels: float = 25.0,
+) -> EntityMetricResult:
+    if distance_threshold_pixels <= 0:
+        _fail("INVALID_TOLERANCE")
+    items_truth = [x for x in truth if x.kind == kind]
+    items_pred = [x for x in predictions if x.kind == kind]
+    candidates = []
+    for t in items_truth:
+        ct = _entity_center(t.points)
+        for p in items_pred:
+            cp = _entity_center(p.points)
+            dist = math.dist(ct, cp)
+            if dist <= distance_threshold_pixels:
+                candidates.append((dist, t.entity_id, p.entity_id, t, p))
+    candidates.sort(key=lambda x: (x[0], x[1], x[2]))
+    matched_truth: set[str] = set()
+    matched_pred: set[str] = set()
+    center_errors: list[float] = []
+    for dist, _, _, expected, predicted in candidates:
+        if expected.entity_id in matched_truth or predicted.entity_id in matched_pred:
+            continue
+        matched_truth.add(expected.entity_id)
+        matched_pred.add(predicted.entity_id)
+        center_errors.append(dist)
+    tp = len(matched_truth)
+    fp = len(items_pred) - tp
+    fn = len(items_truth) - tp
+    precision = tp / (tp + fp) if (tp + fp) else 1.0
+    recall = tp / (tp + fn) if (tp + fn) else 1.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    mean_center = sum(center_errors) / len(center_errors) if center_errors else None
+    return EntityMetricResult(kind, tp, fp, fn, precision, recall, f1, mean_center)
+
+
+def evaluate_openings(
+    truth: Sequence[GeometryTruth],
+    predictions: Sequence[GeometryTruth],
+    *,
+    distance_threshold_pixels: float = 25.0,
+) -> EntityMetricResult:
+    return evaluate_entities_by_kind(truth, predictions, kind="opening", distance_threshold_pixels=distance_threshold_pixels)
+
+
+def evaluate_panels(
+    truth: Sequence[GeometryTruth],
+    predictions: Sequence[GeometryTruth],
+    *,
+    distance_threshold_pixels: float = 25.0,
+) -> EntityMetricResult:
+    return evaluate_entities_by_kind(truth, predictions, kind="panel", distance_threshold_pixels=distance_threshold_pixels)
+
+
+def evaluate_scale(
+    *,
+    truth_pixels_per_meter: float,
+    predicted_pixels_per_meter: float,
+) -> ScaleMetricResult:
+    if not math.isfinite(truth_pixels_per_meter) or truth_pixels_per_meter <= 0:
+        _fail("INVALID_SCALE_VALUE")
+    if not math.isfinite(predicted_pixels_per_meter) or predicted_pixels_per_meter < 0:
+        _fail("INVALID_SCALE_VALUE")
+    abs_err = abs(predicted_pixels_per_meter - truth_pixels_per_meter)
+    rel_err = abs_err / truth_pixels_per_meter
+    return ScaleMetricResult(truth_pixels_per_meter, predicted_pixels_per_meter, abs_err, rel_err)
+
+
+def _route_length(points: Sequence[PixelPoint]) -> float:
+    return sum(math.dist((points[i].x, points[i].y), (points[i+1].x, points[i+1].y)) for i in range(len(points) - 1))
+
+
+def evaluate_wiring(
+    truth: Sequence[ObservedWiringTruth],
+    predictions: Sequence[ObservedWiringTruth],
+    *,
+    endpoint_tolerance_pixels: float = 25.0,
+) -> WiringMetricResult:
+    if endpoint_tolerance_pixels <= 0:
+        _fail("INVALID_TOLERANCE")
+    truth_total = sum(_route_length(r.points) for r in truth)
+    pred_total = sum(_route_length(r.points) for r in predictions)
+    presence = 1.0 if (len(truth) > 0) == (len(predictions) > 0) else 0.0
+    candidates = []
+    for t in truth:
+        t0, t1 = (t.points[0].x, t.points[0].y), (t.points[-1].x, t.points[-1].y)
+        for p in predictions:
+            p0, p1 = (p.points[0].x, p.points[0].y), (p.points[-1].x, p.points[-1].y)
+            fwd = (math.dist(t0, p0) + math.dist(t1, p1)) / 2.0
+            rev = (math.dist(t0, p1) + math.dist(t1, p0)) / 2.0
+            endpoint_err = min(fwd, rev)
+            if endpoint_err <= endpoint_tolerance_pixels:
+                candidates.append((endpoint_err, t.route_id, p.route_id, t, p))
+    candidates.sort(key=lambda x: (x[0], x[1], x[2]))
+    matched_truth: set[str] = set()
+    matched_pred: set[str] = set()
+    for _, _, _, expected, predicted in candidates:
+        if expected.route_id in matched_truth or predicted.route_id in matched_pred:
+            continue
+        matched_truth.add(expected.route_id)
+        matched_pred.add(predicted.route_id)
+    tp = len(matched_truth)
+    fp = len(predictions) - tp
+    fn = len(truth) - tp
+    precision = tp / (tp + fp) if (tp + fp) else 1.0
+    recall = tp / (tp + fn) if (tp + fn) else 1.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    total_routes = len(truth) + len(predictions)
+    topology_error = (fp + fn) / total_routes if total_routes else 0.0
+    if truth_total > 0:
+        length_error = abs(pred_total - truth_total) / truth_total
+    else:
+        length_error = 0.0 if pred_total == 0 else 1.0
+    return WiringMetricResult(
+        presence_accuracy=presence,
+        true_positive_routes=tp,
+        false_positive_routes=fp,
+        false_negative_routes=fn,
+        precision=precision,
+        recall=recall,
+        f1=f1,
+        topology_error=topology_error,
+        length_error_ratio=length_error,
+        truth_total_length_pixels=truth_total,
+        predicted_total_length_pixels=pred_total,
+    )
 
 
 def build_metric_report(contract: MetricContract, observations: dict[str, float]) -> tuple[MetricReportEntry, ...]:

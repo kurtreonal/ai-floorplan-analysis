@@ -5,6 +5,17 @@ control scope; editing or reading this file alone starts no ticket.
 
 ## 0. CURRENT ASSIGNMENT: develop all U tickets; datasets will follow
 
+Execution owner amendment: Gemini is currently the authorized implementer,
+including testing and scoped Git publication. Apply this handoff's requirements
+to Gemini; Codex-only writer wording in older collaboration notes is superseded.
+Use GEMINI_3_8_CONTEXT_REVIEW_PROMPT.md for the immediate U5/U6 assignment.
+Keep one writer per shared checkout; the separate ChatGPT chat owns planning/review.
+The Gemini session executing this handoff owns implementation, not review-only
+acknowledgments. Standing user approval covers continuous dependency-ready U
+development: verify and checkpoint each ticket, then continue without requesting
+another "continue". Follow the Gemini prompt's continuation and stopping rules;
+pending datasets do not block independent code, and failed gates remain binding.
+
 User authorization, September 11: develop U1–U14 now; dataset preparation and
 decisions may wait. Preserve the working demo and completed U1/U2. Resume U3's
 remaining implementation, then proceed through independently implementable

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import math
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -10,18 +11,33 @@ from app.ai.floor_plan_interpretation.gold_evaluation import (
     REQUIRED_METRICS,
     ApproverAuthoritySnapshot,
     CompletenessMarkers,
+    EntityMetricResult,
+    GeometryTruth,
     GoldAnnotationDocument,
     GoldEvaluationError,
     GoldManifestRequest,
     GoldRecordRequest,
     MetricContract,
     MetricDeclaration,
+    ObservedWiringTruth,
+    PixelPoint,
     ReviewDecision,
+    RoomMetricResult,
+    ScaleMetricResult,
     SymbolTruth,
+    WallMetricResult,
+    WiringMetricResult,
     build_gold_manifest,
     build_metric_report,
+    evaluate_entities_by_kind,
+    evaluate_openings,
+    evaluate_panels,
+    evaluate_rooms,
+    evaluate_scale,
     evaluate_symbols,
     evaluate_symbols_by_class,
+    evaluate_walls,
+    evaluate_wiring,
     load_development_gold,
     validate_metric_contract_authority,
 )
@@ -182,3 +198,155 @@ def test_known_answer_symbol_metrics_and_per_class_results():
     per_class = evaluate_symbols_by_class(truth, predictions, iou_threshold=0.5)
     assert (per_class[1].true_positive, per_class[1].false_positive) == (1, 1)
     assert (per_class[2].true_positive, per_class[2].false_negative) == (0, 1)
+
+
+def test_known_answer_wall_metrics():
+    # Wall 1: (0,0) -> (100,0) horizontal
+    # Wall 2: (0,0) -> (0,100) vertical
+    truth = (
+        GeometryTruth(entity_id="wall-t1", kind="wall", points=(PixelPoint(x=0.0, y=0.0), PixelPoint(x=100.0, y=0.0))),
+        GeometryTruth(entity_id="wall-t2", kind="wall", points=(PixelPoint(x=0.0, y=0.0), PixelPoint(x=0.0, y=100.0))),
+    )
+    # Predicted: wall 1 reversed (100,0) -> (0,0), wall 2 slight offset (1,0) -> (1,100), duplicate for wall 1, and false positive wall
+    pred = (
+        GeometryTruth(entity_id="wall-p1", kind="wall", points=(PixelPoint(x=100.0, y=0.0), PixelPoint(x=0.0, y=0.0))),
+        GeometryTruth(entity_id="wall-p2", kind="wall", points=(PixelPoint(x=1.0, y=0.0), PixelPoint(x=1.0, y=100.0))),
+        GeometryTruth(entity_id="wall-p1-dup", kind="wall", points=(PixelPoint(x=0.0, y=1.0), PixelPoint(x=100.0, y=1.0))),
+        GeometryTruth(entity_id="wall-p-extra", kind="wall", points=(PixelPoint(x=50.0, y=50.0), PixelPoint(x=60.0, y=60.0))),
+    )
+    res = evaluate_walls(truth, pred, endpoint_tolerance_pixels=5.0, angle_tolerance_degrees=2.0)
+    assert res.true_positive == 2
+    assert res.false_negative == 0
+    assert res.false_positive == 2  # dup + extra
+    assert res.match_rate == 1.0
+    assert res.recall == 1.0
+    assert res.precision == 0.5
+    assert res.duplicate_rate == 0.25  # 1 duplicate among 4 predictions
+    assert res.mean_endpoint_error_pixels is not None and res.mean_endpoint_error_pixels < 2.0
+    assert res.mean_angle_error_degrees is not None and res.mean_angle_error_degrees < 1.0
+
+    # Test error cases and zero division guards
+    empty_res = evaluate_walls((), ())
+    assert empty_res.true_positive == 0 and empty_res.precision == 1.0 and empty_res.recall == 1.0
+    with pytest.raises(GoldEvaluationError, match="INVALID_TOLERANCE"):
+        evaluate_walls(truth, pred, endpoint_tolerance_pixels=-1.0)
+
+
+def test_known_answer_room_metrics():
+    # Room 1: 100x100 box at (0,0)
+    # Room 2: 100x100 box at (200,200)
+    truth = (
+        GeometryTruth(entity_id="room-t1", kind="room", points=(
+            PixelPoint(x=0.0, y=0.0), PixelPoint(x=100.0, y=0.0),
+            PixelPoint(x=100.0, y=100.0), PixelPoint(x=0.0, y=100.0),
+        )),
+        GeometryTruth(entity_id="room-t2", kind="room", points=(
+            PixelPoint(x=200.0, y=200.0), PixelPoint(x=300.0, y=200.0),
+            PixelPoint(x=300.0, y=300.0), PixelPoint(x=200.0, y=300.0),
+        )),
+    )
+    # Pred: room 1 identical, room 3 completely elsewhere
+    pred = (
+        GeometryTruth(entity_id="room-p1", kind="room", points=(
+            PixelPoint(x=0.0, y=0.0), PixelPoint(x=100.0, y=0.0),
+            PixelPoint(x=100.0, y=100.0), PixelPoint(x=0.0, y=100.0),
+        )),
+        GeometryTruth(entity_id="room-p3", kind="room", points=(
+            PixelPoint(x=500.0, y=500.0), PixelPoint(x=600.0, y=500.0),
+            PixelPoint(x=600.0, y=600.0), PixelPoint(x=500.0, y=600.0),
+        )),
+    )
+    res = evaluate_rooms(truth, pred, iou_threshold=0.5)
+    assert res.true_positive == 1
+    assert res.false_positive == 1
+    assert res.false_negative == 1
+    assert res.precision == 0.5
+    assert res.recall == 0.5
+    assert res.f1 == 0.5
+    assert res.mean_polygon_iou is not None and math.isclose(res.mean_polygon_iou, 1.0, abs_tol=1e-3)
+
+    # Empty inputs
+    assert evaluate_rooms((), ()).true_positive == 0
+    with pytest.raises(GoldEvaluationError, match="INVALID_IOU_THRESHOLD"):
+        evaluate_rooms(truth, pred, iou_threshold=1.5)
+
+
+def test_known_answer_entity_metrics_openings_and_panels():
+    truth = (
+        GeometryTruth(entity_id="open-t1", kind="opening", points=(PixelPoint(x=10.0, y=10.0), PixelPoint(x=20.0, y=10.0))),
+        GeometryTruth(entity_id="panel-t1", kind="panel", points=(PixelPoint(x=100.0, y=100.0), PixelPoint(x=110.0, y=110.0))),
+    )
+    pred = (
+        GeometryTruth(entity_id="open-p1", kind="opening", points=(PixelPoint(x=12.0, y=10.0), PixelPoint(x=22.0, y=10.0))),
+        GeometryTruth(entity_id="panel-p1", kind="panel", points=(PixelPoint(x=100.0, y=100.0), PixelPoint(x=110.0, y=110.0))),
+        GeometryTruth(entity_id="panel-p-extra", kind="panel", points=(PixelPoint(x=200.0, y=200.0), PixelPoint(x=210.0, y=210.0))),
+    )
+    openings = evaluate_openings(truth, pred, distance_threshold_pixels=10.0)
+    assert openings.true_positive == 1
+    assert openings.false_positive == 0
+    assert openings.false_negative == 0
+    assert openings.mean_center_error_pixels is not None and math.isclose(openings.mean_center_error_pixels, 2.0, abs_tol=1e-3)
+
+    panels = evaluate_panels(truth, pred, distance_threshold_pixels=10.0)
+    assert panels.true_positive == 1
+    assert panels.false_positive == 1
+    assert panels.false_negative == 0
+    assert panels.precision == 0.5
+    assert panels.recall == 1.0
+
+    with pytest.raises(GoldEvaluationError, match="INVALID_TOLERANCE"):
+        evaluate_entities_by_kind(truth, pred, kind="opening", distance_threshold_pixels=-5.0)
+
+
+def test_known_answer_scale_metrics():
+    exact = evaluate_scale(truth_pixels_per_meter=100.0, predicted_pixels_per_meter=100.0)
+    assert exact.absolute_error == 0.0
+    assert exact.relative_error == 0.0
+
+    mismatch = evaluate_scale(truth_pixels_per_meter=100.0, predicted_pixels_per_meter=110.0)
+    assert math.isclose(mismatch.absolute_error, 10.0)
+    assert math.isclose(mismatch.relative_error, 0.1)
+
+    with pytest.raises(GoldEvaluationError, match="INVALID_SCALE_VALUE"):
+        evaluate_scale(truth_pixels_per_meter=0.0, predicted_pixels_per_meter=100.0)
+    with pytest.raises(GoldEvaluationError, match="INVALID_SCALE_VALUE"):
+        evaluate_scale(truth_pixels_per_meter=100.0, predicted_pixels_per_meter=-5.0)
+
+
+def test_known_answer_wiring_metrics():
+    # Route 1: (0,0) -> (50,0) -> (50,50) length = 100
+    # Route 2: (100,100) -> (200,100) length = 100
+    truth = (
+        ObservedWiringTruth(route_id="w-t1", points=(PixelPoint(x=0.0, y=0.0), PixelPoint(x=50.0, y=0.0), PixelPoint(x=50.0, y=50.0)), completeness="complete"),
+        ObservedWiringTruth(route_id="w-t2", points=(PixelPoint(x=100.0, y=100.0), PixelPoint(x=200.0, y=100.0)), completeness="complete"),
+    )
+    # Pred: Route 1 matched, Route 3 extra (length 50), Route 2 missing
+    pred = (
+        ObservedWiringTruth(route_id="w-p1", points=(PixelPoint(x=0.0, y=0.0), PixelPoint(x=50.0, y=0.0), PixelPoint(x=50.0, y=50.0)), completeness="complete"),
+        ObservedWiringTruth(route_id="w-p3", points=(PixelPoint(x=300.0, y=300.0), PixelPoint(x=350.0, y=300.0)), completeness="complete"),
+    )
+    res = evaluate_wiring(truth, pred, endpoint_tolerance_pixels=10.0)
+    assert res.presence_accuracy == 1.0
+    assert res.true_positive_routes == 1
+    assert res.false_positive_routes == 1
+    assert res.false_negative_routes == 1
+    assert res.precision == 0.5
+    assert res.recall == 0.5
+    assert res.f1 == 0.5
+    assert res.truth_total_length_pixels == 200.0
+    assert res.predicted_total_length_pixels == 150.0
+    assert math.isclose(res.length_error_ratio, 0.25)
+    assert math.isclose(res.topology_error, 2.0 / 4.0)
+
+    # Empty presence check
+    no_wiring = evaluate_wiring((), ())
+    assert no_wiring.presence_accuracy == 1.0
+    assert no_wiring.true_positive_routes == 0
+    assert no_wiring.length_error_ratio == 0.0
+
+    one_empty = evaluate_wiring(truth, ())
+    assert one_empty.presence_accuracy == 0.0
+    assert one_empty.false_negative_routes == 2
+
+    with pytest.raises(GoldEvaluationError, match="INVALID_TOLERANCE"):
+        evaluate_wiring(truth, pred, endpoint_tolerance_pixels=-1.0)
