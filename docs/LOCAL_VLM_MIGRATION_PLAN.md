@@ -1,6 +1,25 @@
 # Local Multimodal Floor-Plan AI Migration Plan
 
+Reading map: use §1 for demo scope, the matching §13 entry for a U ticket, and
+only its relevant policy sections. The [handoff §2](CODEX_U_VLM_MIGRATION_PROMPT.md#2-ticket-scoped-context-and-baseline)
+maps those dependencies. Read selected criteria completely; unchanged unrelated
+tickets need not be loaded. Current results belong in U_VLM_PROGRESS.md, not
+duplicated throughout this specification.
+
 ## 1. Decision and status
+
+### Current priority: U1–U14 development; real datasets deferred
+
+September 11 user amendment: continue all feasible U implementation now while
+datasets wait. The execution matrix and scope in handoff §0 supersede the older
+demo-only stopping point and data-gated ban on independent downstream coding.
+Dependencies on actual code/contracts remain; synthetic fixtures can verify
+implementation but cannot pass real-data, training, accuracy or release criteria.
+Record implementation and real-data acceptance separately. Preserve working demo
+behavior, pending approvals and all original final acceptance criteria below.
+No new automatic training or production model activation is authorized by this
+deferral. Publish tested development portions under existing permissions without
+claiming entire U tickets passed. Finish with the remaining evidence checklist.
 
 ### Active priority: September 10, 2026 development demo
 
@@ -8,7 +27,7 @@ On September 9 the user changed the immediate objective: upload a floor plan,
 obtain automatic room and electrical-symbol proposals, review/correct them,
 and see aligned 2D and basic 3D output by September 10 (Asia/Singapore).
 This is a target date, not a guarantee of measured quality or completion.
-The demo track below takes priority over sequential U3-U14 execution.
+The demo track below records the earlier priority, superseded by the amendment above.
 It is a bounded development milestone, not completion of the full product MVP.
 
 **Scope and gate exception:** U3 remains blocked for the original corpus/release
@@ -22,6 +41,11 @@ promotion (U14) are deferred for this milestone. Sealed-test evidence remains
 required for a later production-release claim, not for this development demo.
 Existing test members must stay sealed; development-exposed drawings cannot be
 renamed as untouched tests. No corpus-eligibility validator is weakened.
+
+**Authorized draft-preview amendment:** unfinished room-first 2D and illustrative,
+relative-height 3D may share the current draft without metric approval or a
+symbol legend. Draft save/reload does not approve a measured canonical layout.
+The flow below remains the measured-layout acceptance target.
 
 **Minimum user-visible flow:** existing authenticated project/floor workflow
 -> immutable image upload (or explicit selection of one PDF plan page)
@@ -107,11 +131,10 @@ cannot inspect image pixels. In this document, "local VLM" means an open-weight
 vision-language model and VED-specific adapter that run on VED-controlled
 hardware without sending private drawings to a hosted inference API.
 
-This is a target architecture and implementation plan. The repository currently
-still contains the implemented I1-I4 YOLO loader, inference, confidence, and
-persistence modules. No local VLM runtime, trained adapter, processing worker,
-or automatic end-to-end analysis pipeline is implemented yet. YOLO remains a
-legacy comparison and rollback path until the migration release gate passes.
+This is a target architecture and implementation plan. I1-I4 YOLO remains the
+legacy comparison/rollback path. The separate CV demo now has processing and
+draft 2D/3D; it is not the production VLM pipeline. Consult the latest progress
+checkpoint for implemented, trained, active and published status.
 
 Before this migration begins, PRE0-PRE12 in
 `docs/PRE_VLM_FOUNDATION_PLAN.md` close the repository's non-model readiness
@@ -737,73 +760,28 @@ more useful on the approved evaluation contract.
 
 ## 14. Git and stopping protocol for every U ticket
 
-Each ticket remains a separate implementation and publication unit. One explicit
-U1-U14 authorization may cover the sequence; it need not be requested again at
-each routine commit or merge:
+Use the single execution protocol in [handoff §18](CODEX_U_VLM_MIGRATION_PROMPT.md#18-verification-publication-and-checkpoint-protocol)
+and the compact evidence checklist in [§19](CODEX_U_VLM_MIGRATION_PROMPT.md#19-mandatory-progress-report-after-each-implementationpublication).
+They govern separate tickets, branches, scoped staging, verification before/after
+non-fast-forward merges, upstream checks and stopping on failed gates.
 
-1. Verify `main` matches `origin/main` and record the protected baseline.
-2. Create `codex/u<ticket>-<short-name>` from the verified main commit unless the
-   user explicitly selects another prefix; reuse an existing matching branch
-   only after inspecting its state.
-3. Implement only that ticket and preserve unrelated user changes.
-4. Run focused tests plus proportionate regression, privacy, artifact, and Git
-   checks.
-5. Review the complete diff and acceptance criteria.
-6. Commit with `feat:`, `test:`, or `docs:` as appropriate.
-7. Push the feature branch and verify tracking divergence is `0 0`.
-8. Recheck that remote main has not moved, merge with an explicit non-fast-forward
-   merge commit, and run required post-merge verification on `main`.
-9. Push `main` and verify `origin/main...main` is `0 0`.
-10. Publish the ticket's progress report. Continue to the next ticket only when
-    it is included in the explicit authorization and prerequisites pass;
-    otherwise stop with the exact missing requirement.
+Reading this plan grants no publication authority. Assigning the handoff carries
+its explicit scope and publication permissions; its current demo stop takes
+precedence until the user resumes the U sequence. No private egress, invented
+approval, destructive reset, paid resources, YOLO deletion or later epic is
+authorized by this document.
 
-No commit, branch, merge, or push is authorized merely by this planning
-document. Assigning `CODEX_U_VLM_MIGRATION_PROMPT.md` explicitly authorizes the
-whole sequence. It does not authorize private-data egress, invented approvals,
-destructive resets, paid resources, YOLO deletion, or later application epics.
-
-### Execution clarifications that apply to every U ticket
-
-- PRE12 proves foundation behavior, not populated production data. Its live
-  approver assignment, legend, and metric-setting tables are empty. Six equal
-  source hashes are duplicate content, not six independent evaluation drawings.
-- U1 checks the privacy boundary of synchronized storage too: Git ignore does
-  not disable OneDrive, backups, telemetry, or prior Roboflow publication.
-  Do not claim local-only storage until actual sync/egress is verified. Ask for
-  a permitted private location if needed; do not silently move existing files.
-- U4 reuses PRE7 catalog governance; U5/U9 reuse PRE10 authority. A Designer's
-  project correction is not automatically independent dataset-release approval.
-- U5 bootstraps independently reviewed gold using a local offline review/import
-  path with evidence and authenticated authority, before the U9 review UI exists.
-  It must not depend on that future UI or on a model to manufacture gold truth.
-- U6 uses a bounded offline experimental harness with U2 validation and recorded
-  transforms, not future U7/U8 production services. Selection uses development
-  validation only. Existing model names are candidates to reverify against
-  official model/runtime/license documentation, not mandatory downloads.
-- U9 owns the minimal immutable machine-run and append-only review persistence
-  necessary to survive reload and export approved records. U11 reuses that store
-  for production retrieval, atomic canonical adaptation, and extension-aware
-  API/editor integration. No duplicate interpretation/review subsystem.
-- U11 must implement ADR 0001's additive extension in both runtimes, preserve
-  PRE8 concurrency/idempotency atomically with the new base snapshot, and prevent
-  v1-only edits from silently losing an existing extension. Define stable VLM
-  symbol-to-canonical identity without fabricated YOLO confidence or collisions
-  with existing detected/manual identities; unresolved contract conflicts block
-  adaptation instead of weakening K1 validation.
-- U12 covers observed routes only. U13 reuses PRE9 claims, leases and cancellation;
-  an expired or cancelled attempt must not publish late output. Every page has
-  an inclusion/classification/outcome record; skipped or partial pages cannot
-  be silently presented as a fully processed document.
-- U10 requires an actual trained, hashed adapter and measured validation, not
-  just training scripts or mock tests. U14 requires actual signed release evidence.
-  If YOLO weights are unavailable, report comparison as unavailable; do not
-  fabricate baseline metrics or call an unusable YOLO loader a working rollback.
-  A tested disabled-interpreter/manual-review state may be the rollback target.
-- The detailed per-ticket work, tests, publication and reporting requirements
-  are consolidated in `CODEX_U_VLM_MIGRATION_PROMPT.md`. Missing human data or
-  approval is BLOCKED, not PASS. Stop dependent work; report any safely finished
-  infrastructure separately without claiming the entire ticket is complete.
+Dependency clarifications (full implementation/tests are in the matching handoff
+ticket): PRE12 proves foundation behavior, not populated approved data. U4 reuses
+PRE7; U5/U9 reuse PRE10. U5 bootstraps gold offline before U9 UI exists. U6 uses an
+experimental harness before U7/U8 production services and development validation
+only. U9 owns durable runs/reviews; U11 reuses them and implements ADR 0001 with
+atomic PRE8 saves and extension-preserving clients. U12 handles observed routes;
+U13 reuses PRE9 with late-write fencing and explicit page outcomes. U10 requires
+real training; U14 requires fixed-candidate evaluation, signed release evidence
+and tested rollback. Missing YOLO weights mean comparison unavailable; a tested
+disabled-interpreter/manual-review rollback is allowed. Missing data/approval
+blocks dependent work even when infrastructure tests pass.
 
 ## 15. Source basis for the model bake-off
 

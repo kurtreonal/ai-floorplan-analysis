@@ -6,6 +6,12 @@ to a trained or released model.
 
 ## Resume index
 
+**Current assignment (September 11):** U1–U14 development is authorized while
+datasets wait. Read handoff §0. Continue independent tested implementation;
+record real-data/model/release acceptance separately as pending. Do not restart
+U1/U2 or stop the whole sequence for unchanged U3 data gates. This is a scope
+update, not evidence that additional implementation or acceptance has passed.
+
 Read this index, then only the relevant checkpoint below. Historical entries
 are evidence at their recorded time, not additional instructions to execute.
 Verify live code/Git when resuming; do not replay all prior checks.
@@ -97,7 +103,6 @@ Implemented on `codex/demo-floorplan-2d-3d`, verified for scoped publication:
 The older checkpoint table below describes the pre-preview demo gates; draft
 WebGL display is now verified as stated above, while measured layout approval
 and development-set quality evaluation remain separate outstanding work.
-
 User-authorized planning change on September 9, 2026: execute the bounded
 DEMO-0 through DEMO-4 track in `LOCAL_VLM_MIGRATION_PLAN.md` before resuming
 the full U sequence. The current assignment is section 0 of
@@ -223,9 +228,9 @@ the original sequence only after the demo handoff and further user direction.
 
 | Ticket | Implementation | Real-data validation | Human approval | Activation | Publication | Current note |
 |---|---|---|---|---|---|---|
-| U1 | Complete | Native-Windows target measured | Approved operating and retention policy; device encryption explicitly deferred with user acceptance | Not applicable | Published to `main` at merge `8c73183` | No model selected/downloaded; deferred encryption is recorded risk, not a passing control and no longer blocks U3 intake or U6 acquisition |
+| U1 | Complete | Native-Windows target measured | Approved operating/retention policy and standing VED collection authorization; encryption deferred with accepted risk, not passed | Not applicable | Published to `main` at merge `8c73183` | Collection authorization does not replace source rights, quality, annotation, gold, training-record, or release decisions |
 | U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
-| U3 | Safe tooling complete; blocked on data gates | Real VED sources inventoried; zero eligible independent projects | VED collection permission recorded; page classification, quality review and sealed-test evidence remain incomplete | Not applicable | Isolated on `codex/u3-private-corpus-intake`; not merged to demo branch | Eight page classifications and one quality decision remain pending; third-party rights unresolved and independent sealed-test project missing |
+| U3 | Implementation PASS; real-data acceptance blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero sources/pages | Covered blueprint permission recorded; one degraded-page decision and eight page classifications remain; third-party references stay excluded | Not applicable | Implementation publication in progress after demo reconciliation | Private visual review is ready; encryption is deferred risk, not blocker; no genuine frozen-test project exists |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
@@ -252,10 +257,13 @@ the original sequence only after the demo handoff and further user direction.
   remain local-only and excluded from this publication.
 - No model, adapter, inference dependency, API operation, database table, or
   application behavior has been added.
-- Device encryption is explicitly deferred with user acceptance and is tracked
-  as a risk rather than a passing control. No replacement deadline is approved;
-  all other local-only privacy, permission, storage and acquisition controls
-  remain mandatory.
+- Device encryption is explicitly deferred under the 2026-09-08 user policy
+  amendment. The user accepts the risk, no restoration deadline is approved,
+  and the control is not marked passing. It is no longer a U3 or U6 gate; all
+  other local-only privacy, permission, resource, and acquisition gates remain.
+- Standing VED collection authorization is recorded for covered VED project
+  sources and bounded U-ticket purposes. It does not cover unrelated third-party
+  rights or replace later annotation, quality, gold, training, or release review.
 - U2 started only after U1 publication completed.
 
 ## U1 completion checkpoint
@@ -289,9 +297,53 @@ the original sequence only after the demo handoff and further user direction.
 - Focused candidate and canonical-compatibility verification passes 62 tests;
   the full backend regression passes 686 tests with 3 skipped, 2 dependency
   deprecation warnings, and 504 subtests.
-- U3 safe tooling and authorized-source inventory work are isolated on
-  `codex/u3-private-corpus-intake`; U3 remains blocked on its real data,
-  review, quality and independent sealed-test gates and is not merged here.
+- U3 started only after U2 publication completed.
+
+## U3 blocked working state
+
+- Baseline: U2 merge `3f12087` on `main` and `origin/main`.
+- Branch: `codex/u3-private-corpus-intake`.
+- Safe implementation commit: `cdb4684`.
+- Planning-review correction implementation commit: `941eb9b`.
+- Manifest-integrity implementation commit: `b4b4d57`.
+- Real-intake/report reconciliation commit: `e4c0c85`.
+- Page-classification and quality-review implementation commit: `d427be2`.
+- Local-only intake now enforces project-level split isolation, safe incremental
+  preservation/versioning, immutable recoverable prior revisions, full stored
+  record/derived-data validation, bounded source and image/PDF allocations,
+  explicit independent-project coverage, page-level mixed-document
+  classification, and purpose-specific append-only degraded-quality review.
+- The U3 suite passes 41 tests with 1 native Windows symlink test skipped. The
+  focused U3/candidate/upload suite passes 94 tests with the same skip and 2
+  subtests. The full backend regression passes 727 tests with 4 skipped, 2 known
+  dependency warnings, and 504 subtests.
+- Read-only interface reconciliation confirms 34 unique OpenAPI operations and
+  an exact 23-modeled/23-live-table match. Live row counts and all six original
+  file sizes/hashes match the published PRE12 baseline.
+- Real intake ran idempotently inside the approved private boundary. Schema 1
+  revision 1 was validated and archived byte-for-byte before the manifest was
+  upgraded to schema 2 revision 2. It records four sources and 18 pages: nine
+  blueprint pages and nine reference pages. Original hashes still match.
+- Actual eligible blueprint source/page, drawing-group, and independent-project
+  counts are all zero. A private ten-page visual review shows the degraded VED
+  page and all eight pages of the mixed VED document with assistant proposals.
+  One purpose-specific degraded-page decision and eight page classifications
+  remain pending. The two third-party references remain inventoried and excluded
+  while rights are unresolved; they do not block VED blueprint inventory. A
+  genuinely new independent frozen-test project is still absent. Device
+  encryption is deferred accepted risk, not the blocker.
+- September 11 reconciliation merged published demo `d7e53c4` into the U3
+  feature branch and retained both AI boundaries. Focused U3/candidate/upload
+  verification passes 94 tests with 1 native-Windows symlink skip and 2
+  subtests. The full backend suite passes 747 tests with 4 skips and 509
+  subtests in a fresh isolated database, which was removed afterward.
+- Current read-only integration checks report 37 unique OpenAPI operations,
+  exact 25-modeled/25-live tables, and 10 configured originals totaling
+  1,015,004 bytes at aggregate SHA-256
+  `20751d51ff7c6240274f075ee5237f93c44d48a79e7cf103baca34fc1b6fc2f3`.
+- U3 implementation is eligible for publication under the updated section 0;
+  real-data acceptance remains blocked and is not relabeled as complete.
+- U4 has not started.
 
 ## DEMO-0 completion checkpoint
 

@@ -1,91 +1,184 @@
-# Codex execution prompt: development demo first, then local VLM migration
+# Codex execution prompt: U1–U14 development, datasets deferred
 
-This is a reusable execution handoff, not a report of implemented U work.
-Preparing this file starts no ticket. Assign the instructions below explicitly
-to authorize implementation. All fourteen tickets remain documented, but the
-September 9 demo amendment below is the current execution priority.
+Execution instructions, not proof of completion. Current user instructions
+control scope; editing or reading this file alone starts no ticket.
 
-## 0. CURRENT ASSIGNMENT: September 10 upload-to-2D/3D demo
+## 0. CURRENT ASSIGNMENT: develop all U tickets; datasets will follow
 
-When the user assigns this updated prompt, execute DEMO-0 through DEMO-4 from
-the active-priority section of `docs/LOCAL_VLM_MIGRATION_PLAN.md` first.
-The target is September 10, 2026, Asia/Singapore; no exact delivery hour was
-specified. Do not promise the date or 50% quality before measuring. This
-amendment takes precedence over the sequential-U dependency and L2+ exclusion
-wording below ONLY for the bounded demo. This is implementation work in the
-existing application, not another standalone annotation HTML workspace.
+User authorization, September 11: develop U1–U14 now; dataset preparation and
+decisions may wait. Preserve the working demo and completed U1/U2. Resume U3's
+remaining implementation, then proceed through independently implementable
+U4–U14 work. This amendment supersedes the earlier demo stopping point and
+blanket prohibition on downstream development while real-data gates are pending.
 
-The user wants to upload a previously unannotated floor plan, click Analyze,
-receive actual room/wall and electrical-symbol proposals in 2D, review/correct
-them, and obtain aligned basic 3D after explicit geometry/metric approval.
-Single floor / one explicitly selected PDF plan page is sufficient initially;
-report other PDF pages as not processed rather than claiming document success.
-Target >=50% room recall AND >=50% symbol recall on reviewed development pages,
-with the plan's fixed IoU matching, precision, FP/FN and denominators. Do not
-confuse this target with confidence=0.50. Missing truth is NOT TESTED, not PASS.
-No wiring extraction/routing, quantities, costing, fine-tuning or full Admin
-dataset-workspace implementation is required for this demo.
+Separate two statuses for each ticket:
 
-1. Inspect the repository, current branch, dirty files, model artifacts and
-   real execution paths before editing. Read the mandatory context below and
-   verify current evidence. Preserve existing work and the protected service.
-   Report the smallest implementation plan and actual gaps. Published U1/U2
-   are not to be restarted. L1 currently initializes an empty 3D scene; do not
-   mistake it for floor-plan reconstruction. Recheck this against current code.
-2. Freeze a small readable, VED-authorized development page set for evaluation.
-   Do not wait for all scans/annotations, the eight U3 decisions, a degraded
-   training record or a new sealed-test project to implement this demo. Keep
-   those corpus/release gates BLOCKED in their existing records. Do not approve
-   records, weaken intake validation or claim U3 passed. Unreadable/unsafe
-   input still fails visibly; use a readable alternative for the demo.
-3. Implement DEMO-1 using the fastest working local provider within U1 bounds.
-   Verify usable weights before selecting YOLO; inspect existing OpenCV walls
-   and add bounded room-boundary proposals where missing. If a small local VLM
-   is genuinely usable, isolate and validate it; otherwise use a disclosed CV /
-   legend-template baseline. A template prototype is not VLM completion or
-   trained-model accuracy. Keep inference opt-in for local development and
-   separate from production model promotion. Do not spend the entire deadline
-   on acquisition, a broad bake-off or LoRA. No fake/precomputed detections,
-   hosted inference, upload-triggered downloads or automatic training.
-4. Implement DEMO-2: reuse the actual upload/source/artifact/job lifecycle,
-   PRE9 bounded worker controls and existing review/save services. Return
-   promptly, persist real results, show partial/empty/failure outcomes and
-   provide room/wall/symbol correction. Reuse U2 and canonical contracts, with
-   honest provider identity and no fabricated legacy confidence. Preserve
-   authorization, original files, immutable evidence, idempotency and review.
-5. Implement DEMO-3: the minimum L2-L5 floor/room-surface, wall-extrusion and
-   simple symbol-marker rendering using the SAME saved canonical document as
-   Konva. Implement real 2D-to-3D coordinate transforms and reload synchronization,
-   not hard-coded meshes. Require explicit scale/elevation and wall parameters;
-   missing values remain visible and cannot be guessed. Keep the review step
-   usable, not an undocumented database-edit prerequisite. No raw inference
-   output may silently become approved geometry.
-6. Complete DEMO-4 with at least one actual unannotated-upload -> Analyze ->
-   review/correct -> approve metric inputs -> save -> 2D + 3D -> reload browser
-   demonstration. Also measure the separate 50% targets on the fixed reviewed
-   development pages, excluding manual corrections from inference scores.
-   Test rotated/scaled coordinates, rejected-symbol exclusion, changed 2D
-   positions in 3D after reload, unavailable-model/invalid-input failures,
-   persisted results after restart, authorization and original-file integrity.
-   Run relevant backend/frontend tests and build. If actual browser validation
-   is unavailable, say NOT TESTED; mocked tests do not replace the demonstration.
-7. Deliver a runnable local application with exact startup commands, any model
-   requirements, page/legend/scale setup, controls to reach both views, measured
-   results and honest limitations. A static screenshot, manual annotation file,
-   empty grid or fixture-only success does not satisfy the requested output.
+- **Implementation:** code, contracts, UI, tools and meaningful automated tests.
+- **Real-data acceptance:** reviewed corpus, model selection/quality, actual
+  training, human approvals and production activation.
 
-Use separate small demo commits/checkpoints, not an oversized U3 change. Inspect
-and reuse an existing matching demo branch, or create
-`codex/demo-floorplan-2d-3d` from verified main. Preserve the blocked U3 branch
-and safely carry only explicitly scoped planning inputs/dependencies; do not
-merge blocked U3 wholesale. Existing publication permissions apply to passing
-scoped demo work when this prompt is assigned, subject to protection and tests.
-Never claim an entire U/L ticket passed because its demo subset works. Update
-the existing progress ledger after each checkpoint; create no new Markdown
-planning files. Stop at the demo handoff and request direction before returning
-to the full U sequence. Do not repeatedly poll the unchanged U3 data gate.
+Missing scans, U3 page/quality decisions, approved gold, sealed-test projects,
+geometry approvals or a browser in the implementation session must not stop
+unrelated implementation. Use clearly identified synthetic fixtures and test
+providers. Runtime paths must show unavailable/pending states when real assets
+are absent; never return fixtures as actual user detections. Missing upstream
+code/contracts still require implementation first. Model-specific work that
+cannot be verified before model selection stays explicitly pending.
+
+| Tickets | Develop now | Acceptance deferred until evidence exists |
+|---|---|---|
+| U3–U5 | Versioned intake, legend/reference tools, review/import and metric tooling | Real page/quality decisions, approved classes/gold, independent coverage and frozen test |
+| U6–U8 | Evaluation harness, bounded preparation, runtime interfaces and available-provider integration | Measured model selection and real local-runtime quality/privacy/resource checks |
+| U9–U10 | Durable annotation/review, versioned training export, offline training/resume/registry tooling | Approved training targets, model-specific verification, actual adapter training and validation |
+| U11–U13 | Candidate persistence, validated canonical adaptation, observed-route handling and durable job/UI integration | Real reviewed geometry/measurements and end-to-end data/model evidence |
+| U14 | Versioned promotion controls, shadow evaluation and rollback mechanisms | Signed release, sealed-test results and actual production promotion |
+
+Continue to the next independent implementation checkpoint after relevant tests
+pass. Report failed implementation checks and fix within scope; don't disguise
+them as dataset deferrals. Preserve the original ticket acceptance criteria:
+synthetic tests never complete training, accuracy or real-data release gates.
+Keep pending models inactive. No automatic training on import/upload and no
+training run is required now while datasets are deferred. U1 resource/privacy
+limits and existing publication permissions still apply.
+
+Use separate scoped commits/checkpoints and existing documents only. Passing
+implementation portions may be published under the existing permissions even
+while their data acceptance remains pending; do not label their merge as full
+ticket completion or merge unverified unrelated changes. Follow §§18–19 for
+checks and publication, interpreting “passing ticket” as the declared development
+scope until final data acceptance. Stop after all feasible U implementation is
+delivered with a compact pending-evidence list; do not repeatedly request the
+same missing datasets, browser connection or routine implementation permission.
+
+Current planning-chat evidence: six active legend classes were created, a
+signed-in Admin browser was verified, dataset series v001 was imported, and
+the sample's confirmed scale was saved. Recheck relevant shared state rather
+than repeating older zero-count claims. Browser connection is session-specific.
+Geometry approval and missing dimensions remain separate measured-layout work.
+
+### Retained demo scope and acceptance reference
+
+Continue the existing demo under the scope, DEMO-0–4 acceptance criteria and
+metrics in [migration plan §1](LOCAL_VLM_MIGRATION_PLAN.md#1-decision-and-status).
+Inspect code and the latest [checkpoint](U_VLM_PROGRESS.md#active-priority-september-10-development-demo)
+before implementation; do not restart completed U1/U2 or DEMO work.
+
+The authorized room-preview amendment allows unfinished room-first 2D and
+relative-height 3D from the same draft, with corner correction, optional
+wall/symbol layers and draft save/reload. Display requires neither a legend
+nor metric approval. Measured canonical saving still requires explicit review,
+scale/elevation and wall parameters. Never invent approvals to obtain meshes.
+
+Reuse `codex/demo-floorplan-2d-3d` after inspecting its state; otherwise branch
+from verified main. Preserve blocked U3 and unrelated work. Use actual local
+pixel inference, durable jobs and existing review/canonical services. Public
+model acquisition remains controlled; no startup/upload downloads, hosted
+fallback, canned detections or automatic training. The current CV provider and
+inactive experimental symbol model are recorded in the ledger.
+
+Verify real upload → processing → correction → save → 2D/3D → reload separately
+from quality: >=50% room recall and >=50% symbol recall use the fixed reviewed
+development truth and IoU rules in the plan. Include coordinate/rejection,
+restart, invalid/unavailable-provider, authorization and original-integrity
+checks. Unfinished draft WebGL success does not complete measured-layout or
+accuracy criteria. Missing evidence is NOT TESTED.
+
+Publish separate passing demo checkpoints under §18–19; do not merge blocked U3
+wholesale or claim full U/L completion from partial reuse. Provide working local
+startup/view instructions in README. Create no new Markdown planning files.
+Stop at the demo handoff; resume the full U sequence only on user direction.
+Do not repeatedly poll unchanged U3 data gates.
 
 ## 1. Authorized objective and stopping point
+
+### September 10 continuation evidence
+
+DEMO-2/3 are implemented at `98f5105`; inspect current code before restarting
+any implementation. The planning chat has now connected the browser, and the
+user signed in. An existing completed development job displays actual persisted
+proposals, but no saved canonical layout exists for that floor. The active VED
+legend catalog is empty. See the current progress-ledger checkpoint; historical
+"browser unavailable" statements are no longer the present blocker.
+
+The initial dataset is now staged in the Git-ignored local file store at
+`storage/training/demo-initial-20260910/manifest.json`. It preserves the 52-page correction
+export, with 30 active plan pages, 21 reference pages and one excluded plan.
+Honor page exclusion and deletion tombstones; preserve grouping, source hashes,
+coordinate frames and legend provenance. Do not count legend samples as devices,
+promote cross-group candidates to approved classes, or silently rescale labels.
+The pack is not imported into application tables or connected to the detector,
+not approved training truth, and not a sealed evaluation set. Run inference from image pixels independently of hints;
+never replay correction labels as fresh detections or claim measured recall.
+
+### User amendment: evolving supervised-training dataset
+
+The user explicitly clarified on September 10 that the supplied correction
+export must become an initial training source, with subsequent exports updating
+the dataset. This supersedes treating the collection solely as test inputs.
+Training intent is authorized; do not claim that file import trained the current
+OpenCV demo, or that this statement approves every unresolved pseudo-label.
+The current demo has no training or annotation-dataset ingestion path.
+
+Subsequent execution update: the user expressly approved the corrected/manual,
+clear-legend subset for provisional local training. A private offline experiment
+has now completed; do not restart it as if no model exists. Dataset version 2:
+`storage/training/demo-reviewed-v002/manifest.json`. Best experimental checkpoint:
+`storage/training/demo-reviewed-v002/run-002/fit/weights/best.pt`. Read the bound
+run manifest, selection, result and `sample-inference.json` before deciding on
+reuse. It is NOT activated: 12 training crops, 8 held-out-group homerun crops,
+100 CPU epochs from random initialization, 12.5% crop recall, and zero detections
+on the supplied full-page demo image at 0.50. No full-plan 50% target is passed.
+Do not describe this as VLM fine-tuning or an approved production model. Training
+preparation/run snapshots exist inside the private run folders, not app services.
+The dataset's original export is unchanged; the new version records the approved
+subset and derivative selection. Arbitrary later-export merging and Admin
+training controls below remain future implementation work.
+
+Plan the following as separately verified implementation checkpoints, while
+retaining the working demo and all U3/production-release gates:
+
+1. Versioned dataset ingestion: import the current export and image bindings;
+   record its hash and stable page/annotation/group IDs. Preserve the original
+   export, source bytes, review states, tombstones and previous revisions. Exact
+   re-import is idempotent. Later exports produce a new revision; explicit edits
+   replace corresponding draft labels, explicit deletions deactivate them, and
+   omissions in a partial export do not silently delete prior records. Reject
+   conflicting source hashes, frames, unknown identities and stale revisions.
+2. Training-target preparation: distinguish permission/intended use from label
+   approval. Corrected/manual labels are review candidates, not automatically
+   approved by this importer. Export only dataset-approver-approved classes and
+   geometry with source evidence; retain unresolved items outside training targets.
+   Exclude rejected pages and deleted items; never count legend examples as plan
+   devices. Incompletely annotated regions are not background negatives: require
+   reviewed exhaustive regions/crops or an explicitly supported partial-label
+   method before training a detector. Symbol labels do not establish room truth.
+3. Offline training: inspect existing legacy YOLO and VLM paths and usable local
+   artifacts, then select a bounded trainable provider under the existing hardware,
+   license and privacy rules. Keep training separate from HTTP uploads and the
+   live detector. Snapshot dataset revision, class mapping, split membership,
+   configuration and base model for every run. Keep project groups separated;
+   never move sealed-test data into training. Small development experiments are
+   not U10/U14 completion or production-quality evidence.
+4. Evaluation and model activation: compare a candidate against the existing
+   baseline on reviewed held-out development data; publish precision/recall and
+   FP/FN only with valid truth. Bind model version to dataset revision. Activate
+   only through an explicit reviewed development-model selection with rollback,
+   never as a side effect of dataset upload. Existing saved detections remain
+   immutable; rerunning analysis creates a new run with its own model provenance.
+5. Later corrections: the Admin annotation workflow should expose dataset
+   revision, eligible/pending counts, training status, evaluation and active model
+   version. New exports update draft data; a subsequent offline training run
+   creates updated weights. Do not promise instantaneous learning on import.
+
+Acceptance includes repeat-import idempotency, corrected-label supersession,
+deletion/exclusion preservation, partial-export merge safety, geometry/source
+validation, no unapproved-target leakage, reproducible training manifests and
+proof that only explicit model activation changes future inference. Inspect and
+report missing prerequisites before expensive work. Update existing documents;
+create no additional Markdown planning files or automatic monitoring task.
+
+The user authorized unfinished 3D; the draft preview described in §0 is now
+implemented. Its display does not approve geometry, catalog classes or metrics.
 
 The remainder describes the full migration path retained for later resumption.
 Section 0 is the active assignment and its stopping point until the user
@@ -121,58 +214,44 @@ report BLOCKED with the exact missing item and resume instructions, and stop
 dependent work. Infrastructure tests alone do not complete data/model tickets.
 Do not silently skip failed gates to announce all U tickets complete.
 
-## 2. Mandatory context review and baseline
+## 2. Ticket-scoped context and baseline
 
-Before planning or editing, read completely:
-- AGENTS.md and any applicable nested repository instructions;
-- README.md;
-- backend/README.md;
-- docs/ARCHITECTURE.md;
-- docs/FUNCTIONAL_SPEC.md;
-- docs/geometry.md;
-- docs/LOCAL_VLM_MIGRATION_PLAN.md;
-- docs/PRE_VLM_FOUNDATION_PLAN.md;
-- docs/PRE_VLM_READINESS_REPORT.md;
-- docs/decisions/0001-canonical-geometry-compatibility.md;
-- this entire handoff.
+Read all applicable AGENTS.md instructions. For this handoff, load §§0–3 and
+§§18–19 once per session, then only the assigned ticket's section. Read each
+selected section completely, including its acceptance criteria and dependency
+evidence; expand references when a contract or cross-cutting change requires it.
+Do not reread unchanged documents already in context.
 
-Read relevant source-reference documentation when a domain decision needs it.
-Compare documents against actual source, tests and latest reports; do not treat
-old acceptance checkboxes or aspirational architecture as implementation proof.
-At each ticket refresh all four mandatory high-level documents completely and
-the relevant changed contracts. Correct material inconsistencies in that ticket.
+| Work | Additional sections to load |
+|---|---|
+| Demo | Migration plan §1; latest demo checkpoint; owning UI/job/geometry code |
+| U1–U3 | Matching migration ticket; U1 baseline; candidate contract for U2/U3; U3 report for intake |
+| U4–U5 | Plan §§2,8,12; PRE7/PRE10 authority; applicable legend/reviewer policy |
+| U6–U8 | Plan §§4–7,12,15; U1 budgets; U2 schema; U5 evaluation contract |
+| U9–U10 | Plan §§2,9,12; U4 reference pack; U5 evidence; PRE10 authority |
+| U11–U13 | Plan §§3,4,10,11; candidate contract; geometry contract/ADR 0001; applicable PRE4–9 |
+| U14 | Plan §12; release dependencies/results; this handoff §20 |
 
-Reported PRE12 starting evidence, to verify rather than blindly impose:
-- main merge: 81ecd833bfa3; PRE0-PRE12 complete; L1 is the product milestone.
-- main/origin and PRE feature upstreams were synchronized; working tree clean.
-- 34 OpenAPI operations; 23 modeled/live tables.
-- unittest 627; combined pytest 667 plus 504 subtests; frontend 280.
-  These are historical overlapping counts, not sums or guaranteed current totals.
-- Six originals, total 146,958 bytes; each 24,493 bytes with SHA-256
-  55C511400C9B6F166B691C1569D9FAAA8DD7C97A8FECEADBB98A0C5CA13BC243.
-- Protected backend/app/services/project_service.py:
-  blob 44e01c22ede76f30182b1056b0cb4e6fce3df96a; no diff.
-- No VLM model, adapter or U implementation was present.
-- Live legend, metric settings, dataset-approver assignments and layouts were
-  empty. PRE12 tested those contracts; it did not populate approved data.
+Every U ticket also reads its matching plan §13 entry and this handoff §3
+invariants. Use heading search before bounded reads. Read README/backend README
+for relevant startup/test commands, ARCHITECTURE/FUNCTIONAL_SPEC for affected
+boundaries, and PRE readiness/history only to resolve dependency evidence.
+Historical thesis material and unrelated ticket reports are reference-only.
+This replaces earlier blanket full-document reread requirements in these plans,
+without overriding repository instructions or reducing acceptance criteria.
 
-Inspect current Git HEAD, branches, remotes, upstreams, dirty/untracked paths,
-relevant implementation and test commands. Refresh remote references before
-publication. If main has legitimate later work, reconcile its ancestry and
-scope, retain it, and update the baseline; do not reset to PRE12.
-If an interrupted U branch already exists, inspect and resume it rather than
-duplicating its work. Unexpected overlapping edits require clarification.
+Before mutation inspect Git HEAD/branch/upstream, dirty/staged/untracked paths,
+owning code/tests and relevant data contracts. Resume existing matching work;
+preserve later main changes rather than resetting to PRE12. Fetch before
+publication. Protect `backend/app/services/project_service.py` bytes and diff.
+Record private before/after source hashes/sizes and database baseline for scoped
+writes; verify ignores/tracking without exposing secrets or private contents.
+Historical PRE12 counts/blobs are in PRE_VLM_READINESS_REPORT.md, not current
+measurements. Resolve unexplained overlapping edits before changing them.
 
-Preserve the protected file's measured bytes and diff. Do not recreate an old
-newline-only diff: the accepted PRE12 baseline is clean.
-Any pending Markdown-only handoff changes are planning inputs, not proof that
-U1 is done. Review their explicit paths and include the applicable planning
-baseline with U1 publication; never stage unrelated files.
-
-Record a private baseline manifest of existing database rows and original
-file sizes/hashes before mutation. Keep drawings, OCR, names, private source
-hashes, labels, crops and prompts out of public reports. Do not read secrets
-into tool output. Recheck ignore coverage and tracked files.
+After each ticket read changed documentation sections/diffs only. Update affected
+claims in their owning document; use links for unchanged evidence. Keep current
+status in U_VLM_PROGRESS.md and detailed evidence in existing ticket reports.
 
 ## 3. Architecture and data invariants
 
@@ -695,40 +774,28 @@ may append prior publication IDs to the ledger.
 
 ## 19. Mandatory progress report after each implementation/publication
 
-Use this format and provide actual results, not a promise to report later:
+Use one compact checkpoint in the existing ledger; link detailed evidence
+instead of copying prior reports. Report every applicable field below; group
+unchanged checks with a reference to their baseline and say whether rechecked.
+A historical PASS must never be presented as a new test run.
 
-Ticket and outcome:
-Implementation / real-data validation / human approval / activation statuses:
-Dependencies verified:
-Baseline commit:
-Feature branch and upstream:
-Feature commit:
-Merge commit:
-Feature divergence:
-origin/main...main divergence:
-Current branch and working-tree state:
+- Ticket/outcome; separate implementation, real-data, human approval, activation
+  and publication status; dependencies verified.
+- Baseline, feature/merge commits, branch/upstreams, both divergence checks,
+  current worktree; delivered behavior and created/modified/deleted files.
+- Every acceptance criterion: PASS / FAIL / BLOCKED / NOT TESTED + evidence.
+- Focused/full commands and totals (including failures/reruns/subtests),
+  lint/build/compilation/dependency/environment checks; real versus mocked
+  inference/training; browser evidence location. Do not sum overlapping suites.
+- API/schema/config/dependency deltas; exact OpenAPI and modeled/live schema
+  comparison; source/database integrity; private manifests and artifact versions;
+  Git/egress checks; protected service blob/diff; documentation alignment.
+- Cleanup scope/recoverability, warnings, unresolved decisions; next ticket,
+  whether started, and precise blocker/resume action.
 
-Delivered behavior and files created/modified/deleted:
-API/schema/dependency/configuration deltas:
-Documentation inconsistencies found and corrected:
-Every acceptance criterion: PASS / FAIL / BLOCKED / NOT TESTED, with evidence:
-Focused tests and full suites (commands, totals, subtests, failures and reruns):
-Lint / build / compilation / dependency / environment validation:
-Actual model or training runs versus mocked tests:
-Manual browser verification and private evidence location:
-OpenAPI operations and exact modeled/live schema comparison:
-Existing database and original-file integrity:
-New run-owned artifacts/dataset/model manifests, hashes and version references:
-Private Git/egress checks (without exposing private content):
-Protected project_service.py blob and diff:
-Cleanup performed, exact run-owned scope and recoverability:
-Warnings, limitations and unresolved decisions:
-Next ticket, whether started, and precise blockers if any:
-
-Do not sum overlapping unittest and pytest counts. Do not mark PASS from
-inspection alone when a test, real inference, training run or approval is required.
-A pending push is not published; a trained adapter is not promoted; a generated
-candidate is not verified geometry.
+Keep private source contents and identifiers out of public reports. A pending
+push is not publication; training is not activation; candidates are not approved
+geometry. Failed gates still stop dependent work.
 
 ## 20. Final U1-U14 closeout and user handoff
 
