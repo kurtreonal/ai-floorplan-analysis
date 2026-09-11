@@ -237,7 +237,7 @@ the original sequence only after the demo handoff and further user direction.
 | U7 | Implementation PASS | Deterministic overview, legend, plan-region, and overlapping tile transforms pass; 25 focused / 808 backend / 300 frontend tests pass | Not applicable | Not applicable | Published to `main` at merge `433f671` | Multi-resolution page, region, tile and OCR preparation implemented; memory limits checked before allocation |
 | U8 | Implementation PASS; real-runtime activation pending | Lazy loading, loopback constraint, offline egress guard, timeout/cancellation, strict candidate validation, and error sanitization pass; 12 focused / 820 backend / 300 frontend tests pass | Independent model selection and weights pending | Not activated | Published to `main` at merge `a44a97e` | Isolated schema-constrained local VLM gateway implemented; zero external downloads or network egress |
 | U9 | Implementation PASS; real human review decisions pending | Synthetic authority/monotonic/checklist/export fixtures pass; 144 backend / 300 frontend tests pass | Independent dataset approver review missing | Not activated | Published to `main` at merge `13b7dae` | Requires actual human review decisions |
-| U10 | Not started | Not started | Missing | Not activated | Not published | Requires approved training records and compute |
+| U10 | Implementation PASS; real adapter training pending | Sealed isolation, grounding formatting, checkpoint resume, and offline egress pass; 153 backend / 300 frontend tests pass | Independent training target and compute approval missing | Not activated | Publication pending merge | Requires approved training records and compute |
 | U11 | Not started | Not started | Not started | Not activated | Not published | Depends on U9 durable review records |
 | U12 | Not started | Not started | Not started | Not activated | Not published | Observed wiring only |
 | U13 | Not started | Not started | Not applicable | Not activated | Not published | Depends on production gateway/persistence |
@@ -594,6 +594,38 @@ the original sequence only after the demo handoff and further user direction.
   - Full frontend regression: 36 test files passed, 300 tests passed; lint and production build passed cleanly.
   - `git diff --check`: passed cleanly.
 - Real human dataset approver decisions remain PENDING on live data.
+
+## U10 implementation and verification checkpoint (completed)
+
+- Baseline: published U9 merge `13b7dae` (progress ledger `22ecbb8`); branch
+  `codex/u10-lora-qlora-adapter-manifests`. Recovery stash `stash@{0}` remains preserved untouched.
+- Implemented `backend/app/ai/floor_plan_interpretation/training.py` and exported in `__init__.py`:
+  - `BaseModelReference`: pinned base VLM model metadata (model_id, revision, sha256, license, context window).
+  - `LoRAHyperparameters`: rank `r`, alpha, target modules, dropout, task type, quantization mode (`none`, `int8`, `int4`/QLoRA).
+  - `TrainingBudget`: step/epoch bounds, learning rate, warmup, gradient accumulation, seed, VRAM limits (RTX 3050 4GB).
+  - `TrainingConfig`: unified reproducible training run specification.
+  - Spatial grounding coordinate normalization: `normalize_coordinates_to_1000` mapping source pixels to `[0, 1000]` bounding boxes with bounds validation.
+  - `GroundingSample` & `format_gold_to_grounding_sample`: instruction tuning conversation conversion with assistant-only loss masking (`mask_type="assistant_tokens_only"`).
+  - `build_training_manifest`: immutable versioned dataset manifest builder with deterministic SHA-256 hashing and strict sealed test isolation (`SealedDataLeakageError`).
+  - `CheckpointManager`: immutable checkpoint persistence with metadata, simulated/real weights, and resume compatibility verification.
+  - `AdapterRegistry`: local catalog management enforcing that all newly trained adapters are strictly registered as `status="inactive"`, rejecting overwrites and unauthorized activation.
+  - `LocalTrainingRunner`: training orchestrator operating within `OfflineEgressGuard` and `ResourceTracker`, evaluating against the development validation split without test set leakage.
+- Added comprehensive unit and boundary tests in `backend/tests/test_vlm_training.py` covering:
+  - LoRA and budget schema validation.
+  - Spatial grounding coordinate normalization and bounding box clamping.
+  - Conversion of approved gold documents into grounding conversation samples.
+  - Strict rejection of sealed test split leakage.
+  - Deterministic training manifest SHA-256 hash calculation.
+  - Checkpoint persistence and resume state validation.
+  - Rejection of resume attempts with mismatched base model or altered training dataset.
+  - Adapter registry enforcement of initial `inactive` status.
+  - End-to-end training execution inside offline egress guard and inactive adapter registration.
+- Verification results:
+  - Focused U10 suite: 9 passed in 4.45s.
+  - Combined U2–U10 AI suite: 153 passed, 1 skipped in 19.86s.
+  - Full frontend regression: 36 test files passed, 300 tests passed; lint and production build passed cleanly.
+  - `git diff --check`: passed cleanly.
+- Real adapter training and compute allocation remain PENDING until approved training datasets exist. Zero unapproved downloads or external compute used.
 
 ## DEMO-0 completion checkpoint
 
