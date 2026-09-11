@@ -1,3 +1,8 @@
+import asyncio
+import os
+import threading
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -9,6 +14,7 @@ from app.api.routes.dataset_approver_assignments import (
     admin_router as dataset_approver_admin_router,
     router as dataset_approver_router,
 )
+from app.api.routes.demo_interpretation import router as demo_interpretation_router
 from app.api.routes.floor_plans import router as floor_plans_router
 from app.api.routes.health import router as health_router
 from app.api.routes.layouts import router as layouts_router
@@ -28,6 +34,34 @@ from app.core.config import (
     get_oauth_oidc_configuration,
     get_settings,
 )
+from app.workers.demo_worker import run_demo_worker
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    worker_thread = None
+    stop_event = None
+    settings = application.state.settings
+    if settings.auto_start_demo_worker and settings.app_env == "development":
+        stop_event = threading.Event()
+        worker_thread = threading.Thread(
+            target=run_demo_worker,
+            kwargs={
+                "stop_event": stop_event,
+                "worker_identity": f"demo-worker:{os.getpid()}",
+                "settings": settings,
+            },
+            daemon=True,
+            name="ved-demo-worker",
+        )
+        worker_thread.start()
+    try:
+        yield
+    finally:
+        if stop_event is not None:
+            stop_event.set()
+        if worker_thread is not None:
+            await asyncio.to_thread(worker_thread.join, 5)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -35,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application = FastAPI(
         title=f"{application_settings.app_name} API",
         debug=application_settings.app_debug,
+        lifespan=lifespan,
     )
     application.state.settings = application_settings
 
@@ -71,6 +106,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(analysis_settings_router)
     application.include_router(dataset_approver_router)
     application.include_router(dataset_approver_admin_router)
+    application.include_router(demo_interpretation_router)
     application.include_router(auth_router)
     application.include_router(projects_router)
     application.include_router(project_floors_router)

@@ -42,6 +42,27 @@ defined below and in `docs/LOCAL_VLM_MIGRATION_PLAN.md`.
 
 ## Current Prototype Implementation Decisions
 
+### September 9, 2026 priority amendment: next-day development demo
+
+The active near-term milestone is an unannotated single-floor upload producing
+real room/wall and symbol proposals, explicit review/metric approval, saved
+canonical geometry, and aligned Konva 2D plus basic Three/R3F 3D by the target
+date September 10, 2026 (Asia/Singapore). The detailed DEMO-0 through DEMO-4
+scope, acceptance rules and bounded dependency exception are maintained in
+`docs/LOCAL_VLM_MIGRATION_PLAN.md`; section 0 of
+`docs/CODEX_U_VLM_MIGRATION_PROMPT.md` is the current execution handoff.
+
+The demo targets >=50% room recall and >=50% symbol recall separately on
+reviewed development pages, with false positives and precision reported. It
+requires actual detection and real 2D/3D integration, not a 0.50 confidence
+setting or a static annotated sample. Wiring, routing, fine-tuning and sealed
+production evaluation are deferred for this milestone. U3's original blocked
+corpus decisions remain unresolved; this exception neither passes U3 nor
+authorizes unreviewed training or production promotion. Reuse the existing
+stack and safety/data contracts. Explicitly bring forward only the minimum
+L2-L5 floor/wall/symbol rendering and synchronization needed for the demo.
+Existing U/L completion checklists remain unchanged until fully verified.
+
 For the current prototype/development phase:
 
 - **MySQL remains the required database.**
@@ -4378,7 +4399,10 @@ history before U11 extends it. U11 implements the PRE11 additive extension and
 PRE8-safe saving without modifying K1 v1 or dropping extension data during edits.
 U13 reuses PRE9 execution fencing. Missing approved data, authority, or hardware
 is a real gate, not permission to substitute mock evidence. U14 ends this sequence;
-L2+, generated routing, quantities, estimates, and reports remain out of scope.
+L2+, generated routing, quantities, estimates, and reports remain out of scope
+for that full U-only sequence. The September 9 demo amendment separately
+authorizes the minimum L2-L5 visualization work before the full migration;
+generated routing, quantities, estimates and reports are still excluded.
 
 ### TICKET U1 — Freeze Hardware, Privacy, and Runtime Requirements
 

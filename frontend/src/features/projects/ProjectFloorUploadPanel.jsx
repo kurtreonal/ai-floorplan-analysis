@@ -170,7 +170,8 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
       <div className="project-section-heading">
         <span className="project-kicker mono">FLOOR PLANS</span>
         <h2 id="project-floor-panel-title">Project floor plans</h2>
-        <p>Select a project floor, then upload its original JPEG, PNG, or PDF plan.</p>
+        <p>1. Create or select a floor. 2. Upload a JPEG, PNG, or PDF. 3. Start processing on its card below. 4. Open “Review floor-plan proposals” for the room-first 2D / 3D preview.</p>
+        <p>Saved layout links open approved results only. For an unfinished preview, use the completed floor-plan processing card.</p>
       </div>
 
       {loadState === 'loading' && (
@@ -331,6 +332,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                     <ProcessingJobPanel
                       key={`${upload.id}-${upload.latest_job?.job_id || 'none'}-${upload.latest_job?.updated_at || 'none'}`}
                       projectId={projectId}
+                      projectFloorId={Number(selectedFloorId)}
                       floorPlanId={upload.id}
                       originalFilename={upload.original_filename}
                       initialJob={upload.latest_job}
