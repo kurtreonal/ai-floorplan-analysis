@@ -208,7 +208,7 @@ def append_interpretation_review(
         legend_ids = {
             symbol.symbol_legend_id
             for symbol in payload.symbols
-            if symbol.disposition == "accepted"
+            if symbol.disposition in ("accepted", "corrected", "added")
             and symbol.symbol_legend_id is not None
         }
         legends = {
@@ -221,15 +221,30 @@ def append_interpretation_review(
             )
         }
         accepted_symbols = [
-            symbol for symbol in payload.symbols if symbol.disposition == "accepted"
+            symbol for symbol in payload.symbols if symbol.disposition in ("accepted", "corrected", "added")
         ]
-        if payload.review_complete and any(
-            symbol.symbol_legend_id not in legends for symbol in accepted_symbols
-        ):
-            _fail("SYMBOL_MAPPING_REQUIRED")
+        if payload.review_complete:
+            if payload.checklist is not None and not payload.checklist.complete:
+                _fail("CHECKLIST_PENDING")
+            all_items = (
+                list(payload.walls)
+                + list(payload.rooms)
+                + list(payload.symbols)
+                + list(payload.openings)
+                + list(payload.panels)
+                + list(payload.scale_evidence)
+                + list(payload.observed_wiring)
+            )
+            if any(item.disposition == "unresolved" for item in all_items):
+                _fail("REVIEW_HAS_UNRESOLVED_TARGETS")
+            if any(
+                symbol.symbol_legend_id not in legends for symbol in accepted_symbols
+            ):
+                _fail("SYMBOL_MAPPING_REQUIRED")
+
         if payload.approved_for_layout and (
-            not any(wall.disposition == "accepted" for wall in payload.walls)
-            or not any(room.disposition == "accepted" for room in payload.rooms)
+            not any(wall.disposition in ("accepted", "corrected", "added") for wall in payload.walls)
+            or not any(room.disposition in ("accepted", "corrected", "added") for room in payload.rooms)
             or not accepted_symbols
         ):
             _fail("APPROVED_GEOMETRY_EMPTY")
@@ -418,7 +433,7 @@ def save_approved_interpretation_layout(
 
         walls = []
         for index, wall in enumerate(
-            (item for item in document["walls"] if item["disposition"] == "accepted"),
+            (item for item in document["walls"] if item["disposition"] in ("accepted", "corrected", "added")),
             start=1,
         ):
             start = {axis: round(float(wall["start"][axis]) / scale, 9) for axis in ("x", "y")}
@@ -446,12 +461,12 @@ def save_approved_interpretation_layout(
                 ],
             }
             for index, room in enumerate(
-                (item for item in document["rooms"] if item["disposition"] == "accepted"),
+                (item for item in document["rooms"] if item["disposition"] in ("accepted", "corrected", "added")),
                 start=1,
             )
         ]
         accepted_symbols = [
-            item for item in document["symbols"] if item["disposition"] == "accepted"
+            item for item in document["symbols"] if item["disposition"] in ("accepted", "corrected", "added")
         ]
         legend_ids = {item["symbol_legend_id"] for item in accepted_symbols}
         legends = {

@@ -236,7 +236,7 @@ the original sequence only after the demo handoff and further user direction.
 | U6 | Implementation PASS; real bake-off selection pending | Offline egress guard, resource tracking, U2 candidate validation, and U5 metric reporting pass; 783 backend / 300 frontend tests pass | Independent model selection approval missing | Not activated | Published to `main` at merge `a578fae` | Local evaluation harness implemented; zero external downloads or unauthorized training |
 | U7 | Implementation PASS | Deterministic overview, legend, plan-region, and overlapping tile transforms pass; 25 focused / 808 backend / 300 frontend tests pass | Not applicable | Not applicable | Published to `main` at merge `433f671` | Multi-resolution page, region, tile and OCR preparation implemented; memory limits checked before allocation |
 | U8 | Implementation PASS; real-runtime activation pending | Lazy loading, loopback constraint, offline egress guard, timeout/cancellation, strict candidate validation, and error sanitization pass; 12 focused / 820 backend / 300 frontend tests pass | Independent model selection and weights pending | Not activated | Published to `main` at merge `a44a97e` | Isolated schema-constrained local VLM gateway implemented; zero external downloads or network egress |
-| U9 | Not started | Not started | Missing | Not activated | Not published | Requires actual human review decisions |
+| U9 | Implementation PASS; real human review decisions pending | Synthetic authority/monotonic/checklist/export fixtures pass; 144 backend / 300 frontend tests pass | Independent dataset approver review missing | Not activated | Publication pending merge | Requires actual human review decisions |
 | U10 | Not started | Not started | Missing | Not activated | Not published | Requires approved training records and compute |
 | U11 | Not started | Not started | Not started | Not activated | Not published | Depends on U9 durable review records |
 | U12 | Not started | Not started | Not started | Not activated | Not published | Observed wiring only |
@@ -564,6 +564,36 @@ the original sequence only after the demo handoff and further user direction.
   - Development database `ved_electrical` row counts strictly verified unchanged before and after test executions (25 tables, 178 rows intact).
   - `git diff --check`: passed cleanly.
 - Real model weights, fine-tuned adapters, and production runtime activation remain PENDING until approved datasets and model selection decisions exist. Zero unapproved downloads or external inference performed.
+
+## U9 implementation and verification checkpoint (completed)
+
+- Baseline: published U8 merge `a44a97e` (progress ledger `f0ba7f7`); branch
+  `codex/u9-durable-pseudo-labeling`. Recovery stash `stash@{0}` remains preserved untouched.
+- Implemented `backend/app/ai/floor_plan_interpretation/pseudo_labeling.py` and exported in `__init__.py`:
+  - `CompletenessChecklist`: strict checklist for walls, rooms, symbols, openings, panels, scale, wiring, and ambiguous items.
+  - `DatasetApprovalDecision`: models PRE10 sign-off with approver assignment ID, decision timestamp, and scope.
+  - Review items for all 7 entity kinds: `SymbolReview`, `WallReview`, `RoomReview`, `OpeningReview`, `PanelReview`, `ScaleEvidenceReview`, and `ObservedWiringReview`.
+  - `ReviewDocument`: append-only immutable review document schema with page revision hashes.
+  - `record_pseudo_label_run()`: idempotent registration of `FloorPlanInterpretationRun` with hash and provenance integrity.
+  - `submit_append_only_review()`: append-only revision increments (`revision_number = latest + 1`), completeness checklist validation, rejection of unresolved items when marked complete, and automatic reset of dataset approval upon newly submitted revisions.
+  - `bind_dataset_approval()`: PRE10 dataset approver authority validation (`VED_AI_DATASET_APPROVER`), strict author/reviewer self-approval rejection.
+  - `export_approved_training_candidates()`: strict export filtering excluding unapproved revisions, incomplete reviews, unresolved targets, and holdout splits; produces valid `GoldAnnotationDocument` instances.
+- Updated `backend/app/schemas/demo_interpretation.py`, `backend/app/services/demo_interpretation_service.py`, and `backend/app/api/routes/demo_interpretation.py` to seamlessly integrate U9 review extensions, checklist verification, and status mappings without changing the 37 preserved OpenAPI operations or breaking existing consumers.
+- Added comprehensive unit and boundary tests in `backend/tests/test_pseudo_label_review.py` covering:
+  - Idempotent interpretation run recording.
+  - Monotonic append-only review revisions.
+  - Stale revision conflict rejection.
+  - Completeness checklist and unresolved target enforcement.
+  - Cross-owner access denial and Admin read-only behavior.
+  - PRE10 dataset approver authority verification and self-approval denial.
+  - Automatic dataset approval reset on subsequent edits.
+  - Training dataset export filtering excluding incomplete or holdout data.
+- Verification results:
+  - Focused U9 suite: 8 passed in 1.99s.
+  - Combined U2–U9 AI suite: 144 passed, 1 skipped in 20.32s.
+  - Full frontend regression: 36 test files passed, 300 tests passed; lint and production build passed cleanly.
+  - `git diff --check`: passed cleanly.
+- Real human dataset approver decisions remain PENDING on live data.
 
 ## DEMO-0 completion checkpoint
 
