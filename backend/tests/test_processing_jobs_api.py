@@ -393,9 +393,12 @@ class ProcessingJobApiTests(unittest.TestCase):
                 ("get", "/api/admin/dataset-approver-assignments"),
                 ("post", "/api/admin/dataset-approver-assignments"),
                 ("post", "/api/admin/dataset-approver-assignments/{assignment_id}/deactivate"),
+                ("get", "/api/floor-plans/{floor_plan_id}/interpretation"),
+                ("post", "/api/floor-plans/{floor_plan_id}/interpretation/reviews"),
+                ("post", "/api/projects/{project_id}/floors/{project_floor_id}/floor-plans/{floor_plan_id}/interpretation/layout"),
             },
         )
-        self.assertEqual(len(operations), 34)
+        self.assertEqual(len(operations), 37)
 
     def test_owning_designer_creates_durable_queued_job(self) -> None:
         response = self._post(

@@ -25,6 +25,10 @@ class AnalysisSettingsTests(unittest.TestCase):
         self.connection = get_engine().connect()
         self.transaction = self.connection.begin()
         self.session = Session(bind=self.connection, expire_on_commit=False, join_transaction_mode="create_savepoint")
+        self.settings_baseline = {
+            model: tuple(self.session.execute(select(model.__table__)).all())
+            for model in (FloorElevationSetting, PageScaleSetting)
+        }
         roles = {role.name: role for role in self.session.scalars(select(Role))}
         marker = uuid4().hex
         self.owner = User(oauth_provider="pre6-test", oauth_subject=marker, role=roles["DESIGNER"])
@@ -67,7 +71,7 @@ class AnalysisSettingsTests(unittest.TestCase):
         self.assertEqual(data["pages"][0]["floor_plan_page_id"], self.page.id)
         self.assertEqual(data["pages"][0]["scale"]["state"], "unresolved")
         for model in (FloorElevationSetting, PageScaleSetting):
-            self.assertEqual(self.session.scalar(select(func.count()).select_from(model)), 0)
+            self.assertEqual(tuple(self.session.execute(select(model.__table__)).all()), self.settings_baseline[model])
         for secret in ("storage_path", "original_sha256", "originals/"):
             self.assertNotIn(secret, response.text)
 
@@ -85,7 +89,11 @@ class AnalysisSettingsTests(unittest.TestCase):
         self.assertEqual(self.elevation(None).json()["state"], "unresolved")
         original = self.session.get(FloorElevationSetting, first.json()["revision_id"])
         self.assertEqual(float(original.elevation_meters), -1.5)
-        self.assertEqual(self.session.scalar(select(func.count()).select_from(PageScaleSetting)), 2)
+        self.assertEqual(self.session.scalar(select(func.count()).select_from(PageScaleSetting).where(PageScaleSetting.floor_plan_page_id == self.page.id)), 2)
+        for model, rows in self.settings_baseline.items():
+            for row in rows:
+                stored = self.session.execute(select(model.__table__).where(model.id == row.id)).one()
+                self.assertEqual(stored, row)
 
     def test_authentication_admin_read_only_and_owner_boundaries(self):
         self.app.dependency_overrides.pop(get_current_user)
@@ -152,7 +160,7 @@ class AnalysisSettingsTests(unittest.TestCase):
     def test_schema_and_openapi_contract(self):
         inspector = inspect(get_engine())
         self.assertEqual(set(inspector.get_table_names()), set(Base.metadata.tables))
-        self.assertEqual(len(Base.metadata.tables), 23)
+        self.assertEqual(len(Base.metadata.tables), 25)
         for model, check in ((FloorElevationSetting, "ck_floor_elevation_bounds"), (PageScaleSetting, "ck_page_scale_bounds")):
             name = model.__tablename__
             self.assertEqual({c["name"] for c in inspector.get_columns(name)}, set(model.__table__.columns.keys()))
@@ -160,5 +168,5 @@ class AnalysisSettingsTests(unittest.TestCase):
             self.assertEqual({i["name"] for i in inspector.get_indexes(name)}, {i.name for i in model.__table__.indexes})
         methods = {"get", "post", "put", "patch", "delete"}
         operations = [(path, method) for path, item in self.app.openapi()["paths"].items() for method in item if method in methods]
-        self.assertEqual(len(operations), 34)
+        self.assertEqual(len(operations), 37)
         self.assertEqual(len(operations), len(set(operations)))

@@ -83,15 +83,16 @@ The repository currently includes:
 - canonical detected/manual symbol selection and Designer-only repositioning by
   drag or accessible meter inputs, with explicit save/cancel controls and K3
   append-only snapshot persistence; and
-- a protected, lazy-loaded empty Three.js/React Three Fiber viewer at
+- a protected, lazy-loaded Three.js/React Three Fiber viewer at
   `#/app/projects/{project_id}/floors/{project_floor_id}/viewer-3d`, with a
-  demand-rendered neutral scene, orbit/pan/zoom controls, deterministic reset,
-  and viewer-local loading, WebGL fallback, and error isolation.
+  demand-rendered saved canonical room/floor surfaces, verified walls and symbol
+  markers, orbit/pan/zoom, top/perspective views, reset and reload controls,
+  WebGL fallback and error isolation. Missing wall dimensions block metric 3D.
 
 Implementation must continue incrementally through the tickets in
-`docs/FUNCTIONAL_SPEC.md`; completing L1 provides only the empty 3D foundation
-and does not imply canonical 3D geometry, wall/room/route editing, routing,
-estimation, or reporting exists.
+`docs/FUNCTIONAL_SPEC.md`. The September demo brings forward only the bounded
+canonical floor/wall/symbol rendering subset of L2-L5; the full tickets,
+routing, estimation and reporting remain incomplete.
 
 The approved target AI direction is now a **locally hosted multimodal
 vision-language model (VLM)** rather than a YOLO-only production pipeline. The
@@ -112,11 +113,58 @@ The U1-U14 execution handoff is maintained in
 [`docs/CODEX_U_VLM_MIGRATION_PROMPT.md`](docs/CODEX_U_VLM_MIGRATION_PROMPT.md).
 One explicit authorization may cover that sequence, but implementation,
 verification, publication, and reporting remain separate for every ticket.
-It does not include the remaining 3D, routing, estimation, or report epics.
+Its active section 0 authorizes the bounded demo rendering subset. It does not
+complete the remaining 3D, routing, estimation or report epics.
 
 ---
 
 ## Required Tech Stack
+
+### Local September demo startup
+
+Use two PowerShell terminals. Start configured MySQL first. The existing
+backend environment and frontend dependencies are required; the CV provider
+needs no downloaded weights. Do not start a second server on an occupied port.
+
+```powershell
+# API
+cd C:\Users\kupal\Documents\ai-floorplan-analysis\backend
+$env:APP_ENV = 'development'
+$env:AUTO_START_DEMO_WORKER = 'true'
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+```powershell
+# Frontend
+cd C:\Users\kupal\Documents\ai-floorplan-analysis\frontend
+$nodeDir = Join-Path $env:LOCALAPPDATA 'Programs\node-v22.19.0-win-x64'
+$env:Path = "$nodeDir;$env:Path"
+npm.cmd run dev -- --host 127.0.0.1 --port 5173 --strictPort
+```
+
+Open `http://localhost:5173/`, sign in as the owning Designer, create/select a
+project and floor, upload a readable PNG/JPEG, and click Analyze. Use a raster
+of the explicitly selected PDF page for this demo; the automatically started
+worker only processes page 1 of a PDF and leaves later pages unprocessed. After
+processing completes, open **Review floor-plan proposals**. The workspace starts
+with rooms over the original image. Select a room to move its corner handles,
+add a missing room, or exclude an incorrect proposal. Switch to **3D · Draft
+preview** to inspect the same draft boundaries as raised outlines. These use
+relative display height, so scale approval and symbol legends are unnecessary
+for this preview. **Save unfinished draft** preserves edits for later review.
+Wall and symbol layers are optional; neither is required to preview rooms.
+
+Accepted symbols require an approved active VED legend entry, configured
+by an authorized Admin through the existing legend API. An empty catalog blocks
+symbol mapping; the demo does not seed invented classes.
+
+For an approved measured layout, use **Review scale and elevation** on the project page to approve scale for the
+exact normalized dimensions and floor elevation. In the review page enter wall
+height/thickness, record review notes, explicitly approve the placements, save
+the review revision, then save the shared canonical layout. Open 2D or 3D from
+the saved result. Save a moved symbol in 2D, then reload the 3D layout to see the
+same persisted position. Human review and browser demonstration are still
+pending; see `docs/U_VLM_PROGRESS.md` for measured counts and remaining gates.
 
 ### Frontend
 
@@ -385,11 +433,16 @@ The folders that do not exist yet should be created by the appropriate developme
 
 - PRE1-PRE3 recover persisted floor plans and bounded processing-job history
   after reload and resume active polling.
-- Designer upload cards can start processing and poll job status. PRE9 provides
-  cancellation and execution controls, but no worker, external queue, or automatic
-  upload-triggered job creation exists. Without a worker, queued jobs do not advance
-  automatically. Persisted results can be reviewed through the J2/J3 UI when a
-  completed job and its normalized review image already exist.
+- Designer upload cards can start processing and poll job status. The bounded
+  September demo worker claims those queued jobs through PRE9, validates the
+  unchanged original, normalizes page 1, runs local deterministic OpenCV room,
+  wall, and circular-symbol proposals, and stores one immutable U2 candidate.
+  It is a separately started local process, not an external queue or an
+  upload-triggered background task. Other PDF pages are not processed.
+- The unified demo review keeps machine proposals separate from append-only
+  Designer revisions. Accepted symbols require a live approved VED legend;
+  exact scale, floor elevation, wall thickness, and wall height require explicit
+  review before the server can create a shared K1/K2 canonical snapshot.
 - G1 can convert one selected PDF page to a separate PNG when called directly by
   backend code, but F2 does not invoke it automatically. Page numbers are
   one-based, page 1 is the default, and the default resolution is 150 DPI.
@@ -528,11 +581,10 @@ The folders that do not exist yet should be created by the appropriate developme
 - `ultralytics-opencv-headless` is distributed under AGPL-3.0 with a separate
   Enterprise license option. Licensing must be reviewed before commercial or
   production deployment.
-- L1 installs `three@0.185.1` and `@react-three/fiber@9.7.0` and adds an empty,
-  floor-scoped viewer foundation that makes no layout, floor-plan, detection,
-  or processing-job request. Its grid and axes are orientation helpers, not
-  project geometry. Canonical floor rendering, walls, openings, symbols,
-  2D/3D synchronization, and top/perspective switching remain future work.
+- L1 introduced the empty viewer foundation. DEMO-3 now reads the saved K1
+  layout and renders floor/room surfaces, verified walls and symbol markers.
+  Reload retrieves later saved 2D edits. Openings, full L2-L5 completion and
+  production reconstruction quality remain outside this bounded demo.
 - The Konva 2D layout can reposition canonical symbols only. Other canonical
   geometry remains read-only.
   `project_floors` has no elevation column; PRE6 persists reviewed elevation
