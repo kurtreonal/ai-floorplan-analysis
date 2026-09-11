@@ -1,5 +1,11 @@
 # Pre-VLM Foundation Plan
 
+Reading map: load §§1,5,6 once, then the complete current PRE ticket in §4 and
+its dependency evidence. Read affected contract/source sections on demand.
+After a ticket, inspect changed sections rather than rereading both roadmaps.
+PRE12 history stays in PRE_VLM_READINESS_REPORT.md; do not restart completed
+foundations solely because this specification retains their acceptance criteria.
+
 ## 1. Purpose and stopping boundary
 
 This plan closes repository gaps that would otherwise interrupt the local
@@ -480,9 +486,10 @@ was created.
 
 For every PRE ticket:
 
-1. Read `AGENTS.md`, `README.md`, `backend/README.md`,
-   `docs/ARCHITECTURE.md`, and `docs/FUNCTIONAL_SPEC.md` completely, plus this
-   plan and the local-VLM plan.
+1. Read all applicable `AGENTS.md` instructions. Use this plan's reading map
+   and the PRE handoff for current-ticket context; inspect relevant README,
+   architecture, functional and VLM policy sections only. Read selected
+   acceptance criteria completely and expand for affected dependencies.
 2. Inspect the current branch, `origin/main`, status, untracked files, exact
    relevant implementation, tests, live schema, storage, and protected file.
 3. Do not begin if remote main moved, the prior ticket is unpublished, private

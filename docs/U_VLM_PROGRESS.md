@@ -6,6 +6,12 @@ to a trained or released model.
 
 ## Resume index
 
+**Current assignment (September 11):** U1–U14 development is authorized while
+datasets wait. Read handoff §0. Continue independent tested implementation;
+record real-data/model/release acceptance separately as pending. Do not restart
+U1/U2 or stop the whole sequence for unchanged U3 data gates. This is a scope
+update, not evidence that additional implementation or acceptance has passed.
+
 Read this index, then only the relevant checkpoint below. Historical entries
 are evidence at their recorded time, not additional instructions to execute.
 Verify live code/Git when resuming; do not replay all prior checks.
@@ -224,7 +230,7 @@ the original sequence only after the demo handoff and further user direction.
 |---|---|---|---|---|---|---|
 | U1 | Complete | Native-Windows target measured | Approved operating/retention policy and standing VED collection authorization; encryption deferred with accepted risk, not passed | Not applicable | Published to `main` at merge `8c73183` | Collection authorization does not replace source rights, quality, annotation, gold, training-record, or release decisions |
 | U2 | Complete | Synthetic contract fixtures pass | Not applicable | Not applicable | Published to `main` at merge `3f12087` | Strict source-pixel payload and host provenance envelope; no persistence or runtime |
-| U3 | Safe tooling corrected; ticket blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero sources/pages | Covered blueprint permission recorded; one degraded-page decision and eight page classifications remain; third-party references stay excluded | Not applicable | Feature-branch WIP through page/quality implementation `d427be2`; must not merge | Private visual review is ready; encryption is deferred risk, not blocker; no genuine frozen-test project exists |
+| U3 | Implementation PASS; real-data acceptance blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero sources/pages | Covered blueprint permission recorded; one degraded-page decision and eight page classifications remain; third-party references stay excluded | Not applicable | Implementation publication in progress after demo reconciliation | Private visual review is ready; encryption is deferred risk, not blocker; no genuine frozen-test project exists |
 | U4 | Not started | Not started | Not started | Not applicable | Not published | Depends on U3 and approved catalog data |
 | U5 | Not started | Not started | Missing | Not applicable | Not published | Requires independent human-approved gold and thresholds |
 | U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
@@ -326,6 +332,17 @@ the original sequence only after the demo handoff and further user direction.
   while rights are unresolved; they do not block VED blueprint inventory. A
   genuinely new independent frozen-test project is still absent. Device
   encryption is deferred accepted risk, not the blocker.
+- September 11 reconciliation merged published demo `d7e53c4` into the U3
+  feature branch and retained both AI boundaries. Focused U3/candidate/upload
+  verification passes 94 tests with 1 native-Windows symlink skip and 2
+  subtests. The full backend suite passes 747 tests with 4 skips and 509
+  subtests in a fresh isolated database, which was removed afterward.
+- Current read-only integration checks report 37 unique OpenAPI operations,
+  exact 25-modeled/25-live tables, and 10 configured originals totaling
+  1,015,004 bytes at aggregate SHA-256
+  `20751d51ff7c6240274f075ee5237f93c44d48a79e7cf103baca34fc1b6fc2f3`.
+- U3 implementation is eligible for publication under the updated section 0;
+  real-data acceptance remains blocked and is not relabeled as complete.
 - U4 has not started.
 
 ## DEMO-0 completion checkpoint

@@ -2,7 +2,8 @@
 
 - Ticket: U3
 - Inspection dates: 2026-09-07 through 2026-09-09 (Asia/Manila)
-- Status: BLOCKED after safe real intake
+- Implementation status: PASS and ready for scoped publication
+- Real-data acceptance status: BLOCKED after safe real intake
 - Baseline: U2 merge `3f12087`
 - Latest safe implementation: `d427be2`
 
@@ -127,18 +128,25 @@ all other privacy and permission gates remain unchanged.
 | VED page classification and degraded-quality decisions | BLOCKED | Eight page classifications and one purpose-specific degraded-quality decision await human review |
 | Third-party reference eligibility | BLOCKED | Rights evidence remains unresolved, so both references remain inventoried and excluded without blocking VED blueprint inventory |
 | Actual independent eligible blueprint-project coverage | BLOCKED | Current proven count is zero; no genuine sealed-test project exists |
-| U3 completion publication and merge | BLOCKED | Real-data gates have not passed |
+| U3 implementation publication and merge | PASS | September 11 policy permits separately verified implementation publication while preserving the blocked real-data status |
+| U3 real-data acceptance | BLOCKED | Page/quality decisions and independent sealed-test coverage have not passed |
 
 The U3-specific suite passes 41 tests with one native Windows symlink test
-skipped. The focused U3/candidate/upload suite passes 94 tests with the same
-skip and 2 subtests. The full backend regression passes 727 tests with 4
-skipped, 2 known dependency deprecation warnings, and 504 subtests.
+skipped. After reconciliation with the published demo baseline, the focused
+U3/candidate/upload suite passes 94 tests with the same skip and 2 subtests.
+The full isolated-database backend regression passes 747 tests with 4 skipped,
+2 known dependency deprecation warnings, and 509 subtests.
 
-Read-only contract and integrity reconciliation found 34 unique OpenAPI
-operations and 23 modeled tables exactly matching the 23 live tables. Live row
-counts match the PRE12 baseline. The six application originals remain 146,958
-bytes total and retain their previously published common SHA-256; no derived
-application artifact was created by U3.
+The original U3 read-only reconciliation found 34 unique OpenAPI operations and
+23 modeled tables matching live state. After merging the published demo baseline,
+the current contract has 37 unique operations and 25 modeled tables exactly
+matching the 25 live tables. The configured original store now contains 10 files
+and 1,015,004 bytes with aggregate SHA-256
+`20751d51ff7c6240274f075ee5237f93c44d48a79e7cf103baca34fc1b6fc2f3`;
+the increase belongs to later demo activity, and U3 changed none of those bytes.
 
-U4 and all later dependent work must not start until these U3 blockers are
-resolved and the completed ticket is independently verified and published.
+Under the September 11 policy, U4 and later independently testable implementation
+may proceed after this U3 implementation is published. The unresolved U3 data
+decisions remain required for real-data acceptance, training/evaluation claims,
+and production promotion; downstream code must surface those states rather than
+substitute synthetic fixtures as real data.
