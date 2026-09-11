@@ -235,7 +235,7 @@ the original sequence only after the demo handoff and further user direction.
 | U5 | Implementation PASS; real gold pending | Synthetic authority/hash/split/sealed-access and comprehensive known-answer metric fixtures pass; 775 backend / 300 frontend tests pass | Independent gold review and numeric threshold approval missing | Not applicable | Published to `main` at merge `8076db8` | Complete calculable geometry evaluators implemented; unavailable real evidence remains pending |
 | U6 | Implementation PASS; real bake-off selection pending | Offline egress guard, resource tracking, U2 candidate validation, and U5 metric reporting pass; 783 backend / 300 frontend tests pass | Independent model selection approval missing | Not activated | Published to `main` at merge `a578fae` | Local evaluation harness implemented; zero external downloads or unauthorized training |
 | U7 | Implementation PASS | Deterministic overview, legend, plan-region, and overlapping tile transforms pass; 25 focused / 808 backend / 300 frontend tests pass | Not applicable | Not applicable | Published to `main` at merge `433f671` | Multi-resolution page, region, tile and OCR preparation implemented; memory limits checked before allocation |
-| U8 | Not started | Not started | Not applicable | Not activated | Not published | Depends on U2, U6, and U7 |
+| U8 | Implementation PASS; real-runtime activation pending | Lazy loading, loopback constraint, offline egress guard, timeout/cancellation, strict candidate validation, and error sanitization pass; 12 focused / 820 backend / 300 frontend tests pass | Independent model selection and weights pending | Not activated | Published to `main` at merge | Isolated schema-constrained local VLM gateway implemented; zero external downloads or network egress |
 | U9 | Not started | Not started | Missing | Not activated | Not published | Requires actual human review decisions |
 | U10 | Not started | Not started | Missing | Not activated | Not published | Requires approved training records and compute |
 | U11 | Not started | Not started | Not started | Not activated | Not published | Depends on U9 durable review records |
@@ -525,6 +525,45 @@ the original sequence only after the demo handoff and further user direction.
   - Full frontend regression: 36 test files passed, 300 tests passed; lint and production build passed cleanly.
   - Development database `ved_electrical` row counts strictly verified unchanged before and after test executions (25 tables, 178 rows intact).
   - `git diff --check`: passed cleanly.
+
+## U8 implementation and verification checkpoint (completed)
+
+- Baseline: published U7 merge `433f671` (progress ledger `9deec4d`); branch
+  `codex/u8-local-vlm-gateway`. Recovery stash `stash@{0}` remains preserved untouched.
+- Implemented `backend/app/ai/local_model_gateway/` containing:
+  - `config.py`: strict Pydantic models for `LocalGatewayConfig`, `GatewayInferenceRequest`,
+    `GatewayInferenceResult`, and `GatewayHealth`. Restricts runtime URLs strictly to loopback
+    (`127.0.0.1`, `localhost`, `::1`) and enforces `allow_network=False`. Rejects external endpoints.
+  - `diagnostics.py`: `DiagnosticsStore` for private offline execution logging with automated
+    credential/path redaction (masking passwords, bearer tokens, and private filesystem paths).
+    Hierarchical sanitized error types (`GatewayTimeoutError`, `EgressViolationError`,
+    `SchemaValidationError`, `ModelExecutionError`, `ConcurrencyLimitError`) exposing clean API
+    errors with diagnostic traceability without leaking internal traces or raw model text.
+  - `gateway.py`: `LocalModelGateway` with lazy model loading and cached lifecycle,
+    `OfflineEgressGuard` enforcement, `ResourceTracker` hardware budget monitoring (RTX 3050 4GB VRAM
+    and process RAM), bounded concurrency controls, and timeout cancellation. Validates raw output
+    against strict Pydantic candidate schemas (`parse_candidate_payload_json` and `build_candidate_envelope`).
+    Invalid or partial text is rejected.
+  - `MockLocalVLMAdapter`: deterministic local runtime adapter for testing lifecycle, validation,
+    hangs, errors, and egress violations.
+- Added comprehensive unit and boundary tests in `backend/tests/test_vlm_gateway.py` covering:
+  - Strict rejection of external endpoints and network egress.
+  - Loopback host resolution.
+  - Redaction of sensitive tokens and paths in diagnostic logs.
+  - Lazy model initialization, health checks, and shutdown.
+  - Successful end-to-end inference producing valid U2 candidate envelopes.
+  - Strict rejection of malformed or truncated JSON and missing candidate fields.
+  - Timeout enforcement and cooperative cancellation.
+  - Immediate escalation on attempted external egress.
+  - Concurrency budgeting and queue overflow handling.
+- Verification results:
+  - Focused U8 suite: 12 passed in 12.65s.
+  - Combined U2–U8 AI suite: 136 passed, 1 skipped in 15.88s.
+  - Full backend regression in isolated test database: 820 passed, 4 skipped, 2 warnings in 40.90s.
+  - Full frontend regression: 36 test files passed, 300 tests passed; lint and production build passed cleanly.
+  - Development database `ved_electrical` row counts strictly verified unchanged before and after test executions (25 tables, 178 rows intact).
+  - `git diff --check`: passed cleanly.
+- Real model weights, fine-tuned adapters, and production runtime activation remain PENDING until approved datasets and model selection decisions exist. Zero unapproved downloads or external inference performed.
 
 ## DEMO-0 completion checkpoint
 
