@@ -233,7 +233,7 @@ the original sequence only after the demo handoff and further user direction.
 | U3 | Implementation PASS; real-data acceptance blocked | Synthetic validation and real private intake executed; actual eligible coverage is zero sources/pages | Covered blueprint permission recorded; one degraded-page decision and eight page classifications remain; third-party references stay excluded | Not applicable | Published to `main` at merge `b909e12` | Private visual review is ready; encryption is deferred risk, not blocker; no genuine frozen-test project exists |
 | U4 | Implementation PASS; real pack pending | Synthetic private-pack fixtures pass; six active live catalog classes rechecked | Reviewed aliases, descriptions, glyph regions and source rights remain pending | Not applicable | Published to `main` at merge `5845512` | Builder and Admin UI do not mutate approval state or train/activate a model |
 | U5 | Implementation PASS; real gold pending | Synthetic authority/hash/split/sealed-access and comprehensive known-answer metric fixtures pass; 775 backend / 300 frontend tests pass | Independent gold review and numeric threshold approval missing | Not applicable | Published to `main` at merge `8076db8` | Complete calculable geometry evaluators implemented; unavailable real evidence remains pending |
-| U6 | Not started | Not started | Not started | Not activated | Not published | Requires measured target hardware and passing U5 |
+| U6 | Implementation PASS; real bake-off selection pending | Offline egress guard, resource tracking, U2 candidate validation, and U5 metric reporting pass; 783 backend / 300 frontend tests pass | Independent model selection approval missing | Not activated | Published to `main` at merge | Local evaluation harness implemented; zero external downloads or unauthorized training |
 | U7 | Not started | Not started | Not applicable | Not applicable | Not published | Depends on U2 and U6 |
 | U8 | Not started | Not started | Not applicable | Not activated | Not published | Depends on U2, U6, and U7 |
 | U9 | Not started | Not started | Missing | Not activated | Not published | Requires actual human review decisions |
@@ -455,6 +455,41 @@ the original sequence only after the demo handoff and further user direction.
   - `git diff --check`: passed cleanly.
 - Real gold membership and approved numeric promotion/regression thresholds remain
   pending evidence. No model selection or release claim is made.
+
+## U6 implementation and verification checkpoint (completed)
+
+- Baseline: published U5 merge `8076db8` (progress ledger `32e50b7`); branch
+  `codex/u6-local-vlm-bakeoff-harness`. Recovery stash `stash@{0}` remains preserved untouched.
+- Implemented `evaluation_harness.py` in `backend/app/ai/floor_plan_interpretation/`
+  and exported in `__init__.py`:
+  - `OfflineEgressGuard`: context manager intercepting socket operations to guarantee
+    zero external network egress during model inference.
+  - `ResourceTracker`: measures execution wall-clock latency, peak process RAM (via tracemalloc),
+    and peak VRAM (with 4GB RTX 3050 budget and CPU graceful fallback).
+  - `ModelEvaluationConfig`: strict Pydantic model for candidate configuration (revision, license,
+    runtime, execution mode, max tokens, timeout, and VRAM budget).
+  - `ModelProviderAdapter` / `MockModelProviderAdapter`: protocol and deterministic mock adapter.
+  - `EvaluationHarness`: loads development gold split via U5 `load_development_gold()`, validates
+    candidate envelopes via U2 `build_candidate_envelope()`, calculates full metric observations
+    across all 28 `REQUIRED_METRICS`, generates `MetricReportEntry` tuples via `build_metric_report()`,
+    and honestly reports legacy YOLO comparisons (unavailable when weights are absent).
+- Added comprehensive unit test suite in `backend/tests/test_vlm_evaluation_harness.py` covering:
+  - Offline egress boundary enforcement and violation escalation.
+  - Resource usage measurements.
+  - Configuration schema validation.
+  - Provider lifecycle (load/predict/unload).
+  - End-to-end evaluation on development gold records.
+  - Immediate abortion on egress violation.
+  - Strict exclusion of sealed-test records.
+  - Timeout and retry handling.
+- Verification results:
+  - Focused U6 suite: 8 passed in 2.49s.
+  - Combined U2–U6 AI suite: 99 passed, 1 skipped in 3.74s.
+  - Full backend regression in isolated test database: 783 passed, 4 skipped, 2 warnings, 509 subtests passed in 24.84s.
+  - Full frontend regression: 36 test files passed, 300 tests passed; lint and production build passed cleanly.
+  - Development database `ved_electrical` row counts strictly verified unchanged before and after test executions (25 tables, 178 rows intact).
+  - `git diff --check`: passed cleanly.
+- Real model selection and hardware activation remain PENDING until approved datasets and model decisions exist. Zero unapproved downloads or external inference performed.
 
 ## DEMO-0 completion checkpoint
 

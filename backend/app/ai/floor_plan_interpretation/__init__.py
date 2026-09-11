@@ -68,6 +68,18 @@ from app.ai.floor_plan_interpretation.gold_evaluation import (
     load_development_gold,
     validate_metric_contract_authority,
 )
+from app.ai.floor_plan_interpretation.evaluation_harness import (
+    EgressSecurityViolation,
+    EvaluationHarness,
+    EvaluationHarnessError,
+    MockModelProviderAdapter,
+    ModelBakeOffResult,
+    ModelEvaluationConfig,
+    ModelProviderAdapter,
+    OfflineEgressGuard,
+    ResourceTracker,
+    ResourceUsage,
+)
 
 __all__ = [
     "CandidateContractError",
@@ -128,4 +140,14 @@ __all__ = [
     "evaluate_wiring",
     "load_development_gold",
     "validate_metric_contract_authority",
+    "EgressSecurityViolation",
+    "EvaluationHarness",
+    "EvaluationHarnessError",
+    "MockModelProviderAdapter",
+    "ModelBakeOffResult",
+    "ModelEvaluationConfig",
+    "ModelProviderAdapter",
+    "OfflineEgressGuard",
+    "ResourceTracker",
+    "ResourceUsage",
 ]
