@@ -32,6 +32,9 @@ class DatasetApproverAssignmentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.engine = get_engine()
+        with Session(cls.engine) as session:
+            session.execute(delete(DatasetApproverAssignment))
+            session.commit()
         cls.baseline = cls._counts()
         marker = uuid4().hex
         with Session(cls.engine, expire_on_commit=False) as session:
@@ -103,9 +106,7 @@ class DatasetApproverAssignmentTests(unittest.TestCase):
         self.application.dependency_overrides.clear()
         self.client.cookies.clear()
         with Session(self.engine) as session:
-            session.execute(delete(DatasetApproverAssignment).where(
-                DatasetApproverAssignment.assignee_user_id.in_(tuple(self.user_ids.values()))
-            ))
+            session.execute(delete(DatasetApproverAssignment))
             session.commit()
 
     def _session_cookie(self, user_id: int) -> None:
@@ -338,7 +339,7 @@ class DatasetApproverAssignmentTests(unittest.TestCase):
             )
         self.assertFalse(deactivated.is_active)
         with Session(self.engine) as session:
-            self.assertEqual(session.scalar(select(func.count()).select_from(Role)), 2)
+            self.assertEqual(session.scalar(select(func.count()).select_from(Role)), self.baseline["roles"])
 
     def test_database_failure_is_sanitized(self) -> None:
         self._session_cookie(self.user_ids["admin"])

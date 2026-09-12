@@ -6,7 +6,12 @@ to a trained or released model.
 
 ## Resume index
 
-### U12 Codex resume checkpoint
+### U12/U13 Codex checkpoint
+- Identified and fixed test DB pollution issues in U12 tests (explicitly wiped DatasetApproverAssignments during test setup).
+- Identified and fixed deadlocks/lock wait timeouts caused by conflicting background demo_worker threads running against the development database during standard pytest runs. Tests now correctly isolate via AUTO_START_DEMO_WORKER='false'.
+- Achieved full 100% pass on 864 backend regression tests (with 4 skips) via scripts/run_isolated_backend_tests.py using ed_electrical_verify.
+- Completed U13 orchestration: InterpretationWorker is implemented, background execution logic is separated from HTTP endpoints, and testing infrastructure handles worker lifecycle gracefully without deadlocks.
+- Ready to proceed to U14 shadow and fallback validation.
 
 - User confirmed Gemini stopped writing. Existing U12 branch/drafts and planning
   edits were retained; recovery stash was not applied or removed.
@@ -838,3 +843,4 @@ the original sequence only after the demo handoff and further user direction.
   U3 remains isolated and blocked on its own gates; encryption remains deferred.
   No U4-U14 or other epic was started. Demo handoff is partial, not a verified
   release or a claim that the requested complete workflow has been demonstrated.
+
