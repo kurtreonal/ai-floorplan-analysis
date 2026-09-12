@@ -40,6 +40,7 @@ def _response(record: LayoutVersionRecord) -> LayoutResponse:
         is_current=True,
         created_at=record.created_at,
         geometry=record.geometry.to_dict(),
+        extension=record.extension.to_dict() if record.extension else None,
     )
 
 
