@@ -1,4 +1,10 @@
-# Gemini implementation plan: finish U5, continue U6–U14
+# Historical Gemini handoff — superseded by Codex ownership
+
+September 12 user amendment: Codex is now the implementation and progress owner.
+Stop Gemini writes and hand off unfinished files without deleting or resetting
+them. Follow `CODEX_U_VLM_MIGRATION_PROMPT.md` §0 for the live U12–U14 assignment.
+Everything below is historical context, not current execution authorization;
+its Gemini ownership and U5 resume instructions are superseded.
 
 ## Role and boundaries
 

@@ -179,15 +179,18 @@ def append_interpretation_review(
         _unique_ids(payload.walls, "WALL")
         _unique_ids(payload.rooms, "ROOM")
         _unique_ids(payload.symbols, "SYMBOL")
+        _unique_ids(payload.observed_wiring, "WIRING")
         expected = {
             "walls": {item.id for item in candidate.payload.walls.items},
             "rooms": {item.id for item in candidate.payload.rooms.items},
             "symbols": {item.id for item in candidate.payload.symbols.items},
+            "wiring": {item.id for item in candidate.payload.observed_routes.segments},
         }
         supplied = {
             "walls": {item.id for item in payload.walls if not item.id.startswith("manual-")},
             "rooms": {item.id for item in payload.rooms if not item.id.startswith("manual-")},
             "symbols": {item.id for item in payload.symbols if not item.id.startswith("manual-")},
+            "wiring": {item.id for item in payload.observed_wiring if not item.id.startswith("manual-")},
         }
         if any(not values.issubset(expected[name]) for name, values in supplied.items()):
             _fail("UNKNOWN_CANDIDATE_IDENTITY")
@@ -204,6 +207,14 @@ def append_interpretation_review(
                 _validate_bounds(point, width=width, height=height)
         for symbol in payload.symbols:
             _validate_bounds(symbol.center, width=width, height=height)
+        for wire in payload.observed_wiring:
+            for point in wire.points:
+                _validate_bounds(point, width=width, height=height)
+            if payload.approved_for_layout and wire.disposition in ("accepted", "corrected", "added"):
+                if wire.completeness != "complete":
+                    _fail("OBSERVED_WIRING_INCOMPLETE")
+                if wire.elevation_meters is None:
+                    _fail("OBSERVED_WIRING_ELEVATION_REQUIRED")
 
         legend_ids = {
             symbol.symbol_legend_id
@@ -515,6 +526,29 @@ def save_approved_interpretation_layout(
                     "y": round(float(symbol["center"]["y"]) / scale, 9),
                 },
             })
+        routes = []
+        route_details = []
+        for wire in document.get("observed_wiring", []):
+            if wire["disposition"] not in ("accepted", "corrected", "added"):
+                continue
+            if wire["completeness"] != "complete":
+                _fail("OBSERVED_WIRING_INCOMPLETE")
+            if wire.get("elevation_meters") is None:
+                _fail("OBSERVED_WIRING_ELEVATION_REQUIRED")
+            route_id = len(routes) + 1
+            routes.append({
+                "id": route_id,
+                "points": [{
+                    "project_floor_id": project_floor_id,
+                    "x": round(float(point["x"]) / scale, 9),
+                    "y": round(float(point["y"]) / scale, 9),
+                    "elevation_meters": wire["elevation_meters"],
+                } for point in wire["points"]],
+            })
+            route_details.append({
+                "route_id": route_id, "route_kind": "observed",
+                "provenance_ref": f"vlm:{candidate_run_id}:review:{review_revision_number}:wiring:{wire['id']}",
+            })
         geometry = canonical_geometry_from_dict({
             "schema_version": 1,
             "project_id": project_id,
@@ -539,7 +573,7 @@ def save_approved_interpretation_layout(
             "walls": walls,
             "rooms": rooms,
             "symbols": symbols,
-            "routes": [],
+            "routes": routes,
         })
         openings = []
         for index, op in enumerate(
@@ -595,7 +629,7 @@ def save_approved_interpretation_layout(
             "openings": openings,
             "panels": panels,
             "symbol_details": symbol_details,
-            "route_details": [],
+            "route_details": route_details,
         }
 
         return save_owned_layout(

@@ -40,6 +40,8 @@ def _error(error: DemoInterpretationError) -> HTTPException:
         "SCALE_REFERENCE_MISMATCH": status.HTTP_409_CONFLICT,
         "SYMBOL_MAPPING_REQUIRED": status.HTTP_409_CONFLICT,
         "LAYOUT_REVIEW_NOT_APPROVED": status.HTTP_409_CONFLICT,
+        "OBSERVED_WIRING_INCOMPLETE": status.HTTP_409_CONFLICT,
+        "OBSERVED_WIRING_ELEVATION_REQUIRED": status.HTTP_409_CONFLICT,
     }.get(error.code, status.HTTP_422_UNPROCESSABLE_CONTENT)
     public_codes = {
         "AUTHORIZATION_DENIED",
@@ -65,6 +67,8 @@ def _error(error: DemoInterpretationError) -> HTTPException:
         "STALE_LAYOUT_VERSION",
         "IDEMPOTENCY_KEY_CONFLICT",
         "WALL_DIMENSIONS_REQUIRED",
+        "OBSERVED_WIRING_INCOMPLETE",
+        "OBSERVED_WIRING_ELEVATION_REQUIRED",
     }
     code = error.code if error.code in public_codes else "DEMO_INTERPRETATION_FAILED"
     return HTTPException(

@@ -5,16 +5,47 @@ control scope; editing or reading this file alone starts no ticket.
 
 ## 0. CURRENT ASSIGNMENT: develop all U tickets; datasets will follow
 
-Execution owner amendment: Gemini is currently the authorized implementer,
-including testing and scoped Git publication. Apply this handoff's requirements
-to Gemini; Codex-only writer wording in older collaboration notes is superseded.
-Use GEMINI_3_8_CONTEXT_REVIEW_PROMPT.md for the immediate U5/U6 assignment.
-Keep one writer per shared checkout; the separate ChatGPT chat owns planning/review.
-The Gemini session executing this handoff owns implementation, not review-only
-acknowledgments. Standing user approval covers continuous dependency-ready U
-development: verify and checkpoint each ticket, then continue without requesting
-another "continue". Follow the Gemini prompt's continuation and stopping rules;
-pending datasets do not block independent code, and failed gates remain binding.
+Execution owner amendment, September 12: Codex now owns implementation, testing,
+progress checkpoints and scoped Git publication. This supersedes Gemini ownership
+and its earlier U5 resume assignment. The separate planning chat reviews reports.
+Confirm Gemini has stopped writing before overlapping work; preserve its drafts.
+Standing approval covers continuous dependency-ready U development: implement,
+verify, checkpoint and continue without routine reapproval. Failed gates remain
+binding; stop only affected dependent work while safe independent work remains.
+
+### Current resume: finish U12, then U13 and U14 development
+
+- Read applicable AGENTS.md, relevant skills, §2 reading map, complete U12–U14
+  criteria and their affected contracts. Inspect current code before editing.
+- September 12 observation: branch `codex/u12-observed-wiring-extraction`, HEAD
+  and local main/origin-main refs `0a5d799`; U11 merge `ed67dc2`. U1–U11 merges
+  exist in local main history; this is not independent acceptance verification.
+  Live remote verification failed due to connectivity; recheck before publication.
+- Preserve and audit untracked `observed_wiring.py` and
+  `test_observed_wiring.py` in the owning backend module/tests. They are unfinished,
+  not a passing checkpoint; demo integration/exports were not found in inspected
+  files. Do not restart U1–U11 merely because ownership changed.
+- Fix the draft payload builder's visible-wiring/no-segments case: it currently
+  returns empty. Use truthful partial/failed/unavailable states as appropriate;
+  empty extraction is not proof a page contains no wiring. Preserve evidence,
+  ambiguity, dangling endpoints and uncertain junctions. Proximity, crossings or
+  aligned dashes alone must not authorize invented electrical connections.
+- Complete U12 integration and tests, including U9 persisted corrections and U11
+  approval-only canonical conversion. No A*, sizing or compliance inference.
+- Then implement U13 durable orchestration (leases, cancellation, crash/retry,
+  idempotency, late-write fencing, persisted reviewable outcomes), and U14
+  shadow/promotion/rollback controls. Real model training, quality, signed release
+  and activation remain pending; keep legacy records and rollback intact.
+- U11's reported 169 backend passes cover selected U2–U11 tests, not the full
+  backend suite. Verify test isolation before running DB-dependent tests; obtain
+  required focused/full and post-merge evidence under §§18–19. Never use the dev
+  database as disposable test storage or print credential-bearing commands.
+  An earlier transcript exposed a DB password: coordinate authorized rotation
+  and sanitized configuration; do not reuse or copy it into reports or plans.
+- Preserve unrelated edits and stash object
+  `bb78854e87833124a1725b51f0be6099a8ac0cfa` (recheck live identity). Update existing
+  docs only. If session limits interrupt work, record exact next action and
+  actual test/process state; do not claim continued background execution.
 
 User authorization, September 11: develop U1–U14 now; dataset preparation and
 decisions may wait. Preserve the working demo and completed U1/U2. Resume U3's

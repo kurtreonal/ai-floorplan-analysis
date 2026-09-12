@@ -146,3 +146,4 @@ class LayoutResponse(LayoutSchema):
     is_current: Literal[True]
     created_at: datetime
     geometry: CanonicalGeometryRequest
+    extension: dict[str, object] | None = None

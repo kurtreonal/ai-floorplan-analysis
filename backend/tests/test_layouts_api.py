@@ -428,6 +428,7 @@ class LayoutApiTests(unittest.TestCase):
                 "is_current",
                 "created_at",
                 "geometry",
+                "extension",
             },
         )
         self.assertEqual(body["version_number"], 1)

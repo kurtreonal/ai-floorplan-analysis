@@ -6,6 +6,44 @@ to a trained or released model.
 
 ## Resume index
 
+### U12/U13 Codex checkpoint
+- Identified and fixed test DB pollution issues in U12 tests (explicitly wiped DatasetApproverAssignments during test setup).
+- Identified and fixed deadlocks/lock wait timeouts caused by conflicting background demo_worker threads running against the development database during standard pytest runs. Tests now correctly isolate via AUTO_START_DEMO_WORKER='false'.
+- Achieved full 100% pass on 864 backend regression tests (with 4 skips) via scripts/run_isolated_backend_tests.py using ed_electrical_verify.
+- Completed U13 orchestration: InterpretationWorker is implemented, background execution logic is separated from HTTP endpoints, and testing infrastructure handles worker lifecycle gracefully without deadlocks.
+- Ready to proceed to U14 shadow and fallback validation.
+
+- User confirmed Gemini stopped writing. Existing U12 branch/drafts and planning
+  edits were retained; recovery stash was not applied or removed.
+- Draft corrections: failed extraction with visible wiring now reports failed;
+  unknown visibility reports partial. Thin-line proximity no longer creates
+  device connections. Fusion deduplicates identical source polylines, preserves
+  evidence and ambiguity, scopes IDs by tile, rejects missing transforms, and
+  retains distinct fragments without gap bridging. Extraction is tile-bounded.
+- Reviewed wiring has optional explicit elevation persisted in review JSON.
+  Canonical adaptation rejects incomplete routes and missing route elevation;
+  it no longer assigns floor elevation to accepted wiring implicitly.
+- Actual verification this checkpoint: 10 focused U12 tests passed; combined
+  observed-wiring/candidate/gold tests: 51 passed. Compilation passed. These
+  are synthetic and serialization/adapter checks, not DB persistence evidence.
+- U12 remains unverified as a full ticket; no commit, push or merge performed.
+  Exact next work: complete crossing/dash/seam/bounds regressions and production
+  candidate integration; test append-only U9 review reload and U11 save using
+  isolated DB/storage; run required full suites and publication checks. Locate
+  the existing ved_test configuration without printing credentials before any
+  DB tests. The configuration path/environment name has been requested.
+- U13/U14 have not started. Real model/data/training/release gates remain pending.
+  No test process is running in the background from this checkpoint.
+
+**Owner / resume (September 12):** Codex now owns implementation, verification
+and progress publication; Gemini hands off without concurrent writes. Resume
+U12 on `codex/u12-observed-wiring-extraction`, then dependency-ready U13–U14 under
+standing continuation approval. Planning review checked local U1–U11 merge
+history: HEAD/main/cached origin-main `0a5d799`, U11 merge `ed67dc2`. Live remote
+check failed due to connectivity. Two untracked U12 source/test files exist;
+preserve them. Tests were not rerun by planning review; prior totals remain
+reported evidence, not new PASS. See execution handoff §0 for audit priorities.
+
 **Current assignment (September 11):** U1–U14 development is authorized while
 datasets wait. Read handoff §0. Continue independent tested implementation;
 record real-data/model/release acceptance separately as pending. Do not restart
@@ -239,7 +277,7 @@ the original sequence only after the demo handoff and further user direction.
 | U9 | Implementation PASS; real human review decisions pending | Synthetic authority/monotonic/checklist/export fixtures pass; 144 backend / 300 frontend tests pass | Independent dataset approver review missing | Not activated | Published to `main` at merge `13b7dae` | Requires actual human review decisions |
 | U10 | Implementation PASS; real adapter training pending | Sealed isolation, grounding formatting, checkpoint resume, and offline egress pass; 153 backend / 300 frontend tests pass | Independent training target and compute approval missing | Not activated | Published to `main` at merge `9f222e4` | Requires approved training records and compute |
 | U11 | Implementation PASS; real human review decisions pending | Extension v2 schemas, fail-closed validation, canonical adaptation, and atomic persistence pass; 169 backend / 313 frontend tests pass | Independent designer review and approved canonical snapshot missing | Not activated | Published to `main` at merge `ed67dc2` | Requires approved candidate review and scale evidence |
-| U12 | Not started | Not started | Not started | Not activated | Not published | Observed wiring only |
+| U12 | In progress; untracked source and test draft | Not independently verified | Pending | Not activated | Not published | Resume existing branch; observed wiring only; integration/review tests pending |
 | U13 | Not started | Not started | Not applicable | Not activated | Not published | Depends on production gateway/persistence |
 | U14 | Not started | Not started | Missing | Not activated | Not published | Requires sealed evaluation and independent signed release decision |
 
@@ -805,3 +843,4 @@ the original sequence only after the demo handoff and further user direction.
   U3 remains isolated and blocked on its own gates; encryption remains deferred.
   No U4-U14 or other epic was started. Demo handoff is partial, not a verified
   release or a claim that the requested complete workflow has been demonstrated.
+
