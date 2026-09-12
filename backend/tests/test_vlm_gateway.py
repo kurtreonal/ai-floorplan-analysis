@@ -142,6 +142,22 @@ class GatewayExecutionTests(TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
+    def test_wiring_evidence_reaches_runtime_as_non_authoritative_hints(self):
+        from unittest.mock import patch
+        adapter = MockLocalVLMAdapter()
+        gateway = LocalModelGateway(self.config, adapter)
+        request = GatewayInferenceRequest(
+            run_id="wiring-evidence", page_number=1,
+            prompt="Inspect the source pixels", provenance=make_sample_provenance(),
+        )
+        with patch.object(adapter, "predict", wraps=adapter.predict) as predict:
+            result = gateway.submit_inference(request, self.context)
+        prompt = predict.call_args.args[0]
+        self.assertIn("not electrical truth", prompt)
+        self.assertIn("No fragments does not prove no wiring", prompt)
+        self.assertIn('"state":"partial"', prompt)
+        self.assertEqual(result.status, "completed")
+
     def test_lazy_loading_and_health_check(self) -> None:
         adapter = MockLocalVLMAdapter()
         gateway = LocalModelGateway(self.config, adapter)

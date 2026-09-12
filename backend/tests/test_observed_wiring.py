@@ -171,6 +171,122 @@ def test_unknown_visibility_is_partial_not_empty():
     assert payload.state == "partial"
 
 
+@pytest.mark.parametrize("junction_dot", [False, True])
+def test_crossing_pixels_never_automatically_confirm_electrical_connectivity(junction_dot):
+    image = np.full((160, 160, 3), 255, dtype=np.uint8)
+    cv2.line(image, (20, 80), (140, 80), (0, 0, 0), 2)
+    cv2.line(image, (80, 20), (80, 140), (0, 0, 0), 2)
+    if junction_dot:
+        cv2.circle(image, (80, 80), 5, (0, 0, 0), -1)
+    before = image.copy()
+    segments, connections = extract_observed_wiring_from_image(
+        image, "tile-0001", [], [], ObservedWiringConfig(),
+    )
+    assert segments
+    assert not connections
+    assert all(segment.ambiguity != "clear" for segment in segments)
+    assert build_observed_routes_payload(segments, connections, True, True).state == "partial"
+    np.testing.assert_array_equal(image, before)
+
+
+def test_collinear_dashes_preserve_gaps_and_original_pixels():
+    image = np.full((100, 200, 3), 255, dtype=np.uint8)
+    for start, end in ((20, 50), (65, 95), (110, 140)):
+        cv2.line(image, (start, 50), (end, 50), (0, 0, 0), 2)
+    before = image.copy()
+    segments, connections = extract_observed_wiring_from_image(
+        image, "tile-0001", [], [], ObservedWiringConfig(),
+    )
+    assert len(segments) == 3
+    assert not connections
+    assert all(max(p.x for p in s.points) - min(p.x for p in s.points) < 35 for s in segments)
+    np.testing.assert_array_equal(image, before)
+
+
+def test_translated_reversed_seam_duplicates_preserve_source_identity():
+    from app.ai.floor_plan_interpretation.candidate import ObservedRouteSegment
+    first = ObservedRouteSegment(
+        id="segment-0001", points=(PixelPoint(x=80, y=20), PixelPoint(x=100, y=20)),
+        evidence_refs=("region:tile-0001",), ambiguity="clear",
+    )
+    second = ObservedRouteSegment(
+        id="segment-0001", points=(PixelPoint(x=20, y=20), PixelPoint(x=0, y=20)),
+        evidence_refs=("region:tile-0002",), ambiguity="unknown",
+    )
+    segments, connections = fuse_observed_routes(
+        [("tile-0001", first), ("tile-0002", second)], [], {
+            "tile-0001": AffineTransform(a=1., b=0., c=0., d=1., e=0., f=0.),
+            "tile-0002": AffineTransform(a=1., b=0., c=0., d=1., e=80., f=0.),
+        }, ObservedWiringConfig(),
+    )
+    assert len(segments) == 1
+    assert segments[0].points == first.points
+    assert segments[0].ambiguity == "unknown"
+    assert segments[0].evidence_refs == ("region:tile-0001", "region:tile-0002")
+    assert not connections
+
+
+@pytest.mark.parametrize("connected", [False, True])
+def test_crossing_fusion_preserves_only_explicit_junction_evidence(connected):
+    from app.ai.floor_plan_interpretation.candidate import ObservedRouteSegment, ObservedRouteConnection
+    horizontal = ObservedRouteSegment(
+        id="segment-0001", points=(PixelPoint(x=10, y=50), PixelPoint(x=90, y=50)),
+        evidence_refs=("region:tile-0001",), ambiguity="ambiguous",
+    )
+    vertical = ObservedRouteSegment(
+        id="segment-0002", points=(PixelPoint(x=50, y=10), PixelPoint(x=50, y=90)),
+        evidence_refs=("region:tile-0001",), ambiguity="ambiguous",
+    )
+    links = [("tile-0001", ObservedRouteConnection(
+        id="connection-0001", from_ref="segment:segment-0001", to_ref="segment:segment-0002",
+    ))] if connected else []
+    segments, connections = fuse_observed_routes(
+        [("tile-0001", horizontal), ("tile-0001", vertical)], links,
+        {"tile-0001": AffineTransform(a=1., b=0., c=0., d=1., e=0., f=0.)},
+        ObservedWiringConfig(),
+    )
+    assert len(segments) == 2
+    assert len(connections) == int(connected)
+    assert all(s.ambiguity == "ambiguous" for s in segments)
+    if connected:
+        assert {connections[0].from_ref, connections[0].to_ref} == {
+            f"segment:{s.id}" for s in segments
+        }
+
+
+def test_fusion_rejects_dangling_segment_endpoint():
+    from app.ai.floor_plan_interpretation.candidate import ObservedRouteConnection
+    connection = ObservedRouteConnection(
+        id="connection-0001", from_ref="segment:segment-0009", to_ref="symbol:symbol-0001",
+    )
+    with pytest.raises(ValueError, match="Dangling tile segment connection"):
+        fuse_observed_routes([], [("tile-0001", connection)], {}, ObservedWiringConfig())
+
+
+def test_prepared_evidence_is_bounded_unknown_and_preserves_pixels():
+    from types import SimpleNamespace
+    from app.ai.floor_plan_interpretation.observed_wiring import prepare_observed_wiring_evidence
+    image = np.full((100, 200, 3), 255, dtype=np.uint8)
+    for y in (20, 50, 80):
+        cv2.line(image, (20, y), (150, y), (0, 0, 0), 2)
+    before = image.copy()
+    context = SimpleNamespace(
+        source_plane=SimpleNamespace(width_pixels=200, height_pixels=100),
+        tiles=(SimpleNamespace(region_id="tile-0001", image_rgb=image,
+            local_to_source=AffineTransform(a=1., b=0., c=0., d=1., e=0., f=0.)),),
+    )
+    evidence = prepare_observed_wiring_evidence(context, ObservedWiringConfig(max_segments=2))
+    assert evidence.state == "partial"
+    assert evidence.truncated
+    assert len(evidence.segments) == 2
+    assert not evidence.connections
+    np.testing.assert_array_equal(image, before)
+    image[:] = 255
+    empty = prepare_observed_wiring_evidence(context)
+    assert empty.state == "partial"  # CV cannot establish electrical absence.
+    assert not empty.segments
+
+
 @pytest.mark.parametrize("approved,completeness,elevation,expected", [
     (False, "complete", 2.8, "LAYOUT_REVIEW_NOT_APPROVED"),
     (True, "partial", 2.8, "OBSERVED_WIRING_INCOMPLETE"),

@@ -6,7 +6,77 @@ to a trained or released model.
 
 ## Resume index
 
-### U12/U13 Codex checkpoint
+### U12 evidence/review integration checkpoint — September 12
+
+- Reconciled remote merge `e1e55eb` (already contains Gemini's U12/U13 drafts)
+  without rewriting history. U12 correction scope: bounded U7 tile-line evidence
+  supplied to U8 as explicitly non-authoritative hints; partial/truncated states,
+  deterministic source fusion, crossings/dashes/seams, original pixels, and
+  real persisted machine-wiring correction/approval/save tests. No automatic
+  electrical connectivity or generated routing. Empty CV evidence stays unknown;
+  explicit no-visible-wiring payloads remain empty.
+- Fixed the interpretation layout-save response dropping its stored extension.
+  Accepted machine-wiring corrections now have tested observed-route provenance
+  in the immediate response as well as existing canonical reload coverage.
+- Verification: new review fixture initially had 7 setup errors (inconsistent
+  document state), then an incorrect status expectation; corrected fixtures.
+  Full regression found the extension response defect: 1 failed, 894 passed,
+  4 skipped. After the production fix, focused API tests 14 passed; full current
+  worktree backend 895 passed, 4 skipped, 509 subtests passed, 2 warnings.
+  These worktree totals include separately scoped U13 corrections/tests.
+- Live isolated tables exactly match all 25 modeled tables; no table change.
+  OpenAPI remains 31 paths / 37 operations; existing optional extension response
+  is now populated. No dependency or configuration additions for U12.
+- Real wiring accuracy/topology/length metrics on approved development data,
+  live VLM interpretation, and human-reviewed actual wiring remain PENDING.
+  Conservative unresolved evidence is not semantic junction-recognition success.
+  U13 worker/gateway/multipage/recovery completion and U14 release are not claimed.
+- Publish this U12 implementation checkpoint separately from U13 fixes after
+  final checks. Recovery stash and private credentials remain unchanged.
+
+### September 12 Codex reconciliation — authoritative resume
+
+- Sole writer confirmed by user. Baseline `a4a387e` on
+  `codex/u12-observed-wiring-extraction`; Gemini committed U12/U13 drafts on
+  this branch. These commits do not establish completed ticket verification.
+  Recovery stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` preserved unchanged.
+- Fixed the U13 draft's missing demo detector import and false VLM provenance.
+  Its provider is explicitly `demo_cv_baseline`; unused gateway/mock imports
+  removed. No actual VLM invocation or activation is claimed.
+- Added final candidate-write fencing under PRE9 job/attempt locks: reject
+  expired/replaced/inactive/cancelled attempts before adding output, reuse an
+  existing same-provider run, and acknowledge with the candidate transaction.
+  Database-backed atomicity/concurrency verification is still pending.
+- Added dedicated worker dispatch/shutdown/error/claim tests, fake-persistence
+  fence/replay/failure tests, and real OpenCV pixel-to-candidate provenance test.
+  Added U12 crossing-with/without-dot, explicit junction versus no-link fusion,
+  collinear dash-gap, translated/reversed seam, dangling endpoint and unchanged
+  pixel checks. These do not prove semantic junction recognition or real metrics.
+- Fresh verification: selected worker/wiring/candidate/gold backend tests
+  **72 passed**; frontend **313 passed across 37 files**; frontend lint/build,
+  touched Python compilation, `pip check`, and `git diff --check` passed.
+  Build retains the >500 kB chunk warning. Earlier overlapping focused runs
+  passed 21, 27 and 28 tests; do not add those totals to the final selection.
+- Credential blocker resolved after user confirmed passwordless local MySQL
+  administration. Rotated only the verification account's two local identities;
+  generated secret stored in ignored `.env` / `TEST_DATABASE_URL`, never printed.
+  New login and restricted verification-only grants passed; administrator and
+  all other environment settings unchanged. Isolated runner preflight confirmed
+  empty data tables and temporary storage. Fresh persisted review/save,
+  canonical-extension and pseudo-label checks: **31 passed, 2 deprecation warnings**.
+  Fresh full isolated backend suite: **885 passed, 4 skipped, 2 warnings,
+  509 subtests passed in 47.31s**. Skipped checks are not passing evidence.
+- U12 remains incomplete: production evidence integration and real wiring
+  metrics are not established. U13 remains incomplete: actual U8 invocation,
+  frozen release selection, multipage outcome ledger, restart/recovery, full
+  failure matrix and durable end-to-end proof remain to be implemented/verified.
+  U14 has not started; real data/training/release approval remain pending.
+- No new commit/push/merge of these corrections: remaining ticket integration
+  and acceptance gaps still block a completion claim. Resume with remaining
+  U12/U13 integration and dedicated database-backed worker verification. Preserve drafts
+  and unrelated planning edits; do not infer completion from the imported report.
+
+### Historical imported U12/U13 checkpoint — superseded by reconciliation above
 - Identified and fixed test DB pollution issues in U12 tests (explicitly wiped DatasetApproverAssignments during test setup).
 - Identified and fixed deadlocks/lock wait timeouts caused by conflicting background demo_worker threads running against the development database during standard pytest runs. Tests now correctly isolate via AUTO_START_DEMO_WORKER='false'.
 - Achieved full 100% pass on 864 backend regression tests (with 4 skips) via scripts/run_isolated_backend_tests.py using ed_electrical_verify.

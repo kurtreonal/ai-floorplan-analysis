@@ -33,6 +33,7 @@ from app.ai.floor_plan_interpretation.evaluation_harness import (
     ResourceUsage,
 )
 from app.ai.floor_plan_interpretation.preparation import PreparedContext
+from app.ai.floor_plan_interpretation.observed_wiring import prepare_observed_wiring_evidence
 from app.ai.local_model_gateway.config import (
     GatewayHealth,
     GatewayInferenceRequest,
@@ -242,6 +243,16 @@ class LocalModelGateway:
 
         with ResourceTracker() as tracker:
             try:
+                wiring_evidence = prepare_observed_wiring_evidence(prepared_context)
+                effective_prompt = (
+                    request.prompt
+                    + "\nAuxiliary thin-line evidence in source pixels (not electrical truth):\n"
+                    + wiring_evidence.model_dump_json()
+                    + "\nThese fragments may be walls, text or wiring. Verify against pixels. "
+                    "Do not infer connections from crossings, proximity or dash alignment. "
+                    "No fragments does not prove no wiring. Preserve unresolved evidence; "
+                    "only visibly drawn wiring belongs in observed_routes."
+                )
                 # Collect images for multimodal model
                 images: list[np.ndarray] = [prepared_context.overview.image_rgb]
                 for tile in prepared_context.tiles:
@@ -253,7 +264,7 @@ class LocalModelGateway:
                     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                         future = executor.submit(
                             self.runtime_adapter.predict,
-                            request.prompt,
+                            effective_prompt,
                             images,
                             temperature=request.decoding_temperature,
                             max_tokens=request.max_tokens,
@@ -291,7 +302,7 @@ class LocalModelGateway:
                 diag_id = self.diagnostics_store.record_diagnostic(
                     run_id=request.run_id,
                     model_name=self.config.model_name,
-                    prompt=request.prompt,
+                    prompt=effective_prompt,
                     raw_output=raw_output,
                     resource_usage=resources,
                 )
