@@ -231,3 +231,37 @@ def build_observed_routes_payload(
         segments=tuple(segments),
         connections=tuple(connections),
     )
+
+
+def prepare_observed_wiring_evidence(context, config: ObservedWiringConfig | None = None) -> ObservedRoutes:
+    """Bounded U7-to-U8 auxiliary evidence, never semantic electrical truth.
+
+    Thin lines may be structural lines or text. Empty CV extraction therefore
+    remains partial/unknown, not proof of no wiring. Tile images are read only.
+    Oversized tiles are not rescaled silently: omitted evidence is flagged.
+    """
+    config = config or ObservedWiringConfig()
+    observations = []
+    transforms = {}
+    truncated = False
+    for tile in sorted(context.tiles, key=lambda item: item.region_id):
+        if tile.region_id in transforms:
+            raise ValueError("Duplicate wiring tile identity.")
+        transforms[tile.region_id] = tile.local_to_source
+        if max(tile.image_rgb.shape[:2]) > 1536:
+            truncated = True
+            continue
+        segments, _ = extract_observed_wiring_from_image(
+            tile.image_rgb, tile.region_id, (), (), config,
+        )
+        if len(segments) >= config.max_segments:
+            truncated = True
+        remaining = config.max_segments - len(observations)
+        if len(segments) > remaining:
+            truncated = True
+        observations.extend((tile.region_id, segment) for segment in segments[:remaining])
+    segments, connections = fuse_observed_routes(observations, (), transforms, config)
+    width, height = context.source_plane.width_pixels, context.source_plane.height_pixels
+    if any(p.x >= width or p.y >= height for s in segments for p in s.points):
+        raise ValueError("Wiring evidence exceeds its source plane.")
+    return ObservedRoutes(state="partial", segments=segments, connections=connections, truncated=truncated)

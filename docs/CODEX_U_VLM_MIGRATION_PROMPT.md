@@ -15,6 +15,15 @@ binding; stop only affected dependent work while safe independent work remains.
 
 ### Current resume: finish U12, then U13 and U14 development
 
+September 12 reconciliation: user confirms Gemini stopped writing; Codex is sole
+writer. Gemini's local `a4a387e` includes U12/U13 drafts, not verified completion.
+The U13 draft used demo CV under incorrect VLM provenance; corrective work and
+fresh verification are recorded in `U_VLM_PROGRESS.md`. Do not advance on the
+imported full-pass claim. The exposed verification credential was privately
+replaced with user-authorized local administration; isolated focused DB checks
+now pass. Never reuse the old credential. Production gateway, multipage and
+full recovery integration remain distinct unfinished implementation requirements.
+
 - Read applicable AGENTS.md, relevant skills, §2 reading map, complete U12–U14
   criteria and their affected contracts. Inspect current code before editing.
 - September 12 observation: branch `codex/u12-observed-wiring-extraction`, HEAD

@@ -56,6 +56,10 @@ def synthetic_plan():
 
 
 class DemoInterpretationApiTests(unittest.TestCase):
+    @staticmethod
+    def candidate_payload():
+        return interpret_floor_plan_demo(synthetic_plan())
+
     @classmethod
     def setUpClass(cls):
         cls.engine = get_engine()
@@ -130,7 +134,7 @@ class DemoInterpretationApiTests(unittest.TestCase):
             session.add(artifact)
             session.flush()
             candidate = build_candidate_envelope(
-                interpret_floor_plan_demo(synthetic_plan()),
+                cls.candidate_payload(),
                 CandidateHostProvenance(
                     candidate_run_id=marker,
                     processing_job_id=job.id,
