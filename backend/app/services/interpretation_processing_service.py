@@ -12,9 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai.floor_plan_interpretation.candidate import CandidateHostProvenance, InferenceParameter, build_candidate_envelope
-from app.ai.floor_plan_interpretation.preparation import prepare_page_context, PreparationConfig
-from app.ai.local_model_gateway.config import GatewayInferenceRequest, LocalGatewayConfig
-from app.ai.local_model_gateway.gateway import LocalModelGateway, MockLocalVLMAdapter
+from app.ai.floor_plan_interpretation import interpret_floor_plan_demo
 from app.core.config import (
     Settings,
     get_max_upload_size_bytes,
@@ -32,6 +30,11 @@ from app.repositories.floor_plan_interpretation_repository import (
     add_run,
     find_by_processing_job,
 )
+from app.repositories.processing_execution_repository import (
+    find_cancellation,
+    lock_attempt,
+    lock_processing_job,
+)
 from app.services.image_normalization import normalize_image
 from app.services.pdf_conversion import convert_pdf_page
 from app.services.processing_artifact_service import (
@@ -48,7 +51,9 @@ from app.services.processing_execution_service import (
 from app.services.source_identity import resolve_stored_original
 
 
-PROVIDER = "local_vlm_baseline"
+# This path currently executes deterministic OpenCV, not a model gateway.
+# Keep provenance honest until a separately verified VLM provider is connected.
+PROVIDER = "demo_cv_baseline"
 LEASE_SECONDS = 300
 SAFE_ERROR_MESSAGE = "The interpretation processing job could not be completed."
 
@@ -209,6 +214,43 @@ def _decode_rgb(content: bytes) -> np.ndarray:
     return rgb
 
 
+def _persist_fenced_run(session, *, claim, worker_identity, run):
+    """Publish output and acknowledge success under the same PRE9 row locks.
+
+    Never commit candidate output before checking lease ownership/cancellation.
+    The PRE9 completion operation commits both the candidate and acknowledgment.
+    """
+    try:
+        job = lock_processing_job(session, job_id=claim.job_id)
+        attempt = lock_attempt(session, attempt_id=claim.attempt_id)
+        if (
+            job is None or attempt is None or job.status != "processing"
+            or attempt.processing_job_id != claim.job_id
+            or attempt.worker_identity != worker_identity
+            or attempt.status != "active" or attempt.active_marker is not True
+        ):
+            raise InterpretationProcessingError("PROCESSING_ATTEMPT_NOT_ACTIVE")
+        if attempt.lease_expires_at <= datetime.now(UTC).replace(tzinfo=None):
+            raise InterpretationProcessingError("PROCESSING_LEASE_EXPIRED")
+        if find_cancellation(session, job_id=claim.job_id) is not None:
+            raise InterpretationProcessingError("PROCESSING_CANCELLED")
+        existing = find_by_processing_job(session, processing_job_id=claim.job_id)
+        if existing is not None:
+            if existing.provider != PROVIDER:
+                raise InterpretationProcessingError("PROCESSING_PROVIDER_CONFLICT")
+            result = existing
+        else:
+            result = add_run(session, run)
+        finish_processing_attempt(
+            session, attempt_id=claim.attempt_id,
+            worker_identity=worker_identity, outcome="succeeded",
+        )
+        return result
+    except Exception:
+        session.rollback()
+        raise
+
+
 def process_interpretation_job(
     session: Session,
     *,
@@ -228,13 +270,9 @@ def process_interpretation_job(
     try:
         existing = find_by_processing_job(session, processing_job_id=job_id)
         if existing is not None:
-            finish_processing_attempt(
-                session,
-                attempt_id=claim.attempt_id,
-                worker_identity=worker_identity,
-                outcome="succeeded",
+            return _persist_fenced_run(
+                session, claim=claim, worker_identity=worker_identity, run=existing,
             )
-            return existing
         job, floor_plan, source_manifest, page = _context(session, job_id)
         _heartbeat(
             session,
@@ -296,42 +334,41 @@ def process_interpretation_job(
             ),
         )
         serialized = candidate.model_dump_json()
-        run = add_run(
-            session,
-            FloorPlanInterpretationRun(
-                candidate_run_id=run_id,
-                processing_job_id=job.id,
-                floor_plan_id=floor_plan.id,
-                floor_plan_page_id=page.id,
-                source_artifact_id=artifact.record.id,
-                provider=PROVIDER,
-                candidate_sha256=sha256(serialized.encode("utf-8")).hexdigest(),
-                candidate_json=serialized,
-            ),
+        run = FloorPlanInterpretationRun(
+            candidate_run_id=run_id,
+            processing_job_id=job.id,
+            floor_plan_id=floor_plan.id,
+            floor_plan_page_id=page.id,
+            source_artifact_id=artifact.record.id,
+            provider=PROVIDER,
+            candidate_sha256=sha256(serialized.encode("utf-8")).hexdigest(),
+            candidate_json=serialized,
         )
-        session.commit()
         _heartbeat(
             session,
             attempt_id=claim.attempt_id,
             worker_identity=worker_identity,
             stage="persistence",
         )
-        finish_processing_attempt(
-            session,
-            attempt_id=claim.attempt_id,
-            worker_identity=worker_identity,
-            outcome="succeeded",
+        return _persist_fenced_run(
+            session, claim=claim, worker_identity=worker_identity, run=run,
         )
-        return run
     except InterpretationProcessingError as error:
-        if error.code != "PROCESSING_CANCELLED":
+        session.rollback()
+        try:
+            # A heartbeat may already have acknowledged cancellation. A final
+            # write-fence cancellation still needs acknowledgment, without output.
             finish_processing_attempt(
                 session,
                 attempt_id=claim.attempt_id,
                 worker_identity=worker_identity,
-                outcome="failed",
-                failure_code=error.code,
+                outcome="cancelled" if error.code == "PROCESSING_CANCELLED" else "failed",
+                failure_code=None if error.code == "PROCESSING_CANCELLED" else error.code,
             )
+        except ProcessingExecutionError:
+            # Do not obscure the original error when this attempt was replaced
+            # or was already acknowledged by the heartbeat.
+            pass
         raise
     except Exception:
         session.rollback()

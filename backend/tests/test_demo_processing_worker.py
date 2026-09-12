@@ -41,6 +41,8 @@ def floor_plan_png() -> bytes:
 
 
 class DemoProcessingWorkerTests(unittest.TestCase):
+    process = staticmethod(process_demo_job)
+
     def test_real_uploaded_pixels_follow_leased_worker_and_immutable_persistence(self):
         engine = get_engine()
         Base.metadata.create_all(engine)
@@ -108,7 +110,7 @@ class DemoProcessingWorkerTests(unittest.TestCase):
 
             try:
                 with Session(engine, expire_on_commit=False) as session:
-                    run = process_demo_job(
+                    run = self.process(
                         session,
                         job_id=ids["job"],
                         worker_identity="demo-worker:test",

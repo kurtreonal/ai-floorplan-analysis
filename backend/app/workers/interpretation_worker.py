@@ -60,12 +60,12 @@ def run_interpretation_worker(
                             flush=True,
                         )
         except Exception as error:
-            print(f"demo worker unavailable: {type(error).__name__}", flush=True)
+            print(f"interpretation worker unavailable: {type(error).__name__}", flush=True)
         stop_event.wait(poll_seconds)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the bounded local demo worker.")
+    parser = argparse.ArgumentParser(description="Run the interpretation worker (current provider: demo CV).")
     parser.add_argument("--job-id", type=int)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--poll-seconds", type=float, default=1.0)
@@ -75,7 +75,7 @@ def main() -> int:
     if not 0.2 <= arguments.poll_seconds <= 30:
         parser.error("--poll-seconds must be between 0.2 and 30")
 
-    worker_identity = f"demo-worker:{os.getpid()}"
+    worker_identity = f"interpretation-worker:{os.getpid()}"
     session_factory = get_session_factory()
     settings = get_settings()
     requested_job_id = arguments.job_id
