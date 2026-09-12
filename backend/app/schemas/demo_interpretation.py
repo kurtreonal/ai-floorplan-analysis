@@ -11,7 +11,7 @@ Positive = Annotated[StrictInt | StrictFloat, Field(gt=0, le=1_000, allow_inf_na
 EntityId = Annotated[
     str,
     Field(
-        pattern=r"^(wall|room|symbol|opening|panel|scale|route|wiring|manual-wall|manual-room|manual-symbol|manual-opening|manual-panel|manual-scale|manual-route|manual-wiring)-[0-9]{4}$"
+        pattern=r"^(wall|room|symbol|opening|panel|scale|route|wiring|segment|manual-wall|manual-room|manual-symbol|manual-opening|manual-panel|manual-scale|manual-route|manual-wiring)-[0-9]{4}$"
     ),
 ]
 ReviewDisposition = Literal["accepted", "corrected", "added", "rejected", "unresolved"]
@@ -81,6 +81,7 @@ class DemoObservedWiringReview(DemoSchema):
     disposition: ReviewDisposition
     points: Annotated[list[DemoPoint], Field(min_length=2, max_length=2048)]
     completeness: Literal["complete", "partial", "unreadable"]
+    elevation_meters: Annotated[StrictInt | StrictFloat, Field(ge=-1000, le=10000, allow_inf_nan=False)] | None = None
 
 
 class DemoCompletenessChecklist(DemoSchema):

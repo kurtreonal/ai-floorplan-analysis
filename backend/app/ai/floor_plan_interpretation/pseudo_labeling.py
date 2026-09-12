@@ -207,6 +207,7 @@ class ObservedWiringReview(StrictModel):
     disposition: ReviewDisposition
     points: tuple[PixelPoint, ...] = Field(min_length=2, max_length=2000)
     completeness: Literal["complete", "partial", "unreadable"]
+    elevation_meters: float | None = Field(default=None, ge=-1000, le=10000, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def _validate(self) -> ObservedWiringReview:

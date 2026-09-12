@@ -139,6 +139,7 @@ class PseudoLabelReviewTests(unittest.TestCase):
                 progress=100,
             )
             legend = session.scalar(select(SymbolLegend).where(SymbolLegend.is_active.is_(True)))
+            cls.created_legend = legend is None
             if legend is None:
                 legend = SymbolLegend(
                     class_id=98765,
@@ -252,6 +253,8 @@ class PseudoLabelReviewTests(unittest.TestCase):
             session.execute(delete(Project))
             session.execute(delete(DatasetApproverAssignment))
             session.execute(delete(User).where(User.oauth_provider.like(f"u9-{cls.marker}%")))
+            if cls.created_legend:
+                session.execute(delete(SymbolLegend).where(SymbolLegend.id == cls.legend_id))
             session.commit()
 
     def _ensure_run(self, session: Session) -> FloorPlanInterpretationRun:

@@ -345,6 +345,7 @@ class AdaptationAndPersistenceTests(unittest.TestCase):
                     PixelPoint(x=200.0, y=200.0),
                 ),
                 completeness="complete",
+                elevation_meters=2.8,
             ),
         )
         return ReviewDocument(
@@ -394,6 +395,7 @@ class AdaptationAndPersistenceTests(unittest.TestCase):
         self.assertEqual(len(base.symbols), 1)
         self.assertEqual(base.symbols[0].class_name, "Duplex Receptacle")
         self.assertEqual(len(base.routes), 1)
+        self.assertTrue(all(point.elevation_meters == 2.8 for point in base.routes[0].points))
 
         self.assertEqual(extension.extension_schema_version, 2)
         self.assertEqual(len(extension.openings), 1)

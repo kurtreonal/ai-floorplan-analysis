@@ -591,12 +591,16 @@ def adapt_reviewed_candidate_to_canonical(
         (w for w in review_document.observed_wiring if w.disposition in ("accepted", "corrected", "added")),
         start=1,
     ):
+        if wire_rev.completeness != "complete":
+            _fail("OBSERVED_WIRING_INCOMPLETE")
+        if wire_rev.elevation_meters is None:
+            _fail("OBSERVED_WIRING_ELEVATION_REQUIRED")
         route_points = tuple(
             CanonicalRoutePoint(
                 project_floor_id=_identifier(project_floor_id),
                 x=round(float(pt.x) / scale, 9),
                 y=round(float(pt.y) / scale, 9),
-                elevation_meters=floor.elevation_meters,
+                elevation_meters=wire_rev.elevation_meters,
             )
             for pt in wire_rev.points
         )

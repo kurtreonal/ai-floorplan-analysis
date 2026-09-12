@@ -442,6 +442,46 @@ class DemoInterpretationApiTests(unittest.TestCase):
         with Session(self.engine) as session:
             self.assertEqual(session.scalar(select(func.count()).select_from(ManualSymbol).where(ManualSymbol.floor_plan_id == self.ids['floor_plan'])), 0)
 
+    def test_observed_wiring_revision_save_reload_and_elevation_gate(self):
+        self._login()
+        review_path = f"/api/floor-plans/{self.ids['floor_plan']}/interpretation/reviews"
+        payload = self._review_payload()
+        payload["observed_wiring"] = [{
+            "id": "manual-wiring-0001", "disposition": "added",
+            "points": [{"x": 20.0, "y": 30.0}, {"x": 80.0, "y": 90.0}],
+            "completeness": "complete", "elevation_meters": None,
+        }]
+        rejected = self.client.post(review_path, json=payload)
+        self.assertEqual(rejected.status_code, 409, rejected.text)
+        payload["observed_wiring"][0]["elevation_meters"] = 2.8
+        first = self.client.post(review_path, json=payload)
+        self.assertEqual(first.status_code, 201, first.text)
+        payload["expected_revision_number"] = 1
+        payload["observed_wiring"][0]["points"][1]["x"] = 100.0
+        second = self.client.post(review_path, json=payload)
+        self.assertEqual(second.status_code, 201, second.text)
+        save_path = f"/api/projects/{self.ids['project']}/floors/{self.ids['floor']}/floor-plans/{self.ids['floor_plan']}/interpretation/layout"
+        save = {
+            "candidate_run_id": self.candidate.provenance.candidate_run_id,
+            "review_revision_number": 2, "expected_layout_version_number": None,
+            "idempotency_key": str(uuid4()),
+        }
+        saved = self.client.post(save_path, json=save)
+        self.assertEqual(saved.status_code, 201, saved.text)
+        route = saved.json()["geometry"]["routes"][0]
+        self.assertEqual(route["points"][1]["x"], 1.0)
+        self.assertEqual(route["points"][0]["elevation_meters"], 2.8)
+        loaded = self.client.get(f"/api/projects/{self.ids['project']}/floors/{self.ids['floor']}/layouts")
+        self.assertEqual(loaded.status_code, 200, loaded.text)
+        self.assertEqual(loaded.json()["geometry"]["routes"], [route])
+        self.assertEqual(loaded.json()["extension"]["route_details"][0]["route_kind"], "observed")
+        with Session(self.engine) as session:
+            revisions = session.scalars(select(FloorPlanInterpretationReview).where(
+                FloorPlanInterpretationReview.interpretation_run_id == self.ids["run"]
+            ).order_by(FloorPlanInterpretationReview.revision_number)).all()
+            self.assertEqual(len(revisions), 2)
+            self.assertNotEqual(revisions[0].review_json, revisions[1].review_json)
+
 
 if __name__ == "__main__":
     unittest.main()
