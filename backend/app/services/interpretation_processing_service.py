@@ -73,6 +73,7 @@ from app.services.interpretation_job_configuration_service import (
     InterpretationConfigurationError,
     pin_job_configuration,
 )
+from app.services.interpretation_release_service import MANUAL_REVIEW_PROVIDER
 from app.services.source_identity import resolve_stored_original
 
 
@@ -461,7 +462,15 @@ def process_interpretation_job(
         )
         run_id = uuid4().hex
         gateway_configured = _configured_local_gateway(settings)
+        if pinned_configuration.provider == PROVIDER:
+            # Tests and unconfigured jobs may explicitly pin the deterministic
+            # demo provider; keep that choice stable even if settings change.
+            gateway_configured = None
         if gateway_configured is None:
+            if pinned_configuration.provider in (LOCAL_PROVIDER, MANUAL_REVIEW_PROVIDER):
+                # A promoted release never silently falls back to the demo CV
+                # detector when its local gateway is unavailable or fenced.
+                raise InterpretationProcessingError("MODEL_UNAVAILABLE")
             provider = pinned_configuration.provider
             payload = interpret_floor_plan_demo(rgb)
             candidate = build_candidate_envelope(
@@ -490,6 +499,8 @@ def process_interpretation_job(
                 ),
             )
         else:
+            if pinned_configuration.provider == MANUAL_REVIEW_PROVIDER:
+                raise InterpretationProcessingError("MODEL_UNAVAILABLE")
             gateway, gateway_config = gateway_configured
             provider = LOCAL_PROVIDER
             prepared_context = prepare_page_context(
@@ -506,7 +517,11 @@ def process_interpretation_job(
                 source_artifact_sha256=artifact.record.sha256,
                 expected_width_pixels=artifact.record.pixel_width,
                 expected_height_pixels=artifact.record.pixel_height,
-                model_release_id=_safe_release(gateway_config.model_name, LOCAL_PROVIDER),
+                model_release_id=getattr(
+                    pinned_configuration,
+                    "model_release_id",
+                    _safe_release(gateway_config.model_name, LOCAL_PROVIDER),
+                ),
                 base_model_revision=_safe_release(
                     gateway_config.model_revision, "unavailable"
                 ),
