@@ -8,12 +8,16 @@ def find_by_processing_job(
     session: Session,
     *,
     processing_job_id: int,
+    floor_plan_page_id: int | None = None,
 ) -> FloorPlanInterpretationRun | None:
-    return session.scalar(
-        select(FloorPlanInterpretationRun).where(
-            FloorPlanInterpretationRun.processing_job_id == processing_job_id
-        )
+    statement = select(FloorPlanInterpretationRun).where(
+        FloorPlanInterpretationRun.processing_job_id == processing_job_id
     )
+    if floor_plan_page_id is not None:
+        statement = statement.where(FloorPlanInterpretationRun.floor_plan_page_id == floor_plan_page_id)
+    # Legacy single-page callers must fail closed rather than silently returning
+    # an arbitrary page once a job has more than one interpretation.
+    return session.execute(statement).scalar_one_or_none()
 
 
 def find_latest_for_floor_plan(

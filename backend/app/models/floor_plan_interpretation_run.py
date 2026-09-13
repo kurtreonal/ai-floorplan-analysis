@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,6 +13,7 @@ LongText = Text().with_variant(LONGTEXT(), "mysql")
 class FloorPlanInterpretationRun(Base):
     __tablename__ = "floor_plan_interpretation_runs"
     __table_args__ = (
+        UniqueConstraint("processing_job_id", "floor_plan_page_id", name="uq_interpretation_job_page"),
         CheckConstraint(
             "CHAR_LENGTH(candidate_run_id) = 32",
             name="ck_floor_plan_interpretation_runs_run_id",
@@ -29,7 +30,6 @@ class FloorPlanInterpretationRun(Base):
         BigInteger,
         ForeignKey("processing_jobs.id"),
         nullable=False,
-        unique=True,
     )
     floor_plan_id: Mapped[int] = mapped_column(
         BigInteger,

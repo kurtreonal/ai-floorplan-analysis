@@ -228,7 +228,9 @@ def process_demo_job(
     except ProcessingExecutionError as error:
         raise DemoProcessingError(error.code) from None
     try:
-        existing = find_by_processing_job(session, processing_job_id=job_id)
+        job, floor_plan, source_manifest, page = _context(session, job_id)
+        existing = find_by_processing_job(session, processing_job_id=job_id,
+                                          floor_plan_page_id=page.id)
         if existing is not None:
             finish_processing_attempt(
                 session,
@@ -237,7 +239,6 @@ def process_demo_job(
                 outcome="succeeded",
             )
             return existing
-        job, floor_plan, source_manifest, page = _context(session, job_id)
         _heartbeat(
             session,
             attempt_id=claim.attempt_id,

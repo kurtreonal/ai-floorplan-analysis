@@ -7,6 +7,40 @@ class InterpretationProcessingDatabaseTests(fixture.DemoProcessingWorkerTests):
     process = staticmethod(process_interpretation_job)
 
 
+class InterpretationPageUniquenessDatabaseTests(fixture.DemoProcessingWorkerTests):
+    def process(self, session, **kwargs):
+        from uuid import uuid4
+        from sqlalchemy.exc import IntegrityError, MultipleResultsFound
+        from app.models import FloorPlanPage, FloorPlanInterpretationRun
+        from app.repositories.floor_plan_interpretation_repository import find_by_processing_job
+        run = process_interpretation_job(session, **kwargs)
+        page = session.get(FloorPlanPage, run.floor_plan_page_id)
+        # Only schema behavior is under test here, not multipage inference.
+        savepoint = session.begin_nested()
+        try:
+            second_page = FloorPlanPage(floor_plan_source_id=page.floor_plan_source_id, page_number=2)
+            session.add(second_page)
+            session.flush()
+            values = dict(processing_job_id=run.processing_job_id,
+                floor_plan_id=run.floor_plan_id, floor_plan_page_id=second_page.id,
+                source_artifact_id=run.source_artifact_id, provider=run.provider,
+                candidate_sha256=run.candidate_sha256, candidate_json=run.candidate_json)
+            second = FloorPlanInterpretationRun(candidate_run_id=uuid4().hex, **values)
+            session.add(second)
+            session.flush()
+            self.assertEqual(find_by_processing_job(session, processing_job_id=run.processing_job_id,
+                floor_plan_page_id=second_page.id).id, second.id)
+            with self.assertRaises(MultipleResultsFound):
+                find_by_processing_job(session, processing_job_id=run.processing_job_id)
+            with self.assertRaises(IntegrityError):
+                with session.begin_nested():
+                    session.add(FloorPlanInterpretationRun(candidate_run_id=uuid4().hex, **values))
+                    session.flush()
+        finally:
+            savepoint.rollback()
+        return run
+
+
 class InterpretationExpiredLeaseDatabaseTests(fixture.DemoProcessingWorkerTests):
     expected_attempts = 2
 

@@ -6,6 +6,44 @@ to a trained or released model.
 
 ## Resume index
 
+### September 13 page-scoped persistence/artifact checkpoint
+
+- Production demo/U13 run lookups now specify source page identity; U13's final
+  write fence deduplicates by job/page. Artifact repository/service support
+  explicit page filtering, and U13 resolves registered normalized/PDF artifacts
+  against that page. PDF render/registration uses the page's one-based number.
+- Normalization has optional validated page identity with distinct page-NNNN.png
+  output; legacy callers retain image.png. Tests cover two pages in one job,
+  unchanged originals, duplicate-path rejection and invalid page identities.
+- Isolated full backend: 906 passed, 4 skipped, 509 subtests, 2 deprecation
+  warnings. Fresh frontend: 313 passed across 37 files; lint/build passed with
+  existing large-chunk warning. Compilation, dependency and diff checks passed. Development schema
+  remains unchanged pending the coordinated rollout. No credentials exposed;
+  recovery stash remains bb78854e87833124a1725b51f0be6099a8ac0cfa.
+- U13 still requires frozen job/page configuration, durable page outcomes,
+  explicit multipage selection, U8 runtime orchestration and end-to-end recovery
+  coverage. Current multipage guard remains intentionally enabled. U14 has not
+  started. These are unfinished implementation, not merely deferred data gates.
+
+### September 13 approved page-aware schema work (in progress)
+
+- User explicitly approved the job/page uniqueness strategy. ORM now uses
+  UNIQUE(processing_job_id, floor_plan_page_id); candidate_run_id remains unique.
+  Applied the equivalent single ALTER to the verified empty isolated-test table
+  only. No rows removed and no development database alteration performed.
+- Repository lookup accepts an explicit page ID. Legacy unqualified lookup now
+  fails on multiple rows rather than silently selecting an arbitrary page.
+- Real isolated-MySQL regression proves separate pages coexist, same-page retry
+  duplicates fail, and page-qualified lookup is deterministic. Its temporary
+  additional page/run records are rolled back with savepoints. Focused worker,
+  schema and demo-worker selection: 21 passed.
+- Full isolated backend after these changes: 900 passed, 4 skipped, 509 subtests
+  passed, 2 deprecation warnings. No frontend changes; earlier frontend results
+  are historical, not rerun for this schema step. Recovery stash unchanged.
+- Remaining: explicit page-aware production callers and immutable job/page
+  outcome configuration; verified backup/DDL procedure before development
+  transformation. Approval is recorded, not a new request. U13 is incomplete.
+
 ### September 13 U13 worker recovery checkpoint (in progress)
 
 - U12 implementation correction published: feature `f7e02e0`, non-fast-forward

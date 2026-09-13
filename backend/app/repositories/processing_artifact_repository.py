@@ -31,8 +31,9 @@ def find_artifact_for_job(
     floor_plan_id: int,
     processing_job_id: int,
     artifact_kind: str,
+    floor_plan_page_id: int | None = None,
 ) -> ProcessingArtifact | None:
-    return database_session.scalar(
+    statement = (
         select(ProcessingArtifact)
         .join(ProcessingJob, ProcessingArtifact.processing_job_id == ProcessingJob.id)
         .where(
@@ -40,9 +41,10 @@ def find_artifact_for_job(
             ProcessingJob.floor_plan_id == floor_plan_id,
             ProcessingArtifact.artifact_kind == artifact_kind,
         )
-        .order_by(ProcessingArtifact.id.desc())
-        .limit(1)
     )
+    if floor_plan_page_id is not None:
+        statement = statement.where(ProcessingArtifact.floor_plan_page_id == floor_plan_page_id)
+    return database_session.scalar(statement.order_by(ProcessingArtifact.id.desc()).limit(1))
 
 
 def add_processing_artifact(

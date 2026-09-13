@@ -127,7 +127,7 @@ def test_final_write_fence_rejects_late_output(monkeypatch, fenced_context, fail
     else:
         monkeypatch.setattr(service, "find_cancellation", lambda *a, **k: object())
     with pytest.raises(service.InterpretationProcessingError):
-        service._persist_fenced_run(session, claim=claim, worker_identity="test-worker", run=object())
+        service._persist_fenced_run(session, claim=claim, worker_identity="test-worker", run=SimpleNamespace(floor_plan_page_id=4))
     add.assert_not_called()
     finish.assert_not_called()
     session.rollback.assert_called_once()
@@ -138,7 +138,7 @@ def test_persistence_failure_does_not_acknowledge_success(fenced_context):
     session, claim, attempt, add, finish = fenced_context
     add.side_effect = RuntimeError("simulated database failure")
     with pytest.raises(RuntimeError):
-        service._persist_fenced_run(session, claim=claim, worker_identity="test-worker", run=object())
+        service._persist_fenced_run(session, claim=claim, worker_identity="test-worker", run=SimpleNamespace(floor_plan_page_id=4))
     finish.assert_not_called()
     session.rollback.assert_called_once()
 
@@ -148,7 +148,7 @@ def test_replay_reuses_existing_run_without_duplicate_write(monkeypatch, fenced_
     existing = SimpleNamespace(provider=service.PROVIDER)
     monkeypatch.setattr(service, "find_by_processing_job", lambda *a, **k: existing)
     assert service._persist_fenced_run(
-        session, claim=claim, worker_identity="test-worker", run=object(),
+        session, claim=claim, worker_identity="test-worker", run=SimpleNamespace(floor_plan_page_id=4),
     ) is existing
     add.assert_not_called()
     finish.assert_called_once_with(session, attempt_id=9, worker_identity="test-worker", outcome="succeeded")

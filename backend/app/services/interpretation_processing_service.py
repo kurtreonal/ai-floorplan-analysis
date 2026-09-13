@@ -115,6 +115,7 @@ def _registered_artifact(
     floor_plan: FloorPlan,
     source_manifest: FloorPlanSource,
     settings: Settings,
+    page: FloorPlanPage,
 ):
     processed_directory = get_processed_directory(settings)
     try:
@@ -124,6 +125,7 @@ def _registered_artifact(
             processing_job_id=job.id,
             artifact_kind="normalized_image",
             processed_directory=processed_directory,
+            floor_plan_page_id=page.id,
         )
     except ProcessingArtifactError:
         pass
@@ -151,6 +153,7 @@ def _registered_artifact(
                 processing_job_id=job.id,
                 artifact_kind="pdf_page",
                 processed_directory=processed_directory,
+                floor_plan_page_id=page.id,
             )
             render_path = rendered.absolute_path
         except ProcessingArtifactError:
@@ -159,13 +162,13 @@ def _registered_artifact(
                 processed_directory=processed_directory,
                 floor_plan_id=floor_plan.id,
                 processing_job_id=job.id,
-                page_number=1,
+                page_number=page.page_number,
             )
             register_processing_artifact(
                 session,
                 processing_job=job,
                 floor_plan_id=floor_plan.id,
-                page_number=1,
+                page_number=page.page_number,
                 artifact_kind="pdf_page",
                 processed_directory=processed_directory,
                 relative_path=converted.output_reference,
@@ -185,12 +188,13 @@ def _registered_artifact(
         processed_directory=processed_directory,
         floor_plan_id=floor_plan.id,
         processing_job_id=job.id,
+        page_number=page.page_number,
     )
     register_processing_artifact(
         session,
         processing_job=job,
         floor_plan_id=floor_plan.id,
-        page_number=1,
+        page_number=page.page_number,
         artifact_kind="normalized_image",
         processed_directory=processed_directory,
         relative_path=normalized.output_reference,
@@ -203,6 +207,7 @@ def _registered_artifact(
         processing_job_id=job.id,
         artifact_kind="normalized_image",
         processed_directory=processed_directory,
+        floor_plan_page_id=page.id,
     )
 
 
@@ -237,7 +242,8 @@ def _persist_fenced_run(session, *, claim, worker_identity, run):
             raise InterpretationProcessingError("PROCESSING_LEASE_EXPIRED")
         if find_cancellation(session, job_id=claim.job_id) is not None:
             raise InterpretationProcessingError("PROCESSING_CANCELLED")
-        existing = find_by_processing_job(session, processing_job_id=claim.job_id)
+        existing = find_by_processing_job(session, processing_job_id=claim.job_id,
+                                          floor_plan_page_id=run.floor_plan_page_id)
         if existing is not None:
             if existing.provider != PROVIDER:
                 raise InterpretationProcessingError("PROCESSING_PROVIDER_CONFLICT")
@@ -271,12 +277,13 @@ def process_interpretation_job(
     except ProcessingExecutionError as error:
         raise InterpretationProcessingError(error.code) from None
     try:
-        existing = find_by_processing_job(session, processing_job_id=job_id)
+        job, floor_plan, source_manifest, page = _context(session, job_id)
+        existing = find_by_processing_job(session, processing_job_id=job_id,
+                                          floor_plan_page_id=page.id)
         if existing is not None:
             return _persist_fenced_run(
                 session, claim=claim, worker_identity=worker_identity, run=existing,
             )
-        job, floor_plan, source_manifest, page = _context(session, job_id)
         _heartbeat(
             session,
             attempt_id=claim.attempt_id,
@@ -289,6 +296,7 @@ def process_interpretation_job(
             floor_plan=floor_plan,
             source_manifest=source_manifest,
             settings=settings,
+            page=page,
         )
         _heartbeat(
             session,
