@@ -11,7 +11,7 @@ from sqlalchemy import and_, exists, or_, select
 
 from app.core.config import get_settings
 from app.core.database import get_session_factory
-from app.models import ProcessingJob, ProcessingJobAttempt
+from app.models import InterpretationPageOutcome, ProcessingJob, ProcessingJobAttempt
 from app.services.interpretation_processing_service import InterpretationProcessingError, process_interpretation_job
 
 
@@ -24,13 +24,19 @@ def _next_queued_job_id(session) -> int | None:
         ProcessingJobAttempt.status == "active",
         ProcessingJobAttempt.lease_expires_at <= datetime.now(UTC).replace(tzinfo=None),
     )
+    queued_page = exists().where(
+        InterpretationPageOutcome.processing_job_id == ProcessingJob.id,
+        InterpretationPageOutcome.selection_state == "selected",
+        InterpretationPageOutcome.status == "queued",
+    )
     return session.scalar(
         select(ProcessingJob.id)
         .where(
             ProcessingJob.job_type == "floor_plan_analysis",
-            or_(ProcessingJob.status == "queued", and_(
-                ProcessingJob.status == "processing", expired_attempt,
-            )),
+            or_(
+                ProcessingJob.status == "queued",
+                and_(ProcessingJob.status == "processing", or_(expired_attempt, queued_page)),
+            ),
         )
         .order_by(ProcessingJob.created_at.asc(), ProcessingJob.id.asc())
         .limit(1)
@@ -65,8 +71,15 @@ def run_interpretation_worker(
                             flush=True,
                         )
                     else:
+                        refreshed_job = session.get(ProcessingJob, job_id)
+                        job_status = (
+                            refreshed_job.status
+                            if refreshed_job is not None
+                            and isinstance(refreshed_job.status, str)
+                            else "completed"
+                        )
                         print(
-                            f"job_id={job_id} status=completed "
+                            f"job_id={job_id} status={job_status} "
                             f"candidate_run_id={run.candidate_run_id}",
                             flush=True,
                         )
@@ -106,8 +119,16 @@ def main() -> int:
                     if requested_job_id is not None:
                         return 1
                 else:
+                    refreshed_job = session.get(ProcessingJob, job_id)
+                    job_status = (
+                        refreshed_job.status
+                        if refreshed_job is not None
+                        and isinstance(refreshed_job.status, str)
+                        else "completed"
+                    )
                     print(
-                        f"job_id={job_id} status=completed candidate_run_id={run.candidate_run_id}",
+                        f"job_id={job_id} status={job_status} "
+                        f"candidate_run_id={run.candidate_run_id}",
                         flush=True,
                     )
                     if requested_job_id is not None:

@@ -6,6 +6,37 @@ to a trained or released model.
 
 ## Resume index
 
+### September 14 U13 durable interpretation checkpoint (implementation ready for publication)
+
+- U13 now persists a page outcome for every known source page. Jobs accept an
+  explicit repeated `page_numbers` query selection; selected pages are queued,
+  skipped pages are recorded as `skipped`, and the worker advances one page at
+  a time without treating page one as a whole-PDF result. Status/history expose
+  durable page outcomes when present. Provider/model configuration is pinned in
+  that ledger before the first page and cannot change during a job.
+- PRE9 retry/lease fencing now covers failed, timeout, cancellation, abandoned
+  processing and late writes. Retryable page outcomes are requeued safely;
+  completed page candidates remain idempotent. Originals and page-scoped
+  normalized/PDF artifacts remain hash-checked and reviewable.
+- Configured U8 execution uses a loopback-only HTTP adapter through
+  `LocalModelGateway` with redirect/egress restrictions and strict candidate
+  validation. When no local runtime/model is configured, the explicit
+  `demo_cv_baseline` remains the deterministic development provider; it is not
+  labeled as VLM inference. A configured but unavailable runtime records a
+  sanitized failure/timeout outcome instead of falling back to the demo.
+- Focused isolated checks: page-outcome/configuration/worker suites **22
+  passed**; isolated database worker/recovery/API checks **29 passed**; full
+  isolated backend **913 passed, 4 skipped, 509 subtests, 2 warnings**. Frontend
+  **313 passed across 37 files**; lint, build, Python compilation, dependency
+  check and diff check passed. The build retains the known large-chunk warning.
+- Modeled/live isolated schema is now 26 tables (the additive
+  `interpretation_page_outcomes` table); no development database was altered.
+  The configured local runtime was not available, so real U8 inference and
+  model-quality/real-data acceptance remain **NOT TESTED/PENDING**. Recovery
+  stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` remains unchanged.
+- U13 publication (commit, feature push, non-fast-forward merge and post-merge
+  verification) is the next gate. U14 shadow/promotion/rollback has not started.
+
 ### September 13 page-scoped persistence/artifact checkpoint
 
 - Production demo/U13 run lookups now specify source page identity; U13's final

@@ -19,6 +19,7 @@ from app.models import (
     FloorPlanInterpretationRun,
     FloorPlanPage,
     FloorPlanSource,
+    InterpretationPageOutcome,
     ProcessingArtifact,
     ProcessingJob,
     ProcessingJobAttempt,
@@ -43,6 +44,7 @@ def floor_plan_png() -> bytes:
 class DemoProcessingWorkerTests(unittest.TestCase):
     process = staticmethod(process_demo_job)
     expected_attempts = 1
+    assert_page_outcome = False
 
     def test_real_uploaded_pixels_follow_leased_worker_and_immutable_persistence(self):
         engine = get_engine()
@@ -138,11 +140,26 @@ class DemoProcessingWorkerTests(unittest.TestCase):
                             FloorPlanInterpretationRun.processing_job_id == ids["job"]
                         )
                     )
+                    outcome = (
+                        session.scalar(
+                            select(InterpretationPageOutcome).where(
+                                InterpretationPageOutcome.processing_job_id == ids["job"]
+                            )
+                        )
+                        if self.assert_page_outcome
+                        else None
+                    )
                     self.assertEqual((job.status, job.progress), ("completed", 100))
                     self.assertEqual(len(attempts), self.expected_attempts)
                     self.assertEqual(attempts[-1].status, "succeeded")
                     self.assertEqual([item.artifact_kind for item in artifacts], ["normalized_image"])
                     self.assertEqual(persisted.candidate_json, candidate_json)
+                    if self.assert_page_outcome:
+                        self.assertEqual(
+                            (outcome.page_number, outcome.selection_state, outcome.status),
+                            (1, "selected", "completed"),
+                        )
+                        self.assertEqual(outcome.candidate_run_id, persisted.candidate_run_id)
                     self.assertEqual(
                         persisted.candidate_sha256,
                         sha256(candidate_json.encode()).hexdigest(),
@@ -153,6 +170,9 @@ class DemoProcessingWorkerTests(unittest.TestCase):
                         FloorPlanInterpretationRun.processing_job_id == ids["job"]
                     )
                     session.execute(delete(FloorPlanInterpretationRun).where(FloorPlanInterpretationRun.id.in_(run_ids)))
+                    session.execute(delete(InterpretationPageOutcome).where(
+                        InterpretationPageOutcome.processing_job_id == ids["job"]
+                    ))
                     session.execute(delete(ProcessingArtifact).where(ProcessingArtifact.processing_job_id == ids["job"]))
                     session.execute(delete(ProcessingJobAttempt).where(ProcessingJobAttempt.processing_job_id == ids["job"]))
                     session.execute(delete(ProcessingJob).where(ProcessingJob.id == ids["job"]))

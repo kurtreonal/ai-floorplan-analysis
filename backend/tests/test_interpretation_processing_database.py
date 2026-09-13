@@ -5,6 +5,7 @@ from app.services.interpretation_processing_service import process_interpretatio
 
 class InterpretationProcessingDatabaseTests(fixture.DemoProcessingWorkerTests):
     process = staticmethod(process_interpretation_job)
+    assert_page_outcome = True
 
 
 class InterpretationPageUniquenessDatabaseTests(fixture.DemoProcessingWorkerTests):
@@ -53,11 +54,18 @@ class InterpretationExpiredLeaseDatabaseTests(fixture.DemoProcessingWorkerTests)
 
         original = service._persist_fenced_run
 
-        def expire_before_write(session, *, claim, worker_identity, run):
+        def expire_before_write(session, *, claim, worker_identity, run, page_outcome=None, provider=None):
             attempt = session.get(ProcessingJobAttempt, claim.attempt_id)
             attempt.lease_expires_at = datetime(2000, 1, 1)
             session.commit()
-            return original(session, claim=claim, worker_identity=worker_identity, run=run)
+            return original(
+                session,
+                claim=claim,
+                worker_identity=worker_identity,
+                run=run,
+                page_outcome=page_outcome,
+                provider=provider or service.PROVIDER,
+            )
 
         with patch.object(service, "_persist_fenced_run", side_effect=expire_before_write):
             with self.assertRaises(service.InterpretationProcessingError) as error:

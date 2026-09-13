@@ -3,9 +3,15 @@ from datetime import UTC, datetime, timedelta
 from re import fullmatch
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from app.models import ProcessingJobAttempt, ProcessingJobCancellation, User
+from app.models import (
+    InterpretationPageOutcome,
+    ProcessingJobAttempt,
+    ProcessingJobCancellation,
+    User,
+)
 from app.repositories.processing_execution_repository import (
     active_attempt,
     add_record,
@@ -249,6 +255,7 @@ def finish_processing_attempt(
     worker_identity: str,
     outcome: str,
     failure_code: str | None = None,
+    complete_job: bool = True,
     now: datetime | None = None,
 ) -> None:
     attempt_id = _identifier(attempt_id)
@@ -277,18 +284,23 @@ def finish_processing_attempt(
         attempt.active_marker = None
         attempt.finished_at = now
         attempt.failure_code = failure_code if outcome == "failed" else None
-        if outcome == "succeeded":
+        if outcome == "succeeded" and complete_job:
             attempt.stage = "completed"
             job.status = "completed"
             job.progress = 100
             job.error_message = None
+        elif outcome == "succeeded":
+            attempt.stage = "completed"
+            job.status = "processing"
+            job.progress = max(job.progress, STAGE_PROGRESS["persistence"])
+            job.error_message = None
         elif outcome == "cancelled":
             job.status = "cancelled"
             cancellation.resolved_at = now
-        elif attempt.attempt_number < MAXIMUM_ATTEMPTS:
+        elif outcome == "failed" and attempt.attempt_number < MAXIMUM_ATTEMPTS:
             job.status = "queued"
             job.error_message = None
-        else:
+        elif outcome == "failed":
             job.status = "failed"
             job.error_message = SAFE_RETRY_EXHAUSTED_MESSAGE
         database_session.commit()
@@ -334,6 +346,19 @@ def request_processing_cancellation(
             ),
         )
         if mode == "queued_cancelled":
+            database_session.execute(
+                update(InterpretationPageOutcome)
+                .where(
+                    InterpretationPageOutcome.processing_job_id == job.id,
+                    InterpretationPageOutcome.selection_state == "selected",
+                    InterpretationPageOutcome.status == "queued",
+                )
+                .values(
+                    status="cancelled",
+                    progress=100,
+                    failure_code="CANCELLATION_REQUESTED",
+                )
+            )
             job.status = "cancelled"
         database_session.commit()
         return CancellationResult(job.id, job.status, mode)

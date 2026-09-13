@@ -1,5 +1,7 @@
 from app.schemas.auth import CurrentUserResponse
 from app.schemas.processing_job import (
+    ProcessingJobStartRequest,
+    ProcessingPageOutcomeResponse,
     ProcessingJobStartResponse,
     ProcessingJobStatusResponse,
 )
@@ -10,6 +12,8 @@ __all__ = (
     "CurrentUserResponse",
     "ProcessingJobStartResponse",
     "ProcessingJobStatusResponse",
+    "ProcessingJobStartRequest",
+    "ProcessingPageOutcomeResponse",
     "ProjectCreate",
     "ProjectResponse",
 )

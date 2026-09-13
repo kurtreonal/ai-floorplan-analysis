@@ -11,12 +11,17 @@ Implements TICKET U8:
 from __future__ import annotations
 
 import concurrent.futures
+import base64
 import json
 import threading
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Protocol, Sequence
+from urllib.error import HTTPError, URLError
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 import numpy as np
+from PIL import Image
 
 from app.ai.floor_plan_interpretation.candidate import (
     CandidateContractError,
@@ -50,6 +55,96 @@ from app.ai.local_model_gateway.diagnostics import (
     ModelNotReadyError,
     SchemaValidationError,
 )
+
+
+class _RejectRedirects(HTTPRedirectHandler):
+    """Prevent a configured loopback runtime from redirecting off-host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise RuntimeError("Local VLM runtime redirects are prohibited.")
+
+
+class LoopbackHTTPVLMAdapter:
+    """Small process-boundary adapter for an already-running local U8 runtime.
+
+    The runtime contract is deliberately narrow: ``GET /health`` returns a
+    successful response when ready and ``POST /v1/infer`` accepts JSON with a
+    prompt and base64 PNG images, returning ``output`` (or ``text``).  The
+    gateway remains the owner of schema validation, provenance and resource
+    limits; this adapter only transports bytes over the configured loopback.
+    """
+
+    def __init__(self, config: LocalGatewayConfig) -> None:
+        self.config = config
+        self._loaded = False
+        self._opener = build_opener(_RejectRedirects())
+
+    def _url(self, suffix: str) -> str:
+        return self.config.runtime_url.rstrip("/") + suffix
+
+    def _request(self, request: Request) -> bytes:
+        try:
+            with self._opener.open(request, timeout=self.config.timeout_seconds) as response:
+                return response.read()
+        except (HTTPError, URLError, TimeoutError, OSError) as exc:
+            raise ModelNotReadyError(
+                "LOCAL_VLM_RUNTIME_UNAVAILABLE",
+                "The configured local VLM runtime is unavailable.",
+                raw_detail=str(exc),
+            ) from exc
+
+    def load(self) -> None:
+        request = Request(self._url("/health"), method="GET")
+        self._request(request)
+        self._loaded = True
+
+    def is_ready(self) -> bool:
+        return self._loaded
+
+    def unload(self) -> None:
+        self._loaded = False
+
+    def predict(
+        self,
+        prompt: str,
+        images: Sequence[np.ndarray],
+        *,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> str:
+        encoded_images: list[str] = []
+        for image in images:
+            buffer = BytesIO()
+            Image.fromarray(np.asarray(image, dtype=np.uint8), mode="RGB").save(
+                buffer, format="PNG"
+            )
+            encoded_images.append(base64.b64encode(buffer.getvalue()).decode("ascii"))
+        payload = json.dumps(
+            {
+                "prompt": prompt,
+                "images": encoded_images,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+        ).encode("utf-8")
+        request = Request(
+            self._url("/v1/infer"),
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        raw = self._request(request)
+        try:
+            response = json.loads(raw.decode("utf-8"))
+            output = response.get("output", response.get("text"))
+        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+            output = None
+        if not isinstance(output, str) or not output:
+            raise ModelExecutionError(
+                "LOCAL_VLM_RUNTIME_INVALID_RESPONSE",
+                "The configured local VLM runtime returned no candidate text.",
+            )
+        return output
 
 
 class LocalVLMRuntimeAdapter(Protocol):

@@ -12,6 +12,7 @@ from app.schemas.processing_job import (
     ProcessingJobStartResponse,
     ProcessingJobStatusResponse,
     ProcessingJobHistoryItemResponse,
+    ProcessingPageOutcomeResponse,
 )
 from app.services.processing_execution_service import (
     ProcessingExecutionError,
@@ -28,6 +29,7 @@ from app.services.processing_job_service import (
     list_accessible_processing_jobs,
     start_floor_plan_processing,
 )
+from app.services.interpretation_page_outcome_service import PageSelectionError, list_page_outcomes
 
 
 router = APIRouter(tags=["processing jobs"])
@@ -94,6 +96,19 @@ def list_processing_job_history_endpoint(
             status=processing_job.status,
             progress=processing_job.progress,
             error_message=get_safe_processing_error_message(processing_job),
+            page_outcomes=[
+                ProcessingPageOutcomeResponse(
+                    page_number=row.page_number,
+                    selection_state=row.selection_state,
+                    status=row.status,
+                    progress=row.progress,
+                    failure_code=row.failure_code,
+                    candidate_run_id=row.candidate_run_id,
+                )
+                for row in list_page_outcomes(
+                    database_session, processing_job_id=processing_job.id
+                )
+            ],
             created_at=processing_job.created_at,
             updated_at=processing_job.updated_at,
         )
@@ -108,6 +123,7 @@ def list_processing_job_history_endpoint(
 )
 def start_floor_plan_processing_endpoint(
     floor_plan_id: Annotated[int, Path(gt=0)],
+    page_numbers: Annotated[list[int] | None, Query(gt=0, max_length=128)] = None,
     current_user: User = Depends(require_roles("DESIGNER")),
     database_session: Session = Depends(get_db),
 ) -> ProcessingJobStartResponse:
@@ -116,6 +132,7 @@ def start_floor_plan_processing_endpoint(
             database_session,
             current_user=current_user,
             floor_plan_id=floor_plan_id,
+            page_numbers=page_numbers,
         )
         database_session.commit()
     except FloorPlanNotFoundError:
@@ -132,6 +149,13 @@ def start_floor_plan_processing_endpoint(
             code="PROCESSING_JOB_ALREADY_ACTIVE",
             message="A processing job is already active for this floor plan.",
             details={"job_id": error.job_id},
+        ) from None
+    except PageSelectionError as error:
+        database_session.rollback()
+        raise _api_error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code=error.code,
+            message="The requested processing page selection is invalid.",
         ) from None
     except SQLAlchemyError:
         database_session.rollback()
@@ -183,6 +207,17 @@ def get_processing_job_status_endpoint(
         status=processing_job.status,
         progress=processing_job.progress,
         error_message=get_safe_processing_error_message(processing_job),
+        page_outcomes=[
+            ProcessingPageOutcomeResponse(
+                page_number=row.page_number,
+                selection_state=row.selection_state,
+                status=row.status,
+                progress=row.progress,
+                failure_code=row.failure_code,
+                candidate_run_id=row.candidate_run_id,
+            )
+            for row in list_page_outcomes(database_session, processing_job_id=processing_job.id)
+        ],
     )
 
 

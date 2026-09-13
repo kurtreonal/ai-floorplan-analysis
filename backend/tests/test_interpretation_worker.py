@@ -15,6 +15,44 @@ def test_demo_provider_is_explicit_and_detector_is_callable():
     assert callable(service.interpret_floor_plan_demo)
 
 
+def test_configured_runtime_selects_u8_loopback_gateway_without_demo_fallback():
+    from app.ai.local_model_gateway import LoopbackHTTPVLMAdapter
+    from app.core.config import Settings
+
+    settings = Settings(
+        _env_file=None,
+        local_vlm_runtime_url="http://127.0.0.1:8081",
+        local_vlm_model_name="local-vlm-test",
+        local_vlm_model_revision="rev-1",
+    )
+    gateway_configured = service._configured_local_gateway(settings)
+    assert gateway_configured is not None
+    gateway, config = gateway_configured
+    assert config.runtime_url == "http://127.0.0.1:8081"
+    assert isinstance(gateway.runtime_adapter, LoopbackHTTPVLMAdapter)
+    assert service.LOCAL_PROVIDER == "local_vlm_gateway"
+
+
+def test_configured_missing_model_path_is_honest_unavailable():
+    from app.core.config import Settings
+
+    settings = Settings(
+        _env_file=None,
+        local_vlm_runtime_url="http://127.0.0.1:8081",
+        local_vlm_model_path="models/vlm/missing.safetensors",
+    )
+    with pytest.raises(service.InterpretationProcessingError) as error:
+        service._configured_local_gateway(settings)
+    assert error.value.code == "MODEL_UNAVAILABLE"
+
+
+def test_unconfigured_runtime_does_not_construct_a_gateway():
+    from app.core.config import Settings
+
+    settings = Settings(_env_file=None)
+    assert service._configured_local_gateway(settings) is None
+
+
 def test_multipage_context_cannot_silently_select_first_page():
     session = MagicMock()
     session.execute.return_value.all.return_value = [object(), object()]
@@ -172,7 +210,21 @@ def test_actual_demo_pixels_produce_honest_validated_provenance(monkeypatch):
     digest = sha256(content).hexdigest()
     session = MagicMock()
     claim = SimpleNamespace(job_id=7, attempt_id=9)
+    page_outcome = SimpleNamespace(
+        id=8, page_number=1, status="queued", progress=0,
+        candidate_run_id=None, source_artifact_id=None,
+    )
+    session.get.return_value = SimpleNamespace(
+        id=7, job_type="floor_plan_analysis", floor_plan_id=2,
+    )
     monkeypatch.setattr(service, "claim_processing_job", lambda *a, **k: claim)
+    monkeypatch.setattr(
+        service,
+        "pin_job_configuration",
+        lambda *a, **k: SimpleNamespace(provider=service.PROVIDER),
+    )
+    monkeypatch.setattr(service, "list_page_outcomes", lambda *a, **k: [page_outcome])
+    monkeypatch.setattr(service, "next_selected_page", lambda *a, **k: page_outcome)
     monkeypatch.setattr(service, "find_by_processing_job", lambda *a, **k: None)
     monkeypatch.setattr(service, "_context", lambda *a, **k: (
         SimpleNamespace(id=7), SimpleNamespace(id=2),
