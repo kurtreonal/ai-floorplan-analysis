@@ -10,6 +10,7 @@ from app.models.floor_plan_source import FloorPlanSource
 from app.models.floor_plan_interpretation_run import FloorPlanInterpretationRun
 from app.models.floor_plan_interpretation_review import FloorPlanInterpretationReview
 from app.models.interpretation_page_outcome import InterpretationPageOutcome
+from app.models.interpretation_release import InterpretationRelease
 from app.models.layout_version import LayoutVersion
 from app.models.layout_save_request import LayoutSaveRequest
 from app.models.manual_symbol import ManualSymbol
@@ -40,6 +41,7 @@ __all__ = (
     "FloorPlanInterpretationRun",
     "FloorPlanInterpretationReview",
     "InterpretationPageOutcome",
+    "InterpretationRelease",
     "LayoutVersion",
     "LayoutSaveRequest",
     "ManualSymbol",

@@ -348,6 +348,7 @@ class WallPersistenceTests(unittest.TestCase):
                 "floor_plan_interpretation_reviews",
                 "floor_plan_interpretation_runs",
                 "interpretation_page_outcomes",
+                "interpretation_releases",
                 "layout_versions",
                 "layout_save_requests",
                 "manual_symbols",

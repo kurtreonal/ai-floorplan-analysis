@@ -6,6 +6,35 @@ to a trained or released model.
 
 ## Resume index
 
+### September 14 U14 release-control checkpoint (implementation verified; real release pending)
+
+- U14 now has an append-only `interpretation_releases` control record. A frozen
+  local gateway candidate can be registered, receive a hash-checked,
+  non-authoritative VLM/legacy shadow report, and remain inactive until every
+  metric/schema/privacy/resource gate and an explicit signed-decision reference
+  are supplied. Missing legacy YOLO weights are disclosed as
+  `legacy_unavailable`; no comparison metric is fabricated.
+- Promotion is a versioned active switch. Existing active releases are retained
+  as `retired` rollback targets; new jobs pin the active release through the
+  existing U13 page ledger, while in-flight jobs reject a mid-job switch.
+  Rollback restores the retained target without deleting candidates/layouts, or
+  fences execution as `manual_review` when no safe target exists. Historical
+  release and review records remain readable.
+- Focused U14 lifecycle/comparison checks: **5 passed**. Isolated database
+  integration subset: **14 passed**. Full isolated backend: **920 passed, 4
+  skipped, 509 subtests, 2 warnings**. Frontend **313 passed across 37 files**;
+  lint, Vite build, Python compilation, dependency check and diff check passed.
+  The build retains the known large-chunk warning.
+- Modeled/live isolated schema is now 27 tables (additive
+  `interpretation_releases`); no development database was changed. Browser
+  release E2E, real approved evaluation inputs, actual VLM/YOLO comparison,
+  signed VED decision, model-quality thresholds, training and production
+  activation remain **NOT TESTED/PENDING**. Encryption remains deferred by
+  explicit user acceptance.
+- U14 feature publication is pending the scoped commit, feature push,
+  non-fast-forward merge and post-merge verification. Recovery stash
+  `bb78854e87833124a1725b51f0be6099a8ac0cfa` remains unchanged.
+
 ### September 14 U13 durable interpretation checkpoint (implementation ready for publication)
 
 - U13 now persists a page outcome for every known source page. Jobs accept an
@@ -34,8 +63,9 @@ to a trained or released model.
   The configured local runtime was not available, so real U8 inference and
   model-quality/real-data acceptance remain **NOT TESTED/PENDING**. Recovery
   stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` remains unchanged.
-- U13 publication (commit, feature push, non-fast-forward merge and post-merge
-  verification) is the next gate. U14 shadow/promotion/rollback has not started.
+- U13 publication completed as feature commit `23537d4` and non-fast-forward
+  merge `68902c0`; post-merge checks passed. U14 is now the active feature
+  branch and its real release gates remain pending.
 
 ### September 13 page-scoped persistence/artifact checkpoint
 

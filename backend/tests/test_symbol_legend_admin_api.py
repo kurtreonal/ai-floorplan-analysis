@@ -163,7 +163,7 @@ class SymbolLegendAdminApiTests(unittest.TestCase):
         self.assertEqual(empty.json(), [])
         inspector = inspect(get_engine())
         self.assertEqual(set(inspector.get_table_names()), set(Base.metadata.tables))
-        self.assertEqual(len(Base.metadata.tables), 26)
+        self.assertEqual(len(Base.metadata.tables), 27)
         table = SymbolLegendHistory.__table__
         self.assertEqual(
             {constraint.name for constraint in table.constraints if constraint.name},

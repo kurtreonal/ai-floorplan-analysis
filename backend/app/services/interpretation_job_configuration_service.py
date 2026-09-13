@@ -8,6 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import InterpretationPageOutcome, ProcessingJob
+from app.services.interpretation_release_service import (
+    MANUAL_REVIEW_PROVIDER,
+    current_runtime_release,
+)
 
 
 DEMO_PROVIDER = "demo_cv_baseline"
@@ -59,7 +63,34 @@ def requested_configuration(settings) -> tuple[str, str, str]:
 def pin_job_configuration(
     session: Session, *, processing_job: ProcessingJob, settings
 ) -> InterpretationPageOutcome:
-    provider, release, digest = requested_configuration(settings)
+    active_release = current_runtime_release(session)
+    if active_release is not None and active_release.status == "manual_review":
+        provider = MANUAL_REVIEW_PROVIDER
+        release = "manual_review"
+        values = {
+            "provider": provider,
+            "release": release,
+            "rollback_reason": active_release.rollback_reason,
+        }
+        digest = hashlib.sha256(
+            json.dumps(values, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+    elif active_release is not None:
+        provider = active_release.provider
+        release = active_release.release_id
+        values = {
+            "provider": provider,
+            "release": release,
+            "model_revision": active_release.model_revision,
+            "adapter_revision": active_release.adapter_revision,
+            "manifest_sha256": active_release.manifest_sha256,
+            "evaluation_report_sha256": active_release.evaluation_report_sha256,
+        }
+        digest = hashlib.sha256(
+            json.dumps(values, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+    else:
+        provider, release, digest = requested_configuration(settings)
     current = session.scalar(
         select(InterpretationPageOutcome)
         .where(InterpretationPageOutcome.processing_job_id == processing_job.id)
