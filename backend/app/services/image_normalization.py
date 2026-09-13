@@ -31,6 +31,7 @@ G1_REFERENCE_PATTERN = re.compile(
 )
 
 ERROR_MESSAGES = {
+    "INVALID_PAGE_NUMBER": "The normalization page number is invalid.",
     "INVALID_IDENTIFIERS": "The normalization identifiers are invalid.",
     "INVALID_MAXIMUM_DIMENSION": "The normalization size limit is invalid.",
     "UNSUPPORTED_SOURCE": "The floor-plan source is not a supported image.",
@@ -141,6 +142,7 @@ def _prepare_output_destination(
     source_path: Path,
     floor_plan_id: int,
     processing_job_id: int,
+    page_number: int | None = None,
 ) -> tuple[Path, Path]:
     try:
         configured_root = Path(processed_directory)
@@ -156,7 +158,7 @@ def _prepare_output_destination(
         "normalized",
         f"floor-plan-{floor_plan_id}",
         f"job-{processing_job_id}",
-        "image.png",
+        "image.png" if page_number is None else f"page-{page_number:04d}.png",
     )
     destination = processed_root.joinpath(*relative_reference.parts)
     try:
@@ -323,8 +325,11 @@ def normalize_image(
     floor_plan_id: int,
     processing_job_id: int,
     maximum_dimension: int = DEFAULT_MAXIMUM_DIMENSION,
+    page_number: int | None = None,
 ) -> NormalizedImage:
     """Normalize one trusted image path without HTTP or database state."""
+    if page_number is not None and (type(page_number) is not int or page_number <= 0):
+        raise _normalization_error("INVALID_PAGE_NUMBER")
     _validate_request(
         floor_plan_id=floor_plan_id,
         processing_job_id=processing_job_id,
@@ -339,6 +344,7 @@ def normalize_image(
         source_path=source,
         floor_plan_id=floor_plan_id,
         processing_job_id=processing_job_id,
+        page_number=page_number,
     )
     source_image, encoded_width, encoded_height, orientation_corrected = (
         _load_source_image(source, source_mime_type=source_mime_type)

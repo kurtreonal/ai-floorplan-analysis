@@ -26,6 +26,7 @@ from app.ai.local_model_gateway.diagnostics import (
 from app.ai.local_model_gateway.gateway import (
     LocalModelGateway,
     LocalVLMRuntimeAdapter,
+    LoopbackHTTPVLMAdapter,
     MockLocalVLMAdapter,
 )
 
@@ -51,5 +52,6 @@ __all__ = [
     "redact_sensitive_text",
     "LocalModelGateway",
     "LocalVLMRuntimeAdapter",
+    "LoopbackHTTPVLMAdapter",
     "MockLocalVLMAdapter",
 ]

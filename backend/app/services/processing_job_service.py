@@ -14,6 +14,11 @@ from app.repositories.processing_job_repository import (
     list_processing_jobs_for_floor_plan,
     update_processing_job_to_failed,
 )
+from app.services.interpretation_page_outcome_service import (
+    configure_page_outcomes,
+    list_pages_for_floor_plan,
+    PageSelectionError,
+)
 
 
 FLOOR_PLAN_ANALYSIS_JOB_TYPE = "floor_plan_analysis"
@@ -111,6 +116,7 @@ def start_floor_plan_processing(
     *,
     current_user: User,
     floor_plan_id: int,
+    page_numbers: list[int] | None = None,
 ) -> ProcessingJob:
     floor_plan = find_owned_floor_plan_for_update(
         database_session,
@@ -133,7 +139,20 @@ def start_floor_plan_processing(
         floor_plan_id=floor_plan.id,
         job_type=FLOOR_PLAN_ANALYSIS_JOB_TYPE,
     )
-    return add_processing_job(database_session, processing_job)
+    processing_job = add_processing_job(database_session, processing_job)
+    pages = list_pages_for_floor_plan(
+        database_session, floor_plan_id=processing_job.floor_plan_id
+    )
+    if pages or page_numbers is not None:
+        try:
+            configure_page_outcomes(
+                database_session,
+                processing_job=processing_job,
+                page_numbers=page_numbers,
+            )
+        except PageSelectionError:
+            raise
+    return processing_job
 
 
 def mark_processing_job_failed(

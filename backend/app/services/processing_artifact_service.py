@@ -158,12 +158,14 @@ def resolve_trusted_processing_artifact(
     processing_job_id: int,
     artifact_kind: str,
     processed_directory: Path,
+    floor_plan_page_id: int | None = None,
 ) -> TrustedArtifact:
     artifact = find_artifact_for_job(
         database_session,
         floor_plan_id=floor_plan_id,
         processing_job_id=processing_job_id,
         artifact_kind=artifact_kind,
+        floor_plan_page_id=floor_plan_page_id,
     )
     if artifact is None:
         raise ProcessingArtifactError("Registered artifact was not found.")

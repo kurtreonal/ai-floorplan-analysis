@@ -160,7 +160,7 @@ class AnalysisSettingsTests(unittest.TestCase):
     def test_schema_and_openapi_contract(self):
         inspector = inspect(get_engine())
         self.assertEqual(set(inspector.get_table_names()), set(Base.metadata.tables))
-        self.assertEqual(len(Base.metadata.tables), 25)
+        self.assertEqual(len(Base.metadata.tables), 26)
         for model, check in ((FloorElevationSetting, "ck_floor_elevation_bounds"), (PageScaleSetting, "ck_page_scale_bounds")):
             name = model.__tablename__
             self.assertEqual({c["name"] for c in inspector.get_columns(name)}, set(model.__table__.columns.keys()))

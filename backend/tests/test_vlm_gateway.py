@@ -24,6 +24,7 @@ from app.ai.local_model_gateway import (
     GatewayTimeoutError,
     LocalGatewayConfig,
     LocalModelGateway,
+    LoopbackHTTPVLMAdapter,
     MockLocalVLMAdapter,
     ModelExecutionError,
     SchemaValidationError,
@@ -89,6 +90,19 @@ class GatewayConfigTests(TestCase):
         for url in invalid_urls:
             with self.assertRaises(ValueError):
                 LocalGatewayConfig(runtime_url=url)
+
+    def test_loopback_adapter_transports_health_and_candidate_text(self) -> None:
+        config = LocalGatewayConfig(runtime_url="http://127.0.0.1:8081")
+        adapter = LoopbackHTTPVLMAdapter(config)
+        adapter._request = lambda request: (
+            b"{}" if request.method == "GET" else b'{"output":"{\\"schema_version\\":1}"}'
+        )
+        adapter.load()
+        self.assertTrue(adapter.is_ready())
+        output = adapter.predict("prompt", [np.ones((16, 16, 3), dtype=np.uint8)])
+        self.assertEqual(output, '{"schema_version":1}')
+        adapter.unload()
+        self.assertFalse(adapter.is_ready())
 
     def test_rejects_network_egress_enablement(self) -> None:
         with self.assertRaises(ValueError):

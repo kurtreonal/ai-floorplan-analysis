@@ -6,6 +6,113 @@ to a trained or released model.
 
 ## Resume index
 
+### September 14 U13 durable interpretation checkpoint (implementation ready for publication)
+
+- U13 now persists a page outcome for every known source page. Jobs accept an
+  explicit repeated `page_numbers` query selection; selected pages are queued,
+  skipped pages are recorded as `skipped`, and the worker advances one page at
+  a time without treating page one as a whole-PDF result. Status/history expose
+  durable page outcomes when present. Provider/model configuration is pinned in
+  that ledger before the first page and cannot change during a job.
+- PRE9 retry/lease fencing now covers failed, timeout, cancellation, abandoned
+  processing and late writes. Retryable page outcomes are requeued safely;
+  completed page candidates remain idempotent. Originals and page-scoped
+  normalized/PDF artifacts remain hash-checked and reviewable.
+- Configured U8 execution uses a loopback-only HTTP adapter through
+  `LocalModelGateway` with redirect/egress restrictions and strict candidate
+  validation. When no local runtime/model is configured, the explicit
+  `demo_cv_baseline` remains the deterministic development provider; it is not
+  labeled as VLM inference. A configured but unavailable runtime records a
+  sanitized failure/timeout outcome instead of falling back to the demo.
+- Focused isolated checks: page-outcome/configuration/worker suites **22
+  passed**; isolated database worker/recovery/API checks **29 passed**; full
+  isolated backend **913 passed, 4 skipped, 509 subtests, 2 warnings**. Frontend
+  **313 passed across 37 files**; lint, build, Python compilation, dependency
+  check and diff check passed. The build retains the known large-chunk warning.
+- Modeled/live isolated schema is now 26 tables (the additive
+  `interpretation_page_outcomes` table); no development database was altered.
+  The configured local runtime was not available, so real U8 inference and
+  model-quality/real-data acceptance remain **NOT TESTED/PENDING**. Recovery
+  stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` remains unchanged.
+- U13 publication (commit, feature push, non-fast-forward merge and post-merge
+  verification) is the next gate. U14 shadow/promotion/rollback has not started.
+
+### September 13 page-scoped persistence/artifact checkpoint
+
+- Production demo/U13 run lookups now specify source page identity; U13's final
+  write fence deduplicates by job/page. Artifact repository/service support
+  explicit page filtering, and U13 resolves registered normalized/PDF artifacts
+  against that page. PDF render/registration uses the page's one-based number.
+- Normalization has optional validated page identity with distinct page-NNNN.png
+  output; legacy callers retain image.png. Tests cover two pages in one job,
+  unchanged originals, duplicate-path rejection and invalid page identities.
+- Isolated full backend: 906 passed, 4 skipped, 509 subtests, 2 deprecation
+  warnings. Fresh frontend: 313 passed across 37 files; lint/build passed with
+  existing large-chunk warning. Compilation, dependency and diff checks passed. Development schema
+  remains unchanged pending the coordinated rollout. No credentials exposed;
+  recovery stash remains bb78854e87833124a1725b51f0be6099a8ac0cfa.
+- U13 still requires frozen job/page configuration, durable page outcomes,
+  explicit multipage selection, U8 runtime orchestration and end-to-end recovery
+  coverage. Current multipage guard remains intentionally enabled. U14 has not
+  started. These are unfinished implementation, not merely deferred data gates.
+
+### September 13 approved page-aware schema work (in progress)
+
+- User explicitly approved the job/page uniqueness strategy. ORM now uses
+  UNIQUE(processing_job_id, floor_plan_page_id); candidate_run_id remains unique.
+  Applied the equivalent single ALTER to the verified empty isolated-test table
+  only. No rows removed and no development database alteration performed.
+- Repository lookup accepts an explicit page ID. Legacy unqualified lookup now
+  fails on multiple rows rather than silently selecting an arbitrary page.
+- Real isolated-MySQL regression proves separate pages coexist, same-page retry
+  duplicates fail, and page-qualified lookup is deterministic. Its temporary
+  additional page/run records are rolled back with savepoints. Focused worker,
+  schema and demo-worker selection: 21 passed.
+- Full isolated backend after these changes: 900 passed, 4 skipped, 509 subtests
+  passed, 2 deprecation warnings. No frontend changes; earlier frontend results
+  are historical, not rerun for this schema step. Recovery stash unchanged.
+- Remaining: explicit page-aware production callers and immutable job/page
+  outcome configuration; verified backup/DDL procedure before development
+  transformation. Approval is recorded, not a new request. U13 is incomplete.
+
+### September 13 U13 worker recovery checkpoint (in progress)
+
+- U12 implementation correction published: feature `f7e02e0`, non-fast-forward
+  main merge `8b91b49`; both remote divergence checks were `0 0`. Post-merge
+  backend 880 passed / 4 skipped / 509 subtests; frontend 313 passed, lint/build
+  passed. Real-data U12 wiring metrics remain pending.
+- Active U13 branch: `codex/u13-durable-interpretation-jobs`; worker provenance
+  and final-write fencing correction commit `9ee5b0f`, integrated U12 main in
+  `0c1b3ad`. These are implementation progress, not U13 completion.
+- Found and fixed expired-lease discovery: worker now polls queued jobs plus
+  abandoned active attempts with expired leases, while PRE9 locked claims remain
+  authoritative. Live leases and legacy jobs without an attempt are not stolen.
+- New real isolated-MySQL cases exercise successful worker persistence, rejected
+  expired final write followed by retry, simulated memory failure followed by
+  retry, and process-exit/lease-expiry recovery. No duplicate candidate or changed
+  original bytes. Focused worker/PRE9 selection: 27 passed, 2 deprecation warnings.
+- Added a multipage guard so the current worker cannot silently claim whole-PDF
+  success from page 1. This is a safety guard, not multipage implementation.
+  Final full backend: 899 passed, 4 skipped, 509 subtests passed, 2 warnings;
+  frontend 313 passed, lint/build passed; compilation, pip check and diff check
+  passed. Earlier full run (898 passed) preceded this guard and is not final
+  evidence. Existing large-chunk and deprecation warnings remain.
+- Schema decision required under handoff section 18.6: ORM and isolated live
+  MySQL both enforce UNIQUE(processing_job_id) on floor_plan_interpretation_runs.
+  Proposed separately approved strategy: back up and inspect the target; test
+  replacing that unique key with (processing_job_id, floor_plan_page_id) without
+  deleting existing rows; make all retrieval/idempotency paths page-aware; add
+  a frozen job configuration/page-outcome ledger; verify concurrency, legacy
+  single-page reads and rollback without deleting page results. No Alembic or
+  table alteration has been executed. Obtain explicit approval before DDL.
+- This is a verified feature-branch recovery checkpoint, not a U13 completion
+  merge. Private isolated credentials and recovery stash remain unchanged.
+- Actual VLM invocation, frozen job configuration, multipage outcome/selection
+  integration and the remaining end-to-end failure matrix are still unfinished.
+  Next: complete those U13 boundaries; do not call the demo provider a VLM or
+  publish U13 as complete. U14 has not started. Real data, model training,
+  model activation and signed release acceptance remain pending.
+
 ### U12 evidence/review integration checkpoint — September 12
 
 - Reconciled remote merge `e1e55eb` (already contains Gemini's U12/U13 drafts)

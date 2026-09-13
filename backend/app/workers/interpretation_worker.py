@@ -5,21 +5,38 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import and_, exists, or_, select
 
 from app.core.config import get_settings
 from app.core.database import get_session_factory
-from app.models import ProcessingJob
+from app.models import InterpretationPageOutcome, ProcessingJob, ProcessingJobAttempt
 from app.services.interpretation_processing_service import InterpretationProcessingError, process_interpretation_job
 
 
 def _next_queued_job_id(session) -> int | None:
+    # Discovery is advisory. PRE9's locked claim remains the sole authority;
+    # competing workers may discover the same job but only one can claim it.
+    expired_attempt = exists().where(
+        ProcessingJobAttempt.processing_job_id == ProcessingJob.id,
+        ProcessingJobAttempt.active_marker.is_(True),
+        ProcessingJobAttempt.status == "active",
+        ProcessingJobAttempt.lease_expires_at <= datetime.now(UTC).replace(tzinfo=None),
+    )
+    queued_page = exists().where(
+        InterpretationPageOutcome.processing_job_id == ProcessingJob.id,
+        InterpretationPageOutcome.selection_state == "selected",
+        InterpretationPageOutcome.status == "queued",
+    )
     return session.scalar(
         select(ProcessingJob.id)
         .where(
             ProcessingJob.job_type == "floor_plan_analysis",
-            ProcessingJob.status == "queued",
+            or_(
+                ProcessingJob.status == "queued",
+                and_(ProcessingJob.status == "processing", or_(expired_attempt, queued_page)),
+            ),
         )
         .order_by(ProcessingJob.created_at.asc(), ProcessingJob.id.asc())
         .limit(1)
@@ -54,18 +71,25 @@ def run_interpretation_worker(
                             flush=True,
                         )
                     else:
+                        refreshed_job = session.get(ProcessingJob, job_id)
+                        job_status = (
+                            refreshed_job.status
+                            if refreshed_job is not None
+                            and isinstance(refreshed_job.status, str)
+                            else "completed"
+                        )
                         print(
-                            f"job_id={job_id} status=completed "
+                            f"job_id={job_id} status={job_status} "
                             f"candidate_run_id={run.candidate_run_id}",
                             flush=True,
                         )
         except Exception as error:
-            print(f"demo worker unavailable: {type(error).__name__}", flush=True)
+            print(f"interpretation worker unavailable: {type(error).__name__}", flush=True)
         stop_event.wait(poll_seconds)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the bounded local demo worker.")
+    parser = argparse.ArgumentParser(description="Run the interpretation worker (current provider: demo CV).")
     parser.add_argument("--job-id", type=int)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--poll-seconds", type=float, default=1.0)
@@ -75,7 +99,7 @@ def main() -> int:
     if not 0.2 <= arguments.poll_seconds <= 30:
         parser.error("--poll-seconds must be between 0.2 and 30")
 
-    worker_identity = f"demo-worker:{os.getpid()}"
+    worker_identity = f"interpretation-worker:{os.getpid()}"
     session_factory = get_session_factory()
     settings = get_settings()
     requested_job_id = arguments.job_id
@@ -95,8 +119,16 @@ def main() -> int:
                     if requested_job_id is not None:
                         return 1
                 else:
+                    refreshed_job = session.get(ProcessingJob, job_id)
+                    job_status = (
+                        refreshed_job.status
+                        if refreshed_job is not None
+                        and isinstance(refreshed_job.status, str)
+                        else "completed"
+                    )
                     print(
-                        f"job_id={job_id} status=completed candidate_run_id={run.candidate_run_id}",
+                        f"job_id={job_id} status={job_status} "
+                        f"candidate_run_id={run.candidate_run_id}",
                         flush=True,
                     )
                     if requested_job_id is not None:

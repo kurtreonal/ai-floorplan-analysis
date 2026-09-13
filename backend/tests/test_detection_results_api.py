@@ -50,6 +50,7 @@ TABLES = (
     "floor_plan_pages",
     "floor_plan_sources",
     "floor_plans",
+    "interpretation_page_outcomes",
     "layout_save_requests",
     "layout_versions",
     "manual_symbols",

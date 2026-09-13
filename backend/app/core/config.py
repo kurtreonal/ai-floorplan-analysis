@@ -79,6 +79,15 @@ class Settings(BaseSettings):
     yolo_confidence_threshold: float = Field(default=0.50, ge=0, le=1)
     auto_start_demo_worker: bool = False
 
+    # U8 local gateway settings.  A missing runtime/model is an honest
+    # unavailable VLM state; it must never trigger a hosted fallback.
+    local_vlm_model_path: Path | None = None
+    local_vlm_adapter_path: Path | None = None
+    local_vlm_runtime_url: str | None = None
+    local_vlm_model_name: str = "Qwen2.5-VL-7B-Instruct"
+    local_vlm_model_revision: str = "unconfigured"
+    local_vlm_timeout_seconds: float = Field(default=60.0, gt=0, le=300)
+
     cors_allowed_origins: str = "http://localhost:5173"
     log_level: str = "INFO"
 
