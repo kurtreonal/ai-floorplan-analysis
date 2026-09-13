@@ -31,9 +31,11 @@ to a trained or released model.
   signed VED decision, model-quality thresholds, training and production
   activation remain **NOT TESTED/PENDING**. Encryption remains deferred by
   explicit user acceptance.
-- U14 feature publication is pending the scoped commit, feature push,
-  non-fast-forward merge and post-merge verification. Recovery stash
-  `bb78854e87833124a1725b51f0be6099a8ac0cfa` remains unchanged.
+- U14 feature commit `db50630` was pushed with feature divergence `0 0` and
+  merged non-fast-forward as `aed0768` on `main`. Post-merge focused/full
+  verification passed; the follow-up ledger publication is this documentation
+  checkpoint. Recovery stash `bb78854e87833124a1725b51f0be6099a8ac0cfa`
+  remains unchanged.
 
 ### September 14 U13 durable interpretation checkpoint (implementation ready for publication)
 
