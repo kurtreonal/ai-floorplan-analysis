@@ -6,6 +6,44 @@ to a trained or released model.
 
 ## Resume index
 
+### September 13 U13 worker recovery checkpoint (in progress)
+
+- U12 implementation correction published: feature `f7e02e0`, non-fast-forward
+  main merge `8b91b49`; both remote divergence checks were `0 0`. Post-merge
+  backend 880 passed / 4 skipped / 509 subtests; frontend 313 passed, lint/build
+  passed. Real-data U12 wiring metrics remain pending.
+- Active U13 branch: `codex/u13-durable-interpretation-jobs`; worker provenance
+  and final-write fencing correction commit `9ee5b0f`, integrated U12 main in
+  `0c1b3ad`. These are implementation progress, not U13 completion.
+- Found and fixed expired-lease discovery: worker now polls queued jobs plus
+  abandoned active attempts with expired leases, while PRE9 locked claims remain
+  authoritative. Live leases and legacy jobs without an attempt are not stolen.
+- New real isolated-MySQL cases exercise successful worker persistence, rejected
+  expired final write followed by retry, simulated memory failure followed by
+  retry, and process-exit/lease-expiry recovery. No duplicate candidate or changed
+  original bytes. Focused worker/PRE9 selection: 27 passed, 2 deprecation warnings.
+- Added a multipage guard so the current worker cannot silently claim whole-PDF
+  success from page 1. This is a safety guard, not multipage implementation.
+  Final full backend: 899 passed, 4 skipped, 509 subtests passed, 2 warnings;
+  frontend 313 passed, lint/build passed; compilation, pip check and diff check
+  passed. Earlier full run (898 passed) preceded this guard and is not final
+  evidence. Existing large-chunk and deprecation warnings remain.
+- Schema decision required under handoff section 18.6: ORM and isolated live
+  MySQL both enforce UNIQUE(processing_job_id) on floor_plan_interpretation_runs.
+  Proposed separately approved strategy: back up and inspect the target; test
+  replacing that unique key with (processing_job_id, floor_plan_page_id) without
+  deleting existing rows; make all retrieval/idempotency paths page-aware; add
+  a frozen job configuration/page-outcome ledger; verify concurrency, legacy
+  single-page reads and rollback without deleting page results. No Alembic or
+  table alteration has been executed. Obtain explicit approval before DDL.
+- This is a verified feature-branch recovery checkpoint, not a U13 completion
+  merge. Private isolated credentials and recovery stash remain unchanged.
+- Actual VLM invocation, frozen job configuration, multipage outcome/selection
+  integration and the remaining end-to-end failure matrix are still unfinished.
+  Next: complete those U13 boundaries; do not call the demo provider a VLM or
+  publish U13 as complete. U14 has not started. Real data, model training,
+  model activation and signed release acceptance remain pending.
+
 ### U12 evidence/review integration checkpoint — September 12
 
 - Reconciled remote merge `e1e55eb` (already contains Gemini's U12/U13 drafts)

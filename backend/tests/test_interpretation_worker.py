@@ -15,6 +15,14 @@ def test_demo_provider_is_explicit_and_detector_is_callable():
     assert callable(service.interpret_floor_plan_demo)
 
 
+def test_multipage_context_cannot_silently_select_first_page():
+    session = MagicMock()
+    session.execute.return_value.all.return_value = [object(), object()]
+    with pytest.raises(service.InterpretationProcessingError) as error:
+        service._context(session, 7)
+    assert error.value.code == "MULTIPAGE_SELECTION_REQUIRED"
+
+
 @pytest.mark.parametrize("job_id", [None, 7])
 def test_poll_dispatches_only_a_queued_job_and_preserves_configuration(monkeypatch, job_id):
     stop = threading.Event()

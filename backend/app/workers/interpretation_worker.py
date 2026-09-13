@@ -5,21 +5,32 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import and_, exists, or_, select
 
 from app.core.config import get_settings
 from app.core.database import get_session_factory
-from app.models import ProcessingJob
+from app.models import ProcessingJob, ProcessingJobAttempt
 from app.services.interpretation_processing_service import InterpretationProcessingError, process_interpretation_job
 
 
 def _next_queued_job_id(session) -> int | None:
+    # Discovery is advisory. PRE9's locked claim remains the sole authority;
+    # competing workers may discover the same job but only one can claim it.
+    expired_attempt = exists().where(
+        ProcessingJobAttempt.processing_job_id == ProcessingJob.id,
+        ProcessingJobAttempt.active_marker.is_(True),
+        ProcessingJobAttempt.status == "active",
+        ProcessingJobAttempt.lease_expires_at <= datetime.now(UTC).replace(tzinfo=None),
+    )
     return session.scalar(
         select(ProcessingJob.id)
         .where(
             ProcessingJob.job_type == "floor_plan_analysis",
-            ProcessingJob.status == "queued",
+            or_(ProcessingJob.status == "queued", and_(
+                ProcessingJob.status == "processing", expired_attempt,
+            )),
         )
         .order_by(ProcessingJob.created_at.asc(), ProcessingJob.id.asc())
         .limit(1)

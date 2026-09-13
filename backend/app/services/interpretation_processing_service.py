@@ -65,7 +65,7 @@ class InterpretationProcessingError(RuntimeError):
 
 
 def _context(session: Session, job_id: int):
-    row = session.execute(
+    rows = session.execute(
         select(ProcessingJob, FloorPlan, FloorPlanSource, FloorPlanPage)
         .join(FloorPlan, ProcessingJob.floor_plan_id == FloorPlan.id)
         .join(FloorPlanSource, FloorPlanSource.floor_plan_id == FloorPlan.id)
@@ -73,12 +73,15 @@ def _context(session: Session, job_id: int):
         .where(
             ProcessingJob.id == job_id,
             ProcessingJob.job_type == "floor_plan_analysis",
-            FloorPlanPage.page_number == 1,
         )
-    ).one_or_none()
-    if row is None:
+    ).all()
+    if not rows:
         raise InterpretationProcessingError("PROCESSING_CONTEXT_NOT_FOUND")
-    return row
+    if len(rows) != 1:
+        # Until the explicit page selection/outcome ledger is connected, never
+        # present a page-one candidate as successful whole-document processing.
+        raise InterpretationProcessingError("MULTIPAGE_SELECTION_REQUIRED")
+    return rows[0]
 
 
 def _heartbeat(

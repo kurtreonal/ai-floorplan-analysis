@@ -42,6 +42,7 @@ def floor_plan_png() -> bytes:
 
 class DemoProcessingWorkerTests(unittest.TestCase):
     process = staticmethod(process_demo_job)
+    expected_attempts = 1
 
     def test_real_uploaded_pixels_follow_leased_worker_and_immutable_persistence(self):
         engine = get_engine()
@@ -125,7 +126,7 @@ class DemoProcessingWorkerTests(unittest.TestCase):
                     attempts = session.scalars(
                         select(ProcessingJobAttempt).where(
                             ProcessingJobAttempt.processing_job_id == ids["job"]
-                        )
+                        ).order_by(ProcessingJobAttempt.id)
                     ).all()
                     artifacts = session.scalars(
                         select(ProcessingArtifact).where(
@@ -138,8 +139,8 @@ class DemoProcessingWorkerTests(unittest.TestCase):
                         )
                     )
                     self.assertEqual((job.status, job.progress), ("completed", 100))
-                    self.assertEqual(len(attempts), 1)
-                    self.assertEqual(attempts[0].status, "succeeded")
+                    self.assertEqual(len(attempts), self.expected_attempts)
+                    self.assertEqual(attempts[-1].status, "succeeded")
                     self.assertEqual([item.artifact_kind for item in artifacts], ["normalized_image"])
                     self.assertEqual(persisted.candidate_json, candidate_json)
                     self.assertEqual(
