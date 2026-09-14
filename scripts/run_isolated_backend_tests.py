@@ -48,6 +48,7 @@ def main():
         environment = os.environ.copy()
         environment["DATABASE_URL"] = url.render_as_string(hide_password=False)
         environment["AUTO_START_DEMO_WORKER"] = "false"
+        environment["AUTO_START_INTERPRETATION_WORKER"] = "false"
         for name in ("UPLOAD_DIR", "PROCESSED_DIR", "DETECTION_DIR", "PREVIEW_DIR", "REPORT_DIR"):
             environment[name] = str(Path(directory) / name.lower())
         print("Isolation preflight passed: restricted verification account, empty data tables, temporary storage.", flush=True)

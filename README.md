@@ -139,7 +139,7 @@ needs no downloaded weights. Do not start a second server on an occupied port.
 # API
 cd C:\Users\kupal\Documents\ai-floorplan-analysis\backend
 $env:APP_ENV = 'development'
-$env:AUTO_START_DEMO_WORKER = 'true'
+$env:AUTO_START_INTERPRETATION_WORKER = 'true'
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -152,10 +152,11 @@ npm.cmd run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
 Open `http://localhost:5173/`, sign in as the owning Designer, create/select a
-project and floor, upload a readable PNG/JPEG, and click Analyze. Use a raster
-of the explicitly selected PDF page for this demo; the automatically started
-worker only processes page 1 of a PDF and leaves later pages unprocessed. After
-processing completes, open **Review floor-plan proposals**. The workspace starts
+project and floor, upload a readable PNG/JPEG/PDF, and click Analyze. The
+automatically started durable worker processes the job's explicitly selected
+pages (all known pages when no narrower selection is requested) and records a
+separate outcome for every page. After processing completes, open **Review
+floor-plan proposals**. The workspace starts
 with rooms over the original image. Select a room to move its corner handles,
 add a missing room, or exclude an incorrect proposal. Switch to **3D · Draft
 preview** to inspect the same draft boundaries as raised outlines. These use
