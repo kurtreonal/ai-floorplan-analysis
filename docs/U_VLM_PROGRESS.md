@@ -23,6 +23,9 @@ to a trained or released model.
   Frontend **313 passed across 37 files**; lint and build passed with the known
   large-chunk warning. No model-quality, training or release acceptance claim
   is added by this operational correction.
+- Feature commit `02cea7e` was pushed with divergence `0 0` and merged
+  non-fast-forward as `1542478`. The final ledger commit and `main` publication
+  are recorded in the external implementation checkpoint.
 
 ### September 14 U14 release-control checkpoint (implementation verified; real release pending)
 
