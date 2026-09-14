@@ -34,7 +34,7 @@ from app.core.config import (
     get_oauth_oidc_configuration,
     get_settings,
 )
-from app.workers.demo_worker import run_demo_worker
+from app.workers.interpretation_worker import run_interpretation_worker
 
 
 @asynccontextmanager
@@ -42,17 +42,20 @@ async def lifespan(application: FastAPI):
     worker_thread = None
     stop_event = None
     settings = application.state.settings
-    if settings.auto_start_demo_worker and settings.app_env == "development":
+    if (
+        settings.auto_start_interpretation_worker
+        and settings.app_env == "development"
+    ):
         stop_event = threading.Event()
         worker_thread = threading.Thread(
-            target=run_demo_worker,
+            target=run_interpretation_worker,
             kwargs={
                 "stop_event": stop_event,
-                "worker_identity": f"demo-worker:{os.getpid()}",
+                "worker_identity": f"interpretation-worker:{os.getpid()}",
                 "settings": settings,
             },
             daemon=True,
-            name="ved-demo-worker",
+            name="ved-interpretation-worker",
         )
         worker_thread.start()
     try:

@@ -77,6 +77,10 @@ class Settings(BaseSettings):
 
     yolo_model_path: Path | None = None
     yolo_confidence_threshold: float = Field(default=0.50, ge=0, le=1)
+    # The durable U13 worker owns queued analysis jobs in local development.
+    # Production deployments should run an explicitly managed worker process.
+    auto_start_interpretation_worker: bool = True
+    # Retained for the legacy standalone demo-worker rollback command only.
     auto_start_demo_worker: bool = False
 
     # U8 local gateway settings.  A missing runtime/model is an honest

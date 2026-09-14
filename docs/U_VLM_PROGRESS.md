@@ -6,6 +6,24 @@ to a trained or released model.
 
 ## Resume index
 
+### September 14 post-U14 automatic worker startup correction
+
+- FastAPI development lifespan now starts the durable U13 interpretation worker
+  by default. It owns queued and recoverable `floor_plan_analysis` jobs,
+  selected page outcomes, leases, retries and release pinning. The legacy demo
+  worker remains an explicit rollback CLI and is no longer the lifespan owner.
+- The reported queued job had no attempt and remained at 0%. After the reload,
+  the new lifespan worker claimed it once and persisted a successful 100% job
+  and page outcome with honest `demo_cv_baseline` provenance.
+- Test environments explicitly disable background interpretation startup.
+  Focused isolated lifecycle/worker/page checks: **26 passed**. The first full
+  run recorded **1 failed, 919 passed** because the default-value test observed
+  the intentional test-environment override; the corrected final full isolated
+  backend run passed **920, with 4 skipped, 509 subtests and 2 warnings**.
+  Frontend **313 passed across 37 files**; lint and build passed with the known
+  large-chunk warning. No model-quality, training or release acceptance claim
+  is added by this operational correction.
+
 ### September 14 U14 release-control checkpoint (implementation verified; real release pending)
 
 - U14 now has an append-only `interpretation_releases` control record. A frozen
