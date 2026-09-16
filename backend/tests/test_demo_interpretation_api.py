@@ -485,6 +485,27 @@ class DemoInterpretationApiTests(unittest.TestCase):
             ).order_by(FloorPlanInterpretationReview.revision_number)).all()
             self.assertEqual(len(revisions), 2)
             self.assertNotEqual(revisions[0].review_json, revisions[1].review_json)
+    def test_walls_only_layout_save_without_room_polygons(self):
+        self._login()
+        review_path = f"/api/floor-plans/{self.ids['floor_plan']}/interpretation/reviews"
+        payload = self._review_payload()
+        # Reject all rooms to simulate a walls-only review
+        for room in payload["rooms"]:
+            room["disposition"] = "rejected"
+        res = self.client.post(review_path, json=payload)
+        self.assertEqual(res.status_code, 201, res.text)
+        save_path = f"/api/projects/{self.ids['project']}/floors/{self.ids['floor']}/floor-plans/{self.ids['floor_plan']}/interpretation/layout"
+        save = {
+            "candidate_run_id": self.candidate.provenance.candidate_run_id,
+            "review_revision_number": 1,
+            "expected_layout_version_number": None,
+            "idempotency_key": str(uuid4()),
+        }
+        saved = self.client.post(save_path, json=save)
+        self.assertEqual(saved.status_code, 201, saved.text)
+        layout_geom = saved.json()["geometry"]
+        self.assertGreater(len(layout_geom["walls"]), 0)
+        self.assertEqual(len(layout_geom["rooms"]), 0)
 
 
 if __name__ == "__main__":

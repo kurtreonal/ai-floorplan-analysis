@@ -45,6 +45,8 @@ class WallDetectionParameters:
     minimum_line_length: float = 50
     maximum_line_gap: float = 10
     maximum_candidates: int = 2000
+    structural_mode: bool = False
+    min_stroke_radius: float | None = None
 
     def __init__(
         self,
@@ -57,6 +59,8 @@ class WallDetectionParameters:
         minimum_line_length: float = 50,
         maximum_line_gap: float = 10,
         maximum_candidates: int = 2000,
+        structural_mode: bool = False,
+        min_stroke_radius: float | None = None,
         **unknown: object,
     ) -> None:
         if unknown:
@@ -71,6 +75,8 @@ class WallDetectionParameters:
             "minimum_line_length": minimum_line_length,
             "maximum_line_gap": maximum_line_gap,
             "maximum_candidates": maximum_candidates,
+            "structural_mode": structural_mode,
+            "min_stroke_radius": min_stroke_radius,
         }
         for name, value in values.items():
             object.__setattr__(self, name, value)
@@ -115,5 +121,11 @@ class WallDetectionParameters:
             or self.minimum_line_length < 0
             or not _is_finite_number(self.maximum_line_gap)
             or self.maximum_line_gap < 0
+        ):
+            raise WallDetectionConfigurationError()
+        if not isinstance(self.structural_mode, bool):
+            raise WallDetectionConfigurationError()
+        if self.min_stroke_radius is not None and (
+            not _is_finite_number(self.min_stroke_radius) or self.min_stroke_radius <= 0
         ):
             raise WallDetectionConfigurationError()

@@ -1074,3 +1074,61 @@ the original sequence only after the demo handoff and further user direction.
   No U4-U14 or other epic was started. Demo handoff is partial, not a verified
   release or a claim that the requested complete workflow has been demonstrated.
 
+## Structural Wall Detector & Direct Wall Editing Checkpoint
+
+- Problem Solved:
+  The legacy wall detector (Canny + Hough) falsely classified thin interior ceiling grids, wiring, dimension lines, and troffer/lighting outlines as walls. The review workspace was room-first instead of wall-focused. Thin interior grid lines on commercial floor plans (such as `6-lightinglayout.jpg`) must remain unmarked, as true walls are only thick exterior boundaries and thick interior partitions. Saving an otherwise valid walls-only layout previously failed due to an artificial room polygon requirement in `demo_interpretation_service.py` and `pseudo_labeling.py`. Furthermore, 3D preview previously extruded walls from room boundaries instead of using actual `draft.walls`.
+
+- Implementation:
+  1. Structural Wall Detection (`backend/app/ai/wall_detection/`):
+     - Added `structural_mode: bool = False`, `min_stroke_radius: float | None = None`, and `estimated_thickness_pixels: float | None = None` to `WallDetectorConfig`.
+     - Enabled `structural_mode=True` in `demo_cv.py` for floor plan interpretation.
+     - Implemented `_detect_structural_wall_lines` and `_consolidate_wall_segments` in `detector.py`:
+       - Analyzes ink via local distance transform (`cv2.distanceTransform`) on inverted binarized plan.
+       - Estimates stroke thickness relative to image resolution using Otsu/median of non-zero distance peaks.
+       - Reconstructs thick structural strokes via morphological opening/reconstruction and rejects thin grid lines (< min_stroke_radius), dimensions, wiring, and fixture lines.
+       - Filters out isolated non-wall blobs (such as lighting troffers or columns) using structural bounding box dimensions, aspect ratio, and stroke solidity.
+       - Extracts centerlines using morphological skeletonization (`cv2.ximgproc.thinning` or iterative Zhang-Suen morphological thinning).
+       - Consolidates supported parallel wall edges into one centerline with estimated pixel thickness.
+       - Merges collinear fragments only where underlying ink evidence supports continuous connection across gaps.
+       - Supports diagonal walls without forcing horizontal/vertical constraints.
+       - Preserves raw candidate metadata, uncertainty score, and original source coordinates.
+  2. Wall-Focused 2D Workspace & Direct Wall Editing (`frontend/src/features/detection-review/`):
+     - `wallEditorUtils.js`: Helper functions for `formatWallDimension` (scales to feet/inches when approved scale exists, labels as unscaled otherwise), `constrainPoint` (90-degree horizontal/vertical locking), `findSnapPoint` (endpoint snapping with configurable tolerance), `wallMidpoint`, and `wallTextRotation`.
+     - `DemoInterpretationCanvas.jsx`:
+       - Default layers display walls and original blueprint; room polygons are hidden by default.
+       - Large light-grid canvas matching reference UI.
+       - Walls rendered as centerlines with estimated thickness (`estimated_thickness_pixels`) and dimension labels. Selected wall highlighted in electric blue (`#2563eb`).
+       - Draggable endpoint handles for resizing + draggable wall body for translating.
+       - Click-to-start / click-to-finish drawing tool with live preview line and snap indicator circle.
+       - Floating status pill: "Press the 'Esc' key to stop drawing walls".
+       - Escape key cancels drawing / returns to move tool; Delete/Backspace key deletes selected wall.
+       - Shift key locks drawing / endpoint dragging to strictly 90° horizontal or vertical.
+       - Mini viewport controls (+, −, Fit to screen, percentage indicator).
+       - Pan & zoom aware coordinates for drawing, dragging, and snapping.
+       - Allows manual wall creation even when detection finds zero walls.
+     - `DemoInterpretationPage.jsx`:
+       - Dedicated top toolbar: Move Walls, Draw Walls, Delete Walls, Undo, Redo, Blueprint toggle & Opacity slider, 2D / 3D toggle, Done ».
+       - Full undo/redo history stack (`Ctrl+Z`, `Ctrl+Y`).
+       - Flags dependent room geometry as stale when walls are modified, providing an optional action to exclude stale rooms on save.
+  3. Save and Canonical 3D Synchronization:
+     - Relaxed `demo_interpretation_service.py` and `pseudo_labeling.py` so layouts with accepted walls and/or symbols save successfully without requiring room polygons.
+     - `draftRoomScene.js`: Extrudes 3D walls directly from `draft.walls` using position, length, relative height, and thickness, falling back to room edges only for legacy layouts.
+     - `DraftRoomPreview.jsx`: Allows 3D preview when walls exist without requiring room polygons.
+
+- Verification & Test Results:
+  - Backend Unit Tests:
+    - `tests/test_wall_detection.py`: 38/38 tests PASS (including synthetic structural stroke detection, thin grid rejection, collinear merging, diagonal wall preservation, and resolution scaling).
+    - `tests/test_demo_cv_interpretation.py`: 10/10 tests PASS.
+    - `tests/test_demo_interpretation_api.py`: 8/8 tests PASS (including walls-only layout save without room polygons).
+    - `tests/test_canonical_geometry.py`, `tests/test_canonical_extension.py`, `tests/test_wall_coordinates.py`: 46/46 tests PASS.
+  - Frontend Tests:
+    - 39 test files, 328 tests PASS (`vitest run --run`).
+    - ESLint: 0 errors, 0 warnings (`npm run lint`).
+    - Production Build: Succeeded in 504ms (`npm run build`).
+  - Sample Image Validation:
+    - Sample 1 (`sample.jpg` / job 23954, residential): Reduced 207 fragmented line detections down to 21 structural wall centerlines.
+    - Sample 2 (`6-lightinglayout.jpg` / job 23953, commercial): Dense interior ceiling grid lines (troffers, wiring, grid cells) are completely rejected from wall detection; exterior boundary and interior core walls are retained.
+  - Limitations:
+    - Automated browser subagent execution encountered a host environment limitation: Playwright driver download failed with HTTP 404 (`https://playwright.azureedge.net/builds/driver/playwright-1.57.0-win32_x64.zip`), so browser session recording could not be initialized by the subagent. The Vite frontend and Uvicorn backend are verified running locally for manual browser review.
+    - No reviewed ground truth annotations exist for the commercial lighting layout, so no uncalibrated numerical precision/recall percentages are claimed.

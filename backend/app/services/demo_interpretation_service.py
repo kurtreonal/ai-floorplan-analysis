@@ -253,10 +253,11 @@ def append_interpretation_review(
             ):
                 _fail("SYMBOL_MAPPING_REQUIRED")
 
+        accepted_walls = [
+            wall for wall in payload.walls if wall.disposition in ("accepted", "corrected", "added")
+        ]
         if payload.approved_for_layout and (
-            not any(wall.disposition in ("accepted", "corrected", "added") for wall in payload.walls)
-            or not any(room.disposition in ("accepted", "corrected", "added") for room in payload.rooms)
-            or not accepted_symbols
+            not accepted_walls and not accepted_symbols
         ):
             _fail("APPROVED_GEOMETRY_EMPTY")
 

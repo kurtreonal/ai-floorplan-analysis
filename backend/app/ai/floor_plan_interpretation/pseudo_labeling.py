@@ -380,12 +380,10 @@ def submit_append_only_review(
     if approved_for_layout:
         if not review_complete:
             _fail("REVIEW_INCOMPLETE", "Layout approval requires complete review")
-        if not any(w.disposition in ("accepted", "corrected", "added") for w in walls):
-            _fail("APPROVED_GEOMETRY_EMPTY", "Layout approval requires at least one accepted wall")
-        if not any(r.disposition in ("accepted", "corrected", "added") for r in rooms):
-            _fail("APPROVED_GEOMETRY_EMPTY", "Layout approval requires at least one accepted room")
-        if not any(s.disposition in ("accepted", "corrected", "added") for s in symbols):
-            _fail("APPROVED_GEOMETRY_EMPTY", "Layout approval requires at least one accepted symbol")
+        accepted_walls = [w for w in walls if w.disposition in ("accepted", "corrected", "added")]
+        accepted_symbols = [s for s in symbols if s.disposition in ("accepted", "corrected", "added")]
+        if not accepted_walls and not accepted_symbols:
+            _fail("APPROVED_GEOMETRY_EMPTY", "Layout approval requires at least one accepted wall or symbol")
         if wall_thickness_meters is None or wall_height_meters is None:
             _fail("WALL_DIMENSIONS_REQUIRED", "Wall dimensions are required for layout approval")
 

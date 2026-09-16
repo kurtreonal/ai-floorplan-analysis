@@ -12,16 +12,16 @@ export function DraftRoomPreview({ draft, width, height, projectId }) {
     catch (error) { return { error: error.message } }
   }, [draft, width, height, heightRatio])
   return <section aria-label="Unfinished room preview">
-    <p className="demo-preview-notice">DRAFT · Relative proportions only, not meters. Raised edges illustrate room boundaries, not detected walls or door openings. No approval or saved layout is created.</p>
+    <p className="demo-preview-notice">DRAFT · Relative proportions only, not meters. Rendering draft walls and room shapes. No approval or saved layout is created.</p>
     <div className="demo-add-actions">
       <button type="button" disabled={!ready} onClick={() => controlsRef.current?.reset()}>Reset view</button>
       <button type="button" disabled={!ready} onClick={() => controlsRef.current?.top()}>Top view</button>
       <label>Illustrative boundary height<input type="range" min="0" max="2" step="0.1" value={heightRatio} onChange={(event) => setHeightRatio(Number(event.target.value))} /></label>
     </div>
-    {result.error ? <p role="alert">{result.error}</p> : result.scene.rooms.length === 0 ? <p>No room boundaries yet. Return to 2D and add a missing room to preview it here.</p> :
+    {result.error ? <p role="alert">{result.error}</p> : result.scene.rooms.length === 0 && result.scene.walls.length === 0 ? <p>No wall or room geometry yet. Return to 2D to draw or correct walls.</p> :
       <Viewer3DErrorBoundary projectId={projectId} title="Draft 3D preview unavailable">
         <Viewer3DCanvas scene={result.scene} controlsRef={controlsRef} onControlsReady={setReady} />
       </Viewer3DErrorBoundary>}
-    <p>Drag to orbit · right-drag to pan · scroll to zoom. Return to 2D to correct the same room shapes.</p>
+    <p>Drag to orbit · right-drag to pan · scroll to zoom. Return to 2D to correct the same geometry.</p>
   </section>
 }

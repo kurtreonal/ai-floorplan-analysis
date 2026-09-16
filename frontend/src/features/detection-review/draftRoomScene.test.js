@@ -19,6 +19,18 @@ describe('relative draft room preview', () => {
     const moved = { ...room, boundary: room.boundary.map((p) => ({ x: p.x + 10, y: p.y })) }
     expect(buildDraftRoomScene({ rooms: [moved] }, 100, 60).rooms[0].boundary[0].x).toBe(3)
   })
+  it('renders 3D walls directly from draft.walls and excludes rejected walls', () => {
+    const wall1 = { id: 'wall-1', disposition: 'accepted', start: { x: 10, y: 10 }, end: { x: 90, y: 10 }, estimated_thickness_pixels: 8 }
+    const wall2 = { id: 'wall-2', disposition: 'rejected', start: { x: 10, y: 10 }, end: { x: 10, y: 50 } }
+    const draft = { walls: [wall1, wall2], rooms: [] }
+    const scene = buildDraftRoomScene(draft, 100, 60, 0.8)
+    expect(scene.walls).toHaveLength(1)
+    expect(scene.walls[0].id).toBe('wall-1')
+    expect(scene.walls[0].position[0]).toBeCloseTo(5) // (1 + 9) / 2
+    expect(scene.walls[0].position[1]).toBeCloseTo(0.4) // relativeHeight / 2
+    expect(scene.walls[0].position[2]).toBeCloseTo(1) // (1 + 1) / 2
+    expect(scene.walls[0].size[0]).toBeCloseTo(8) // length = 80 * (10/100) = 8
+  })
   it('rejects unsafe dimensions and malformed/out-of-bounds points', () => {
     expect(() => buildDraftRoomScene({ rooms: [room] }, 0, 60)).toThrow()
     expect(() => buildDraftRoomScene({ rooms: [room] }, 100, 60, Infinity)).toThrow()

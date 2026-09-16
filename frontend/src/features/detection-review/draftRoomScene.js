@@ -29,13 +29,30 @@ export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8) 
     if (!isSimpleBoundary(room.boundary)) throw new Error('A room boundary crosses itself or has no area. Correct its corners in 2D first.')
     return { id: room.id, boundary: room.boundary.map(({ x, y }) => ({ x: x * scale, y: y * scale })) }
   })
-  const walls = rooms.flatMap((room) => room.boundary.flatMap((start, i) => {
-    const end = room.boundary[(i + 1) % room.boundary.length]
-    const length = Math.hypot(end.x - start.x, end.y - start.y)
-    if (!length || !relativeHeight) return []
-    return [{ id: `${room.id}-edge-${i}`, position: [(start.x + end.x) / 2, relativeHeight / 2, (start.y + end.y) / 2],
-      size: [length, relativeHeight, 0.025], rotation: [0, -Math.atan2(end.y - start.y, end.x - start.x), 0] }]
-  }))
+  const acceptedWalls = (draft.walls || []).filter((wall) => wall.disposition !== 'rejected')
+  const walls = acceptedWalls.length > 0
+    ? acceptedWalls.flatMap((wall) => {
+      const sx = wall.start.x * scale
+      const sy = wall.start.y * scale
+      const ex = wall.end.x * scale
+      const ey = wall.end.y * scale
+      const length = Math.hypot(ex - sx, ey - sy)
+      if (!length || !relativeHeight) return []
+      const thickness = Math.max(0.04, ((wall.estimated_thickness_pixels || wall.thickness_pixels || 12) * scale))
+      return [{
+        id: wall.id,
+        position: [(sx + ex) / 2, relativeHeight / 2, (sy + ey) / 2],
+        size: [length, relativeHeight, thickness],
+        rotation: [0, -Math.atan2(ey - sy, ex - sx), 0],
+      }]
+    })
+    : rooms.flatMap((room) => room.boundary.flatMap((start, i) => {
+      const end = room.boundary[(i + 1) % room.boundary.length]
+      const length = Math.hypot(end.x - start.x, end.y - start.y)
+      if (!length || !relativeHeight) return []
+      return [{ id: `${room.id}-edge-${i}`, position: [(start.x + end.x) / 2, relativeHeight / 2, (start.y + end.y) / 2],
+        size: [length, relativeHeight, 0.025], rotation: [0, -Math.atan2(end.y - start.y, end.x - start.x), 0] }]
+    }))
   return { width: width * scale, depth: height * scale, elevation: 0,
     target: [width * scale / 2, 0, height * scale / 2], extent: 10,
     rooms, walls, symbols: [], previewOnly: true, unit: 'relative' }

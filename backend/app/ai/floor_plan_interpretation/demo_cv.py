@@ -308,6 +308,7 @@ def interpret_floor_plan_demo(
                 minimum_line_length=max(24, min(width, height) * 0.02),
                 maximum_line_gap=max(6, min(width, height) * 0.004),
                 maximum_candidates=selected.maximum_walls,
+                structural_mode=True,
             ),
         )
     except DemoCVError:

@@ -421,5 +421,126 @@ class WallDetectionIsolationTests(unittest.TestCase):
             detect_wall_lines(image)
 
 
+class StructuralWallDetectionTests(unittest.TestCase):
+    def test_thick_walls_detected_and_thin_grids_and_fixtures_rejected(self):
+        # 500x400 canvas with thick exterior walls (thickness 10)
+        image = binary_canvas(500, 400)
+        # Thick exterior walls
+        cv2.rectangle(image, (50, 50), (450, 350), 0, 10)
+        # Thick interior partition
+        cv2.line(image, (250, 50), (250, 350), 0, 10)
+
+        # Dense thin grid lines inside (thickness 1)
+        for x in range(60, 240, 20):
+            cv2.line(image, (x, 60), (x, 340), 0, 1)
+        for y in range(60, 340, 20):
+            cv2.line(image, (60, y), (240, y), 0, 1)
+
+        # Thin dashed wiring lines (thickness 1)
+        for x in range(270, 430, 15):
+            cv2.line(image, (x, 150), (x + 8, 150), 0, 1)
+
+        # Dimension lines outside (thickness 1)
+        cv2.line(image, (20, 50), (20, 350), 0, 1)
+        cv2.line(image, (15, 50), (25, 50), 0, 1)
+        cv2.line(image, (15, 350), (25, 350), 0, 1)
+
+        # Isolated compact column (20x20) and lighting fixture (12x30)
+        cv2.rectangle(image, (100, 100), (120, 120), 0, -1)
+        cv2.rectangle(image, (320, 100), (350, 112), 0, -1)
+
+        params = WallDetectionParameters(
+            structural_mode=True,
+            minimum_line_length=40,
+            maximum_line_gap=10,
+        )
+        result = detect_wall_lines(image, parameters=params)
+        self.assertEqual(result.algorithm, "structural_stroke_centerline")
+        self.assertGreater(len(result.candidates), 0)
+
+        # All detected candidates must have thickness >= 7 (thick walls)
+        for c in result.candidates:
+            self.assertIsNotNone(c.estimated_thickness_pixels)
+            self.assertGreaterEqual(c.estimated_thickness_pixels, 6.0)
+            # Centerlines should be near exterior walls or interior partition
+            is_exterior_h = (abs(c.start.y - 50) < 15 or abs(c.start.y - 350) < 15)
+            is_exterior_v = (abs(c.start.x - 50) < 15 or abs(c.start.x - 450) < 15)
+            is_partition_v = abs(c.start.x - 250) < 15
+            self.assertTrue(is_exterior_h or is_exterior_v or is_partition_v,
+                            f"Unexpected line at ({c.start.x}, {c.start.y}) -> ({c.end.x}, {c.end.y})")
+
+        # Confirm thin grid, dimensions, and fixtures are not detected
+        self.assertFalse(any(c.start.x == 20 and c.end.x == 20 for c in result.candidates))
+
+    def test_parallel_edges_consolidated_into_one_centerline(self):
+        # A single horizontal wall with thickness 12
+        image = binary_canvas(300, 150)
+        cv2.line(image, (30, 75), (270, 75), 0, 12)
+        params = WallDetectionParameters(structural_mode=True, minimum_line_length=50)
+        result = detect_wall_lines(image, parameters=params)
+
+        # Should consolidate into 1 centerline candidate
+        self.assertEqual(len(result.candidates), 1)
+        wall = result.candidates[0]
+        self.assertAlmostEqual(wall.start.y, 75, delta=3)
+        self.assertAlmostEqual(wall.end.y, 75, delta=3)
+        self.assertEqual(wall.angle_degrees, 0.0)
+        self.assertAlmostEqual(wall.estimated_thickness_pixels, 12.0, delta=2.0)
+
+    def test_door_opening_gap_preserved(self):
+        # Wall with a 40px door opening
+        image = binary_canvas(400, 150)
+        cv2.line(image, (30, 75), (160, 75), 0, 10)
+        cv2.line(image, (220, 75), (370, 75), 0, 10)
+        params = WallDetectionParameters(
+            structural_mode=True,
+            minimum_line_length=40,
+            maximum_line_gap=15, # Gap is 60px, so should NOT bridge across door
+        )
+        result = detect_wall_lines(image, parameters=params)
+        self.assertEqual(len(result.candidates), 2)
+        # Verify gap exists between candidates
+        c1, c2 = result.candidates
+        self.assertLessEqual(min(c1.end.x, c2.end.x), 170)
+        self.assertGreaterEqual(max(c1.start.x, c2.start.x), 210)
+
+    def test_diagonal_walls_supported(self):
+        image = binary_canvas(300, 300)
+        cv2.line(image, (40, 40), (260, 260), 0, 10)
+        params = WallDetectionParameters(structural_mode=True, minimum_line_length=50)
+        result = detect_wall_lines(image, parameters=params)
+        self.assertEqual(len(result.candidates), 1)
+        self.assertAlmostEqual(result.candidates[0].angle_degrees, 45.0, delta=2.0)
+
+    def test_collinear_fragments_merged_across_small_broken_scan_gaps(self):
+        image = binary_canvas(400, 150)
+        # Three segments of the same wall separated by tiny 3px scan gaps
+        cv2.line(image, (30, 75), (100, 75), 0, 10)
+        cv2.line(image, (104, 75), (180, 75), 0, 10)
+        cv2.line(image, (184, 75), (260, 75), 0, 10)
+        params = WallDetectionParameters(
+            structural_mode=True,
+            minimum_line_length=40,
+            maximum_line_gap=10,
+        )
+        result = detect_wall_lines(image, parameters=params)
+        self.assertEqual(len(result.candidates), 1)
+        self.assertGreaterEqual(result.candidates[0].length_pixels, 220.0)
+
+    def test_resolution_scaling_adapts_thickness_and_coordinates(self):
+        # Base resolution 200x200 vs 2x scaled 400x400
+        img_base = binary_canvas(200, 200)
+        cv2.line(img_base, (20, 100), (180, 100), 0, 8)
+        img_scaled = cv2.resize(img_base, (400, 400), interpolation=cv2.INTER_NEAREST)
+
+        res_base = detect_wall_lines(img_base, parameters=WallDetectionParameters(structural_mode=True, minimum_line_length=30))
+        res_scaled = detect_wall_lines(img_scaled, parameters=WallDetectionParameters(structural_mode=True, minimum_line_length=60))
+
+        self.assertEqual(len(res_base.candidates), 1)
+        self.assertEqual(len(res_scaled.candidates), 1)
+        self.assertAlmostEqual(res_base.candidates[0].estimated_thickness_pixels, 8.0, delta=2.0)
+        self.assertAlmostEqual(res_scaled.candidates[0].estimated_thickness_pixels, 16.0, delta=3.0)
+
+
 if __name__ == "__main__":
     unittest.main()
