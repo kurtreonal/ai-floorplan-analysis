@@ -3854,6 +3854,10 @@ tests: 8 PASS. Display/manual acceptance is pending M7 integration.
 
 ### TICKET M5 — Add Wall Vertical Drop/Rise Rule
 
+Engine checkpoint: explicit wall attachment, height/position checks, typed
+rise/drop segments and vertical distance totals. User obstacles apply along
+vertical segments. Cumulative tests: 10 PASS; display awaits M7.
+
 **Goal:** Route from ceiling/service level to wall-mounted devices.
 
 **Dependencies:** M4.
