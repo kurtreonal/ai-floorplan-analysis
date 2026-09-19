@@ -50,6 +50,7 @@ TABLES = (
     "floor_plan_pages",
     "floor_plan_sources",
     "floor_plans",
+    "generated_route_versions",
     "interpretation_page_outcomes",
     "interpretation_releases",
     "layout_save_requests",
@@ -769,7 +770,7 @@ class DetectionResultsApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 37)
+        self.assertEqual(len(operations), 39)
 
     def test_schema_and_storage_remain_stable(self) -> None:
         self.assertEqual(tuple(sorted(Wall.metadata.tables)), TABLES)

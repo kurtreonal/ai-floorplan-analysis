@@ -241,6 +241,32 @@ accepted PRE11 ownership and versioning policy without changing K1 v1 in place.
 
 ## Downstream mapping and non-goals
 
+### Generated routing (M1-M7)
+
+`app/routing/contracts.py` defines the explicit planning request and result.
+Inputs reference saved canonical floor versions and reviewed target symbols;
+panel position, absolute service/device elevations, wall attachments, grid step,
+floor alignment offsets, obstacles and named risers are explicit designer input.
+Coordinates remain meters; floor-local coordinates plus offsets form the project
+plane. No electrical mounting height, clearance or allowance is inferred.
+
+The bounded orthogonal graph uses conservative wall bounds at service elevation
+and checks whole edges against obstacles. Walls must be reviewed with dimensions.
+Blocked endpoints, missing connectors and resource limits return controlled
+errors, never diagonal fallback routes. Diagonal-wall bounding boxes can reject
+otherwise feasible paths; explicit openings/penetrations are not supported.
+Risers are explicit vertical links, with obstacle checks across their height.
+
+`generated_route_versions` stores immutable per-project route calculations with
+their source layout IDs, configuration, ordered points, typed segments, creator,
+and separate horizontal/vertical/total meters. This generated-route artifact is
+the shared source for 2D/3D overlays; visual objects are not measurement sources.
+It does not overwrite observed wiring or raw detection data. The latest version
+is the active displayed route; older calculations remain in the database.
+Changed source snapshots mark it stale. Multi-floor offsets are removed when
+displaying a floor-local overlay; world Y is elevation, world Z is canonical Y.
+These are planning paths, not approved electrical designs or material quantities.
+
 L2-L5 consume the same saved K1 base geometry as the 2D editor. Canonical x
 maps to world x, floor elevation to world y, and canonical y to world z.
 Room boundaries use a tested ShapeGeometry projection; the background plane

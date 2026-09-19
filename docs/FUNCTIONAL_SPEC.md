@@ -3783,12 +3783,12 @@ approval are inferred. Contract tests: 2 PASS (2026-09-19).
 
 **Acceptance Criteria:**
 
-- [ ] Electrical panel can be represented.
-- [ ] Route contains ordered points/segments.
-- [ ] Horizontal and vertical distance can be represented separately.
-- [ ] Floor/elevation is supported.
-- [ ] Route type can distinguish ceiling/service-level and wall-embedded movement.
-- [ ] Model is documented.
+- [x] Electrical panel can be represented.
+- [x] Route contains ordered points/segments.
+- [x] Horizontal and vertical distance can be represented separately.
+- [x] Floor/elevation is supported.
+- [x] Route type can distinguish ceiling/service-level and wall-embedded movement.
+- [x] Model is documented.
 
 ---
 
@@ -3805,10 +3805,10 @@ closed. Cumulative routing tests: 5 PASS (2026-09-19).
 
 **Acceptance Criteria:**
 
-- [ ] Graph generation is independent of Three.js.
-- [ ] Walls/obstacles restrict invalid paths.
-- [ ] Electrical panel and target devices can be mapped to graph nodes.
-- [ ] Graph generation has deterministic tests for a small sample layout.
+- [x] Graph generation is independent of Three.js.
+- [x] Walls/obstacles restrict invalid paths.
+- [x] Electrical panel and target devices can be mapped to graph nodes.
+- [x] Graph generation has deterministic tests for a small sample layout.
 
 ---
 
@@ -3824,11 +3824,11 @@ routing tests: 7 PASS (2026-09-19).
 
 **Acceptance Criteria:**
 
-- [ ] A* returns an ordered route.
-- [ ] Route avoids configured structural obstacles.
-- [ ] No-path cases return a controlled error/result.
-- [ ] Algorithm has unit tests using known graphs.
-- [ ] Route result is independent of visual rendering.
+- [x] A* returns an ordered route.
+- [x] Route avoids configured structural obstacles.
+- [x] No-path cases return a controlled error/result.
+- [x] Algorithm has unit tests using known graphs.
+- [x] Route result is independent of visual rendering.
 
 ---
 
@@ -3844,10 +3844,10 @@ tests: 8 PASS. Display/manual acceptance is pending M7 integration.
 
 **Acceptance Criteria:**
 
-- [ ] Horizontal routing uses configured ceiling/service elevation where required.
-- [ ] Route metadata identifies ceiling-level segments.
-- [ ] Cross-room routes do not use arbitrary diagonal lines through open space when rule-based routing applies.
-- [ ] Behavior is configurable/documented.
+- [x] Horizontal routing uses configured ceiling/service elevation where required.
+- [x] Route metadata identifies ceiling-level segments.
+- [x] Cross-room routes do not use arbitrary diagonal lines through open space when rule-based routing applies.
+- [x] Behavior is configurable/documented.
 - [ ] Sample routing case can be manually verified in 3D.
 
 ---
@@ -3864,11 +3864,11 @@ vertical segments. Cumulative tests: 10 PASS; display awaits M7.
 
 **Acceptance Criteria:**
 
-- [ ] Vertical drop/rise segments are represented explicitly.
-- [ ] Vertical segment follows the associated wall path where applicable.
-- [ ] Vertical distance contributes to total wire/conduit length.
-- [ ] Route is visible correctly in 3D.
-- [ ] Route output contains segment type/elevation metadata.
+- [x] Vertical drop/rise segments are represented explicitly.
+- [x] Vertical segment follows the associated wall path where applicable.
+- [x] Vertical distance contributes to total wire/conduit length.
+- [x] Route is visible correctly in 3D.
+- [x] Route output contains segment type/elevation metadata.
 
 ---
 
@@ -3885,15 +3885,34 @@ NO_ROUTE. Cumulative routing tests: 12 PASS (2026-09-19).
 
 **Acceptance Criteria:**
 
-- [ ] Route can reference multiple floors.
-- [ ] Vertical connector/riser is explicitly represented.
-- [ ] Elevation difference contributes to total length.
-- [ ] Floor transition is visible in route data.
-- [ ] Missing vertical connector produces a controlled no-route result rather than an impossible shortcut.
+- [x] Route can reference multiple floors.
+- [x] Vertical connector/riser is explicitly represented.
+- [x] Elevation difference contributes to total length.
+- [x] Floor transition is visible in route data.
+- [x] Missing vertical connector produces a controlled no-route result rather than an impossible shortcut.
 
 ---
 
 ### TICKET M7 — Persist and Display Routes
+
+Implementation checkpoint (2026-09-19): generated route versions are stored in
+`generated_route_versions`, pinned to existing canonical layout IDs. Designer
+POST and authorized GET `/api/projects/{project_id}/routes` use service/repository
+boundaries. Floor locks recheck source versions before persistence. Recalculation
+appends a version; stale results are identified and not drawn as current.
+Konva and Three.js project the same stored segments; UI totals come from Python.
+The 3D workspace offers single-floor generation controls; multi-floor and
+additional obstacle configuration are supported through the typed API.
+
+M1-M7 implementation criteria PASS by contract, engine, persistence, access and
+projection tests; manual 3D visual acceptance NOT TESTED. Focused backend final:
+114 PASS + 61 subtests. Full backend run: 938 PASS, 4 FAIL, 4 skipped; all four
+failures were outdated API/table inventories, corrected and passed in the final
+focused run. Full frontend: 348 PASS; two routing tests PASS after final test/
+projection additions; lint/build PASS. No claim of a clean rerun of the entire
+backend suite. Existing dependency deprecations and large frontend chunk warning
+remain. API operations: 39; tables: 28. Local route table initialized additively;
+original uploads and existing rows preserved. No N-series work started.
 
 **Goal:** Save routing results and show them in 2D/3D.
 
@@ -3901,12 +3920,12 @@ NO_ROUTE. Cumulative routing tests: 12 PASS (2026-09-19).
 
 **Acceptance Criteria:**
 
-- [ ] Routes are stored in the database.
-- [ ] Route segments reload without recomputation.
-- [ ] 2D shows route overlay.
-- [ ] 3D shows horizontal and vertical route segments.
-- [ ] Route length displayed in the UI matches backend calculation.
-- [ ] Route recalculation creates a clear updated state/version.
+- [x] Routes are stored in the database.
+- [x] Route segments reload without recomputation.
+- [x] 2D shows route overlay.
+- [x] 3D shows horizontal and vertical route segments.
+- [x] Route length displayed in the UI matches backend calculation.
+- [x] Route recalculation creates a clear updated state/version.
 
 ---
 

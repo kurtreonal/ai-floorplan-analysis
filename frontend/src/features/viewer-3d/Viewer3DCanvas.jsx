@@ -2,9 +2,10 @@ import { Canvas } from '@react-three/fiber'
 
 import { ViewerCameraControls } from './ViewerCameraControls.jsx'
 import { CanonicalScene } from './CanonicalScene.jsx'
+import { RouteLines3D } from '../routing/RouteLines3D.jsx'
 
 
-export function Viewer3DCanvas({ controlsRef, onControlsReady, scene }) {
+export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, routeSegments = [] }) {
   const fallback = (
     <div className="viewer-3d-webgl-fallback" role="status">
       This browser could not create the WebGL canvas required for the 3D viewer.
@@ -26,6 +27,7 @@ export function Viewer3DCanvas({ controlsRef, onControlsReady, scene }) {
         <ambientLight intensity={1.2} />
         <directionalLight position={[10, 20, 10]} intensity={2} />
         {scene && <CanonicalScene scene={scene} />}
+        <RouteLines3D segments={routeSegments} />
         <gridHelper position={scene?.target} args={[scene ? scene.extent * 2 : 20, 20, '#7890a8', '#c5d0da']} />
         <axesHelper args={[2]} />
         <ViewerCameraControls ref={controlsRef} onReady={onControlsReady} target={scene?.target} extent={scene?.extent} />

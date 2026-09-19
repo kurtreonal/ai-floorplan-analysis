@@ -4,7 +4,17 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Application roadmap implemented through L5; the PRE0-PRE12 readiness gate passes.**
+**Application roadmap implemented through M7; the PRE0-PRE12 readiness gate passes.**
+
+M1-M7 routing (2026-09-19): open a saved floor's **3D planning workspace →
+Electrical routing → Generate / recalculate route**. Enter panel coordinates,
+absolute elevations, a saved target and wall attachments where needed. Results
+use obstacle-aware A*, are versioned in MySQL, and display in saved 2D/3D views.
+Reload the view to fetch the latest route. Changed layouts require recalculation.
+The form handles one floor; the typed routing API additionally supports aligned
+multi-floor risers and extra obstacles. This does not implement quantities,
+costing or professionally approved electrical designs. Manual visual acceptance
+is pending user testing. Public Vercel deployment remains frontend-only.
 
 L2-L5 (2026-09-19) render saved metric floor/room geometry, verified walls and
 confirmed/manual symbol markers. Open the floor's 3D viewer, use **Compare saved

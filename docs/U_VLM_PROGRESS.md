@@ -6,6 +6,26 @@ to a trained or released model.
 
 ## Resume index
 
+### September 19 authorized M-series implementation
+
+- User authorized M1-M7 and deployment, with focused checks and manual visual
+  testing. Prior U-only/L-only scope restrictions are superseded for M1-M7.
+- Published engine checkpoints: M1 `ff80db7` / merge `d3b574c`; M2 `a643f8e` /
+  `77b3509`; M3 `5109e4d` / `d8e5b7b`; M4 `8fa3916` / `2b77d4f`; M5 `8f8260a` /
+  `745dbb7`; M6 `c2b64b1` / `3d98203`. Cumulative engine tests: 12 PASS.
+- M7 adds versioned MySQL route persistence, ownership/Designer authority,
+  source-version fencing, stale-state indication, a single-floor generation
+  form and shared 2D/3D overlays. Multi-floor configuration is API-supported.
+- Final focused backend: 114 PASS + 61 subtests. Initial full backend: 938 PASS,
+  4 FAIL, 4 skipped; four outdated API/table inventory expectations were corrected
+  and all passed in the focused rerun. Full frontend 348 PASS, final routing
+  tests 2 PASS; lint/build PASS. Full backend not rerun after inventory corrections.
+- Local backend health HTTP 200; routing API registered; only the new route
+  table created in development (28 total). No existing rows/originals changed.
+  API operations 39. Stash preserved. Manual visual acceptance NOT TESTED;
+  existing warnings remain. No quantities, costing, reports or N-series started.
+  U real-data/training/model/release gates remain unchanged.
+
 ### September 19 authorized L-series implementation
 
 - User authorized L1 through the last L ticket (L5), including deployment;
