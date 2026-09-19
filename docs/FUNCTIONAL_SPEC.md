@@ -3814,6 +3814,10 @@ closed. Cumulative routing tests: 5 PASS (2026-09-19).
 
 ### TICKET M3 — Implement Basic A* Routing
 
+Implementation checkpoint: deterministic A*, known shortest-path and obstacle
+detour tests, controlled `NO_ROUTE` without fallback shortcuts. Cumulative
+routing tests: 7 PASS (2026-09-19).
+
 **Goal:** Compute a valid path from panel to a target device.
 
 **Dependencies:** M2.
