@@ -63,6 +63,7 @@ export default function Viewer3DPage({ projectId, projectFloorId }) {
       </p>
       <a href={getLayoutHref(projectId, projectFloorId)}>Compare saved 2D layout</a>
       {layoutState.status === 'ready' && <p>Source plane: {layoutState.scene.width} × {layoutState.scene.depth} m; floor elevation: {layoutState.scene.elevation} m. The rectangle represents the source image extent; room surfaces follow saved boundaries.</p>}
+      {layoutState.status === 'ready' && layoutState.scene.omittedWallCount > 0 && <p role="note">{layoutState.scene.omittedWallCount} unverified or zero-length walls are omitted. Verified walls require stored height and thickness.</p>}
       <p className="sr-only" aria-live="polite">{announcement}</p>
 
       {layoutState.status === 'loading' && <p role="status">Loading saved layout…</p>}

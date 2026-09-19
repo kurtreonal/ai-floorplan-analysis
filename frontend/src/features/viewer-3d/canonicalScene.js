@@ -15,9 +15,10 @@ export function buildCanonicalScene(document) {
   const elevation = geometry.floor.elevation_meters
   const width = geometry.coordinate_system.width_meters
   const depth = geometry.coordinate_system.height_meters
-  const missing = geometry.walls.filter((wall) => wall.height_meters === null || wall.thickness_meters === null)
+  const renderableWalls = geometry.walls.filter((wall) => wall.status === 'verified' && wall.length_meters > 0)
+  const missing = renderableWalls.filter((wall) => wall.height_meters === null || wall.thickness_meters === null)
   if (missing.length) throw new Error('Approve wall height and thickness before opening metric 3D.')
-  const walls = geometry.walls.filter((wall) => wall.status === 'verified' && wall.length_meters > 0).map((wall) => ({
+  const walls = renderableWalls.map((wall) => ({
     id: wall.id,
     position: [(wall.start.x + wall.end.x) / 2, elevation + wall.height_meters / 2, (wall.start.y + wall.end.y) / 2],
     size: [wall.length_meters, wall.height_meters, wall.thickness_meters],
@@ -28,6 +29,7 @@ export function buildCanonicalScene(document) {
     target: [width / 2, elevation, depth / 2],
     extent: Math.max(width, depth, ...walls.map((wall) => wall.size[1]), 1),
     walls,
+    omittedWallCount: geometry.walls.length - walls.length,
     rooms: geometry.rooms.map((room) => ({ id: room.id, boundary: room.boundary })),
     symbols: geometry.symbols.map((symbol) => ({ id: symbol.id, position: canonicalPointToWorld(symbol.position, elevation) })),
   }
