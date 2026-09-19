@@ -3701,11 +3701,17 @@ rendering unvalidated extension entities. No API/schema/database changes.
 
 **Acceptance Criteria:**
 
-- [ ] Every rendered wall comes from stored wall geometry.
-- [ ] Wall start/end positions align with 2D coordinates.
-- [ ] Wall height is configurable or stored.
-- [ ] Wall thickness is configurable or stored.
-- [ ] Walls are not manually recreated separately in Three.js.
+- [x] Every rendered wall comes from stored wall geometry.
+- [x] Wall start/end positions align with 2D coordinates.
+- [x] Wall height is configurable or stored.
+- [x] Wall thickness is configurable or stored.
+- [x] Walls are not manually recreated separately in Three.js.
+
+L3 checkpoint (2026-09-19): only verified, nonzero walls are extruded using
+stored metric height/thickness. Missing dimensions on a rendered wall block
+metric rendering; unverified/zero-length walls are omitted with a visible count.
+Horizontal, vertical and reversed diagonal mesh endpoints are tested against
+canonical coordinates at negative floor elevation. No schema or data changes.
 
 ---
 

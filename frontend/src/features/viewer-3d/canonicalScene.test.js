@@ -49,7 +49,34 @@ describe('canonical scene coordinates', () => {
     expect(JSON.stringify(geometry)).toBe(before)
   })
   it('blocks missing wall dimensions and invalid coordinates', () => {
-    expect(() => buildCanonicalScene(fixture)).toThrow(/Approve wall height/)
+    const geometry = reviewed()
+    geometry.walls[0].height_meters = null
+    expect(() => buildCanonicalScene(geometry)).toThrow(/Approve wall height/)
     expect(() => canonicalPointToWorld({ x: NaN, y: 1 }, 0)).toThrow()
+  })
+  it('omits unreviewed walls without blocking the stored floor', () => {
+    expect(buildCanonicalScene(fixture)).toMatchObject({ width: 6.4, walls: [], omittedWallCount: 1 })
+  })
+  it('omits a verified zero-length wall without inventing dimensions', () => {
+    const geometry = reviewed()
+    Object.assign(geometry.walls[0], { end: { ...geometry.walls[0].start }, length_meters: 0, height_meters: null })
+    expect(buildCanonicalScene(geometry).walls).toEqual([])
+  })
+  it.each([
+    [{ x: 1, y: 1 }, { x: 4, y: 1 }],
+    [{ x: 1, y: 1 }, { x: 1, y: 4 }],
+    [{ x: 4, y: 3 }, { x: 1, y: 1 }],
+  ])('places both extruded endpoints at canonical coordinates: %j → %j', (start, end) => {
+    const geometry = reviewed()
+    Object.assign(geometry.walls[0], { start, end, length_meters: Math.hypot(end.x - start.x, end.y - start.y), height_meters: 2.4, thickness_meters: 0.22 })
+    const wall = buildCanonicalScene(geometry).walls[0]
+    ;[start, end].forEach((point, index) => {
+      const world = new Vector3((index ? 1 : -1) * wall.size[0] / 2, -wall.size[1] / 2, 0)
+        .applyAxisAngle(new Vector3(0, 1, 0), wall.rotation[1]).add(new Vector3(...wall.position))
+      expect(world.x).toBeCloseTo(point.x)
+      expect(world.z).toBeCloseTo(point.y)
+      expect(world.y).toBeCloseTo(geometry.floor.elevation_meters)
+    })
+    expect(wall.size.slice(1)).toEqual([2.4, 0.22])
   })
 })
