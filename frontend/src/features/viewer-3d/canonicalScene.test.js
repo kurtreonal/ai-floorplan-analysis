@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import fixture from '../../../../fixtures/canonical_geometry_v1.json'
 import { buildCanonicalScene, canonicalPointToWorld } from './canonicalScene.js'
+import { canonicalRoomShapePoints } from './canonicalScene.js'
+import { Vector3 } from 'three'
 
 function reviewed() {
   const geometry = structuredClone(fixture)
@@ -9,6 +11,21 @@ function reviewed() {
 }
 
 describe('canonical scene coordinates', () => {
+  it('derives the floor extent from scale, including an empty layout', () => {
+    const geometry = reviewed()
+    Object.assign(geometry.coordinate_system, { pixels_per_meter: 50, width_meters: 12.8, height_meters: 9.6 })
+    Object.assign(geometry, { walls: [], rooms: [], symbols: [], routes: [] })
+    expect(buildCanonicalScene(geometry)).toMatchObject({ width: 12.8, depth: 9.6, elevation: -1.5, target: [6.4, -1.5, 4.8] })
+  })
+  it('projects an asymmetric room without mirroring the 2D boundary', () => {
+    const boundary = [{ x: 1, y: 2 }, { x: 4, y: 2 }, { x: 2, y: 3 }]
+    canonicalRoomShapePoints(boundary).forEach(([x, y], index) => {
+      const point = new Vector3(x, y, 0).applyAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2)
+      expect(point.x).toBeCloseTo(boundary[index].x)
+      expect(point.z).toBeCloseTo(boundary[index].y)
+      expect(point.y).toBeCloseTo(0)
+    })
+  })
   it('preserves meters, image-down direction and negative floor elevation', () => {
     const scene = buildCanonicalScene(reviewed())
     expect(scene.symbols[0].position).toEqual([2.5, -1.5, 1.5])

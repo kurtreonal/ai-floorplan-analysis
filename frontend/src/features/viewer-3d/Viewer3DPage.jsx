@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchCurrentLayout } from '../../api/layouts.js'
 import { buildCanonicalScene } from './canonicalScene.js'
 
-import { getProjectHref } from '../../routes/projectRoutes.js'
+import { getLayoutHref, getProjectHref } from '../../routes/projectRoutes.js'
 import { Viewer3DCanvas } from './Viewer3DCanvas.jsx'
 import { Viewer3DErrorBoundary } from './Viewer3DErrorBoundary.jsx'
 import './viewer3d.css'
@@ -61,6 +61,8 @@ export default function Viewer3DPage({ projectId, projectFloorId }) {
       <p className="viewer-3d-scope-note" role="note">
         Symbol markers show floor positions; they do not specify mounting height. Reload the layout after saving 2D changes.
       </p>
+      <a href={getLayoutHref(projectId, projectFloorId)}>Compare saved 2D layout</a>
+      {layoutState.status === 'ready' && <p>Source plane: {layoutState.scene.width} × {layoutState.scene.depth} m; floor elevation: {layoutState.scene.elevation} m. The rectangle represents the source image extent; room surfaces follow saved boundaries.</p>}
       <p className="sr-only" aria-live="polite">{announcement}</p>
 
       {layoutState.status === 'loading' && <p role="status">Loading saved layout…</p>}

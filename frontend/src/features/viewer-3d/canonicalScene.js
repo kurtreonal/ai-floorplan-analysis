@@ -5,6 +5,11 @@ export function canonicalPointToWorld(point, elevation) {
   return [point.x, elevation, point.y]
 }
 
+// ShapeGeometry is in XY; rotating -PI/2 maps its negative Y to world +Z.
+export function canonicalRoomShapePoints(boundary) {
+  return boundary.map((point) => [point.x, -point.y])
+}
+
 export function buildCanonicalScene(document) {
   const geometry = normalizeCanonicalGeometry(document)
   const elevation = geometry.floor.elevation_meters
