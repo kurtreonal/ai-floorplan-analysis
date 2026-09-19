@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from app.geometry import canonical_geometry_from_dict
 from app.routing.graph import floor_graph, RoutingError
+from app.routing.astar import astar
 
 
 def document():
@@ -59,3 +60,21 @@ def test_graph_rejects_unbounded_work():
     config = RoutingRequest.model_validate(request_data()).floors[0]
     with pytest.raises(RoutingError, match='RESOURCE_LIMIT'):
         floor_graph(document(), config, [], 0.001)
+
+
+def test_astar_known_shortest_path_and_disconnected_graph():
+    graph = {'a': [('b', 10), ('c', 1)], 'c': [('b', 1)], 'b': [('d', 2)], 'd': [], 'e': []}
+    assert astar(graph, 'a', 'd') == ['a', 'c', 'b', 'd']
+    assert astar(graph, 'a', 'a') == ['a']
+    with pytest.raises(RoutingError, match='NO_ROUTE'):
+        astar(graph, 'a', 'e')
+
+
+def test_astar_detours_around_obstacle_without_diagonal_shortcut():
+    from app.routing.contracts import Obstacle
+    config = RoutingRequest.model_validate(request_data()).floors[0]
+    obstacle = Obstacle(floor_id=2, min_x=1.4, max_x=1.6, min_y=0, max_y=2, bottom=0, top=4)
+    graph = floor_graph(document(), config, [(1, 1), (2, 1)], 1, [obstacle])
+    path = astar(graph, (1, 1), (2, 1), lambda a, b: abs(a[0]-b[0])+abs(a[1]-b[1]))
+    assert max(p[1] for p in path) >= 3
+    assert sum(abs(a[0]-b[0])+abs(a[1]-b[1]) for a, b in zip(path, path[1:])) == 5
