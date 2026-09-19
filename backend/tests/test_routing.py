@@ -92,3 +92,27 @@ def test_service_route_uses_explicit_elevation_and_saved_target():
     data['target']['x'] = 5
     with pytest.raises(RoutingError, match='SAVED_SYMBOL'):
         generate_route(RoutingRequest.model_validate(data), {2: document()})
+
+
+def wall_document():
+    data = document().to_dict()
+    data['walls'] = [dict(id=1, source_candidate_id=None, processing_job_id=None, status='verified',
+        start=dict(x=0,y=1.5), end=dict(x=5,y=1.5), length_meters=5, angle_degrees=0,
+        height_meters=3, thickness_meters=.2)]
+    return canonical_geometry_from_dict(data)
+
+
+def test_wall_drop_contributes_to_backend_length():
+    data = request_data()
+    data['target'].update(elevation_meters=0, wall_id=1)
+    route = generate_route(RoutingRequest.model_validate(data), {2: wall_document()})
+    assert route.segments[-1].kind == 'wall_drop'
+    assert route.vertical_meters == 3
+    assert route.total_meters == 5
+
+
+def test_vertical_endpoint_requires_real_wall_attachment():
+    data = request_data()
+    data['panel'].update(elevation_meters=0, wall_id=1)
+    with pytest.raises(RoutingError, match='NOT_ON_WALL'):
+        generate_route(RoutingRequest.model_validate(data), {2: wall_document()})
