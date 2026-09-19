@@ -45,7 +45,7 @@ describe('canonical scene coordinates', () => {
     geometry.symbols[0].position = { x: 1, y: 2 }
     geometry.symbols.pop()
     const before = JSON.stringify(geometry)
-    expect(buildCanonicalScene(geometry).symbols).toEqual([{ id: 'detected:501', position: [1, -1.5, 2] }])
+    expect(buildCanonicalScene(geometry).symbols).toEqual([expect.objectContaining({ id: 'detected:501', position: [1, -1.5, 2] })])
     expect(JSON.stringify(geometry)).toBe(before)
   })
   it('blocks missing wall dimensions and invalid coordinates', () => {
@@ -56,6 +56,18 @@ describe('canonical scene coordinates', () => {
   })
   it('omits unreviewed walls without blocking the stored floor', () => {
     expect(buildCanonicalScene(fixture)).toMatchObject({ width: 6.4, walls: [], omittedWallCount: 1 })
+  })
+  it('retains confirmed and manual symbol identities and approved class names', () => {
+    const scene = buildCanonicalScene(reviewed())
+    expect(scene.symbols).toEqual([
+      { id: 'detected:501', classification: { id: 7, name: 'Power outlet' }, status: 'confirmed', position: [2.5, -1.5, 1.5] },
+      { id: 'manual:601', classification: { id: 2, name: 'Wall light' }, status: 'manually_added', position: [4.1, -1.5, 2.25] },
+    ])
+  })
+  it.each(['deleted', 'rejected', 'detected', 'needs_review'])('rejects a noncanonical %s symbol instead of displaying it', (status) => {
+    const geometry = reviewed()
+    geometry.symbols[0].status = status
+    expect(() => buildCanonicalScene(geometry)).toThrow(/canonical geometry/)
   })
   it('omits a verified zero-length wall without inventing dimensions', () => {
     const geometry = reviewed()

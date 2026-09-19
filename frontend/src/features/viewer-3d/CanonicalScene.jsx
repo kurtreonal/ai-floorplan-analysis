@@ -29,7 +29,7 @@ export function CanonicalScene({ scene }) {
       <boxGeometry args={wall.size} />
       <meshStandardMaterial color="#8397a1" />
     </mesh>)}
-    {scene.symbols.map((symbol) => <mesh key={symbol.id} position={symbol.position}>
+    {scene.symbols.map((symbol) => <mesh key={symbol.id} name={`${symbol.id}: ${symbol.classification.name}`} position={symbol.position}>
       <sphereGeometry args={[0.09, 12, 8]} />
       <meshBasicMaterial color="#ff652f" depthTest={false} />
     </mesh>)}
