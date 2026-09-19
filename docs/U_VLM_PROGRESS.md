@@ -16,6 +16,10 @@ to a trained or released model.
 - M7 adds versioned MySQL route persistence, ownership/Designer authority,
   source-version fencing, stale-state indication, a single-floor generation
   form and shared 2D/3D overlays. Multi-floor configuration is API-supported.
+  Published implementation `9c7b14a`, non-fast-forward merge `6700ea2` on main.
+  Post-merge local frontend and backend health both HTTP 200. Unrelated Chapter 1
+  document/generator/Word lock files appeared during execution and were preserved
+  untracked; the recovery stash remains unchanged.
 - Final focused backend: 114 PASS + 61 subtests. Initial full backend: 938 PASS,
   4 FAIL, 4 skipped; four outdated API/table inventory expectations were corrected
   and all passed in the focused rerun. Full frontend 348 PASS, final routing
