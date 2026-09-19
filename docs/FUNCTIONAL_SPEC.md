@@ -3723,11 +3723,18 @@ canonical coordinates at negative floor elevation. No schema or data changes.
 
 **Acceptance Criteria:**
 
-- [ ] Verified symbols appear in 3D.
-- [ ] Deleted/rejected symbols do not appear.
-- [ ] Manually added symbols appear.
-- [ ] Symbol position derives from canonical geometry.
-- [ ] Moving a symbol in 2D changes its 3D position after synchronization/reload.
+- [x] Verified symbols appear in 3D.
+- [x] Deleted/rejected symbols do not appear.
+- [x] Manually added symbols appear.
+- [x] Symbol position derives from canonical geometry.
+- [x] Moving a symbol in 2D changes its 3D position after synchronization/reload.
+
+L4 checkpoint (2026-09-19): confirmed/manual canonical symbols retain class,
+identity and review status in the scene and its readable inventory. Strict K1
+validation rejects unreviewed/deleted/rejected symbols; removed records render
+no marker. Positions remain floor-plan markers at floor elevation, with no
+invented mounting heights or device specifications. Coordinate/status tests
+cover changed saved positions, manual symbols and invalid review states.
 
 ---
 

@@ -69,6 +69,12 @@ export default function Viewer3DPage({ projectId, projectFloorId }) {
       {layoutState.status === 'loading' && <p role="status">Loading saved layout…</p>}
       {layoutState.status === 'error' && <p role="alert">{layoutState.message}</p>}
       {layoutState.status === 'ready' && <p>Saved version {layoutState.layout.version_number}: {layoutState.scene.rooms.length} rooms, {layoutState.scene.walls.length} verified walls, {layoutState.scene.symbols.length} symbols.</p>}
+      {layoutState.status === 'ready' && <details>
+        <summary>Reviewed electrical symbols ({layoutState.scene.symbols.length})</summary>
+        <ul>{layoutState.scene.symbols.map((symbol) => <li key={symbol.id}>
+          {symbol.classification.name} (class {symbol.classification.id}) — {symbol.id}; {symbol.status === 'manually_added' ? 'manually added' : 'confirmed'}; x {symbol.position[0]} m, y {symbol.position[2]} m.
+        </li>)}</ul>
+      </details>}
       {layoutState.status === 'ready' && <Viewer3DErrorBoundary
         key={canvasAttempt}
         projectId={projectId}

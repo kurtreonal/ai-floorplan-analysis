@@ -31,6 +31,9 @@ export function buildCanonicalScene(document) {
     walls,
     omittedWallCount: geometry.walls.length - walls.length,
     rooms: geometry.rooms.map((room) => ({ id: room.id, boundary: room.boundary })),
-    symbols: geometry.symbols.map((symbol) => ({ id: symbol.id, position: canonicalPointToWorld(symbol.position, elevation) })),
+    symbols: geometry.symbols.map((symbol) => ({
+      id: symbol.id, classification: symbol.class, status: symbol.status,
+      position: canonicalPointToWorld(symbol.position, elevation),
+    })),
   }
 }
