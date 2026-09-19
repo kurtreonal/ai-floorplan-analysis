@@ -43,3 +43,19 @@ def retrieve_component_quantities(session, *, current_user, project_id, project_
         project_id=project_id, project_floor_id=project_floor_id)
     return LayoutQuantities(layout.id, layout.version_number, project_id, project_floor_id,
                             component_quantities(layout.geometry))
+
+
+def retrieve_route_material_lengths(session, *, current_user, project_id, conductor_count=None):
+    from app.routing.contracts import RouteResult
+    from app.routing.measurements import measure_material_lengths
+    from app.services.routing_service import load_routes
+
+    record = load_routes(session, current_user, project_id)
+    if record is None:
+        raise ValueError("A saved generated route is required.")
+    if record["stale"]:
+        raise ValueError("Recalculate the stale route before measuring materials.")
+    lengths = measure_material_lengths(RouteResult.model_validate(record["result"]),
+                                       conductor_count=conductor_count)
+    return {"route_version_id": record["id"], "version_number": record["version_number"],
+            "project_id": project_id, "layout_versions": record["layout_versions"], "lengths": lengths}

@@ -25,6 +25,21 @@ to a trained or released model.
   Corrections use the canonical class; rejected/unreviewed input cannot enter
   quantities. Focused/canonical/manual regression: 54 passed; focused plus
   persisted-layout ownership tests: 9 passed. No new table or API. N4 is next.
+- N4: metric route measurements validate continuity, orthogonality, floor/riser
+  identity, and stored totals. Stale saved routes are excluded. Wire length is
+  unavailable unless an explicit conductor count is supplied. No engineering
+  allowances, wire sizing, or material mappings are invented. Focused routing
+  and persisted-read verification: 23 passed. Final isolated full backend:
+  970 passed, 4 skipped, 509 subtests; two dependency deprecations. Compilation
+  and diff checks passed. OpenAPI remains 39 operations; 30 registered tables.
+- Publication: branch `codex/n-material-quantification`; N2 `292e4b0`,
+  N3 `780ec8d`, followed by the N4 checkpoint. Main is unchanged. N-series
+  functional-spec annotations remain in the user's pre-existing uncommitted
+  documentation diff; unrelated changes are not swept into these commits.
+- Stop: Epic N implementation is complete, with historical-estimate protection
+  verification pending O1 and development schema initialization not performed.
+  No frontend changes belong to this checkpoint; browser checks were not run.
+  Epic O is not started, as explicitly requested.
 
 ### September 19 authorized M-series implementation
 

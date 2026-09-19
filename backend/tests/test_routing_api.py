@@ -107,3 +107,22 @@ def test_component_quantities_pin_saved_layout_and_enforce_access(context):
     with pytest.raises(LayoutServiceError):
         retrieve_component_quantities(session, current_user=other,
             project_id=snapshot.project_id, project_floor_id=snapshot.project_floor_id)
+
+
+def test_material_lengths_require_current_persisted_route(context):
+    from app.services.material_quantity_service import retrieve_route_material_lengths
+
+    client, url, payload, session, snapshot, app, _, _ = context
+    owner = app.dependency_overrides[get_current_user]()
+    with pytest.raises(ValueError, match="saved generated route"):
+        retrieve_route_material_lengths(session, current_user=owner, project_id=snapshot.project_id)
+    saved = client.post(url, json=payload).json()
+    measured = retrieve_route_material_lengths(session, current_user=owner,
+        project_id=snapshot.project_id, conductor_count=3)
+    assert measured["route_version_id"] == saved["id"]
+    assert measured["lengths"].conduit_meters == 2
+    assert measured["lengths"].wire_meters == 6
+    snapshot.is_current = None
+    session.flush()
+    with pytest.raises(ValueError, match="stale"):
+        retrieve_route_material_lengths(session, current_user=owner, project_id=snapshot.project_id)
