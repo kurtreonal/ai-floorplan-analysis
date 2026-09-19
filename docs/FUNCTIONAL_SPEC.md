@@ -3834,6 +3834,10 @@ routing tests: 7 PASS (2026-09-19).
 
 ### TICKET M4 — Add Ceiling-Level Horizontal Routing Rule
 
+Engine checkpoint: configured absolute service elevation, typed horizontal
+segments, exact saved target matching and backend distances. Cumulative routing
+tests: 8 PASS. Display/manual acceptance is pending M7 integration.
+
 **Goal:** Apply the project-specific routing rule for cross-room/horizontal movement.
 
 **Dependencies:** M3.

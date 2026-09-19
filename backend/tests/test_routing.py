@@ -7,6 +7,7 @@ from pathlib import Path
 from app.geometry import canonical_geometry_from_dict
 from app.routing.graph import floor_graph, RoutingError
 from app.routing.astar import astar
+from app.routing.engine import generate_route
 
 
 def document():
@@ -78,3 +79,16 @@ def test_astar_detours_around_obstacle_without_diagonal_shortcut():
     path = astar(graph, (1, 1), (2, 1), lambda a, b: abs(a[0]-b[0])+abs(a[1]-b[1]))
     assert max(p[1] for p in path) >= 3
     assert sum(abs(a[0]-b[0])+abs(a[1]-b[1]) for a, b in zip(path, path[1:])) == 5
+
+
+def test_service_route_uses_explicit_elevation_and_saved_target():
+    request = RoutingRequest.model_validate(request_data())
+    route = generate_route(request, {2: document()})
+    assert route.total_meters == 2
+    assert route.vertical_meters == 0
+    assert all(s.kind == 'ceiling_service' and s.start.elevation_meters == 3 for s in route.segments)
+    assert route.provenance == 'generated'
+    data = request_data()
+    data['target']['x'] = 5
+    with pytest.raises(RoutingError, match='SAVED_SYMBOL'):
+        generate_route(RoutingRequest.model_validate(data), {2: document()})
