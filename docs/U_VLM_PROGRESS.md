@@ -29,8 +29,13 @@ to a trained or released model.
 - API/schema/table counts unchanged (not recounted); no database writes or
   original/source changes. Recovery stash preserved. Existing planning files
   updated; no new Markdown. U real-data/training/activation/release gates remain
-  pending. Vercel confirmed L4 frontend deployment success; final L5 publication
-  and deployment status will be recorded after merge.
+  pending. L5 published as `1b0d55a`, merge `0a18993`; post-merge focused suite
+  69 PASS. GitHub/Vercel reports successful frontend deployment for exact merge
+  `0a18993afac859ab63cca1e1978e778122948455`:
+  https://ai-floorplan-analysis-m24a93xp5-kurt-pascuas-projects.vercel.app
+  This is frontend deployment evidence, not authenticated hosted-backend or
+  browser workflow acceptance. L1-L5 implementation is complete within the
+  documented base-geometry scope; no next application epic started.
 
 ### September 14 post-U14 automatic worker startup correction
 
