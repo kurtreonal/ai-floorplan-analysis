@@ -3680,10 +3680,16 @@ separate 40-test canonical-geometry pytest suite.
 
 **Acceptance Criteria:**
 
-- [ ] Floor dimensions come from canonical geometry.
-- [ ] Scene does not use hard-coded demo dimensions.
-- [ ] Scale matches the documented coordinate system.
-- [ ] Floor alignment can be compared against the 2D plan.
+- [x] Floor dimensions come from canonical geometry.
+- [x] Scene does not use hard-coded demo dimensions.
+- [x] Scale matches the documented coordinate system.
+- [x] Floor alignment can be compared against the 2D plan.
+
+L2 checkpoint (2026-09-19): metric source-plane dimensions and room surfaces
+reuse the demo canonical renderer. Shape projection is isolated and tested;
+the viewer links to the saved 2D layout and identifies image extent versus
+room boundaries. K1 reads accept U11's additive extension metadata without
+rendering unvalidated extension entities. No API/schema/database changes.
 
 ---
 

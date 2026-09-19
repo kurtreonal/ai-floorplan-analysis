@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
 import { DoubleSide, Shape } from 'three'
+import { canonicalRoomShapePoints } from './canonicalScene.js'
 
 function RoomSurface({ room, elevation }) {
   const shape = useMemo(() => {
     const result = new Shape()
-    room.boundary.forEach((point, index) => {
-      if (index === 0) result.moveTo(point.x, -point.y)
-      else result.lineTo(point.x, -point.y)
+    canonicalRoomShapePoints(room.boundary).forEach(([x, y], index) => {
+      if (index === 0) result.moveTo(x, y)
+      else result.lineTo(x, y)
     })
     result.closePath()
     return result

@@ -19,6 +19,12 @@ function response(overrides = {}) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('current layout API', () => {
+  it.each([null, { schema_version: 2, openings: [] }])('accepts the additive backend extension without treating it as base geometry: %j', async (extension) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => response({ extension }) }))
+    const result = await fetchCurrentLayout(15, 2)
+    expect(result.geometry).toEqual(fixture)
+    expect(result.geometry).not.toHaveProperty('openings')
+  })
   it('uses the exact credentialed GET URL, abort signal, and immutable K1 normalization', async () => {
     const signal = new AbortController().signal
     const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => response() })

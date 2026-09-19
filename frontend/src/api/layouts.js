@@ -32,7 +32,12 @@ function exactObject(value, keys) {
 }
 
 function validateResponse(payload, projectId, projectFloorId, message = LOAD_ERROR) {
-  if (!exactObject(payload, RESPONSE_KEYS)
+  const keys = payload && Object.hasOwn(payload, 'extension')
+    ? [...RESPONSE_KEYS, 'extension'] : RESPONSE_KEYS
+  // U11 adds opaque extension metadata. K1 consumers render only the validated
+  // base document; extension entities must never bypass their own adapter.
+  if (!exactObject(payload, keys)
+    || (payload.extension != null && (typeof payload.extension !== 'object' || Array.isArray(payload.extension)))
     || !positiveId(payload.id)
     || payload.project_id !== projectId
     || payload.project_floor_id !== projectFloorId
