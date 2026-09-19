@@ -3770,6 +3770,13 @@ Browser visual acceptance remains manual; automated scene/UI tests use fixtures.
 
 ### TICKET M1 — Define Routing Data Model
 
+Implementation checkpoint: `app/routing/contracts.py` defines explicit panel
+placement, canonical target identity, floor/version references, aligned metric
+offsets, service elevation, bounded obstacles and explicit risers. Generated
+routes contain ordered points and typed segments with separate horizontal and
+vertical meters. No automatic mounting heights, allowances or engineering
+approval are inferred. Contract tests: 2 PASS (2026-09-19).
+
 **Goal:** Define panels, route points, route segments, and route types.
 
 **Dependencies:** K1.
