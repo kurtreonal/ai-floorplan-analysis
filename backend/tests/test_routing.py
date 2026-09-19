@@ -116,3 +116,35 @@ def test_vertical_endpoint_requires_real_wall_attachment():
     data['panel'].update(elevation_meters=0, wall_id=1)
     with pytest.raises(RoutingError, match='NOT_ON_WALL'):
         generate_route(RoutingRequest.model_validate(data), {2: wall_document()})
+
+
+def multi_floor():
+    data = request_data()
+    data['floors'].append(dict(floor_id=3, expected_layout_version=1, service_elevation_meters=6, offset_x=1, offset_y=0))
+    data['target'].update(floor_id=3, elevation_meters=6)
+    data['connectors'] = [dict(id='riser-a', from_floor_id=2, to_floor_id=3, x=2, y=1)]
+    second = document().to_dict()
+    second['floor'].update(project_floor_id=3, elevation_meters=1.5)
+    return data, {2: document(), 3: canonical_geometry_from_dict(second)}
+
+
+def test_multifloor_requires_explicit_connector_and_counts_height():
+    data, documents = multi_floor()
+    route = generate_route(RoutingRequest.model_validate(data), documents)
+    riser = next(s for s in route.segments if s.kind == 'riser')
+    assert riser.connector_id == 'riser-a'
+    assert (riser.start.floor_id, riser.end.floor_id) == (2, 3)
+    assert riser.start.x == riser.end.x == 2
+    assert route.vertical_meters == 3
+    assert route.horizontal_meters == 3
+    assert route.total_meters == 6
+    data['connectors'] = []
+    with pytest.raises(RoutingError, match='NO_ROUTE'):
+        generate_route(RoutingRequest.model_validate(data), documents)
+
+
+def test_riser_obstacle_blocks_vertical_shortcut():
+    data, documents = multi_floor()
+    data['obstacles'] = [dict(floor_id=2, min_x=1.9, max_x=2.1, min_y=.9, max_y=1.1, bottom=4, top=5)]
+    with pytest.raises(RoutingError, match='NO_ROUTE'):
+        generate_route(RoutingRequest.model_validate(data), documents)

@@ -3874,6 +3874,11 @@ vertical segments. Cumulative tests: 10 PASS; display awaits M7.
 
 ### TICKET M6 — Add Multi-Floor Vertical Routing
 
+Engine checkpoint: explicitly aligned per-floor graphs join only through named
+risers. Floor transitions and connector identity persist in generated segment
+data; obstacle checks cover the vertical span. Missing/blocked risers produce
+NO_ROUTE. Cumulative routing tests: 12 PASS (2026-09-19).
+
 **Goal:** Support risers or vertical connectors between floors.
 
 **Dependencies:** M5, B5.
