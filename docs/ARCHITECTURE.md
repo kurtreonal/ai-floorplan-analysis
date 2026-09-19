@@ -11,6 +11,15 @@
 
 ## 1. Current implementation boundary
 
+September 19 L2-L5 update: `canonicalScene.js` projects the saved K1 base into
+floor/room surfaces, stored verified wall meshes and reviewed symbol markers.
+`Viewer3DPage` reloads the same current-layout endpoint as `LayoutEditorPage`,
+with abort/identity fencing. The API reader accepts additive U11 metadata;
+extended snapshots are read-only in the base editor to preserve that metadata.
+No backend route, table, schema, dependency or persistence model changed.
+Earlier milestone descriptions below are historical; L ticket acceptance is
+recorded in `FUNCTIONAL_SPEC.md`, and later U status in `U_VLM_PROGRESS.md`.
+
 ### Implemented
 
 - A1–A4: repository, environment, React/Vite, and FastAPI foundations
@@ -921,8 +930,8 @@ truth.
   source plane. Missing/mixed provenance remains an explicit limitation until
   a later blueprint-source contract is approved.
 - Canonical symbol positions are editable in 2D; other canonical geometry is
-  read-only. L1 provides an empty 3D viewer only, with no project geometry or
-  editing.
+  read-only. L2-L5 provide canonical base-geometry 3D rendering and saved-state
+  synchronization; 3D itself does not edit or create geometry records.
 - No routing or multi-floor route calculation
 - No material pricing, estimates, reports, or audit logs
 - Production Vercel deployment remains frontend-only without a separately

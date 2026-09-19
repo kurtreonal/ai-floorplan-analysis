@@ -241,15 +241,19 @@ accepted PRE11 ownership and versioning policy without changing K1 v1 in place.
 
 ## Downstream mapping and non-goals
 
-L1 provides only a protected empty Three.js/React Three Fiber scene. It does not
-request K1/K2/K3 layout data or render any canonical floor, wall, opening,
-symbol, or route. Its grid and axes are orientation helpers rather than project
-geometry.
+L2-L5 consume the same saved K1 base geometry as the 2D editor. Canonical x
+maps to world x, floor elevation to world y, and canonical y to world z.
+Room boundaries use a tested ShapeGeometry projection; the background plane
+shows source-image extent, not an inferred building outline. Only verified
+nonzero walls are extruded, with stored height/thickness. Confirmed/manual
+symbols are floor-position markers with stored class identity, not inferred
+mounting heights. Top/perspective controls and explicit saved-layout reload
+are implemented. Rendering creates no separate persisted geometry.
 
-Future L2+ adapters are expected to map canonical x to horizontal 3D x, explicit
-floor elevation to vertical 3D y, and canonical y to horizontal 3D z. This is a
-planned mapping, not an implemented canonical renderer or proof of 2D/3D
-synchronization. Top/perspective switching also remains future viewer work.
+U11 extension metadata is accepted alongside the base response, but extension
+entities are not rendered by this viewer. Extended snapshots remain read-only
+in the K1 editor to prevent a base-only save from dropping reviewed extension
+data. Their interpretation review workspace owns editing.
 
 K5 implements canonical symbol selection, repositioning, and explicit snapshot
 saving. It does not implement wall/room/route editing, symbol class/status

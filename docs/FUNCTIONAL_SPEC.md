@@ -204,8 +204,9 @@ not a worker or automatic pipeline. There is also no local VLM runtime, reviewed
 VLM gold set, adapter, or VLM orchestration. PRE0-PRE12 foundations and the U1
 requirements baseline pass. U2 implements only the strict advisory candidate
 schema; see `docs/FLOOR_PLAN_INTERPRETATION_CANDIDATE_V1.md`.
-L2 and later tickets remain unimplemented and are paused unless
-explicitly selected.
+L2-L5 were explicitly authorized and implemented on 2026-09-19; see Epic L's
+checkpoints below. Earlier milestone descriptions here are historical; current
+U implementation and pending acceptance gates are in `U_VLM_PROGRESS.md`.
 
 `GET /api/projects/{project_id}/floor-plans` now returns authorized persisted
 safe metadata with an optional project-scoped floor filter. E4 still uses
@@ -3746,10 +3747,22 @@ cover changed saved positions, manual symbols and invalid review states.
 
 **Acceptance Criteria:**
 
-- [ ] 2D and 3D consume the same authoritative geometry data.
-- [ ] Editing an object does not create a second unrelated 3D-only record.
-- [ ] Reloading both views shows the same saved project state.
-- [ ] Coordinate transform logic is isolated and tested.
+- [x] 2D and 3D consume the same authoritative geometry data.
+- [x] Editing an object does not create a second unrelated 3D-only record.
+- [x] Reloading both views shows the same saved project state.
+- [x] Coordinate transform logic is isolated and tested.
+
+L5 checkpoint (2026-09-19): both views load the same versioned K1 endpoint.
+Explicit 3D reload replaces the scene, fences old floor requests and clears
+stale geometry on failure. The 2D link requires saved/discarded edits.
+Focused viewer/editor/API tests: 69 PASS. No new persistence/API/table.
+Full frontend regression: 347 tests across 39 files PASS; lint/build/diff PASS.
+Build retains the existing >500 kB chunk warning. Backend regression was not
+rerun for frontend-only changes; frontend and backend health HTTP checks PASS.
+U11 extended snapshots are displayed as base geometry and kept read-only in
+the K1 editor to avoid losing extension data; edit them through interpretation
+review. Openings/panels/observed-route rendering is outside L2-L5 criteria.
+Browser visual acceptance remains manual; automated scene/UI tests use fixtures.
 
 ---
 

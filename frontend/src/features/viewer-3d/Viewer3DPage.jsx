@@ -9,6 +9,10 @@ import './viewer3d.css'
 
 
 export default function Viewer3DPage({ projectId, projectFloorId }) {
+  return <SavedViewer key={`${projectId}:${projectFloorId}`} projectId={projectId} projectFloorId={projectFloorId} />
+}
+
+function SavedViewer({ projectId, projectFloorId }) {
   const controlsRef = useRef(null)
   const [controlsReady, setControlsReady] = useState(false)
   const [canvasAttempt, setCanvasAttempt] = useState(0)
@@ -37,6 +41,12 @@ export default function Viewer3DPage({ projectId, projectFloorId }) {
     setAnnouncement('3D camera reset to its initial view.')
   }
 
+  function reloadLayout() {
+    setLayoutState({ status: 'loading' })
+    setControlsReady(false)
+    setCanvasAttempt((attempt) => attempt + 1)
+  }
+
   return (
     <article className="viewer-3d-page" aria-labelledby="viewer-3d-title">
       <a className="viewer-3d-back-link" href={getProjectHref(projectId)}>← Back to project</a>
@@ -56,12 +66,14 @@ export default function Viewer3DPage({ projectId, projectFloorId }) {
         </button>
         <button className="btn btn-dark" type="button" disabled={!controlsReady} onClick={() => controlsRef.current?.top()}>Top view</button>
         <button className="btn btn-dark" type="button" disabled={!controlsReady} onClick={resetCamera}>Perspective view</button>
+        <button className="btn btn-dark" type="button" disabled={layoutState.status === 'loading'} onClick={reloadLayout}>Reload saved layout</button>
       </header>
 
       <p className="viewer-3d-scope-note" role="note">
         Symbol markers show floor positions; they do not specify mounting height. Reload the layout after saving 2D changes.
       </p>
       <a href={getLayoutHref(projectId, projectFloorId)}>Compare saved 2D layout</a>
+      {layoutState.status === 'ready' && layoutState.layout.hasExtension && <p role="note">This view shows the canonical base geometry. Additional openings, panels and observed wiring remain in the saved review data and are not rendered here.</p>}
       {layoutState.status === 'ready' && <p>Source plane: {layoutState.scene.width} × {layoutState.scene.depth} m; floor elevation: {layoutState.scene.elevation} m. The rectangle represents the source image extent; room surfaces follow saved boundaries.</p>}
       {layoutState.status === 'ready' && layoutState.scene.omittedWallCount > 0 && <p role="note">{layoutState.scene.omittedWallCount} unverified or zero-length walls are omitted. Verified walls require stored height and thickness.</p>}
       <p className="sr-only" aria-live="polite">{announcement}</p>
@@ -93,7 +105,7 @@ export default function Viewer3DPage({ projectId, projectFloorId }) {
         <button
           className="viewer-3d-retry"
           type="button"
-          onClick={() => setCanvasAttempt((attempt) => attempt + 1)}
+          onClick={reloadLayout}
         >
           Restart 3D canvas
         </button>

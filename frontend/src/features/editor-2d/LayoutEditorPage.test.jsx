@@ -64,6 +64,25 @@ afterEach(() => {
 })
 
 describe('layout editor page', () => {
+  it('keeps extended snapshots read-only so a base-only save cannot lose reviewed extension data', async () => {
+    fetchCurrentLayout.mockResolvedValueOnce({ ...layout(), hasExtension: true })
+    render(<LayoutEditorPage projectId={15} projectFloorId={2} session={{ user: { role: 'DESIGNER' } }} />)
+    await screen.findByTestId('canonical-canvas')
+    expect(screen.getByText(/base-layout editor is read-only/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Canvas move detected:501' }).disabled).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Save layout' })).toBeNull()
+    expect(saveCurrentLayout).not.toHaveBeenCalled()
+  })
+  it('offers the saved 3D view only while there are no unsaved position changes', async () => {
+    render(<LayoutEditorPage projectId={15} projectFloorId={2} session={{ user: { role: 'DESIGNER' } }} />)
+    await screen.findByTestId('canonical-canvas')
+    expect(screen.getByRole('link', { name: 'View saved layout in 3D' }).getAttribute('href')).toBe('#/app/projects/15/floors/2/viewer-3d')
+    fireEvent.click(screen.getByRole('button', { name: 'Canvas move detected:501' }))
+    expect(screen.queryByRole('link', { name: 'View saved layout in 3D' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Save layout' }))
+    await screen.findByRole('link', { name: 'View saved layout in 3D' })
+    expect(saveCurrentLayout.mock.calls[0][2].symbols[0].position).toEqual({ x: 3, y: 2 })
+  })
   it('loads canonical geometry and the one safely aligned blueprint with metadata and summary', async () => {
     const view = render(<LayoutEditorPage projectId={15} projectFloorId={2} session={{ user: { role: 'DESIGNER' } }} />)
     expect(screen.getByRole('status').textContent).toMatch(/Loading/)
