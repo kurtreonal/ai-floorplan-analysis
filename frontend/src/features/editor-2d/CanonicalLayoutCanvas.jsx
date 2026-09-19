@@ -20,6 +20,7 @@ import {
 
 export function CanonicalLayoutCanvas({
   geometry,
+  routeSegments = [],
   blueprintImage,
   visibility,
   selectedSymbolId = null,
@@ -153,6 +154,9 @@ export function CanonicalLayoutCanvas({
           </Layer>
 
           <Layer name="routes" visible={visibility.routes} listening={false}>
+            {routeSegments.map((segment, index) => <Line key={`generated-${index}`}
+              points={metricPointsToPixels([segment.start, segment.end], coordinateSystem)}
+              stroke="#00897b" strokeWidth={Math.max(3 / stage.scale, 1)} />)}
             {geometry.routes.map((route) => (
               <Line
                 key={route.id}

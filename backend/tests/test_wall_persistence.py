@@ -338,6 +338,7 @@ class WallPersistenceTests(unittest.TestCase):
             set(self.inspector.get_table_names()),
             {
                 "dataset_approver_assignments",
+                "generated_route_versions",
                 "roles",
                 "users",
                 "projects",
@@ -621,7 +622,7 @@ class WallPersistenceTests(unittest.TestCase):
             for method in methods
             if method.casefold() in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 37)
+        self.assertEqual(operations, 39)
 
 
 if __name__ == "__main__":

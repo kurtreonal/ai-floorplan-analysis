@@ -85,7 +85,7 @@ class CanonicalExtensionTests(unittest.TestCase):
         self.unsupported_payload = json.loads(UNSUPPORTED_PATH.read_text(encoding="utf-8"))
 
     def test_database_table_count_includes_u14_release_control(self):
-        self.assertEqual(len(Base.metadata.tables), 27)
+        self.assertEqual(len(Base.metadata.tables), 28)
 
     def test_accepts_representative_v2_fixture(self):
         extension = canonical_extension_from_dict(self.ext_v2_payload, self.base_doc)

@@ -748,6 +748,7 @@ class ProjectCreationTests(unittest.TestCase):
             project_paths,
             {
                 "/api/projects": {"get", "post"},
+                "/api/projects/{project_id}/routes": {"get", "post"},
                 "/api/projects/{project_id}": {"get"},
                 "/api/projects/{project_id}/floor-plans": {"get", "post"},
                 "/api/projects/{project_id}/floors": {"get", "post"},

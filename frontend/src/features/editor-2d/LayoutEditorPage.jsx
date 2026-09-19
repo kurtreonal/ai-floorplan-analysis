@@ -10,6 +10,8 @@ import { LayoutSymbolEditor } from './LayoutSymbolEditor.jsx'
 import { resolveBlueprintProvenance } from './layoutCanvasGeometry.js'
 import { LAYOUT_LAYER_LABELS } from './layoutLayers.js'
 import './layoutEditor.css'
+import { useSavedRoute } from '../routing/useSavedRoute.js'
+import { projectRoute } from '../routing/routeProjection.js'
 
 const INITIAL_VISIBILITY = Object.freeze({
   blueprint: true, walls: true, rooms: true, symbols: true, routes: true,
@@ -61,6 +63,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
     image: null, blueprintWarning: null, error: null,
   })
   const [visibility, setVisibility] = useState({ ...INITIAL_VISIBILITY })
+  const [route] = useSavedRoute(projectId, state.serverLayout?.id)
   const [selectedSymbolId, setSelectedSymbolId] = useState(null)
   const [saveState, setSaveState] = useState(INITIAL_SAVE_STATE)
   const [announcement, setAnnouncement] = useState('All canonical layout layers are visible.')
@@ -279,6 +282,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
         <div><dt>Elevation</dt><dd>{geometry.floor.elevation_meters} m</dd></div>
         <div><dt>Source floor-plan ID</dt><dd>{serverLayout.floor_plan_id}</dd></div>
       </dl>
+      {route && <p>Generated route version {route.version_number}: {route.result.total_meters.toFixed(3)} m (backend total). {route.stale || dirty ? 'Layout changed — route overlay hidden until saved and recalculated.' : 'Saved route overlay shown.'}</p>}
 
       {state.blueprintWarning && <p className="layout-blueprint-warning" role="status">{state.blueprintWarning}</p>}
 
@@ -301,6 +305,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
       <p className="sr-only" aria-live="polite">{announcement}</p>
 
       <CanonicalLayoutCanvas
+        routeSegments={dirty ? [] : projectRoute(route, serverLayout)}
         geometry={geometry}
         blueprintImage={state.image}
         visibility={visibility}

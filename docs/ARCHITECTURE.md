@@ -11,6 +11,14 @@
 
 ## 1. Current implementation boundary
 
+September 19 M1-M7 update: `app/routing` owns bounded graph generation, A*,
+explicit service/wall/riser segments and measurements. The routing service pins
+canonical snapshots and rechecks them under floor locks; the repository stores
+append-only `generated_route_versions`. Two authenticated project routes expose
+generation and latest retrieval (39 total operations, 28 tables). React/Konva
+and Three.js share persisted segments and backend measurements. Single-floor
+controls are in the 3D workspace; multi-floor configuration is API-supported.
+
 September 19 L2-L5 update: `canonicalScene.js` projects the saved K1 base into
 floor/room surfaces, stored verified wall meshes and reviewed symbol markers.
 `Viewer3DPage` reloads the same current-layout endpoint as `LayoutEditorPage`,

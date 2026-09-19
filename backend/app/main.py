@@ -18,6 +18,7 @@ from app.api.routes.demo_interpretation import router as demo_interpretation_rou
 from app.api.routes.floor_plans import router as floor_plans_router
 from app.api.routes.health import router as health_router
 from app.api.routes.layouts import router as layouts_router
+from app.api.routes.routing import router as routing_router
 from app.api.routes.manual_symbols import router as manual_symbols_router
 from app.api.routes.processing import router as processing_router
 from app.api.routes.project_floors import router as project_floors_router
@@ -114,6 +115,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(projects_router)
     application.include_router(project_floors_router)
     application.include_router(layouts_router)
+    application.include_router(routing_router)
     application.include_router(floor_plans_router)
     application.include_router(processing_router)
     application.include_router(detections_router)

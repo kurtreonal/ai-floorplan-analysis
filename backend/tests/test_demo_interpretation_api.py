@@ -305,7 +305,7 @@ class DemoInterpretationApiTests(unittest.TestCase):
         }
 
     def test_schema_and_openapi_include_append_only_demo_contract(self):
-        self.assertEqual(len(Base.metadata.tables), 27)
+        self.assertEqual(len(Base.metadata.tables), 28)
         self.assertEqual(set(inspect(self.engine).get_table_names()), set(Base.metadata.tables))
         schema = self.client.app.openapi()
         self.assertIn("get", schema["paths"]["/api/floor-plans/{floor_plan_id}/interpretation"])
@@ -315,7 +315,7 @@ class DemoInterpretationApiTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 37)
+        self.assertEqual(operations, 39)
 
     def test_owner_retrieves_candidate_but_other_designer_cannot(self):
         self._login()

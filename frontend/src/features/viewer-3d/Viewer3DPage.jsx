@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchCurrentLayout } from '../../api/layouts.js'
 import { buildCanonicalScene } from './canonicalScene.js'
+import { useSavedRoute } from '../routing/useSavedRoute.js'
+import { projectRoute } from '../routing/routeProjection.js'
+import { RoutingPanel } from '../routing/RoutingPanel.jsx'
 
 import { getLayoutHref, getProjectHref } from '../../routes/projectRoutes.js'
 import { Viewer3DCanvas } from './Viewer3DCanvas.jsx'
@@ -17,6 +20,7 @@ function SavedViewer({ projectId, projectFloorId }) {
   const [controlsReady, setControlsReady] = useState(false)
   const [canvasAttempt, setCanvasAttempt] = useState(0)
   const [layoutState, setLayoutState] = useState({ status: 'loading' })
+  const [route, setRoute] = useSavedRoute(projectId, layoutState.layout?.id)
   useEffect(() => {
     const controller = new AbortController()
     fetchCurrentLayout(projectId, projectFloorId, { signal: controller.signal }).then((layout) => {
@@ -92,8 +96,9 @@ function SavedViewer({ projectId, projectFloorId }) {
         projectId={projectId}
         title="3D canvas unavailable"
       >
-        <Viewer3DCanvas scene={layoutState.scene} controlsRef={controlsRef} onControlsReady={handleControlsReady} />
+        <Viewer3DCanvas scene={layoutState.scene} routeSegments={projectRoute(route, layoutState.layout)} controlsRef={controlsRef} onControlsReady={handleControlsReady} />
       </Viewer3DErrorBoundary>}
+      {layoutState.status === 'ready' && <RoutingPanel key={layoutState.layout.id} layout={layoutState.layout} record={route} onSaved={setRoute} />}
 
       <section className="viewer-3d-help" aria-labelledby="viewer-3d-help-title">
         <h2 id="viewer-3d-help-title">Camera controls</h2>
