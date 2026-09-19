@@ -158,7 +158,7 @@ class ProcessingExecutionTests(unittest.TestCase):
 
     def test_schema_and_openapi_contract(self) -> None:
         inspector = inspect(self.engine)
-        self.assertEqual(len(Base.metadata.tables), 28)
+        self.assertEqual(len(Base.metadata.tables), 29)
         self.assertEqual(set(inspector.get_table_names()), set(Base.metadata.tables))
         self.assertEqual(
             {item["name"] for item in inspector.get_unique_constraints("processing_job_attempts")},

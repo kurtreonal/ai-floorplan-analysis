@@ -353,6 +353,7 @@ class WallPersistenceTests(unittest.TestCase):
                 "layout_versions",
                 "layout_save_requests",
                 "manual_symbols",
+                "materials",
                 "processing_jobs",
                 "processing_job_attempts",
                 "processing_job_cancellations",

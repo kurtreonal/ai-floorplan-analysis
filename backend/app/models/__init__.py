@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.material import Material
 from app.models.generated_route import GeneratedRouteVersion
 from app.models.analysis_settings import FloorElevationSetting, PageScaleSetting
 from app.models.detection_class_correction import DetectionClassCorrection
@@ -30,6 +31,7 @@ from app.models.wall import Wall
 
 __all__ = (
     "Base",
+    "Material",
     "FloorElevationSetting",
     "PageScaleSetting",
     "DetectionClassCorrection",
