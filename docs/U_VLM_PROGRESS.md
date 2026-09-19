@@ -6,6 +6,21 @@ to a trained or released model.
 
 ## Resume index
 
+### September 20 material quantification checkpoints
+
+- Scope: finish N2–N4, then stop before Epic O, per user instruction.
+- N1: catalog implementation committed as `c2a5407`; prior isolated full run:
+  947 passed, 4 skipped, 509 subtests. Development database initialization remains pending.
+- N2: append-only `material_prices` revisions retain currency, unit, actor,
+  effective UTC time, and exact decimal prices. Material-row locking serializes
+  revisions; identical retries do not append. No official values were seeded.
+  Focused: 8 passed. Isolated full backend: 955 passed, 4 skipped, 509 subtests,
+  two existing dependency deprecations. Schema: 30 tables; no API additions.
+  Estimate-price isolation is structural only until O1 introduces estimates;
+  no claim of a tested historical estimate workflow. P2 owns the future API.
+- Existing documentation compression, saved-route fix, and recovery stash are
+  preserved separately. No source drawings or development records were changed.
+
 ### September 19 authorized M-series implementation
 
 - User authorized M1-M7 and deployment, with focused checks and manual visual

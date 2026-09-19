@@ -56,6 +56,7 @@ TABLES = (
     "layout_save_requests",
     "layout_versions",
     "manual_symbols",
+    "material_prices",
     "materials",
     "page_scale_settings",
     "processing_artifacts",
