@@ -20,6 +20,11 @@ to a trained or released model.
   no claim of a tested historical estimate workflow. P2 owns the future API.
 - Existing documentation compression, saved-route fix, and recovery stash are
   preserved separately. No source drawings or development records were changed.
+- N3: quantity service consumes validated saved canonical symbols, retains
+  snapshot identity and stable symbol IDs, and rejects duplicate identities.
+  Corrections use the canonical class; rejected/unreviewed input cannot enter
+  quantities. Focused/canonical/manual regression: 54 passed; focused plus
+  persisted-layout ownership tests: 9 passed. No new table or API. N4 is next.
 
 ### September 19 authorized M-series implementation
 

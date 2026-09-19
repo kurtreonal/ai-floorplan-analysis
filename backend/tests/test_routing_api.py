@@ -91,3 +91,19 @@ def test_access_control_and_target_tampering(context):
     assert client.post(url, json=payload).status_code == 404
     app.dependency_overrides[get_current_user] = lambda: admin
     assert client.post(url, json=payload).status_code == 403
+
+
+def test_component_quantities_pin_saved_layout_and_enforce_access(context):
+    from app.services.material_quantity_service import retrieve_component_quantities
+    from app.services.layout_service import LayoutServiceError
+
+    _, _, _, session, snapshot, app, other, _ = context
+    owner = app.dependency_overrides[get_current_user]()
+    quantities = retrieve_component_quantities(session, current_user=owner,
+        project_id=snapshot.project_id, project_floor_id=snapshot.project_floor_id)
+    assert quantities.layout_version_id == snapshot.id
+    assert quantities.version_number == snapshot.version_number
+    assert sum(row.quantity for row in quantities.components) == 2
+    with pytest.raises(LayoutServiceError):
+        retrieve_component_quantities(session, current_user=other,
+            project_id=snapshot.project_id, project_floor_id=snapshot.project_floor_id)
