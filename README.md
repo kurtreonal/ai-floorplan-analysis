@@ -4,7 +4,14 @@ AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material
 
 ## Development Status
 
-**Application roadmap implemented through L1; the PRE0-PRE12 readiness gate passes.**
+**Application roadmap implemented through L5; the PRE0-PRE12 readiness gate passes.**
+
+L2-L5 (2026-09-19) render saved metric floor/room geometry, verified walls and
+confirmed/manual symbol markers. Open the floor's 3D viewer, use **Compare saved
+2D layout**, save edits, then **Reload saved layout** in 3D. Both views read the
+same versioned canonical snapshot. U11 extended snapshots are read-only in the
+base editor; use interpretation review to preserve their extra data. This does
+not complete routing, costing, model-quality acceptance or a hosted backend.
 
 The current backend surface contains 34 OpenAPI operations.
 
@@ -342,8 +349,8 @@ For larger or risky tickets, first ask Codex for an inspection-only plan before 
 Tickets A1–A4, B1–B5, C1–C6, D1–D4, E1–E4, the E3A project-floor
 prerequisite, F1–F4, G1–G3, H1–H3, I1–I4, J1, and the J1A review-image
 prerequisite, J2, J3, the J3A approved-symbol-legend prerequisite, J4, J5, and
-K1, K2, K3, K4, K5, and L1 are implemented. L2 and all later tickets remain
-unimplemented.
+K1, K2, K3, K4, K5, and L1-L5 are implemented. M-series and later application
+epics remain unimplemented.
 
 PRE0 is complete: the maintained migration documentation and privacy-focused
 Git ignore baseline are published, and PRE1 floor-plan plus PRE2 bounded
@@ -356,8 +363,9 @@ compatibility decision are complete. PRE12's readiness gate passes and is
 published in `docs/PRE_VLM_READINESS_REPORT.md`. U1 requirements measurement is
 complete and published in `docs/U1_HARDWARE_PRIVACY_BASELINE.md`. U2 implements
 the strict advisory candidate contract without selecting or running a model.
-No model work has started. L2 and later product tickets are
-paused unless the user explicitly chooses to resume them.
+For subsequent U implementation and pending real-data/model gates, see
+`docs/U_VLM_PROGRESS.md`. L2-L5 were authorized and completed on 2026-09-19;
+later application epics remain outside that authorization.
 
 ---
 
@@ -593,8 +601,9 @@ The folders that do not exist yet should be created by the appropriate developme
   production deployment.
 - L1 introduced the empty viewer foundation. DEMO-3 now reads the saved K1
   layout and renders floor/room surfaces, verified walls and symbol markers.
-  Reload retrieves later saved 2D edits. Openings, full L2-L5 completion and
-  production reconstruction quality remain outside this bounded demo.
+  L2-L5 now complete saved base-geometry rendering and explicit reload with
+  tested coordinate mapping. Openings and production reconstruction quality
+  remain outside this viewer's scope.
 - The Konva 2D layout can reposition canonical symbols only. Other canonical
   geometry remains read-only.
   `project_floors` has no elevation column; PRE6 persists reviewed elevation

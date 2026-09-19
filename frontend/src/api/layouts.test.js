@@ -24,6 +24,7 @@ describe('current layout API', () => {
     const result = await fetchCurrentLayout(15, 2)
     expect(result.geometry).toEqual(fixture)
     expect(result.geometry).not.toHaveProperty('openings')
+    expect(result.hasExtension).toBe(extension !== null)
   })
   it('uses the exact credentialed GET URL, abort signal, and immutable K1 normalization', async () => {
     const signal = new AbortController().signal

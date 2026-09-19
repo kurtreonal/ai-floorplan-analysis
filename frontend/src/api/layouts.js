@@ -73,6 +73,7 @@ function validateResponse(payload, projectId, projectFloorId, message = LOAD_ERR
     is_current: true,
     created_at: payload.created_at,
     geometry,
+    hasExtension: payload.extension != null,
   })
 }
 

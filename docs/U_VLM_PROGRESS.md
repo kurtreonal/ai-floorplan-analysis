@@ -6,6 +6,32 @@ to a trained or released model.
 
 ## Resume index
 
+### September 19 authorized L-series implementation
+
+- User authorized L1 through the last L ticket (L5), including deployment;
+  this supersedes the prior U-only restriction for these tickets only. L1 was
+  preserved. M-series routing and later epics were not started.
+- L2 published: `9077768`, merge `805e8ed`; metric floor/room mapping, 2D
+  comparison link and additive U11 response compatibility. Viewer suite 13
+  PASS; API/coordinate suite 24 PASS; post-merge coordinate suite 6 PASS.
+- L3 published: `beed24f`, merge `c8f1279`; stored reviewed wall dimensions,
+  omitted-wall disclosure, endpoint alignment. Focused/post-merge 11 PASS.
+- L4 published: `6efc410`, merge `c645565`; confirmed/manual marker class and
+  review identity, exclusion of invalid review states. Focused/post-merge 16 PASS.
+- L5 implementation: explicit reload, stale-scene clearing, floor-request
+  fencing, saved-only 2D comparison navigation. U11 extended snapshots remain
+  read-only in the base editor to prevent extension loss; interpretation review
+  owns their edits. Additional extension entities are not rendered here.
+- Verification: focused viewer/editor/API 69 PASS; full frontend 347 tests in
+  39 files PASS; lint, build and diff PASS. Existing large-chunk warning remains.
+  Backend tests NOT RUN (no backend change). Local frontend/health HTTP 200.
+  Browser visual acceptance is left for user testing, not claimed automated.
+- API/schema/table counts unchanged (not recounted); no database writes or
+  original/source changes. Recovery stash preserved. Existing planning files
+  updated; no new Markdown. U real-data/training/activation/release gates remain
+  pending. Vercel confirmed L4 frontend deployment success; final L5 publication
+  and deployment status will be recorded after merge.
+
 ### September 14 post-U14 automatic worker startup correction
 
 - FastAPI development lifespan now starts the durable U13 interpretation worker

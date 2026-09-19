@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchCurrentLayout, LayoutApiError, saveCurrentLayout } from '../../api/layouts.js'
 import { fetchReviewImage } from '../../api/reviewImages.js'
 import { canonicalGeometriesEqual, moveCanonicalSymbol } from '../../geometry/canonicalGeometry.js'
-import { getProjectHref } from '../../routes/projectRoutes.js'
+import { getProjectHref, getViewer3dHref } from '../../routes/projectRoutes.js'
 import { CanonicalLayoutCanvas } from './CanonicalLayoutCanvas.jsx'
 import { LayoutLayerControls } from './LayoutLayerControls.jsx'
 import { LayoutSymbolEditor } from './LayoutSymbolEditor.jsx'
@@ -148,7 +148,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
   }
 
   function moveSymbol(symbolId, position) {
-    if (state.status !== 'ready') return
+    if (state.status !== 'ready' || state.serverLayout.hasExtension) return
     try {
       replaceDraft(moveCanonicalSymbol(state.draft, symbolId, position))
     } catch {
@@ -194,6 +194,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
   }
 
   async function saveLayout() {
+    if (state.serverLayout?.hasExtension) return
     if (saveState.status === 'uncertain') {
       await reconcileUncertainSave()
       return
@@ -248,7 +249,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
   const { serverLayout, draft: geometry } = state
   const dirty = !canonicalGeometriesEqual(serverLayout.geometry, geometry)
   const roleAllowsEditing = session?.user?.role === 'DESIGNER'
-  const canEdit = roleAllowsEditing && saveState.status !== 'access-lost'
+  const canEdit = roleAllowsEditing && saveState.status !== 'access-lost' && !serverLayout.hasExtension
   const busy = ['saving', 'reconciling'].includes(saveState.status)
   const editBlocked = busy || ['uncertain', 'conflict'].includes(saveState.status)
   const saveDisabled = !canEdit || !dirty || busy || saveState.status === 'conflict'
@@ -260,6 +261,9 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
   return (
     <article className="layout-editor-page" aria-labelledby="layout-page-title">
       <a className="layout-back-link" href={getProjectHref(projectId)}>← Back to project</a>
+      {!dirty && !busy && <a href={getViewer3dHref(projectId, projectFloorId)}>View saved layout in 3D</a>}
+      {dirty && <p role="note">Save or discard your position changes before comparing the saved 3D layout.</p>}
+      {serverLayout.hasExtension && <p role="note">This layout includes reviewed extension data. Use its interpretation review workspace to edit it; this base-layout editor is read-only to preserve that data.</p>}
       <header className="layout-page-header">
         <div>
           <span className="project-kicker mono">CURRENT CANONICAL LAYOUT · VERSION {serverLayout.version_number}</span>
