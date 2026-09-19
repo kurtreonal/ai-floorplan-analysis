@@ -2,6 +2,16 @@ import pytest
 from pydantic import ValidationError
 
 from app.routing.contracts import RoutingRequest
+import json
+from pathlib import Path
+from app.geometry import canonical_geometry_from_dict
+from app.routing.graph import floor_graph, RoutingError
+
+
+def document():
+    data = json.loads((Path(__file__).resolve().parents[2] / 'fixtures/canonical_geometry_v1.json').read_text())
+    data['walls'] = []
+    return canonical_geometry_from_dict(data)
 
 
 def request_data():
@@ -27,3 +37,25 @@ def test_contract_rejects_duplicate_and_unknown_floor_references():
         RoutingRequest.model_validate({**data, "floors": data["floors"] * 2})
     with pytest.raises(ValidationError):
         RoutingRequest.model_validate({**data, "target": {**data["target"], "floor_id": 9}})
+
+
+def test_graph_preserves_exact_anchors_and_is_deterministic():
+    config = RoutingRequest.model_validate(request_data()).floors[0]
+    graph = floor_graph(document(), config, [(0.17, 0.21)], 1)
+    assert (0.17, 0.21) in graph
+    assert graph == floor_graph(document(), config, [(0.17, 0.21)], 1)
+    assert all(a[0] == b[0] or a[1] == b[1] for a, edges in graph.items() for b, _ in edges)
+
+
+def test_graph_blocks_thin_obstacle_between_grid_nodes():
+    from app.routing.contracts import Obstacle
+    config = RoutingRequest.model_validate(request_data()).floors[0]
+    obstacle = Obstacle(floor_id=2, min_x=0.4, max_x=0.6, min_y=-1, max_y=6, bottom=0, top=4)
+    graph = floor_graph(document(), config, [], 1, [obstacle])
+    assert not any(a[0] < .4 and b[0] > .6 for a, edges in graph.items() for b, _ in edges)
+
+
+def test_graph_rejects_unbounded_work():
+    config = RoutingRequest.model_validate(request_data()).floors[0]
+    with pytest.raises(RoutingError, match='RESOURCE_LIMIT'):
+        floor_graph(document(), config, [], 0.001)

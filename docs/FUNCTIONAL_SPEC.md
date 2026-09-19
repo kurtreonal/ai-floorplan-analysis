@@ -3794,6 +3794,11 @@ approval are inferred. Contract tests: 2 PASS (2026-09-19).
 
 ### TICKET M2 — Build Navigable Routing Graph
 
+Implementation checkpoint: bounded orthogonal graph in `app/routing/graph.py`,
+exact endpoint anchors, deterministic adjacency, conservative wall bounds and
+closed-segment obstacle checks. Missing wall review and resource limits fail
+closed. Cumulative routing tests: 5 PASS (2026-09-19).
+
 **Goal:** Convert building geometry into an A*-compatible graph.
 
 **Dependencies:** M1, H3.
