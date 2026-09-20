@@ -343,7 +343,7 @@ class LayoutApiTests(unittest.TestCase):
         self.assertFalse(
             any("history" in path or "current" in path for path in schema["paths"])
         )
-        self.assertEqual(len(Base.metadata.tables), 30)
+        self.assertEqual(len(Base.metadata.tables), 32)
         self.assertEqual(
             set(inspect(self.engine).get_table_names()), set(Base.metadata.tables)
         )

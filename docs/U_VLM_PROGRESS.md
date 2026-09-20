@@ -6,6 +6,32 @@ to a trained or released model.
 
 ## Resume index
 
+### September 20 O1 estimate snapshot schema
+
+- Scope: O1 only; stop before O2. Branch: `codex/o1-estimate-schema`, based on
+  the published N-series checkpoint `464c7bf`; main remains unchanged.
+- Added `Estimate` and `EstimateItem` models, registration, and isolated MySQL
+  regression coverage. Estimate items capture material labels, quantity, unit,
+  unit price, and line total independently of later catalog/price revisions.
+  Headers retain project/version, actor, currency, total, and creation time.
+- Focused verification: 9 passed (`test_estimate_schema.py` and
+  `test_material_prices.py`). Initial test expected IntegrityError for every
+  constraint; MariaDB reports CHECK violations as OperationalError 4025.
+  Assertion now checks the expected constraint/duplicate/FK error codes.
+- Development schema: created only the four missing prerequisite/O1 tables
+  (`materials`, `material_prices`, `estimates`, `estimate_items`) with checkfirst.
+  No development test rows were inserted and no existing tables were altered.
+  Schema now has 32 tables. This resolves the earlier N1/N2 initialization gate.
+- Price-change isolation now has an actual persisted-estimate test, resolving
+  the N2 historical-price gate. Generation, rounding policy, layout/route source
+  capture, API, and UI remain O2+ work; no completed estimate workflow is claimed.
+- Existing documentation and frontend edits plus the recovery stash remain
+  separate. Functional-spec updates preserve the pre-existing uncommitted diff.
+- Final O1 verification: isolated full backend 971 passed, 4 skipped, 509
+  subtests; two existing dependency deprecations. Compilation and diff checks
+  passed. OpenAPI unchanged at 39 operations; frontend/browser checks not run
+  for this schema-only ticket. O1 acceptance passes; stop before O2.
+
 ### September 20 material quantification checkpoints
 
 - Scope: finish N2–N4, then stop before Epic O, per user instruction.

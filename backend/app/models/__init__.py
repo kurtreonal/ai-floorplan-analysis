@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.estimate import Estimate, EstimateItem
 from app.models.material import Material
 from app.models.material_price import MaterialPrice
 from app.models.generated_route import GeneratedRouteVersion
@@ -32,6 +33,8 @@ from app.models.wall import Wall
 
 __all__ = (
     "Base",
+    "Estimate",
+    "EstimateItem",
     "Material",
     "MaterialPrice",
     "FloorElevationSetting",

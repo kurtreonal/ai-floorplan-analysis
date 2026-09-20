@@ -44,6 +44,8 @@ TABLES = (
     "detected_symbols",
     "detection_class_corrections",
     "detection_reviews",
+    "estimate_items",
+    "estimates",
     "floor_elevation_settings",
     "floor_plan_interpretation_reviews",
     "floor_plan_interpretation_runs",
