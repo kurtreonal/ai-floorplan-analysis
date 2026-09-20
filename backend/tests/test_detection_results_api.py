@@ -45,6 +45,7 @@ TABLES = (
     "detection_class_corrections",
     "detection_reviews",
     "estimate_items",
+    "estimate_sources",
     "estimates",
     "floor_elevation_settings",
     "floor_plan_interpretation_reviews",

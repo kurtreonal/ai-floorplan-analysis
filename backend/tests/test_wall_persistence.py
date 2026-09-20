@@ -355,6 +355,7 @@ class WallPersistenceTests(unittest.TestCase):
                 "manual_symbols",
                 "materials",
                 "estimate_items",
+                "estimate_sources",
                 "estimates",
                 "material_prices",
                 "processing_jobs",

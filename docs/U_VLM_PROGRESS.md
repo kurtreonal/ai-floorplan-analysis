@@ -6,6 +6,24 @@ to a trained or released model.
 
 ## Resume index
 
+### September 20 O2–O4 continuation
+
+- Authorized scope: finish Epic O, then stop. Branch `codex/o2-o4-estimates`
+  starts from O1 `4fc1202`; prior unrelated edits and recovery stash remain separate.
+- O2: explicit class/material mappings and conductor counts; server quantities,
+  database prices, exact stored line totals, single-currency validation, and
+  atomic versioned saves. `estimate_sources` retains mapping/route/layout/price
+  provenance and idempotent request identity. Quantity storage rounds to four
+  decimals HALF_UP; monetary products retain eight decimals, with no added
+  engineering allowances or taxes. Scope is route floors plus one saved route,
+  not an automatically complete building takeoff.
+- O2 focused/regression: 30 passed; full isolated backend: 979 passed, 4 skipped,
+  509 subtests, two existing deprecation warnings. Initial test-fixture DDL ran
+  inside a transaction and committed synthetic setup; corrected to separate
+  schema setup before the transaction. Only the identified synthetic project
+  and its related records were removed from the verification database. Subsequent
+  isolation preflight confirms empty non-role data tables; development data untouched.
+
 ### September 20 O1 estimate snapshot schema
 
 - Scope: O1 only; stop before O2. Branch: `codex/o1-estimate-schema`, based on

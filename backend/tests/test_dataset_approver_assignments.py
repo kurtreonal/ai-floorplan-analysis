@@ -123,7 +123,7 @@ class DatasetApproverAssignmentTests(unittest.TestCase):
 
     def test_schema_and_openapi_contract(self) -> None:
         inspector = inspect(self.engine)
-        self.assertEqual(len(Base.metadata.tables), 32)
+        self.assertEqual(len(Base.metadata.tables), 33)
         self.assertEqual(set(inspector.get_table_names()), set(Base.metadata.tables))
         self.assertEqual(
             [column["name"] for column in inspector.get_columns("dataset_approver_assignments")],
