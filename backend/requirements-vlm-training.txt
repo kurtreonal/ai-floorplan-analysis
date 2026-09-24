@@ -1,0 +1,8 @@
+# Separate native-Windows Python 3.11 environment, never the API environment.
+# Install torch==2.6.0 from https://download.pytorch.org/whl/cpu first.
+torch==2.6.0
+transformers==4.57.6
+peft==0.18.1
+accelerate==1.12.0
+Pillow==11.3.0
+psutil==7.2.2
