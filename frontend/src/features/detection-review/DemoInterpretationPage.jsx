@@ -398,7 +398,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       <p role="note">
         Walls are traced from thick structural boundaries and partitions. Thin grids, wiring, troffers, and dimensions are rejected. Verify or draw walls in 2D before 3D preview.
       </p>
-      {experimental && <p role="note">Experimental Pull station template proposals only (two Group 7 source templates, native scale). Orange review overlays are unconfirmed; match similarity is not calibrated confidence. Inspect the original image, then accept, correct, reject, or add symbols. Map accepted symbols to an approved VED legend. Other classes remain unresolved.</p>}
+      {experimental && <p role="note">Experimental Pull station template proposals only (two Group 7 source templates; page scale selected from 1.0/1.2 using interior matches). The second page was used for tuning, not held-out evaluation. Orange review overlays are unconfirmed; match similarity is not calibrated confidence. Inspect the original image, then accept, correct, reject, or add symbols. Map accepted symbols to an approved VED legend. Other classes remain unresolved.</p>}
       {truncated.length > 0 && <p className="detection-limit-warning" role="alert">Bounded proposal cap reached for: {truncated.join(', ')}. Add missing geometry manually where needed.</p>}
       {state.legends.length === 0 && <details><summary>Do I need a symbol legend?</summary><p>Not for wall review or 3D preview. Electrical-symbol approval requires an approved VED legend.</p></details>}
 

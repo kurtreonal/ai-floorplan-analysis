@@ -30,6 +30,8 @@ TEMPLATES = (
     ("0fa577e32ac65b7d915452e0", (1986, 1895, 2014, 1924)),
 )
 THRESHOLD = 0.60
+SCALES = (1.0, 1.2)  # Cross-page adjustment; sheet-19 is development data.
+SCALE_SELECTION_INTERIOR_MARGIN = 0.09
 PEAK_WINDOW = 9
 NMS_CENTER_PIXELS = 14
 NMS_IOU = 0.30
@@ -40,8 +42,9 @@ LOCAL_SOURCE = REPOSITORY_ROOT / "models/vlm/pull-station-template-v1/source-she
 def configuration_sha256() -> str:
     values = {"provider": PROVIDER, "source_sha256": SOURCE_SHA256,
               "templates": TEMPLATES, "threshold": THRESHOLD,
+              "scales": SCALES, "scale_selection_interior_margin": SCALE_SELECTION_INTERIOR_MARGIN,
               "peak_window": PEAK_WINDOW, "nms_center": NMS_CENTER_PIXELS,
-              "nms_iou": NMS_IOU, "search": "full_image_native_pixels"}
+              "nms_iou": NMS_IOU, "search": "full_image_scale_selected_by_interior_consensus"}
     return sha256(json.dumps(values, sort_keys=True).encode("utf-8")).hexdigest()
 
 
@@ -74,6 +77,13 @@ def _center_distance(a, b) -> float:
             + ((a[1] + a[3] - b[1] - b[3]) / 2) ** 2) ** 0.5
 
 
+def _interior_count(candidates, width: int) -> int:
+    """Use interior matches to choose scale, but still return edge proposals."""
+    margin = width * SCALE_SELECTION_INTERIOR_MARGIN
+    return sum(margin <= (item["bbox"][0] + item["bbox"][2]) / 2 <= width - margin
+               for item in candidates)
+
+
 def locate(rgb: np.ndarray, template_source_path: Path) -> tuple[dict, ...]:
     """Return full-image, native-pixel matches with immutable template IDs."""
     source_digest(template_source_path)
@@ -85,27 +95,34 @@ def locate(rgb: np.ndarray, template_source_path: Path) -> tuple[dict, ...]:
     if template_page is None or template_page.shape != (3264, 2164):
         raise ExperimentalLocatorUnavailable("EXPERIMENTAL_TEMPLATE_INVALID")
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-    candidates = []
-    for template_id, (x0, y0, x1, y1) in TEMPLATES:
-        patch = template_page[y0:y1, x0:x1]
-        if patch.std() < 3 or gray.shape[0] < patch.shape[0] or gray.shape[1] < patch.shape[1]:
-            raise ExperimentalLocatorUnavailable("EXPERIMENTAL_TEMPLATE_INVALID")
-        response = cv2.matchTemplate(gray, patch, cv2.TM_CCOEFF_NORMED)
-        peaks = (response >= THRESHOLD) & (response == cv2.dilate(response, np.ones((PEAK_WINDOW, PEAK_WINDOW), np.uint8)))
-        ys, xs = np.where(peaks)
-        if len(xs) > 1000:
+    candidates_by_scale = []
+    for scale in SCALES:
+        candidates = []
+        for template_id, (x0, y0, x1, y1) in TEMPLATES:
+            patch = template_page[y0:y1, x0:x1]
+            if scale != 1.0:
+                patch = cv2.resize(patch, None, fx=scale, fy=scale)
+            if patch.std() < 3 or gray.shape[0] < patch.shape[0] or gray.shape[1] < patch.shape[1]:
+                raise ExperimentalLocatorUnavailable("EXPERIMENTAL_TEMPLATE_INVALID")
+            response = cv2.matchTemplate(gray, patch, cv2.TM_CCOEFF_NORMED)
+            peaks = (response >= THRESHOLD) & (response == cv2.dilate(response, np.ones((PEAK_WINDOW, PEAK_WINDOW), np.uint8)))
+            ys, xs = np.where(peaks)
+            if len(xs) > 1000:
+                raise ExperimentalLocatorUnavailable("EXPERIMENTAL_CANDIDATE_CAP")
+            for x, y in zip(xs.tolist(), ys.tolist()):
+                candidates.append({"bbox": (x, y, x + patch.shape[1], y + patch.shape[0]),
+                                   "score": float(response[y, x]), "template_id": template_id,
+                                   "scale": scale})
+        kept = []
+        for candidate in sorted(candidates, key=lambda item: -item["score"]):
+            if not any(_center_distance(candidate["bbox"], previous["bbox"]) < NMS_CENTER_PIXELS
+                       or _iou(candidate["bbox"], previous["bbox"]) > NMS_IOU for previous in kept):
+                kept.append(candidate)
+        if len(kept) > MAX_CANDIDATES:
             raise ExperimentalLocatorUnavailable("EXPERIMENTAL_CANDIDATE_CAP")
-        for x, y in zip(xs.tolist(), ys.tolist()):
-            candidates.append({"bbox": (x, y, x + patch.shape[1], y + patch.shape[0]),
-                               "score": float(response[y, x]), "template_id": template_id})
-    kept = []
-    for candidate in sorted(candidates, key=lambda item: -item["score"]):
-        if not any(_center_distance(candidate["bbox"], previous["bbox"]) < NMS_CENTER_PIXELS
-                   or _iou(candidate["bbox"], previous["bbox"]) > NMS_IOU for previous in kept):
-            kept.append(candidate)
-    if len(kept) > MAX_CANDIDATES:
-        raise ExperimentalLocatorUnavailable("EXPERIMENTAL_CANDIDATE_CAP")
-    return tuple(kept)
+        candidates_by_scale.append(kept)
+    selected = max(candidates_by_scale, key=lambda items: _interior_count(items, gray.shape[1]))
+    return tuple(selected)
 
 
 def with_pull_station_proposals(payload, matches):
@@ -124,12 +141,12 @@ def with_pull_station_proposals(payload, matches):
     warnings = payload.warnings + (
         CandidateWarning(
             code="experimental_pull_station_scope", severity="warning",
-            message="Pull station only; two same-page templates, native scale. Similarity is not calibrated confidence. Verify every proposal and approved legend mapping.",
+            message="Pull station only; two Group 7 templates, 1.0/1.2 page-scale selection from interior matches. Sheet-19 was used for tuning. Similarity is not calibrated confidence. Verify every proposal and approved legend mapping.",
         ),
     ) + tuple(
         CandidateWarning(
             code="template_similarity", severity="info",
-            message=f"{match['template_id']} similarity {match['score']:.4f}; not calibrated confidence.",
+            message=f"{match['template_id']} scale {match['scale']:.1f} similarity {match['score']:.4f}; not calibrated confidence.",
             entity_refs=(f"symbol:symbol-{index:04d}",),
         )
         for index, match in enumerate(matches, start=1)

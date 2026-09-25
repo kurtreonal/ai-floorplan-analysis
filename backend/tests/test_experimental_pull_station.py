@@ -11,7 +11,7 @@ import numpy as np
 from app.ai.floor_plan_interpretation.candidate import FloorPlanInterpretationPayload
 from app.ai.floor_plan_interpretation.demo_cv import interpret_floor_plan_demo
 from app.ai.floor_plan_interpretation.experimental_pull_station import (
-    ExperimentalLocatorUnavailable, SOURCE_SHA256, THRESHOLD, TEMPLATES,
+    ExperimentalLocatorUnavailable, SCALES, SOURCE_SHA256, THRESHOLD, TEMPLATES,
     configuration_sha256, locate, source_digest, with_pull_station_proposals,
 )
 
@@ -20,6 +20,7 @@ class ExperimentalPullStationTests(TestCase):
     def test_frozen_identity_and_threshold(self):
         self.assertEqual(THRESHOLD, 0.60)
         self.assertEqual(len(TEMPLATES), 2)
+        self.assertEqual(SCALES, (1.0, 1.2))
         self.assertEqual(len(configuration_sha256()), 64)
         with TemporaryDirectory() as directory:
             source = Path(directory) / "wrong.jpg"
@@ -54,6 +55,27 @@ class ExperimentalPullStationTests(TestCase):
                             for item in payload.symbols.items))
         self.assertEqual(payload.regions[-1].bounds.width, 200)
         self.assertTrue(any("not calibrated confidence" in warning.message for warning in payload.warnings))
+
+    def test_scaled_interior_consensus_retains_full_page_candidates(self):
+        rng = np.random.default_rng(23)
+        template_page = np.full((3264, 2164), 255, dtype=np.uint8)
+        patch_a = rng.integers(30, 220, size=(28, 28), dtype=np.uint8)
+        patch_b = rng.integers(30, 220, size=(29, 28), dtype=np.uint8)
+        for (_, (x0, y0, x1, y1)), patch_pixels in zip(TEMPLATES, (patch_a, patch_b)):
+            template_page[y0:y1, x0:x1] = patch_pixels
+        scaled = cv2.resize(patch_a, None, fx=1.2, fy=1.2)
+        height, width = scaled.shape
+        target = np.full((220, 220, 3), 255, dtype=np.uint8)
+        for x, y in ((41, 61), (111, 141)):
+            target[y:y + height, x:x + width] = cv2.cvtColor(scaled, cv2.COLOR_GRAY2RGB)
+        original = target.copy()
+        with patch("app.ai.floor_plan_interpretation.experimental_pull_station.source_digest", return_value=SOURCE_SHA256), \
+             patch("app.ai.floor_plan_interpretation.experimental_pull_station.cv2.imread", return_value=template_page):
+            matches = locate(target, Path("synthetic.jpg"))
+        self.assertTrue(all(any(item["bbox"] == (x, y, x + width, y + height)
+                                and item["scale"] == 1.2 for item in matches)
+                            for x, y in ((41, 61), (111, 141))))
+        np.testing.assert_array_equal(target, original)
 
     def test_excludes_unbounded_or_invalid_images(self):
         with patch("app.ai.floor_plan_interpretation.experimental_pull_station.source_digest", return_value=SOURCE_SHA256):
