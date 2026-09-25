@@ -117,6 +117,8 @@ def start_floor_plan_processing(
     current_user: User,
     floor_plan_id: int,
     page_numbers: list[int] | None = None,
+    experimental_pull_station: bool = False,
+    settings=None,
 ) -> ProcessingJob:
     floor_plan = find_owned_floor_plan_for_update(
         database_session,
@@ -125,6 +127,18 @@ def start_floor_plan_processing(
     )
     if floor_plan is None:
         raise FloorPlanNotFoundError
+    if experimental_pull_station:
+        if page_numbers is None or len(page_numbers) != 1:
+            raise PageSelectionError("EXPERIMENTAL_PAGE_SELECTION_REQUIRED")
+        from app.ai.floor_plan_interpretation.experimental_pull_station import (
+            ExperimentalLocatorUnavailable, LOCAL_SOURCE, PROVIDER,
+            configuration_sha256, source_digest,
+        )
+        from app.core.config import get_settings
+        from app.services.interpretation_release_service import current_runtime_release
+        if (settings or get_settings()).app_env != "development" or current_runtime_release(database_session) is not None:
+            raise ExperimentalLocatorUnavailable("EXPERIMENTAL_LOCATOR_DISABLED")
+        source_digest(LOCAL_SOURCE)
 
     active_job = find_active_processing_job(
         database_session,
@@ -145,11 +159,16 @@ def start_floor_plan_processing(
     )
     if pages or page_numbers is not None:
         try:
-            configure_page_outcomes(
+            outcomes = configure_page_outcomes(
                 database_session,
                 processing_job=processing_job,
                 page_numbers=page_numbers,
             )
+            if experimental_pull_station:
+                for outcome in outcomes:
+                    outcome.provider = PROVIDER
+                    outcome.model_release_id = PROVIDER
+                    outcome.configuration_sha256 = configuration_sha256()
         except PageSelectionError:
             raise
     return processing_job

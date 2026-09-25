@@ -530,13 +530,13 @@ export function DemoInterpretationCanvas({
 
           {/* Symbols Layer */}
           <Layer>
-            {layers.symbols && draft.symbols.map((symbol) => (
+            {layers.symbols && draft.symbols.filter((symbol) => symbol.disposition !== 'rejected').map((symbol) => (
               <Circle
                 key={symbol.id}
                 x={symbol.center.x}
                 y={symbol.center.y}
                 radius={10 / stageTransform.scale}
-                fill={symbol.disposition === 'accepted' ? 'rgba(225,76,31,0.28)' : 'rgba(139,47,47,0.12)'}
+                fill={symbol.disposition === 'unresolved' ? 'rgba(245,158,11,0.20)' : 'rgba(225,76,31,0.28)'}
                 stroke={selected?.kind === 'symbol' && selected?.id === symbol.id ? '#2563eb' : '#e14c1f'}
                 strokeWidth={selected?.kind === 'symbol' && selected?.id === symbol.id ? 4 / stageTransform.scale : 2 / stageTransform.scale}
                 onClick={(e) => {

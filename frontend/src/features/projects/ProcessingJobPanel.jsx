@@ -47,6 +47,8 @@ export function ProcessingJobPanel({
   const [viewState, setViewState] = useState(initialJob?.status || 'ready')
   const [job, setJob] = useState(initialJob)
   const [message, setMessage] = useState(null)
+  const [detectorMode, setDetectorMode] = useState('configured')
+  const [pageNumber, setPageNumber] = useState(1)
   const [cancelling, setCancelling] = useState(false)
   const mountedRef = useRef(true)
   const timerRef = useRef(null)
@@ -166,9 +168,12 @@ export function ProcessingJobPanel({
     const controller = new AbortController()
     startControllerRef.current = controller
     try {
-      const startedJob = await startFloorPlanProcessing(floorPlanId, {
-        signal: controller.signal,
-      })
+      const options = { signal: controller.signal }
+      if (detectorMode === 'experimental_pull_station') {
+        options.mode = detectorMode
+        options.pageNumber = Number(pageNumber)
+      }
+      const startedJob = await startFloorPlanProcessing(floorPlanId, options)
       if (mountedRef.current && startControllerRef.current === controller) {
         adoptJob(startedJob.job_id)
       }
@@ -267,6 +272,24 @@ export function ProcessingJobPanel({
         </div>
         {job && <span className="processing-job-id mono">JOB #{job.job_id}</span>}
       </div>
+
+      {canStart && import.meta.env.DEV && !isActive && viewState !== 'starting' && (
+        <div className="processing-detector-selection">
+          <label>Development detector
+            <select value={detectorMode} onChange={(event) => setDetectorMode(event.target.value)}>
+              <option value="configured">Existing configured detector (fallback)</option>
+              <option value="experimental_pull_station">Experimental Pull station template · two Group 7 templates · native scale</option>
+            </select>
+          </label>
+          {detectorMode === 'experimental_pull_station' && <>
+            <label>One-based page to process
+              <input type="number" min="1" max="50" step="1" value={pageNumber}
+                onChange={(event) => setPageNumber(event.target.value)} />
+            </label>
+            <p role="note">Review-only Pull station proposals. Template similarity is not calibrated confidence; other classes remain unresolved. Not a VLM or production detector.</p>
+          </>}
+        </div>
+      )}
 
       {viewState === 'ready' && (
         <>

@@ -104,6 +104,20 @@ describe('processing jobs API client', () => {
     expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('body')
   })
 
+  it('pins the development Pull station locator to one explicit page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({
+      status: 202, payload: { job_id: 32, status: 'queued' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    await startFloorPlanProcessing(42, { mode: 'experimental_pull_station', pageNumber: 2 })
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'http://localhost:8000/api/floor-plans/42/process?experimental_pull_station=true&page_numbers=2',
+    )
+    await expect(startFloorPlanProcessing(42, { mode: 'experimental_pull_station', pageNumber: 0 }))
+      .rejects.toBeInstanceOf(ProcessingJobApiError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('fetches a processing job with credentials and an abort signal', async () => {
     const payload = {
       job_id: 31,

@@ -44,6 +44,7 @@ def floor_plan_png() -> bytes:
 class DemoProcessingWorkerTests(unittest.TestCase):
     process = staticmethod(process_demo_job)
     expected_attempts = 1
+    expected_provider = "demo_cv_baseline"
     assert_page_outcome = False
 
     def test_real_uploaded_pixels_follow_leased_worker_and_immutable_persistence(self):
@@ -119,7 +120,7 @@ class DemoProcessingWorkerTests(unittest.TestCase):
                         worker_identity="demo-worker:test",
                         settings=settings,
                     )
-                    self.assertEqual(run.provider, "demo_cv_baseline")
+                    self.assertEqual(run.provider, self.expected_provider)
                     candidate_json = run.candidate_json
 
                 self.assertEqual(sha256(original.read_bytes()).hexdigest(), original_hash)

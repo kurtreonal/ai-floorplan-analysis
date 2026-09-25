@@ -101,6 +101,20 @@ describe('processing job panel', () => {
     )
   })
 
+  it('offers the scoped development detector and pins one page when selected', async () => {
+    startFloorPlanProcessing.mockResolvedValueOnce({ job_id: JOB_ID, status: 'queued' })
+    renderPanel()
+    fireEvent.change(screen.getByLabelText('Development detector'), {
+      target: { value: 'experimental_pull_station' },
+    })
+    fireEvent.change(screen.getByLabelText('One-based page to process'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Start processing' }))
+    await settle()
+    expect(startFloorPlanProcessing).toHaveBeenCalledWith(FLOOR_PLAN_ID, {
+      signal: expect.any(AbortSignal), mode: 'experimental_pull_station', pageNumber: 2,
+    })
+  })
+
   it('locks repeated starts while the request is pending', async () => {
     let resolveStart
     startFloorPlanProcessing.mockReturnValue(new Promise((resolve) => {

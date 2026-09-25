@@ -15,6 +15,11 @@ from sqlalchemy.orm import Session
 
 from app.ai.floor_plan_interpretation.candidate import CandidateHostProvenance, InferenceParameter, build_candidate_envelope
 from app.ai.floor_plan_interpretation import interpret_floor_plan_demo
+from app.ai.floor_plan_interpretation.experimental_pull_station import (
+    ExperimentalLocatorUnavailable, LOCAL_SOURCE,
+    PROVIDER as EXPERIMENTAL_PROVIDER, THRESHOLD as EXPERIMENTAL_THRESHOLD,
+    locate, with_pull_station_proposals,
+)
 from app.ai.floor_plan_interpretation.preparation import prepare_page_context
 from app.ai.local_model_gateway import (
     GatewayInferenceRequest,
@@ -461,7 +466,8 @@ def process_interpretation_job(
             stage="symbol_evidence",
         )
         run_id = uuid4().hex
-        gateway_configured = _configured_local_gateway(settings)
+        experimental = pinned_configuration.provider == EXPERIMENTAL_PROVIDER
+        gateway_configured = None if experimental else _configured_local_gateway(settings)
         if pinned_configuration.provider == PROVIDER:
             # Tests and unconfigured jobs may explicitly pin the deterministic
             # demo provider; keep that choice stable even if settings change.
@@ -473,6 +479,11 @@ def process_interpretation_job(
                 raise InterpretationProcessingError("MODEL_UNAVAILABLE")
             provider = pinned_configuration.provider
             payload = interpret_floor_plan_demo(rgb)
+            if experimental:
+                try:
+                    payload = with_pull_station_proposals(payload, locate(rgb, LOCAL_SOURCE))
+                except ExperimentalLocatorUnavailable as error:
+                    raise InterpretationProcessingError(str(error)) from None
             candidate = build_candidate_envelope(
                 payload,
                 CandidateHostProvenance(
@@ -486,14 +497,19 @@ def process_interpretation_job(
                     source_artifact_sha256=artifact.record.sha256,
                     expected_width_pixels=artifact.record.pixel_width,
                     expected_height_pixels=artifact.record.pixel_height,
-                    model_release_id=PROVIDER,
-                    base_model_revision=f"opencv-{cv2.__version__}",
+                    model_release_id=provider,
+                    base_model_revision=(f"opencv-template-{cv2.__version__}" if experimental
+                                         else f"opencv-{cv2.__version__}"),
                     adapter_revision=None,
-                    prompt_version="demo-cv-room-v2",
+                    prompt_version="pull-template-v1" if experimental else "demo-cv-room-v2",
                     runtime_version=f"opencv-{cv2.__version__}",
                     inference_parameters=(
-                        InferenceParameter(name="provider", value=PROVIDER),
+                        InferenceParameter(name="provider", value=provider),
                         InferenceParameter(name="review-required", value="true"),
+                        *((
+                            InferenceParameter(name="template-class", value="sheet-20:L05 Pull station"),
+                            InferenceParameter(name="template-score-threshold", value=str(EXPERIMENTAL_THRESHOLD)),
+                        ) if experimental else ()),
                     ),
                     created_at=datetime.now(UTC),
                 ),

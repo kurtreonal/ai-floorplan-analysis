@@ -16,6 +16,20 @@ CLASS_ID = "sheet-20:L05"  # Pull station, exact drawing legend identity.
 SEED_IDS = ("1421451ddf2e1217c0833e17", "0fa577e32ac65b7d915452e0")
 SOURCE_SHA = "8cd5962e233fe1dbbe2de981a6169665720e49fb0b2da81215d7532a4299b1ed"
 PLAN_ROI = (150, 250, 2050, 2500)  # Page-specific plan region; excludes title block.
+FROZEN_CROSS_PAGE_THRESHOLD = 0.60
+FROZEN_TARGET_SHA = "c8501119a41e3686502af24d34c4554d19016802cc9ed28f691beec3b615389b"
+FROZEN_SETTINGS = {
+    "template_source_sha256": SOURCE_SHA,
+    "template_ids": SEED_IDS,
+    "template_boxes_source_pixels": ((1043, 1779, 1071, 1807), (1986, 1895, 2014, 1924)),
+    "preprocessing": "cv2.imread IMREAD_GRAYSCALE, native pixels, no resizing",
+    "search_rule": "full target image; no target-dependent ROI",
+    "matcher": "cv2.TM_CCOEFF_NORMED",
+    "score_threshold": FROZEN_CROSS_PAGE_THRESHOLD,
+    "local_peak_window": (9, 9),
+    "duplicate_suppression": "descending score; suppress center distance <14 px OR IoU >0.3",
+    "positive_match_rule": "center distance <=14 source pixels (IoU >=0.5 reported separately)",
+}
 
 
 def iou(a, b):
@@ -31,27 +45,11 @@ def center_error(a, b):
 
 
 def find_candidates(gray, templates, threshold):
-    candidates = []
-    for source_id, box in templates:
-        x0, y0, x1, y1 = box
-        template = gray[y0:y1, x0:x1]
-        if template.size == 0 or template.std() < 3:
-            raise ValueError("Blank or invalid template")
-        response = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
-        peaks = (response >= threshold) & (response == cv2.dilate(response, np.ones((9, 9), np.uint8)))
-        ys, xs = np.where(peaks)
-        if len(xs) > 1000:
-            raise ValueError("Candidate cap exceeded")
-        for x, y in zip(xs.tolist(), ys.tolist()):
-            candidates.append({"bbox": [x, y, x+x1-x0, y+y1-y0],
-                               "score": float(response[y, x]), "template_id": source_id,
-                               "class_id": CLASS_ID})
-    kept = []
-    for candidate in sorted(candidates, key=lambda item: -item["score"]):
-        if not any(center_error(candidate["bbox"], previous["bbox"]) < 14
-                   or iou(candidate["bbox"], previous["bbox"]) > 0.3 for previous in kept):
-            kept.append(candidate)
-    return kept
+    return find_patch_candidates(
+        gray,
+        [(source_id, gray[box[1]:box[3], box[0]:box[2]]) for source_id, box in templates],
+        threshold,
+    )
 
 
 def render_overlay(source_path, width, height, targets, predictions, output):
@@ -133,6 +131,87 @@ def run(manifest_path, source_path, output, threshold, baseline_checkpoint=None)
             "iou_recall": report["reviewed_positive_recall_iou_0_5"], "precision": None}
 
 
+def run_frozen_cross_page(template_source, target_source, output):
+    """Run the predeclared native-pixel probe without target-specific tuning."""
+    if hashlib.sha256(template_source.read_bytes()).hexdigest() != SOURCE_SHA:
+        raise ValueError("Template source identity mismatch")
+    if hashlib.sha256(target_source.read_bytes()).hexdigest() != FROZEN_TARGET_SHA:
+        raise ValueError("Target source identity mismatch")
+    template_gray = cv2.imread(str(template_source), cv2.IMREAD_GRAYSCALE)
+    target_gray = cv2.imread(str(target_source), cv2.IMREAD_GRAYSCALE)
+    if template_gray is None or template_gray.shape != (3264, 2164):
+        raise ValueError("Template image geometry mismatch")
+    if target_gray is None or target_gray.shape != (2084, 2512):
+        raise ValueError("Target image geometry mismatch")
+    templates = [(source_id, box) for source_id, box in zip(
+        SEED_IDS, FROZEN_SETTINGS["template_boxes_source_pixels"]
+    )]
+    # The matcher extracts template pixels from the source page. The target
+    # image is searched in full; no annotated target position enters inference.
+    patches = [(source_id, template_gray[y0:y1, x0:x1])
+               for source_id, (x0, y0, x1, y1) in templates]
+    predictions = find_patch_candidates(target_gray, patches, FROZEN_CROSS_PAGE_THRESHOLD)
+    report = {
+        "kind": "frozen_cross_page_template_probe",
+        "settings": FROZEN_SETTINGS,
+        "template_source_sha256": SOURCE_SHA,
+        "target_source_sha256": FROZEN_TARGET_SHA,
+        "template_sheet": "sheet-21",
+        "target_sheet": "sheet-19",
+        "project_relationship": "same_group_7_project_not_independent_test",
+        "candidate_count": len(predictions),
+        "predictions": predictions,
+        "reviewed_positive_recall": None,
+        "precision": None,
+        "metric_reason": "No user-reviewed Pull station targets or complete negative coverage on sheet-19",
+        "review_state": "assistant_proposals_not_human_approved",
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    render_overlay(target_source, target_gray.shape[1], target_gray.shape[0], [], predictions,
+                   output.with_suffix(".html"))
+    marked = cv2.imread(str(target_source), cv2.IMREAD_COLOR)
+    contact = np.full((len(predictions) * 180, 180, 3), 255, dtype=np.uint8)
+    for index, prediction in enumerate(predictions):
+        x0, y0, x1, y1 = prediction["bbox"]
+        cv2.rectangle(marked, (x0, y0), (x1, y1), (0, 150, 255), 3)
+        cv2.putText(marked, str(index + 1), (x0, max(15, y0 - 4)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 130, 255), 2)
+        left, top = max(0, x0 - 32), max(0, y0 - 32)
+        right, bottom = min(target_gray.shape[1], x1 + 32), min(target_gray.shape[0], y1 + 32)
+        patch = target_gray[top:bottom, left:right]
+        enlarged = cv2.resize(patch, (160, 160), interpolation=cv2.INTER_NEAREST)
+        contact[index * 180:index * 180 + 160, 10:170] = cv2.cvtColor(enlarged, cv2.COLOR_GRAY2BGR)
+        cv2.putText(contact, f"{index+1}: {prediction['score']:.3f}",
+                    (10, index * 180 + 177), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
+    cv2.imwrite(str(output.with_suffix(".png")), marked)
+    cv2.imwrite(str(output.with_name(output.stem + "-candidates.png")), contact)
+    return {"candidate_count": len(predictions), "precision": None, "recall": None}
+
+
+def find_patch_candidates(gray, patches, threshold):
+    """Same matching, 9x9 peaks and NMS as find_candidates, with external patches."""
+    candidates = []
+    for source_id, patch in patches:
+        if patch.size == 0 or patch.std() < 3:
+            raise ValueError("Blank or invalid template")
+        response = cv2.matchTemplate(gray, patch, cv2.TM_CCOEFF_NORMED)
+        peaks = (response >= threshold) & (response == cv2.dilate(response, np.ones((9, 9), np.uint8)))
+        ys, xs = np.where(peaks)
+        if len(xs) > 1000:
+            raise ValueError("Candidate cap exceeded")
+        for x, y in zip(xs.tolist(), ys.tolist()):
+            candidates.append({"bbox": [x, y, x + patch.shape[1], y + patch.shape[0]],
+                               "score": float(response[y, x]), "template_id": source_id,
+                               "class_id": CLASS_ID})
+    kept = []
+    for candidate in sorted(candidates, key=lambda item: -item["score"]):
+        if not any(center_error(candidate["bbox"], previous["bbox"]) < 14
+                   or iou(candidate["bbox"], previous["bbox"]) > 0.3 for previous in kept):
+            kept.append(candidate)
+    return kept
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
@@ -140,6 +219,10 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--threshold", type=float, default=0.7)
     parser.add_argument("--baseline-checkpoint", type=Path)
+    parser.add_argument("--cross-page-target", type=Path)
     args = parser.parse_args()
-    print(json.dumps(run(args.manifest, args.source, args.output, args.threshold,
-                         args.baseline_checkpoint)))
+    if args.cross_page_target:
+        print(json.dumps(run_frozen_cross_page(args.source, args.cross_page_target, args.output)))
+    else:
+        print(json.dumps(run(args.manifest, args.source, args.output, args.threshold,
+                             args.baseline_checkpoint)))

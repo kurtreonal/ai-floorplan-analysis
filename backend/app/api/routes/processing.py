@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,7 @@ from app.services.processing_job_service import (
     start_floor_plan_processing,
 )
 from app.services.interpretation_page_outcome_service import PageSelectionError, list_page_outcomes
+from app.ai.floor_plan_interpretation.experimental_pull_station import ExperimentalLocatorUnavailable
 
 
 router = APIRouter(tags=["processing jobs"])
@@ -123,7 +124,9 @@ def list_processing_job_history_endpoint(
 )
 def start_floor_plan_processing_endpoint(
     floor_plan_id: Annotated[int, Path(gt=0)],
-    page_numbers: Annotated[list[int] | None, Query(gt=0, max_length=128)] = None,
+    request: Request,
+    page_numbers: Annotated[list[int] | None, Query(max_length=128)] = None,
+    experimental_pull_station: bool = False,
     current_user: User = Depends(require_roles("DESIGNER")),
     database_session: Session = Depends(get_db),
 ) -> ProcessingJobStartResponse:
@@ -133,6 +136,8 @@ def start_floor_plan_processing_endpoint(
             current_user=current_user,
             floor_plan_id=floor_plan_id,
             page_numbers=page_numbers,
+            experimental_pull_station=experimental_pull_station,
+            settings=request.app.state.settings,
         )
         database_session.commit()
     except FloorPlanNotFoundError:
@@ -156,6 +161,13 @@ def start_floor_plan_processing_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code=error.code,
             message="The requested processing page selection is invalid.",
+        ) from None
+    except ExperimentalLocatorUnavailable as error:
+        database_session.rollback()
+        raise _api_error(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code=str(error),
+            message="The development-only template locator is unavailable.",
         ) from None
     except SQLAlchemyError:
         database_session.rollback()

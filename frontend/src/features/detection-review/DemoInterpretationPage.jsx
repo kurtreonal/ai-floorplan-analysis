@@ -44,6 +44,7 @@ function initialDraft(record) {
     }
   }
   const payload = record.candidate.payload
+  const experimental = record.candidate.provenance?.model_release_id === 'experimental_pull_station_template'
   return {
     walls: payload.walls.items.map((item) => ({
       id: item.id,
@@ -60,7 +61,7 @@ function initialDraft(record) {
     })),
     symbols: payload.symbols.items.map((item) => ({
       id: item.id,
-      disposition: 'accepted',
+      disposition: experimental ? 'unresolved' : 'accepted',
       center: item.center,
       symbol_legend_id: null,
     })),
@@ -151,6 +152,9 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       setWallHeight(String(record.review?.wall_height_meters ?? ''))
       setReviewComplete(record.review?.review_complete || false)
       setApproveLayout(record.review?.approved_for_layout || false)
+      if (record.candidate.provenance?.model_release_id === 'experimental_pull_station_template') {
+        setLayers((current) => ({ ...current, symbols: true }))
+      }
     }).catch((error) => {
       if (!active || error.name === 'AbortError') return
       if (error?.status === 401) window.location.replace('#/signin?reason=session-expired')
@@ -369,6 +373,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   if (state.status === 'error') return <section className="detection-state detection-error"><p role="alert">{state.error}</p><a href={getProjectHref(projectId)}>Back to project</a></section>
 
   const plane = state.record.candidate.payload.source_plane
+  const experimental = state.record.candidate.provenance?.model_release_id === 'experimental_pull_station_template'
   const truncated = ['walls', 'rooms', 'symbols'].filter(
     (key) => state.record.candidate.payload[key].truncated,
   )
@@ -393,6 +398,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       <p role="note">
         Walls are traced from thick structural boundaries and partitions. Thin grids, wiring, troffers, and dimensions are rejected. Verify or draw walls in 2D before 3D preview.
       </p>
+      {experimental && <p role="note">Experimental Pull station template proposals only (two Group 7 source templates, native scale). Orange review overlays are unconfirmed; match similarity is not calibrated confidence. Inspect the original image, then accept, correct, reject, or add symbols. Map accepted symbols to an approved VED legend. Other classes remain unresolved.</p>}
       {truncated.length > 0 && <p className="detection-limit-warning" role="alert">Bounded proposal cap reached for: {truncated.join(', ')}. Add missing geometry manually where needed.</p>}
       {state.legends.length === 0 && <details><summary>Do I need a symbol legend?</summary><p>Not for wall review or 3D preview. Electrical-symbol approval requires an approved VED legend.</p></details>}
 
@@ -525,7 +531,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               </label>
               <label>
                 <input type="checkbox" checked={layers.symbols} onChange={(e) => setLayers((c) => ({ ...c, symbols: e.target.checked }))} />
-                Show symbol proposals (optional)
+                Show symbol proposals {experimental ? '(experimental)' : '(optional)'}
               </label>
               <label>
                 <input type="checkbox" checked={layers.source} onChange={(e) => setLayers((c) => ({ ...c, source: e.target.checked }))} />
@@ -579,7 +585,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           <h3>{selected.kind} {selectedEntity.id}</h3>
           <label>Review decision
             <select value={selectedEntity.disposition} onChange={(event) => updateSelected({ ...selectedEntity, disposition: event.target.value })}>
-              <option value="accepted">Accept</option><option value="rejected">Reject</option>
+              <option value="unresolved">Unresolved</option><option value="accepted">Accept</option><option value="corrected">Corrected</option><option value="rejected">Reject</option>
             </select>
           </label>
           {selected.kind === 'wall' && (

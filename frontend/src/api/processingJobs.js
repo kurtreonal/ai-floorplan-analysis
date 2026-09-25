@@ -129,9 +129,18 @@ function normalizeHistoryItem(payload) {
   }
 }
 
-export async function startFloorPlanProcessing(floorPlanId, { signal } = {}) {
+export async function startFloorPlanProcessing(floorPlanId, { signal, mode = 'configured', pageNumber = null } = {}) {
+  if (!['configured', 'experimental_pull_station'].includes(mode)) {
+    throw new ProcessingJobApiError(GENERIC_PROCESSING_ERROR)
+  }
+  if (mode === 'experimental_pull_station' && !isPositiveInteger(pageNumber)) {
+    throw new ProcessingJobApiError('Select a valid one-based page number for the experimental locator.')
+  }
+  const query = mode === 'experimental_pull_station'
+    ? `?experimental_pull_station=true&page_numbers=${pageNumber}`
+    : ''
   const payload = await request(
-    `${API_BASE_URL}/api/floor-plans/${encodeURIComponent(floorPlanId)}/process`,
+    `${API_BASE_URL}/api/floor-plans/${encodeURIComponent(floorPlanId)}/process${query}`,
     {
       method: 'POST',
       credentials: 'include',

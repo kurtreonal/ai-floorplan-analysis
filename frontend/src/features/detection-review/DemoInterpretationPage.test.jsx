@@ -114,4 +114,20 @@ describe('unified demo interpretation review', () => {
     }))
     expect(await screen.findByText('Review revision 1 saved.')).toBeTruthy()
   })
+
+  it('keeps experimental template proposals unresolved until a user reviews and saves them', async () => {
+    const experimental = structuredClone(record)
+    experimental.candidate.provenance = { model_release_id: 'experimental_pull_station_template' }
+    fetchDemoInterpretation.mockResolvedValue(experimental)
+    render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
+    await screen.findByText(/Experimental Pull station template proposals only/)
+    fireEvent.click(screen.getByRole('button', { name: 'Select first symbol' }))
+    expect(screen.getByLabelText('Review decision').value).toBe('unresolved')
+    fireEvent.change(screen.getByLabelText('Review decision'), { target: { value: 'rejected' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save unfinished draft' }))
+    await waitFor(() => expect(saveDemoReview).toHaveBeenCalledTimes(1))
+    expect(saveDemoReview.mock.calls[0][1].symbols[0].disposition).toBe('rejected')
+    expect(saveDemoReview.mock.calls[0][1].review_complete).toBe(false)
+    expect(saveDemoLayout).not.toHaveBeenCalled()
+  })
 })
