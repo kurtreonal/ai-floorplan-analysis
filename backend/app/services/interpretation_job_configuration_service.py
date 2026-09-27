@@ -85,6 +85,20 @@ def pin_job_configuration(
         if current.configuration_sha256 != configuration_sha256():
             raise InterpretationConfigurationError("PROCESSING_CONFIGURATION_CONFLICT")
         return current
+    from app.ai.floor_plan_interpretation.experimental_symbol_detector import (
+        PROVIDER as TRAINED_PROVIDER, configuration_sha256 as trained_configuration_sha256,
+        verify_artifacts,
+    )
+    if current.provider == TRAINED_PROVIDER:
+        if getattr(settings, "app_env", None) != "development" or current_runtime_release(session) is not None:
+            raise InterpretationConfigurationError("EXPERIMENTAL_LOCATOR_DISABLED")
+        try:
+            verify_artifacts()
+        except ValueError as error:
+            raise InterpretationConfigurationError(str(error)) from None
+        if current.configuration_sha256 != trained_configuration_sha256():
+            raise InterpretationConfigurationError("PROCESSING_CONFIGURATION_CONFLICT")
+        return current
     active_release = current_runtime_release(session)
     if active_release is not None and active_release.status == "manual_review":
         provider = MANUAL_REVIEW_PROVIDER

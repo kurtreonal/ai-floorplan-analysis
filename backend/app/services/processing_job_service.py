@@ -118,6 +118,7 @@ def start_floor_plan_processing(
     floor_plan_id: int,
     page_numbers: list[int] | None = None,
     experimental_pull_station: bool = False,
+    experimental_symbol_detector: bool = False,
     settings=None,
 ) -> ProcessingJob:
     floor_plan = find_owned_floor_plan_for_update(
@@ -127,18 +128,21 @@ def start_floor_plan_processing(
     )
     if floor_plan is None:
         raise FloorPlanNotFoundError
-    if experimental_pull_station:
+    if experimental_pull_station and experimental_symbol_detector:
+        raise PageSelectionError("EXPERIMENTAL_MODE_CONFLICT")
+    if experimental_pull_station or experimental_symbol_detector:
         if page_numbers is None or len(page_numbers) != 1:
             raise PageSelectionError("EXPERIMENTAL_PAGE_SELECTION_REQUIRED")
-        from app.ai.floor_plan_interpretation.experimental_pull_station import (
-            ExperimentalLocatorUnavailable, LOCAL_SOURCE, PROVIDER,
-            configuration_sha256, source_digest,
-        )
         from app.core.config import get_settings
         from app.services.interpretation_release_service import current_runtime_release
         if (settings or get_settings()).app_env != "development" or current_runtime_release(database_session) is not None:
-            raise ExperimentalLocatorUnavailable("EXPERIMENTAL_LOCATOR_DISABLED")
-        source_digest(LOCAL_SOURCE)
+            raise PageSelectionError("EXPERIMENTAL_LOCATOR_DISABLED")
+        if experimental_pull_station:
+            from app.ai.floor_plan_interpretation.experimental_pull_station import LOCAL_SOURCE, source_digest
+            source_digest(LOCAL_SOURCE)
+        else:
+            from app.ai.floor_plan_interpretation.experimental_symbol_detector import verify_artifacts
+            verify_artifacts()
 
     active_job = find_active_processing_job(
         database_session,
@@ -165,6 +169,13 @@ def start_floor_plan_processing(
                 page_numbers=page_numbers,
             )
             if experimental_pull_station:
+                from app.ai.floor_plan_interpretation.experimental_pull_station import PROVIDER, configuration_sha256
+                for outcome in outcomes:
+                    outcome.provider = PROVIDER
+                    outcome.model_release_id = PROVIDER
+                    outcome.configuration_sha256 = configuration_sha256()
+            if experimental_symbol_detector:
+                from app.ai.floor_plan_interpretation.experimental_symbol_detector import PROVIDER, configuration_sha256
                 for outcome in outcomes:
                     outcome.provider = PROVIDER
                     outcome.model_release_id = PROVIDER

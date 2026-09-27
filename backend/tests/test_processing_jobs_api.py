@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.ai.floor_plan_interpretation.experimental_pull_station import ExperimentalLocatorUnavailable
+from app.ai.floor_plan_interpretation.experimental_symbol_detector import ExperimentalDetectorUnavailable
 from app.core.database import get_db, get_engine
 from app.main import create_app
 from app.models import FloorPlan, ProcessingJob, Project, ProjectFloor, Role, User
@@ -488,6 +489,26 @@ class ProcessingJobApiTests(unittest.TestCase):
         self.assertEqual(start.call_args.kwargs["page_numbers"], [1])
         self.assertTrue(start.call_args.kwargs["experimental_pull_station"])
         self.assertEqual(start.call_args.kwargs["settings"].app_env, "development")
+
+    def test_trained_symbol_selection_is_explicit_and_unavailable_errors_are_safe(self) -> None:
+        missing_page = self._post(
+            self.floor_plan.id, user_id=self.user_ids["designer"],
+            query="?experimental_symbol_detector=true",
+        )
+        self.assertEqual(missing_page.status_code, 422, missing_page.text)
+        self.assertEqual(missing_page.json()["detail"]["error"]["code"],
+                         "EXPERIMENTAL_PAGE_SELECTION_REQUIRED")
+        with patch("app.api.routes.processing.start_floor_plan_processing",
+                   side_effect=ExperimentalDetectorUnavailable("EXPERIMENTAL_MODEL_UNAVAILABLE")) as start:
+            response = self._post(
+                self.floor_plan.id, user_id=self.user_ids["designer"],
+                query="?experimental_symbol_detector=true&page_numbers=1",
+            )
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.json()["detail"]["error"]["code"],
+                         "EXPERIMENTAL_MODEL_UNAVAILABLE")
+        self.assertEqual(start.call_args.kwargs["page_numbers"], [1])
+        self.assertTrue(start.call_args.kwargs["experimental_symbol_detector"])
 
     def test_untrusted_inputs_cannot_change_ownership_or_job_fields(self) -> None:
         self._set_session(

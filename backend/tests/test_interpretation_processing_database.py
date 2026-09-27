@@ -27,7 +27,7 @@ class ExperimentalPullStationWorkerDatabaseTests(fixture.DemoProcessingWorkerTes
         outcomes[0].model_release_id = PROVIDER
         outcomes[0].configuration_sha256 = configuration_sha256()
         session.commit()
-        match = {"bbox": (100, 120, 128, 148), "score": 0.81,
+        match = {"bbox": (100, 120, 128, 148), "score": 0.81, "scale": 1.0,
                  "template_id": "1421451ddf2e1217c0833e17"}
         with patch("app.ai.floor_plan_interpretation.experimental_pull_station.source_digest", return_value=SOURCE_SHA256), \
              patch("app.services.interpretation_processing_service.locate", return_value=(match,)):
@@ -35,6 +35,40 @@ class ExperimentalPullStationWorkerDatabaseTests(fixture.DemoProcessingWorkerTes
         candidate = FloorPlanInterpretationCandidate.model_validate_json(run.candidate_json)
         self.assertEqual(candidate.provenance.model_release_id, PROVIDER)
         self.assertEqual(candidate.payload.symbols.items[0].mapping_state, "unknown")
+        self.assertEqual(candidate.payload.symbols.items[0].center.x, 114)
+        self.assertEqual(run.candidate_sha256, sha256(run.candidate_json.encode()).hexdigest())
+        return run
+
+
+class ExperimentalTrainedSymbolWorkerDatabaseTests(fixture.DemoProcessingWorkerTests):
+    expected_provider = "experimental_reviewed_symbol_yolo"
+    assert_page_outcome = True
+
+    def process(self, session, **kwargs):
+        from unittest.mock import patch
+        from app.ai.floor_plan_interpretation.experimental_symbol_detector import (
+            PROVIDER, CHECKPOINT_SHA256, configuration_sha256,
+        )
+        from app.ai.floor_plan_interpretation.candidate import FloorPlanInterpretationCandidate
+        from app.models import ProcessingJob
+        from app.services.interpretation_page_outcome_service import configure_page_outcomes
+        job = session.get(ProcessingJob, kwargs["job_id"])
+        outcomes = configure_page_outcomes(session, processing_job=job, page_numbers=[1])
+        outcomes[0].provider = PROVIDER
+        outcomes[0].model_release_id = PROVIDER
+        outcomes[0].configuration_sha256 = configuration_sha256()
+        session.commit()
+        proposal = {"bbox": (100, 120, 128, 148), "score": 0.81,
+                    "class_id": 3, "tile_origin": (0, 0)}
+        with patch("app.ai.floor_plan_interpretation.experimental_symbol_detector.verify_artifacts"), \
+             patch("app.services.interpretation_processing_service.locate_trained_symbols",
+                   return_value=((proposal,), False)):
+            run = process_interpretation_job(session, **kwargs)
+        candidate = FloorPlanInterpretationCandidate.model_validate_json(run.candidate_json)
+        self.assertEqual(candidate.provenance.model_release_id, PROVIDER)
+        self.assertIn(CHECKPOINT_SHA256, [p.value for p in candidate.provenance.inference_parameters])
+        self.assertEqual(candidate.payload.symbols.items[0].mapping_state, "unknown")
+        self.assertEqual(candidate.payload.symbols.items[0].observed_label, "Troffer lights")
         self.assertEqual(candidate.payload.symbols.items[0].center.x, 114)
         self.assertEqual(run.candidate_sha256, sha256(run.candidate_json.encode()).hexdigest())
         return run

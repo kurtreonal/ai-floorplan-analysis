@@ -169,7 +169,7 @@ export function ProcessingJobPanel({
     startControllerRef.current = controller
     try {
       const options = { signal: controller.signal }
-      if (detectorMode === 'experimental_pull_station') {
+      if (detectorMode !== 'configured') {
         options.mode = detectorMode
         options.pageNumber = Number(pageNumber)
       }
@@ -279,6 +279,7 @@ export function ProcessingJobPanel({
             <select value={detectorMode} onChange={(event) => setDetectorMode(event.target.value)}>
               <option value="configured">Existing configured detector (fallback)</option>
               <option value="experimental_pull_station">Experimental Pull station template · two Group 7 templates · native scale</option>
+              <option value="experimental_symbol_detector">Experimental trained symbols · troffer / smoke / Pull station · review only</option>
             </select>
           </label>
           {detectorMode === 'experimental_pull_station' && <>
@@ -287,6 +288,13 @@ export function ProcessingJobPanel({
                 onChange={(event) => setPageNumber(event.target.value)} />
             </label>
             <p role="note">Review-only Pull station proposals. Template similarity is not calibrated confidence; other classes remain unresolved. Not a VLM or production detector.</p>
+          </>}
+          {detectorMode === 'experimental_symbol_detector' && <>
+            <label>One-based page to process
+              <input type="number" min="1" max="50" step="1" value={pageNumber}
+                onChange={(event) => setPageNumber(event.target.value)} />
+            </label>
+            <p role="note">Local supervised detector, development only. Three named families from VED reviewed examples; same-source checks only. Proposals can include text/grid mistakes. Confirm each symbol and its drawing legend before saving. No production or 85% accuracy claim.</p>
           </>}
         </div>
       )}

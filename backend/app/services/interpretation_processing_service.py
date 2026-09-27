@@ -20,6 +20,16 @@ from app.ai.floor_plan_interpretation.experimental_pull_station import (
     PROVIDER as EXPERIMENTAL_PROVIDER, THRESHOLD as EXPERIMENTAL_THRESHOLD,
     locate, with_pull_station_proposals,
 )
+from app.ai.floor_plan_interpretation.experimental_symbol_detector import (
+    BASE_SHA256 as TRAINED_BASE_SHA256,
+    CHECKPOINT_SHA256 as TRAINED_CHECKPOINT_SHA256,
+    DATASET_SHA256 as TRAINED_DATASET_SHA256,
+    ExperimentalDetectorUnavailable,
+    PROVIDER as TRAINED_PROVIDER,
+    THRESHOLD as TRAINED_THRESHOLD,
+    locate as locate_trained_symbols,
+    with_trained_symbol_proposals,
+)
 from app.ai.floor_plan_interpretation.preparation import prepare_page_context
 from app.ai.local_model_gateway import (
     GatewayInferenceRequest,
@@ -467,7 +477,8 @@ def process_interpretation_job(
         )
         run_id = uuid4().hex
         experimental = pinned_configuration.provider == EXPERIMENTAL_PROVIDER
-        gateway_configured = None if experimental else _configured_local_gateway(settings)
+        trained = pinned_configuration.provider == TRAINED_PROVIDER
+        gateway_configured = None if experimental or trained else _configured_local_gateway(settings)
         if pinned_configuration.provider == PROVIDER:
             # Tests and unconfigured jobs may explicitly pin the deterministic
             # demo provider; keep that choice stable even if settings change.
@@ -484,6 +495,12 @@ def process_interpretation_job(
                     payload = with_pull_station_proposals(payload, locate(rgb, LOCAL_SOURCE))
                 except ExperimentalLocatorUnavailable as error:
                     raise InterpretationProcessingError(str(error)) from None
+            if trained:
+                try:
+                    proposals, truncated = locate_trained_symbols(rgb)
+                    payload = with_trained_symbol_proposals(payload, proposals, truncated)
+                except ExperimentalDetectorUnavailable as error:
+                    raise InterpretationProcessingError(str(error)) from None
             candidate = build_candidate_envelope(
                 payload,
                 CandidateHostProvenance(
@@ -498,18 +515,29 @@ def process_interpretation_job(
                     expected_width_pixels=artifact.record.pixel_width,
                     expected_height_pixels=artifact.record.pixel_height,
                     model_release_id=provider,
-                    base_model_revision=(f"opencv-template-{cv2.__version__}" if experimental
-                                         else f"opencv-{cv2.__version__}"),
-                    adapter_revision=None,
-                    prompt_version="pull-template-v1" if experimental else "demo-cv-room-v2",
-                    runtime_version=f"opencv-{cv2.__version__}",
+                    base_model_revision=(f"yolo11n-{TRAINED_BASE_SHA256[:12]}" if trained else
+                                         f"opencv-template-{cv2.__version__}" if experimental else
+                                         f"opencv-{cv2.__version__}"),
+                    adapter_revision=f"supervised-{TRAINED_CHECKPOINT_SHA256[:12]}" if trained else None,
+                    prompt_version=("partial-label-symbol-detector-v1" if trained else
+                                    "pull-template-v1" if experimental else "demo-cv-room-v2"),
+                    runtime_version=("ultralytics-local-cpu-v1" if trained else f"opencv-{cv2.__version__}"),
                     inference_parameters=(
-                        InferenceParameter(name="provider", value=provider),
-                        InferenceParameter(name="review-required", value="true"),
-                        *((
-                            InferenceParameter(name="template-class", value="sheet-20:L05 Pull station"),
-                            InferenceParameter(name="template-score-threshold", value=str(EXPERIMENTAL_THRESHOLD)),
-                        ) if experimental else ()),
+                        (
+                            InferenceParameter(name="checkpoint-sha256", value=TRAINED_CHECKPOINT_SHA256),
+                            InferenceParameter(name="dataset-sha256", value=TRAINED_DATASET_SHA256),
+                            InferenceParameter(name="detector-score-threshold", value=str(TRAINED_THRESHOLD)),
+                            InferenceParameter(name="partial-label-training", value="true"),
+                            InferenceParameter(name="provider", value=provider),
+                            InferenceParameter(name="review-required", value="true"),
+                        ) if trained else (
+                            InferenceParameter(name="provider", value=provider),
+                            InferenceParameter(name="review-required", value="true"),
+                            *((
+                                InferenceParameter(name="template-class", value="sheet-20:L05 Pull station"),
+                                InferenceParameter(name="template-score-threshold", value=str(EXPERIMENTAL_THRESHOLD)),
+                            ) if experimental else ()),
+                        )
                     ),
                     created_at=datetime.now(UTC),
                 ),

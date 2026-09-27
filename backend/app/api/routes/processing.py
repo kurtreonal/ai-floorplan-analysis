@@ -31,6 +31,7 @@ from app.services.processing_job_service import (
 )
 from app.services.interpretation_page_outcome_service import PageSelectionError, list_page_outcomes
 from app.ai.floor_plan_interpretation.experimental_pull_station import ExperimentalLocatorUnavailable
+from app.ai.floor_plan_interpretation.experimental_symbol_detector import ExperimentalDetectorUnavailable
 
 
 router = APIRouter(tags=["processing jobs"])
@@ -127,6 +128,7 @@ def start_floor_plan_processing_endpoint(
     request: Request,
     page_numbers: Annotated[list[int] | None, Query(max_length=128)] = None,
     experimental_pull_station: bool = False,
+    experimental_symbol_detector: bool = False,
     current_user: User = Depends(require_roles("DESIGNER")),
     database_session: Session = Depends(get_db),
 ) -> ProcessingJobStartResponse:
@@ -137,6 +139,7 @@ def start_floor_plan_processing_endpoint(
             floor_plan_id=floor_plan_id,
             page_numbers=page_numbers,
             experimental_pull_station=experimental_pull_station,
+            experimental_symbol_detector=experimental_symbol_detector,
             settings=request.app.state.settings,
         )
         database_session.commit()
@@ -162,12 +165,12 @@ def start_floor_plan_processing_endpoint(
             code=error.code,
             message="The requested processing page selection is invalid.",
         ) from None
-    except ExperimentalLocatorUnavailable as error:
+    except (ExperimentalLocatorUnavailable, ExperimentalDetectorUnavailable) as error:
         database_session.rollback()
         raise _api_error(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             code=str(error),
-            message="The development-only template locator is unavailable.",
+            message="The development-only detector is unavailable.",
         ) from None
     except SQLAlchemyError:
         database_session.rollback()

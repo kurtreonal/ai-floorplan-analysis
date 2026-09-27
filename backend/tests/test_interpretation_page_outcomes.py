@@ -172,3 +172,36 @@ def test_experimental_provider_is_pinned_only_in_development_with_intact_source(
     finally:
         session.close()
         engine.dispose()
+
+
+def test_trained_symbol_provider_is_pinned_only_in_development_with_intact_checkpoint():
+    from app.ai.floor_plan_interpretation.experimental_symbol_detector import PROVIDER, configuration_sha256
+    engine, session, job = _session_with_pages(1)
+    try:
+        row = configure_page_outcomes(session, processing_job=job, page_numbers=[1])[0]
+        row.provider = PROVIDER
+        row.model_release_id = PROVIDER
+        row.configuration_sha256 = configuration_sha256()
+        session.commit()
+        with patch("app.ai.floor_plan_interpretation.experimental_symbol_detector.verify_artifacts"):
+            assert pin_job_configuration(session, processing_job=job,
+                                         settings=Settings(_env_file=None, app_env="development")).provider == PROVIDER
+            try:
+                pin_job_configuration(session, processing_job=job,
+                                      settings=Settings(_env_file=None, app_env="production"))
+            except InterpretationConfigurationError as error:
+                assert error.code == "EXPERIMENTAL_LOCATOR_DISABLED"
+            else:
+                raise AssertionError("production mode accepted a trained experimental provider")
+            row.configuration_sha256 = "0" * 64
+            session.flush()
+            try:
+                pin_job_configuration(session, processing_job=job,
+                                      settings=Settings(_env_file=None, app_env="development"))
+            except InterpretationConfigurationError as error:
+                assert error.code == "PROCESSING_CONFIGURATION_CONFLICT"
+            else:
+                raise AssertionError("changed model configuration remained executable")
+    finally:
+        session.close()
+        engine.dispose()

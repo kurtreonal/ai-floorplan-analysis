@@ -115,6 +115,21 @@ describe('processing job panel', () => {
     })
   })
 
+  it('offers trained multi-class proposals without auto-approval', async () => {
+    startFloorPlanProcessing.mockResolvedValueOnce({ job_id: JOB_ID, status: 'queued' })
+    renderPanel()
+    fireEvent.change(screen.getByLabelText('Development detector'), {
+      target: { value: 'experimental_symbol_detector' },
+    })
+    expect(screen.getByText(/same-source checks only/i)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('One-based page to process'), { target: { value: '3' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Start processing' }))
+    await settle()
+    expect(startFloorPlanProcessing).toHaveBeenCalledWith(FLOOR_PLAN_ID, {
+      signal: expect.any(AbortSignal), mode: 'experimental_symbol_detector', pageNumber: 3,
+    })
+  })
+
   it('locks repeated starts while the request is pending', async () => {
     let resolveStart
     startFloorPlanProcessing.mockReturnValue(new Promise((resolve) => {
