@@ -14,7 +14,8 @@ import sys
 import time
 
 from PIL import Image, ImageDraw
-os.environ.setdefault("YOLO_AUTOINSTALL", "false")
+os.environ["YOLO_AUTOINSTALL"] = "false"
+os.environ["YOLO_OFFLINE"] = "true"
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from ultralytics import YOLO
 
@@ -49,6 +50,32 @@ def fuse(rows):
     return retained
 
 
+def match_targets(targets, predictions, *, require_class=True, threshold=0.5):
+    """Maximum one-to-one IoU matching; a prediction cannot satisfy two targets."""
+    edges = []
+    for target in targets:
+        compatible = [(index, iou(target["source_box"], prediction["bbox"]))
+                      for index, prediction in enumerate(predictions)
+                      if not require_class or prediction["class_id"] == target["class_id"]]
+        edges.append([index for index, overlap in sorted(compatible, key=lambda pair: -pair[1])
+                      if overlap >= threshold])
+    assigned = {}
+
+    def assign(target_index, visited):
+        for prediction_index in edges[target_index]:
+            if prediction_index in visited:
+                continue
+            visited.add(prediction_index)
+            if prediction_index not in assigned or assign(assigned[prediction_index], visited):
+                assigned[prediction_index] = target_index
+                return True
+        return False
+
+    for index in range(len(targets)):
+        assign(index, set())
+    return {target_index: prediction_index for prediction_index, target_index in assigned.items()}
+
+
 def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference_mode="tiles"):
     if output.exists():
         raise FileExistsError("Probe result versions are immutable")
@@ -57,13 +84,15 @@ def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference
     manifest = json.loads((dataset / "manifest.json").read_text())
     if manifest["kind"] != "positive_only_masked_symbol_detection_diagnostic_v1":
         raise ValueError("Wrong dataset")
+    generic = manifest.get("class_agnostic") is True
     by_hash = {}
     for path in source_root.rglob("*"):
         if path.is_file() and not path.is_symlink() and path.suffix.lower() in {".jpg", ".jpeg", ".png"} \
                 and path.stat().st_size <= 25_000_000 and not any(
                     p in {"node_modules", ".git", "backups", "training_dataset", ".temp"} for p in path.parts):
             by_hash[digest(path)] = path
-    source_hashes = {row["source_sha256"] for row in manifest["images"]}
+    reviewed = manifest.get("reviewed_targets", manifest["images"])
+    source_hashes = {row["source_sha256"] for row in reviewed}
     if not source_hashes <= by_hash.keys():
         raise ValueError("Exact source missing")
     model = YOLO(str(checkpoint))
@@ -104,17 +133,24 @@ def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference
                                 "tile_origin": [x, y]})
         elapsed = round(time.perf_counter() - start, 3)
         predictions = fuse(raw)
-        targets = [row for row in manifest["images"] if row["source_sha256"] == source_hash]
+        targets = [row for row in reviewed if row["source_sha256"] == source_hash]
+        classified_matches = match_targets(targets, predictions, require_class=not generic)
+        localized_matches = match_targets(targets, predictions, require_class=False)
         matched = []
-        for target in targets:
+        for target_index, target in enumerate(targets):
             same_class = [p for p in predictions if p["class_id"] == target["class_id"]]
             best = max((iou(target["source_box"], p["bbox"]) for p in same_class), default=0.0)
             matched.append({"record_id": target["record_id"], "class_id": target["class_id"],
-                            "best_class_iou": round(best, 4), "localized_and_classified": best >= 0.5})
+                            "best_class_iou": round(best, 4),
+                            "localization_prediction_index": localized_matches.get(target_index),
+                            "classification_prediction_index": classified_matches.get(target_index),
+                            "localized": target_index in localized_matches,
+                            **({"localized_and_classified": target_index in classified_matches}
+                               if not generic else {})})
         overlay = image.copy()
         pen = ImageDraw.Draw(overlay)
         for target in targets:
-            found = next(row["localized_and_classified"] for row in matched
+            found = next(row["localized" if generic else "localized_and_classified"] for row in matched
                          if row["record_id"] == target["record_id"])
             pen.rectangle(target["source_box"], outline="green" if found else "red", width=4)
         for prediction in predictions:
@@ -126,22 +162,47 @@ def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference
                       "tile_count": len(positions), "seconds": elapsed,
                       "raw_candidates": len(raw), "fused_candidates": len(predictions),
                       "reviewed_positive_count": len(targets),
-                      "reviewed_positive_recall_iou_0_5": sum(r["localized_and_classified"] for r in matched)/len(matched),
+                      "reviewed_positive_localization_recall_iou_0_5": len(localized_matches)/len(targets),
+                      **({"reviewed_positive_recall_iou_0_5": len(classified_matches)/len(targets)}
+                         if not generic else {}),
                       "targets": matched, "predictions": predictions, "overlay": overlay_name,
                       "unmatched_predictions": "unresolved, not scored false positives"})
     report = {"kind": "partial_label_full_page_probe_v1", "checkpoint_sha256": digest(checkpoint),
               "dataset_manifest_sha256": digest(dataset / "manifest.json"), "threshold": threshold,
-              "inference_mode": inference_mode,
+              "inference_mode": inference_mode, "class_agnostic": generic,
+              "classification": None if generic else "same-source diagnostic",
               "tiling": {"size": 256, "stride": 192, "model_input": 320,
                          "duplicate_suppression": "same-class IoU >= 0.5"},
               "precision": None, "generalization": None,
+              "matching": "maximum one-to-one IoU >= 0.5; localization and same-class scored separately",
               "reasons": ["Pages are partially annotated; false positives cannot be established.",
-                          "Training and probe share source projects/pages; no independent test."],
+                          "Training and probe share source projects/pages; no independent test.",
+                          *(["The generic model does not predict approved legend classes."] if generic else [])],
               "pages": pages}
+    per_class = []
+    for cls in manifest["classes"]:
+        targets = [target for page in pages for target in page["targets"]
+                   if target["class_id"] == cls["id"]]
+        per_class.append({"class_id": cls["id"], "legend_entry": cls["legend_entry"],
+                          "label": cls["label"], "reviewed_positive_count": len(targets),
+                          "localized": sum(t["localized"] for t in targets),
+                          "localized_and_classified": (None if generic else
+                              sum(t["localized_and_classified"] for t in targets))})
+    total = sum(page["reviewed_positive_count"] for page in pages)
+    localized = sum(c["localized"] for c in per_class)
+    classified = None if generic else sum(c["localized_and_classified"] for c in per_class)
+    report["summary"] = {"reviewed_positive_count": total, "localized": localized,
+                         "localized_and_classified": classified,
+                         "reviewed_positive_localization_recall": localized / total,
+                         "reviewed_positive_class_recall": None if generic else classified / total,
+                         "fused_proposals": sum(page["fused_candidates"] for page in pages),
+                         "precision": None, "independent_project_accuracy": None,
+                         "per_class": per_class}
     (output / "report.json").write_text(json.dumps(report, indent=2))
     return [{k: v for k, v in p.items() if k in {"sheet_ids", "tile_count", "seconds",
                                                     "fused_candidates", "reviewed_positive_count",
-                                                    "reviewed_positive_recall_iou_0_5"}} for p in pages]
+                                                    "reviewed_positive_recall_iou_0_5",
+                                                    "reviewed_positive_localization_recall_iou_0_5"}} for p in pages]
 
 
 if __name__ == "__main__":

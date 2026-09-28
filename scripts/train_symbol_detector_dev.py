@@ -7,7 +7,8 @@ import os
 from pathlib import Path
 import sys
 
-os.environ.setdefault("YOLO_AUTOINSTALL", "false")
+os.environ["YOLO_AUTOINSTALL"] = "false"
+os.environ["YOLO_OFFLINE"] = "true"
 from ultralytics import YOLO
 
 
@@ -25,7 +26,8 @@ def train(dataset, base, output, *, epochs=3, image_size=320, fine_tune=False,
     data = json.loads((dataset / "manifest.json").read_text())
     if data.get("kind") != "positive_only_masked_symbol_detection_diagnostic_v1":
         raise ValueError("Wrong dataset type")
-    if (data.get("required_loss") == "positive_and_local_negative_only") != partial_label:
+    if (data.get("required_loss") in {"positive_and_local_negative_only",
+                                     "positive_and_reviewed_box_only"}) != partial_label:
         raise ValueError("Dataset context and partial-label loss must match")
     if data.get("base_model_sha256") and data["base_model_sha256"] != digest(base):
         raise ValueError("Dataset class IDs do not match the pinned base model")
@@ -37,6 +39,8 @@ def train(dataset, base, output, *, epochs=3, image_size=320, fine_tune=False,
                 "dataset_path": str(dataset.resolve()), "epochs": epochs, "image_size": image_size,
                 "fine_tune": fine_tune,
                 "partial_label": partial_label,
+                "required_loss": data.get("required_loss"),
+                "class_remapping": "disabled; preserve numeric legend-ID order",
                 "validation_status": "training-resubstitution only; no independent validation",
                 "license_warning": "Ultralytics weights/code are AGPL-3.0 by default; no production release authorization"}
     # Keep the provenance beside the checkpoint even if the run is interrupted.
@@ -46,6 +50,9 @@ def train(dataset, base, output, *, epochs=3, image_size=320, fine_tune=False,
     if partial_label:
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
         from app.ai.symbol_detection.partial_label_training import PartialLabelTrainer
+        if data.get("required_loss") == "positive_and_reviewed_box_only":
+            from app.ai.symbol_detection.partial_label_training import ReviewedBoxOnlyTrainer
+            PartialLabelTrainer = ReviewedBoxOnlyTrainer
     else:
         PartialLabelTrainer = None
     model.train(data=str((dataset / "data.yaml").resolve()), epochs=epochs,
@@ -56,6 +63,7 @@ def train(dataset, base, output, *, epochs=3, image_size=320, fine_tune=False,
                 optimizer="AdamW" if fine_tune else "auto",
                 lr0=0.0001 if fine_tune else 0.01,
                 lrf=0.1 if fine_tune else 0.01,
+                cls_remap=False,
                 trainer=PartialLabelTrainer)
     best = output / "weights/best.pt"
     last = output / "weights/last.pt"

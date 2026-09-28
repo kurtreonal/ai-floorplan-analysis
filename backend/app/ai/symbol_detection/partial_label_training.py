@@ -1,8 +1,9 @@
 """Experimental YOLO loss for positive-only review sheets.
 
-Only assigned positives and a narrow local collar contribute classification
-loss. Other anchors are ignored, not treated as reviewed background. This is
-not a substitute for complete-region evaluation or a production training set.
+The legacy loss retains its narrow collar for historical experiments. New
+ReviewedBoxOnlyLoss experiments ignore every anchor outside reviewed boxes;
+unreviewed collars are not assumed background. Neither mode establishes
+complete-region evaluation or production dataset approval.
 """
 
 import torch
@@ -24,6 +25,8 @@ def local_negative_mask(anchor_pixels, boxes, valid_boxes, margin_pixels=12):
 
 
 class PartialLabelLoss(v8DetectionLoss):
+    negative_margin_pixels = 12
+
     def get_assigned_targets_and_loss(self, preds, batch):
         loss = torch.zeros(3, device=self.device)
         pred_distri = preds["boxes"].permute(0, 2, 1).contiguous()
@@ -46,8 +49,10 @@ class PartialLabelLoss(v8DetectionLoss):
         bce_loss = self.bce(pred_scores, target_scores.to(dtype))
         if self.class_weights is not None:
             bce_loss *= self.class_weights
-        # Unlike standard YOLO training, unknown page pixels are NOT negatives.
-        near_reviewed = local_negative_mask(anchor_points * stride_tensor, gt_bboxes, mask_gt)
+        # New reviewed-box-only runs use zero margin. Preserve the old collar
+        # loss for checkpoint compatibility, not as reviewed-background proof.
+        near_reviewed = local_negative_mask(anchor_points * stride_tensor, gt_bboxes, mask_gt,
+                                            margin_pixels=self.negative_margin_pixels)
         bce_loss *= (fg_mask | near_reviewed).unsqueeze(-1)
         loss[1] = bce_loss.sum() / target_scores_sum
         if fg_mask.sum():
@@ -68,11 +73,28 @@ class PartialLabelDetectionModel(DetectionModel):
         return PartialLabelLoss(self)
 
 
+class ReviewedBoxOnlyLoss(PartialLabelLoss):
+    """No assumed negatives beyond the user-reviewed symbol boxes."""
+    negative_margin_pixels = 0
+
+
+class ReviewedBoxOnlyDetectionModel(PartialLabelDetectionModel):
+    def init_criterion(self):
+        if getattr(self, "end2end", False):
+            raise ValueError("Partial-label loss is not implemented for end-to-end detectors")
+        return ReviewedBoxOnlyLoss(self)
+
+
 class PartialLabelTrainer(DetectionTrainer):
+    model_class = PartialLabelDetectionModel
+
     def get_model(self, cfg=None, weights=None, verbose=True):
         model = self.set_model_names_for_load(
-            PartialLabelDetectionModel(cfg, nc=self.data["nc"], ch=self.data["channels"],
-                                       verbose=verbose))
+            self.model_class(cfg, nc=self.data["nc"], ch=self.data["channels"], verbose=verbose))
         if weights:
             model.load(weights)
         return model
+
+
+class ReviewedBoxOnlyTrainer(PartialLabelTrainer):
+    model_class = ReviewedBoxOnlyDetectionModel
