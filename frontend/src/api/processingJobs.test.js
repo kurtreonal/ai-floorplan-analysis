@@ -118,6 +118,15 @@ describe('processing jobs API client', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('supports explicit page selection with the shared configured pipeline', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ payload: { job_id: 31, status: 'queued' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    await startFloorPlanProcessing(42, { pageNumber: 3 })
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/api/floor-plans/42/process?page_numbers=3', expect.any(Object))
+    await expect(startFloorPlanProcessing(42, { pageNumber: 0 })).rejects.toThrow(ProcessingJobApiError)
+  })
+
   it('pins the trained development detector to one explicit page', async () => {
     const fetchMock = vi.fn().mockResolvedValue(response({
       status: 202, payload: { job_id: 33, status: 'queued' },
@@ -128,6 +137,20 @@ describe('processing jobs API client', () => {
       'http://localhost:8000/api/floor-plans/42/process?experimental_symbol_detector=true&page_numbers=3',
     )
     await expect(startFloorPlanProcessing(42, { mode: 'experimental_symbol_detector', pageNumber: 0 }))
+      .rejects.toBeInstanceOf(ProcessingJobApiError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('pins the linked-legend development detector to one explicit page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({
+      status: 202, payload: { job_id: 34, status: 'queued' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    await startFloorPlanProcessing(42, { mode: 'experimental_linked_legend_detector', pageNumber: 4 })
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'http://localhost:8000/api/floor-plans/42/process?experimental_linked_legend_detector=true&page_numbers=4',
+    )
+    await expect(startFloorPlanProcessing(42, { mode: 'experimental_linked_legend_detector', pageNumber: 0 }))
       .rejects.toBeInstanceOf(ProcessingJobApiError)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })

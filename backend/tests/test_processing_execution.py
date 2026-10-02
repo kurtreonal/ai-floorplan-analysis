@@ -171,7 +171,7 @@ class ProcessingExecutionTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 39)
+        self.assertEqual(operations, 43)
 
     def test_concurrent_claim_has_exactly_one_active_owner(self) -> None:
         job_id = self._job()

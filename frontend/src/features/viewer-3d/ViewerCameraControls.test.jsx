@@ -5,9 +5,10 @@ import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ViewerCameraControls } from './ViewerCameraControls.jsx'
+import { MOUSE } from 'three'
 
 const mocks = vi.hoisted(() => ({
-  camera: { name: 'camera' },
+  camera: { name: 'camera', position: { set: vi.fn() } },
   domElement: document.createElement('canvas'),
   invalidate: vi.fn(),
   instances: [],
@@ -25,8 +26,8 @@ vi.mock('three/addons/controls/OrbitControls.js', () => ({
   OrbitControls: class OrbitControls {
     constructor(camera, domElement) {
       Object.assign(this, {
-        camera, domElement, target: { set: vi.fn() }, update: vi.fn(), saveState: vi.fn(),
-        reset: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispose: vi.fn(),
+        camera, domElement, target: { x: 2, y: 1, z: 3, set: vi.fn() }, update: vi.fn(), saveState: vi.fn(),
+        reset: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispose: vi.fn(), mouseButtons: {},
       })
       mocks.instances.push(this)
     }
@@ -36,6 +37,7 @@ vi.mock('three/addons/controls/OrbitControls.js', () => ({
 beforeEach(() => {
   mocks.instances.length = 0
   mocks.invalidate.mockReset()
+  mocks.camera.position.set.mockReset()
 })
 
 afterEach(cleanup)
@@ -78,5 +80,21 @@ describe('3D camera controls', () => {
     expect(active).toHaveLength(1)
     view.unmount()
     expect(mocks.instances.every((controls) => controls.dispose.mock.calls.length === 1)).toBe(true)
+  })
+  it('changes pan/drag modes without rebuilding camera controls or resetting a device selection', () => {
+    const ref = { current: null }
+    const { rerender } = render(<ViewerCameraControls ref={ref} target={[2, 1, 3]} extent={10} />)
+    const controls = mocks.instances[0]
+    rerender(<ViewerCameraControls ref={ref} target={[2, 1, 3]} extent={10} enabled={false} panMode />)
+    expect(mocks.instances).toHaveLength(1)
+    expect(controls.enabled).toBe(false)
+    expect(controls.mouseButtons.LEFT).toBe(MOUSE.PAN)
+    rerender(<ViewerCameraControls ref={ref} target={[2, 1, 3]} extent={10} />)
+    expect(controls.enabled).toBe(true)
+    expect(controls.mouseButtons.LEFT).toBe(MOUSE.ROTATE)
+    ref.current.top()
+    expect(mocks.camera.position.set).toHaveBeenLastCalledWith(2, 17, 3.001)
+    ref.current.front()
+    expect(mocks.camera.position.set).toHaveBeenLastCalledWith(2, 4, 19)
   })
 })

@@ -4,6 +4,8 @@ import { listProjects, ProjectApiError } from '../../api/projects.js'
 import { getProjectHref } from '../../routes/projectRoutes.js'
 import { CreateProjectForm } from './CreateProjectForm.jsx'
 import { AdminLegendPanel } from '../admin/AdminLegendPanel.jsx'
+import { Search, FolderOpen, SlidersHorizontal } from 'lucide-react'
+import { Input } from '../../components/ui/input.jsx'
 
 
 function formatStatus(status) {
@@ -36,7 +38,14 @@ export function ProjectDashboardPage({ session }) {
   const [loadState, setLoadState] = useState('loading')
   const [error, setError] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [sort, setSort] = useState('updated')
   const isDesigner = session.user.role === 'DESIGNER'
+  const filteredProjects = projects.filter((project) =>
+    (statusFilter === 'all' || project.status === statusFilter)
+    && [project.name, project.client_name, project.location, String(project.id)].filter(Boolean).join(' ').toLowerCase().includes(search.trim().toLowerCase()),
+  ).sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : new Date(b.updated_at) - new Date(a.updated_at))
 
   useEffect(() => {
     const controller = new AbortController()
@@ -80,7 +89,7 @@ export function ProjectDashboardPage({ session }) {
       </section>
 
       {session.user.role === 'ADMIN' && <AdminLegendPanel />}
-      {isDesigner && <CreateProjectForm onCreated={handleCreated} />}
+      {isDesigner && <details className="studio-create-project" open><summary><FolderOpen size={18} aria-hidden="true" />Create a project<span>Start with an original floor plan</span></summary><CreateProjectForm onCreated={handleCreated} /></details>}
 
       <section className="project-list-panel" aria-labelledby="project-list-title">
         <div className="project-section-heading project-list-heading">
@@ -93,6 +102,13 @@ export function ProjectDashboardPage({ session }) {
               Retry
             </button>
           )}
+        </div>
+
+        <div className="studio-project-filters">
+          <label className="studio-search"><Search size={18} aria-hidden="true" /><Input aria-label="Search projects" placeholder="Search project, client or location…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <label><SlidersHorizontal size={16} aria-hidden="true" /><span className="sr-only">Project status</span><select aria-label="Project status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option>{[...new Set(projects.map((project) => project.status))].sort().map((status) => <option key={status} value={status}>{formatStatus(status)}</option>)}</select></label>
+          <label><span className="sr-only">Sort projects</span><select aria-label="Sort projects" value={sort} onChange={(event) => setSort(event.target.value)}><option value="updated">Recently updated</option><option value="name">Project name</option></select></label>
+          {loadState === 'ready' && <span className="mono">{filteredProjects.length} / {projects.length} projects</span>}
         </div>
 
         {loadState === 'loading' && (
@@ -109,8 +125,8 @@ export function ProjectDashboardPage({ session }) {
           </div>
         )}
         {loadState === 'ready' && projects.length > 0 && (
-          <div className="project-grid">
-            {projects.map((project) => (
+          <div className="project-grid studio-project-grid">
+            {filteredProjects.map((project) => (
               <article className="project-card" key={project.id}>
                 <div className="project-card-topline">
                   <span className="project-status mono">{formatStatus(project.status)}</span>
@@ -129,6 +145,7 @@ export function ProjectDashboardPage({ session }) {
             ))}
           </div>
         )}
+        {loadState === 'ready' && projects.length > 0 && filteredProjects.length === 0 && <div className="project-empty-state"><h3>No matching projects.</h3><p>Try another search or status filter.</p></div>}
       </section>
     </>
   )

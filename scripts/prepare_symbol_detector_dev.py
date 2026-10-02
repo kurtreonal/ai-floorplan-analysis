@@ -10,10 +10,11 @@ from collections import Counter, defaultdict
 import hashlib
 import json
 import math
+import sys
 from pathlib import Path
 import unicodedata
 
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 
 
 DEFAULT_CLASSES = ("Troffer lights", "Smoke detector", "Pull station")
@@ -72,7 +73,7 @@ def tile_supervision(members, tile, excluded):
 
 def build(manifest_path, source_root, output, labels=DEFAULT_CLASSES, base_weights=None,
           context_mode="masked", class_agnostic=False, include_reviewed_neighbors=False,
-          reviewed_box_only=False):
+          reviewed_box_only=False, all_entries=False, balance_minimum=0, align_inference_grid=False):
     manifest_bytes = manifest_path.read_bytes()
     manifest = json.loads(manifest_bytes)
     if manifest.get("schema") != "ved-reviewed-symbol-crops-v1":
@@ -85,10 +86,16 @@ def build(manifest_path, source_root, output, labels=DEFAULT_CLASSES, base_weigh
         raise ValueError("Neighbor supervision requires full partial-label context")
     if reviewed_box_only and context_mode != "full_partial":
         raise ValueError("Reviewed-box-only loss requires full partial-label context")
+    if all_entries and (class_agnostic or base_weights or not reviewed_box_only or not include_reviewed_neighbors):
+        raise ValueError("All-entry training requires separate numeric identities and reviewed-box neighbor loss")
+    if not 0 <= balance_minimum <= 32 or (balance_minimum and not all_entries):
+        raise ValueError("Balanced augmentation requires bounded all-entry training")
+    if align_inference_grid and not all_entries:
+        raise ValueError("Native inference-grid supervision requires all-entry training")
     selected = [r for r in manifest["records"] if r["split"] == "train"
-                and (class_agnostic or r["label"] in labels)]
+                and (all_entries or class_agnostic or r["label"] in labels)]
     rows = [r for r in selected if r["sheet_id"] not in UNRESOLVED_REFERENCE_SHEETS]
-    if not rows or (not class_agnostic and len({r["label"] for r in rows}) != len(labels)):
+    if not rows or (not all_entries and not class_agnostic and len({r["label"] for r in rows}) != len(labels)):
         raise ValueError("Selected labels are not all represented by reviewed training records")
     # Drawing IDs remain distinct even when the visible names coincide.
     identities = sorted({(r["legend_entry"], r["label"]) for r in rows})
@@ -147,6 +154,12 @@ def build(manifest_path, source_root, output, labels=DEFAULT_CLASSES, base_weigh
                     and 0 <= x1 < x2 <= source.width and 0 <= y1 < y2 <= source.height):
                 raise ValueError("Reviewed box lies outside exact source")
         excluded, pairs = overlapping_reviewed_records(members) if include_reviewed_neighbors else (set(), [])
+        if all_entries:
+            # Overlap is not proof of an invalid annotation (e.g. nested glyphs).
+            # Preserve owner-reviewed labels as supplied; flag conflicts, never
+            # silently erase all examples of a scarce legend entry.
+            excluded = set()
+            pairs = [{**pair, "decision": "retained_owner_attested_overlap_requires_review"} for pair in pairs]
         overlap_proposals.extend({"source_sha256": source_hash, **pair} for pair in pairs)
         for row in members:
             x1, y1, x2, y2 = row["bbox"]
@@ -159,7 +172,23 @@ def build(manifest_path, source_root, output, labels=DEFAULT_CLASSES, base_weigh
             tile_h = 256 if context_mode == "full_partial" else max(128, round(height * 2.0))
             cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
             left, top = round(cx - tile_w / 2), round(cy - tile_h / 2)
-            supervised = (tile_supervision(members, [left, top, left+tile_w, top+tile_h], excluded)
+            grid_alignment = "centered_training_window"
+            if align_inference_grid:
+                sys.path.insert(0, str(Path(__file__).resolve().parents[1]/"backend"))
+                from app.ai.floor_plan_interpretation.experimental_symbol_detector import tile_positions
+                available = [(x,y) for x,y in tile_positions(source.width, source.height, dual_phase=True)
+                             if x <= x1 < x2 <= x+256 and y <= y1 < y2 <= y+256]
+                if available:
+                    left, top = max(available, key=lambda p: min(x1-p[0], y1-p[1], p[0]+256-x2, p[1]+256-y2))
+                    grid_alignment = "native_inference_window"
+                else:
+                    # Seam-spanning reviewed boxes are not invalid labels.
+                    # Keep their unclipped centered supervision, recording that
+                    # no full native window contains them. Never drop a class.
+                    grid_alignment = "centered_fallback_no_full_native_window"
+            supervised = ([r for r in members if left <= r["bbox"][0] < r["bbox"][2] <= left+tile_w
+                           and top <= r["bbox"][1] < r["bbox"][3] <= top+tile_h] if all_entries else
+                          tile_supervision(members, [left, top, left+tile_w, top+tile_h], excluded)
                           if include_reviewed_neighbors else [row])
             if not supervised:
                 skipped_tiles.append({"record_id": row["id"],
@@ -198,11 +227,50 @@ def build(manifest_path, source_root, output, labels=DEFAULT_CLASSES, base_weigh
                           "class_id": class_id, "source_box": row["bbox"],
                           "image_sha256": digest(image_path), "label_sha256": digest(label_path),
                           "collar_pixels": collar if context_mode == "masked" else None,
+                          "grid_alignment": grid_alignment,
                           **({"tile_origin": [left, top], "supervised_records": supervised_audit}
                              if include_reviewed_neighbors else {}),
                           "split": "training_diagnostic_only"})
     if not audit:
         raise ValueError("No unambiguous reviewed tiles remain")
+    if all_entries and {r["legend_entry"] for r in reviewed_targets.values()} != {key for key, _ in identities}:
+        raise ValueError("An eligible legend entry has no actual training supervision")
+    augmentation_audit = []
+    if balance_minimum:
+        # Deterministic scarce-class oversampling. Synthetic variants are not
+        # independent sources. Isotropic shrinking prevents label clipping;
+        # no flips/rotation which could change directional electrical meanings.
+        original_audit = list(audit)
+        for class_id in sorted(names):
+            centers = [r for r in original_audit if r["class_id"] == class_id]
+            for number in range(max(0, balance_minimum-len(centers))):
+                parent = centers[number % len(centers)]
+                name = f"{parent['record_id']}-augment-{number:02d}"
+                image_path = output / "images/train" / f"{name}.png"
+                label_path = output / "labels/train" / f"{name}.txt"
+                with Image.open(output / "images/train" / f"{parent['record_id']}.png") as original:
+                    side = original.width
+                    scaled_side = (224, 240, 256)[number % 3]
+                    offset = (side-scaled_side)//2
+                    image = Image.new("RGB", original.size, "white")
+                    image.paste(original.resize((scaled_side, scaled_side), Image.Resampling.BILINEAR), (offset, offset))
+                    image = ImageEnhance.Contrast(image).enhance((.85, 1.0, 1.15)[number % 3])
+                    if number % 4 == 0:
+                        image = image.filter(ImageFilter.GaussianBlur(.3))
+                    image.save(image_path)
+                scale = scaled_side/side
+                lines = []
+                for line in (output / "labels/train" / f"{parent['record_id']}.txt").read_text().splitlines():
+                    cls, x, y, w, h = map(float, line.split())
+                    values = (x*scale+offset/side, y*scale+offset/side, w*scale, h*scale)
+                    lines.append(f"{int(cls)} " + " ".join(f"{v:.8f}" for v in values))
+                label_path.write_text("\n".join(lines)+"\n")
+                record = {**parent, "record_id": name, "augmentation_parent": parent["record_id"],
+                          "image_sha256": digest(image_path), "label_sha256": digest(label_path),
+                          "augmentation": {"scale": scale, "offset": [offset, offset],
+                                           "contrast": (.85, 1.0, 1.15)[number % 3], "blur": .3 if number % 4 == 0 else 0}}
+                audit.append(record)
+                augmentation_audit.append({"image_id": name, "parent": parent["record_id"], "class_id": class_id})
     # Display names in the training YAML are ASCII-only to prevent Ultralytics
     # from downloading a Unicode font. Exact catalog names stay in the manifest.
     display_names = {i: unicodedata.normalize("NFKD", label).encode("ascii", "ignore").decode()
@@ -232,6 +300,11 @@ def build(manifest_path, source_root, output, labels=DEFAULT_CLASSES, base_weigh
                                if include_reviewed_neighbors else {})}
                            for (key, label), i in classes.items()]),
               "source_legend_classes": len(identities),
+              "all_eligible_entries": all_entries,
+              "aligned_inference_grid": align_inference_grid,
+              "balanced_augmentation": {"minimum_center_images": balance_minimum,
+                                         "synthetic_variants": augmentation_audit,
+                                         "independent_sources_added": 0},
               "sheets": dict(Counter(r["sheet_id"] for r in rows)),
               "related_groups": dict(Counter(r["group"] for r in rows)),
               "images": audit,
@@ -266,10 +339,15 @@ if __name__ == "__main__":
     parser.add_argument("--class-agnostic", action="store_true")
     parser.add_argument("--include-reviewed-neighbors", action="store_true")
     parser.add_argument("--reviewed-box-only", action="store_true")
+    parser.add_argument("--all-entries", action="store_true")
+    parser.add_argument("--balance-minimum", type=int, default=0)
+    parser.add_argument("--align-inference-grid", action="store_true")
     args = parser.parse_args()
     print(json.dumps(build(args.manifest, args.source_root, args.output,
                            tuple(args.labels) if args.labels else DEFAULT_CLASSES,
                            base_weights=args.base_weights, context_mode=args.context_mode,
                            class_agnostic=args.class_agnostic,
                            include_reviewed_neighbors=args.include_reviewed_neighbors,
-                           reviewed_box_only=args.reviewed_box_only)))
+                           reviewed_box_only=args.reviewed_box_only,
+                           all_entries=args.all_entries, balance_minimum=args.balance_minimum,
+                           align_inference_grid=args.align_inference_grid)))

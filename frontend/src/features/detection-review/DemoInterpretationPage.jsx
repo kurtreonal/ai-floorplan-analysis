@@ -16,6 +16,11 @@ import {
 } from '../../routes/projectRoutes.js'
 import { DemoInterpretationCanvas } from './DemoInterpretationCanvas.jsx'
 import './detectionReview.css'
+import { Button } from '../../components/ui/button.jsx'
+import { Box, Layers3, Undo2, Redo2, Save, Trash2 } from 'lucide-react'
+import { ReviewToolRail } from './ReviewToolRail.jsx'
+import { repairDraftWalls } from './repairDraftWalls.js'
+import { clampDevicePoint, describeReviewSymbol, reviewGeometryPayload } from './devicePresentation.js'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
 
@@ -28,6 +33,13 @@ function decodeImage(url) {
     image.src = url
   })
 }
+
+const EXPERIMENTAL_SYMBOL_PROVIDERS = new Set([
+  'experimental_pull_station_template',
+  'experimental_reviewed_symbol_yolo',
+  'experimental_linked_legend_yolo',
+  'development_multiclass56_yolo',
+])
 
 
 function initialDraft(record) {
@@ -44,7 +56,6 @@ function initialDraft(record) {
     }
   }
   const payload = record.candidate.payload
-  const experimental = record.candidate.provenance?.model_release_id === 'experimental_pull_station_template'
   return {
     walls: payload.walls.items.map((item) => ({
       id: item.id,
@@ -61,7 +72,7 @@ function initialDraft(record) {
     })),
     symbols: payload.symbols.items.map((item) => ({
       id: item.id,
-      disposition: experimental ? 'unresolved' : 'accepted',
+      disposition: 'unresolved',
       center: item.center,
       symbol_legend_id: null,
     })),
@@ -118,8 +129,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const [savedLayout, setSavedLayout] = useState(null)
   const [view, setView] = useState('2d')
   // Default to wall-focused view with rooms hidden
-  const [layers, setLayers] = useState({ walls: true, rooms: false, symbols: false, source: true })
-  const [tool, setTool] = useState('move') // 'move' | 'draw' | 'delete'
+  const [layers, setLayers] = useState({ walls: true, rooms: false, symbols: true, names: true, source: true })
+  const [tool, setTool] = useState('select')
   const [blueprintOpacity, setBlueprintOpacity] = useState(1.0)
   const [history, setHistory] = useState([])
   const [historyIndex, setHistoryIndex] = useState(-1)
@@ -152,7 +163,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       setWallHeight(String(record.review?.wall_height_meters ?? ''))
       setReviewComplete(record.review?.review_complete || false)
       setApproveLayout(record.review?.approved_for_layout || false)
-      if (record.candidate.provenance?.model_release_id === 'experimental_pull_station_template') {
+      if (EXPERIMENTAL_SYMBOL_PROVIDERS.has(record.candidate.provenance?.model_release_id)) {
         setLayers((current) => ({ ...current, symbols: true }))
       }
     }).catch((error) => {
@@ -206,6 +217,9 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const selectedEntity = useMemo(() => (
     selected && draft ? draft[`${selected.kind}s`].find((item) => item.id === selected.id) : null
   ), [draft, selected])
+  const presentations = useMemo(() => draft && state.record
+    ? Object.fromEntries(draft.symbols.map((symbol) => [symbol.id, describeReviewSymbol(symbol, state.record, state.legends)])) : {},
+  [draft, state.record, state.legends])
 
   const savedReviewMatches = Boolean(state.record?.review
     && JSON.stringify(draft) === JSON.stringify(initialDraft(state.record))
@@ -297,6 +311,17 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     pushDraft({ ...draft, rooms: nextRooms })
   }
 
+  function updateSymbol(symbol) {
+    const plane = state.record.candidate.payload.source_plane
+    const center = clampDevicePoint(symbol.center, plane.width_pixels, plane.height_pixels)
+    if (!center) return
+    pushDraft({ ...draft, symbols: draft.symbols.map((item) => item.id === symbol.id ? { ...symbol, center } : item) })
+  }
+
+  function removeSymbol(id) {
+    pushDraft({ ...draft, symbols: draft.symbols.map((item) => item.id === id ? { ...item, disposition: 'rejected' } : item) })
+  }
+
   function addEntity(kind) {
     const plane = state.record.candidate.payload.source_plane
     const center = { x: Math.round(plane.width_pixels / 2), y: Math.round(plane.height_pixels / 2) }
@@ -311,7 +336,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             { x: center.x - radius, y: center.y - radius }, { x: center.x + radius, y: center.y - radius },
             { x: center.x + radius, y: center.y + radius }, { x: center.x - radius, y: center.y + radius },
           ] }
-        : { id, disposition: 'accepted', center, symbol_legend_id: null }
+        : { id, disposition: 'unresolved', center, symbol_legend_id: null }
     pushDraft({ ...draft, [key]: [...draft[key], entity] }, { wallChange: kind === 'wall' })
     setSelected({ kind, id })
     setLayers((current) => ({ ...current, [`${kind}s`]: true }))
@@ -330,10 +355,15 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         wall_thickness_meters: !draftOnly && approveLayout ? Number(wallThickness) : null,
         wall_height_meters: !draftOnly && approveLayout ? Number(wallHeight) : null,
         evidence_notes: notes.trim() || (draftOnly ? 'Unfinished wall-first review draft. Not approved for canonical layout.' : ''),
-        ...draft,
+        // Preserve review layers not edited by this workspace; never silently erase them.
+        ...Object.fromEntries(['openings', 'panels', 'scale_evidence', 'observed_wiring', 'checklist']
+          .filter((key) => state.record.review?.[key] != null).map((key) => [key, state.record.review[key]])),
+        ...reviewGeometryPayload(draft),
       })
       setState((current) => ({ ...current, record }))
-      setDraft(initialDraft(record))
+      const savedDraft = initialDraft(record)
+      setDraft(savedDraft)
+      setHistory((previous) => [...previous.slice(0, historyIndex), savedDraft, ...previous.slice(historyIndex + 1)])
       setNotes(record.review.evidence_notes)
       setReviewComplete(record.review.review_complete)
       setApproveLayout(record.review.approved_for_layout)
@@ -373,7 +403,11 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   if (state.status === 'error') return <section className="detection-state detection-error"><p role="alert">{state.error}</p><a href={getProjectHref(projectId)}>Back to project</a></section>
 
   const plane = state.record.candidate.payload.source_plane
-  const experimental = state.record.candidate.provenance?.model_release_id === 'experimental_pull_station_template'
+  const experimentalProvider = state.record.candidate.provenance?.model_release_id
+  const experimental = experimentalProvider === 'experimental_pull_station_template'
+  const trained = experimentalProvider === 'experimental_reviewed_symbol_yolo'
+  const linked = experimentalProvider === 'experimental_linked_legend_yolo'
+  const general = experimentalProvider === 'development_multiclass56_yolo'
   const truncated = ['walls', 'rooms', 'symbols'].filter(
     (key) => state.record.candidate.payload[key].truncated,
   )
@@ -381,11 +415,11 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const activeRoomsCount = draft.rooms.filter((item) => item.disposition !== 'rejected').length
 
   return (
-    <article className="detection-review-page demo-review-page">
+    <article className="detection-review-page demo-review-page studio-review-page">
       <a className="detection-back-link" href={getProjectHref(projectId)}>← Back to project</a>
       <nav className="demo-steps" aria-label="Floor-plan workflow">
         <a href={getProjectHref(projectId)}>1 · Upload &amp; analyze</a>
-        <strong aria-current="step">2 · Edit walls in 2D / 3D</strong>
+        <strong aria-current="step">2 · Edit plan &amp; devices in 2D / 3D</strong>
         <a href="#demo-approval-title" onClick={(event) => { event.preventDefault(); document.getElementById('demo-approval-title')?.scrollIntoView({ behavior: 'smooth' }) }}>3 · Save &amp; approve when ready</a>
       </nav>
       <header className="detection-review-header">
@@ -399,111 +433,29 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         Walls are traced from thick structural boundaries and partitions. Thin grids, wiring, troffers, and dimensions are rejected. Verify or draw walls in 2D before 3D preview.
       </p>
       {experimental && <p role="note">Experimental Pull station template proposals only (two Group 7 source templates; page scale selected from 1.0/1.2 using interior matches). The second page was used for tuning, not held-out evaluation. Orange review overlays are unconfirmed; match similarity is not calibrated confidence. Inspect the original image, then accept, correct, reject, or add symbols. Map accepted symbols to an approved VED legend. Other classes remain unresolved.</p>}
+      {general && <p role="note">One shared supervised development detector includes all 56 eligible drawing-legend entries. Inclusion is not a guarantee of detection. Scarce examples and conflicting labels limit results; scores are not calibrated and independent accuracy is unverified. Proposals start unresolved. Inspect, accept, correct, reject, or add symbols, then map accepted symbols to the approved drawing legend and save your draft.</p>}
+      {(trained || linked) && <p role="note">Experimental trained symbol proposals are unresolved until you inspect, correct, and map them to the drawing's approved VED legend. {linked ? 'This five-class linked-legend model has uneven same-source recall and text/grid mistakes.' : 'This narrower model covers troffer, smoke detector, and Pull station only.'} Detector scores are not calibrated confidence; no independent-project accuracy or production approval is claimed.</p>}
       {truncated.length > 0 && <p className="detection-limit-warning" role="alert">Bounded proposal cap reached for: {truncated.join(', ')}. Add missing geometry manually where needed.</p>}
       {state.legends.length === 0 && <details><summary>Do I need a symbol legend?</summary><p>Not for wall review or 3D preview. Electrical-symbol approval requires an approved VED legend.</p></details>}
 
-      <section className="demo-preview-workspace" aria-label="Wall-first workspace">
-        {/* Workspace Toolbar matching reference */}
-        <div className="demo-workspace-toolbar">
-          <div className="demo-tool-group" role="group" aria-label="Wall editing tools">
-            <button
-              type="button"
-              className={`demo-tool-btn ${tool === 'move' ? 'is-active' : ''}`}
-              onClick={() => setTool('move')}
-              aria-pressed={tool === 'move'}
-              title="Move Walls / Drag Endpoints"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="5 9 2 12 5 15" /><polyline points="9 5 12 2 15 5" /><polyline points="15 19 12 22 9 19" /><polyline points="19 9 22 12 19 15" /><line x1="2" y1="12" x2="22" y2="12" /><line x1="12" y1="2" x2="12" y2="22" />
-              </svg>
-              Move Walls
-            </button>
-            <button
-              type="button"
-              className={`demo-tool-btn ${tool === 'draw' ? 'is-active' : ''}`}
-              onClick={() => setTool('draw')}
-              aria-pressed={tool === 'draw'}
-              title="Draw Walls (Click-to-start / Click-to-finish, Esc to cancel)"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-              Draw Walls
-            </button>
-            <button
-              type="button"
-              className={`demo-tool-btn ${tool === 'delete' ? 'is-active' : ''}`}
-              onClick={() => setTool('delete')}
-              aria-pressed={tool === 'delete'}
-              title="Delete Walls (Click wall to delete or press Del key)"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              Delete Walls
-            </button>
-          </div>
-
-          <div className="demo-history-group" role="group" aria-label="History">
-            <button
-              type="button"
-              className="demo-icon-btn"
-              onClick={handleUndo}
-              disabled={historyIndex <= 0}
-              title="Undo (Ctrl+Z)"
-            >
-              Undo
-            </button>
-            <button
-              type="button"
-              className="demo-icon-btn"
-              onClick={handleRedo}
-              disabled={historyIndex >= history.length - 1}
-              title="Redo (Ctrl+Y)"
-            >
-              Redo
-            </button>
-          </div>
-
-          <div className="demo-blueprint-controls">
-            <button
-              type="button"
-              className="demo-icon-btn"
-              onClick={() => setLayers((cur) => ({ ...cur, source: !cur.source }))}
-            >
-              {layers.source ? 'Hide Blueprint' : 'Show Blueprint'}
-            </button>
-            {layers.source && (
-              <label className="demo-opacity-label">
-                Opacity
-                <input
-                  type="range"
-                  min="0.1"
-                  max="1.0"
-                  step="0.05"
-                  value={blueprintOpacity}
-                  onChange={(e) => setBlueprintOpacity(Number(e.target.value))}
-                />
-              </label>
-            )}
-          </div>
-
-          <div className="demo-view-switch" role="group" aria-label="Preview mode">
-            <button type="button" aria-pressed={view === '2d'} onClick={() => setView('2d')} aria-label="2D · Review rooms">2D</button>
-            <button type="button" aria-pressed={view === '3d'} onClick={() => setView('3d')} aria-label="3D · Draft preview">3D</button>
-          </div>
-
-          <button
-            type="button"
-            className="demo-done-btn"
-            disabled={saveState.status === 'saving'}
-            onClick={() => saveReview({ draftOnly: true })}
-            title="Save draft review"
-            aria-label="Save unfinished draft"
-          >
-            Done »
-          </button>
+      <div className="studio-review-headerbar">
+        <div className="studio-review-mode" role="group" aria-label="Preview mode">
+          <Button variant={view === '2d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '2d'} aria-label="2D · Review rooms" onClick={() => setView('2d')}><Layers3 aria-hidden="true" />Edit 2D</Button>
+          <Button variant={view === '3d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '3d'} aria-label="3D · Draft preview" onClick={() => { setView('3d'); setTool('select') }}><Box aria-hidden="true" />View 3D</Button>
         </div>
+        <span className="mono studio-draft-status">SHARED DRAFT · {draft.symbols.filter((item) => item.disposition !== 'rejected').length} DEVICES</span>
+        <Button variant="ghost" size="icon" aria-label="Undo" disabled={historyIndex <= 0} onClick={handleUndo}><Undo2 aria-hidden="true" /></Button>
+        <Button variant="ghost" size="icon" aria-label="Redo" disabled={historyIndex >= history.length - 1} onClick={handleRedo}><Redo2 aria-hidden="true" /></Button>
+        <Button size="sm" disabled={saveState.status === 'saving'} aria-label="Save unfinished draft" onClick={() => saveReview({ draftOnly: true })}><Save aria-hidden="true" />Save draft</Button>
+      </div>
+      <div className="studio-review-workbench studio-device-workbench">
+      <ReviewToolRail view={view} tool={tool} onToolChange={setTool} onAdd={addEntity} layers={layers} setLayers={setLayers} opacity={blueprintOpacity} onOpacityChange={setBlueprintOpacity}
+        onConnectWalls={() => {
+          const result = repairDraftWalls(draft.walls, plane.width_pixels, plane.height_pixels)
+          if (result.joined || result.merged) pushDraft({ ...draft, walls: result.walls }, { wallChange: true })
+          setSaveState({ status: 'idle', message: `Wall repair: ${result.joined} endpoints connected, ${result.merged} overlapping segments merged. Gaps up to ${Math.round(result.maxGap)} px checked; doorway gaps preserved. Review the blueprint, then save draft. Undo is available.` })
+        }} />
+      <section className="demo-preview-workspace" aria-label="Wall-first workspace">
 
         {staleRoomsWarning && (
           <div className="demo-stale-rooms-banner" role="alert">
@@ -515,29 +467,12 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         <p className="demo-next-step">
           {view === '2d'
             ? 'Walls are shown as centerlines with estimated thickness. Drag wall endpoints to resize, drag wall bodies to move, or switch to Draw Walls to add new walls. Hold Shift for 90° constraint.'
-            : 'Illustrative 3D preview of current wall geometry. Return to 2D to adjust walls at any time.'}
+            : 'Select or drag a device in 3D. Classify and remove it in the inspector. Walls use the same 2D draft; no real mounting heights are assumed.'}
         </p>
 
         {view === '2d' ? (
           <>
-            <div className="demo-layer-controls">
-              <label>
-                <input type="checkbox" checked={layers.walls} onChange={(e) => setLayers((c) => ({ ...c, walls: e.target.checked }))} />
-                Show walls (default)
-              </label>
-              <label>
-                <input type="checkbox" checked={layers.rooms} onChange={(e) => setLayers((c) => ({ ...c, rooms: e.target.checked }))} />
-                Show room proposals (optional)
-              </label>
-              <label>
-                <input type="checkbox" checked={layers.symbols} onChange={(e) => setLayers((c) => ({ ...c, symbols: e.target.checked }))} />
-                Show symbol proposals {experimental ? '(experimental)' : '(optional)'}
-              </label>
-              <label>
-                <input type="checkbox" checked={layers.source} onChange={(e) => setLayers((c) => ({ ...c, source: e.target.checked }))} />
-                Show original blueprint
-              </label>
-            </div>
+
             {draft.walls.length === 0 && (
               <p role="status">No walls detected. Click &quot;Draw Walls&quot; above to draw walls directly over the blueprint.</p>
             )}
@@ -555,22 +490,24 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               onUpdateWall={handleUpdateWall}
               onDeleteWall={handleDeleteWall}
               onUpdateRoom={updateRoom}
+              onUpdateSymbol={updateSymbol}
+              onDeleteSymbol={removeSymbol}
+              presentations={presentations}
               blueprintOpacity={blueprintOpacity}
             />
           </>
         ) : (
           <Suspense fallback={<p role="status">Opening draft 3D preview…</p>}>
-            <DraftRoomPreview draft={draft} width={plane.width_pixels} height={plane.height_pixels} projectId={projectId} />
+            <DraftRoomPreview draft={draft} layers={layers} width={plane.width_pixels} height={plane.height_pixels} projectId={projectId}
+              presentations={presentations} selected={selected} onSelect={setSelected} onUpdateSymbol={updateSymbol} navigationMode={tool} />
           </Suspense>
         )}
         {saveState.message && <p role={saveState.status === 'error' ? 'alert' : 'status'}>{saveState.message}</p>}
       </section>
 
-      <section className="demo-review-tools" aria-labelledby="demo-tools-title" hidden={view !== '2d'}>
+      <section className="demo-review-tools" aria-labelledby="demo-tools-title">
         <h2 id="demo-tools-title">Review and inspect</h2>
-        <div className="demo-add-actions">
-          {['wall', 'room', 'symbol'].map((kind) => <button key={kind} type="button" className="btn btn-outline-dark" onClick={() => addEntity(kind)}>Add missing {kind}</button>)}
-        </div>
+
         <label>Select proposal
           <select value={selected ? `${selected.kind}:${selected.id}` : ''} onChange={(event) => {
             const [kind, id] = event.target.value.split(':')
@@ -578,14 +515,15 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             if (event.target.value) setLayers((current) => ({ ...current, [`${kind}s`]: true }))
           }}>
             <option value="">Choose an item</option>
-            {['wall', 'room', 'symbol'].filter((kind) => layers[`${kind}s`]).flatMap((kind) => draft[`${kind}s`].map((item) => <option key={`${kind}:${item.id}`} value={`${kind}:${item.id}`}>{kind} · {item.name || item.id} · {item.disposition === 'rejected' ? 'excluded' : 'in draft'}</option>))}
+            {['symbol', 'wall', 'room'].flatMap((kind) => draft[`${kind}s`].map((item) => <option key={`${kind}:${item.id}`} value={`${kind}:${item.id}`}>{kind === 'symbol' ? presentations[item.id].label : item.name || `${kind} ${item.id}`} · {item.disposition === 'rejected' ? 'removed' : item.disposition} · {item.id}</option>))}
           </select>
         </label>
         {selectedEntity && <div className="demo-selected-editor">
-          <h3>{selected.kind} {selectedEntity.id}</h3>
+          <h3>{selected.kind === 'symbol' ? presentations[selectedEntity.id].name : `${selected.kind} ${selectedEntity.id}`}</h3>
+          {selected.kind === 'symbol' && <p className="studio-device-provenance"><span className="mono">{selectedEntity.id}</span><br />{presentations[selectedEntity.id].mapped ? 'Legend linked · review decision remains separate' : 'Unmapped proposal · choose an approved legend below'}<br />Original detection: {presentations[selectedEntity.id].originalLabel}</p>}
           <label>Review decision
             <select value={selectedEntity.disposition} onChange={(event) => updateSelected({ ...selectedEntity, disposition: event.target.value })}>
-              <option value="unresolved">Unresolved</option><option value="accepted">Accept</option><option value="corrected">Corrected</option><option value="rejected">Reject</option>
+              <option value="unresolved">Unresolved</option><option value="accepted">Accept</option><option value="corrected">Corrected</option><option value="added">Manually added</option><option value="rejected">Reject</option>
             </select>
           </label>
           {selected.kind === 'wall' && (
@@ -600,14 +538,18 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             <div className="demo-room-points">{selectedEntity.boundary.map((point, index) => <NumericPoint key={`${selectedEntity.id}-${index}`} label={`Boundary point ${index + 1}`} value={point} onChange={(nextPoint) => updateSelected({ ...selectedEntity, boundary: selectedEntity.boundary.map((item, pointIndex) => pointIndex === index ? nextPoint : item) })} />)}</div>
           </>}
           {selected.kind === 'symbol' && <>
-            <NumericPoint label="Symbol center" value={selectedEntity.center} onChange={(center) => updateSelected({ ...selectedEntity, center })} />
+            <NumericPoint label="Symbol center (source pixels)" value={selectedEntity.center} onChange={(center) => updateSymbol({ ...selectedEntity, center })} />
             <label>Approved VED legend class<select value={selectedEntity.symbol_legend_id || ''} onChange={(event) => updateSelected({ ...selectedEntity, symbol_legend_id: event.target.value ? Number(event.target.value) : null })}>
               <option value="">Unmapped</option>{state.legends.map((legend) => <option key={legend.id} value={legend.id}>{legend.class_id} — {legend.name}</option>)}
             </select></label>
+            <p className="studio-device-provenance">Drag this device in either view, or edit X/Y. Mounting height and physical dimensions are not yet recorded.</p>
+            <Button variant="outline" className="studio-remove-device" disabled={selectedEntity.disposition === 'rejected'} onClick={() => removeSymbol(selectedEntity.id)}><Trash2 aria-hidden="true" />Remove device</Button>
           </>}
         </div>}
+        {!selectedEntity && <p className="studio-inspector-empty">Select a named device in the canvas or list to move, classify or remove it. Changes stay in the shared draft until saved.</p>}
       </section>
 
+      </div>
       <section className="demo-approval-panel" aria-labelledby="demo-approval-title">
         <h2 id="demo-approval-title">Optional: approve a measured, saved layout</h2>
         <p>You do not need this step for the draft 2D / 3D preview above. Use it only after reviewing geometry and real dimensions. Saving an unfinished draft does not approve it.</p>

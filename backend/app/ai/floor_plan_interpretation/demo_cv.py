@@ -279,18 +279,16 @@ def interpret_floor_plan_demo(
     height, width = source.shape[:2]
     try:
         grayscale = cv2.cvtColor(source.copy(), cv2.COLOR_RGB2GRAY)
-        _, ink = cv2.threshold(
-            grayscale,
-            0,
-            255,
-            cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU,
+        # Local contrast preserves pale wall fills under uneven scan illumination.
+        # A page-global Otsu cutoff can retain dark fixtures but erase those walls.
+        block_size = max(31, round(min(width, height) * 0.09))
+        if block_size % 2 == 0:
+            block_size += 1
+        ink = cv2.adaptiveThreshold(
+            grayscale, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV, block_size, 12,
         )
         plan_bounds = _plan_bounds(ink)
-        room_boundaries, rooms_truncated = _room_boundaries(
-            ink,
-            plan_bounds,
-            selected,
-        )
         symbol_circles, symbols_truncated = _symbol_circles(
             grayscale,
             plan_bounds,
@@ -301,8 +299,17 @@ def interpret_floor_plan_demo(
         masked_binary[y : y + plan_height, x : x + plan_width] = cv2.bitwise_not(
             ink[y : y + plan_height, x : x + plan_width]
         )
+        # Fainter evidence can extend an existing sustained wall, but cannot
+        # independently seed fixtures, text, or new wall candidates.
+        continuity = cv2.adaptiveThreshold(
+            grayscale, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY, block_size, 8,
+        )
+        masked_continuity = np.full_like(grayscale, 255)
+        masked_continuity[y:y + plan_height, x:x + plan_width] = continuity[y:y + plan_height, x:x + plan_width]
         wall_result = detect_wall_lines(
             masked_binary,
+            continuity_source=masked_continuity,
             parameters=WallDetectionParameters(
                 hough_vote_threshold=max(20, round(min(width, height) * 0.012)),
                 minimum_line_length=max(24, min(width, height) * 0.02),
@@ -311,6 +318,13 @@ def interpret_floor_plan_demo(
                 structural_mode=True,
             ),
         )
+        # Room proposals share structural evidence with walls. Raw lighting grids
+        # must not independently partition free space into fictitious rooms.
+        room_ink = np.zeros_like(ink)
+        for wall in wall_result.candidates:
+            cv2.line(room_ink, (wall.start.x, wall.start.y), (wall.end.x, wall.end.y),
+                     255, max(2, round(wall.estimated_thickness_pixels or 2)))
+        room_boundaries, rooms_truncated = _room_boundaries(room_ink, plan_bounds, selected)
     except DemoCVError:
         raise
     except Exception:

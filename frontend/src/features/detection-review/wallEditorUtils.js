@@ -45,9 +45,21 @@ export function findSnapPoint(point, walls = [], options = {}) {
     for (const target of [wall.start, wall.end]) {
       if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y)) continue
       const dist = Math.hypot(point.x - target.x, point.y - target.y)
-      if (dist <= bestDist) {
-        bestDist = dist
-        best = { x: target.x, y: target.y }
+      if (dist <= bestDist) { bestDist = dist; best = { x: target.x, y: target.y } }
+    }
+  }
+  // Prefer corners; only snap onto the middle of a wall when no endpoint is near.
+  if (best) return { ...best, snapped: true }
+  for (const wall of walls) {
+    if (wall.disposition === 'rejected' || wall.id === excludeWallId) continue
+    if (wall.start && wall.end) {
+      const dx = wall.end.x - wall.start.x, dy = wall.end.y - wall.start.y
+      const squaredLength = dx * dx + dy * dy
+      const t = squaredLength ? ((point.x - wall.start.x) * dx + (point.y - wall.start.y) * dy) / squaredLength : -1
+      if (t > 0 && t < 1) {
+        const target = { x: wall.start.x + t * dx, y: wall.start.y + t * dy }
+        const dist = Math.hypot(point.x - target.x, point.y - target.y)
+        if (dist <= bestDist) { bestDist = dist; best = target }
       }
     }
   }

@@ -364,7 +364,7 @@ class SymbolLegendApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 39)
+        self.assertEqual(len(operations), 43)
 
 
 if __name__ == "__main__":

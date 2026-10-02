@@ -627,7 +627,7 @@ class WallPersistenceTests(unittest.TestCase):
             for method in methods
             if method.casefold() in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 39)
+        self.assertEqual(operations, 43)  # Includes four implemented estimate operations.
 
 
 if __name__ == "__main__":

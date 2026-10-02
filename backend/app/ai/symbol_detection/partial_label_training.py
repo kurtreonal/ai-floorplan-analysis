@@ -7,6 +7,8 @@ complete-region evaluation or production dataset approval.
 """
 
 import torch
+import json
+from pathlib import Path
 
 from ultralytics.models.yolo.detect.train import DetectionTrainer
 from ultralytics.nn.tasks import DetectionModel
@@ -26,6 +28,7 @@ def local_negative_mask(anchor_pixels, boxes, valid_boxes, margin_pixels=12):
 
 class PartialLabelLoss(v8DetectionLoss):
     negative_margin_pixels = 12
+    reviewed_background_enabled = False
 
     def get_assigned_targets_and_loss(self, preds, batch):
         loss = torch.zeros(3, device=self.device)
@@ -45,6 +48,8 @@ class PartialLabelLoss(v8DetectionLoss):
             pred_scores.detach().sigmoid(),
             (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
             anchor_points * stride_tensor, gt_labels, gt_bboxes, mask_gt)
+        # Empty-target batches return a floating zero mask in this runtime.
+        fg_mask = fg_mask.bool()
         target_scores_sum = max(target_scores.sum(), 1)
         bce_loss = self.bce(pred_scores, target_scores.to(dtype))
         if self.class_weights is not None:
@@ -53,7 +58,10 @@ class PartialLabelLoss(v8DetectionLoss):
         # loss for checkpoint compatibility, not as reviewed-background proof.
         near_reviewed = local_negative_mask(anchor_points * stride_tensor, gt_bboxes, mask_gt,
                                             margin_pixels=self.negative_margin_pixels)
-        bce_loss *= (fg_mask | near_reviewed).unsqueeze(-1)
+        weights = (fg_mask | near_reviewed).to(bce_loss.dtype)
+        if self.reviewed_background_enabled:
+            weights = reviewed_background_weights(weights, batch.get("reviewed_background"), mask_gt)
+        bce_loss *= weights.unsqueeze(-1)
         loss[1] = bce_loss.sum() / target_scores_sum
         if fg_mask.sum():
             loss[0], loss[2] = self.bbox_loss(
@@ -98,3 +106,44 @@ class PartialLabelTrainer(DetectionTrainer):
 
 class ReviewedBoxOnlyTrainer(PartialLabelTrainer):
     model_class = ReviewedBoxOnlyDetectionModel
+
+
+def reviewed_background_weights(weights, reviewed_background, mask_gt):
+    """Only explicitly reviewed, wholly negative images supervise other anchors.
+
+    Limit their loss mass to 32 anchors per image so thousands of background
+    anchors do not overwhelm scarce positive examples. Unknown empty images
+    remain ignored, not negatives. Positive and negative flags may not conflict.
+    """
+    if reviewed_background is None:
+        return weights
+    flags = torch.as_tensor(reviewed_background, device=weights.device, dtype=torch.bool)
+    if flags.shape != (weights.shape[0],) or (flags & mask_gt.bool().any(dim=(1, 2))).any():
+        raise ValueError("Invalid reviewed background identity or conflicting positive labels")
+    return torch.where(flags[:, None], torch.full_like(weights, min(1., 32 / weights.shape[1])), weights)
+
+
+class ReviewedBackgroundLoss(ReviewedBoxOnlyLoss):
+    reviewed_background_enabled = True
+
+
+class ReviewedBackgroundDetectionModel(ReviewedBoxOnlyDetectionModel):
+    def init_criterion(self):
+        if getattr(self, "end2end", False):
+            raise ValueError("Reviewed-background loss is not implemented for end-to-end detectors")
+        return ReviewedBackgroundLoss(self)
+
+
+class ReviewedBackgroundTrainer(ReviewedBoxOnlyTrainer):
+    model_class = ReviewedBackgroundDetectionModel
+
+    def preprocess_batch(self, batch):
+        batch = super().preprocess_batch(batch)
+        if not hasattr(self, "_reviewed_background_stems"):
+            manifest = json.loads((Path(self.data["path"]) / "manifest.json").read_text())
+            if manifest.get("required_loss") != "positive_boxes_and_explicit_reviewed_background":
+                raise ValueError("Missing explicit reviewed-background manifest")
+            self._reviewed_background_stems = {r["image_id"] for r in manifest["reviewed_background_images"]}
+        batch["reviewed_background"] = torch.tensor(
+            [Path(name).stem in self._reviewed_background_stems for name in batch["im_file"]], device=self.device)
+        return batch

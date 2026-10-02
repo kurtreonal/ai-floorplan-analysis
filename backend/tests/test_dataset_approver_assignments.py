@@ -177,7 +177,7 @@ class DatasetApproverAssignmentTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 39)
+        self.assertEqual(operations, 43)
 
     def test_safe_current_read_and_admin_authorization(self) -> None:
         current_path = "/api/dataset-approver-assignment"

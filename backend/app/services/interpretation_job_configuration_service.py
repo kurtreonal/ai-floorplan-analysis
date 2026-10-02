@@ -71,6 +71,17 @@ def pin_job_configuration(
     )
     if current is None:
         raise InterpretationConfigurationError("PROCESSING_PAGES_NOT_FOUND")
+    from app.ai.floor_plan_interpretation import multiclass_symbol_detector as multiclass
+    if current.provider == multiclass.PROVIDER:
+        if getattr(settings, "app_env", None) != "development" or current_runtime_release(session) is not None:
+            raise InterpretationConfigurationError("EXPERIMENTAL_LOCATOR_DISABLED")
+        try:
+            multiclass.verify_artifacts()
+        except ValueError as error:
+            raise InterpretationConfigurationError(str(error)) from None
+        if current.configuration_sha256 != multiclass.configuration_sha256():
+            raise InterpretationConfigurationError("PROCESSING_CONFIGURATION_CONFLICT")
+        return current
     from app.ai.floor_plan_interpretation.experimental_pull_station import (
         ExperimentalLocatorUnavailable, LOCAL_SOURCE, PROVIDER as TEMPLATE_PROVIDER,
         configuration_sha256, source_digest,
@@ -86,17 +97,20 @@ def pin_job_configuration(
             raise InterpretationConfigurationError("PROCESSING_CONFIGURATION_CONFLICT")
         return current
     from app.ai.floor_plan_interpretation.experimental_symbol_detector import (
-        PROVIDER as TRAINED_PROVIDER, configuration_sha256 as trained_configuration_sha256,
-        verify_artifacts,
+        LINKED_PROVIDER, PROVIDER as TRAINED_PROVIDER,
+        configuration_sha256 as trained_configuration_sha256,
+        linked_configuration_sha256, verify_artifacts, verify_linked_artifacts,
     )
-    if current.provider == TRAINED_PROVIDER:
+    if current.provider in (TRAINED_PROVIDER, LINKED_PROVIDER):
         if getattr(settings, "app_env", None) != "development" or current_runtime_release(session) is not None:
             raise InterpretationConfigurationError("EXPERIMENTAL_LOCATOR_DISABLED")
         try:
-            verify_artifacts()
+            (verify_linked_artifacts if current.provider == LINKED_PROVIDER else verify_artifacts)()
         except ValueError as error:
             raise InterpretationConfigurationError(str(error)) from None
-        if current.configuration_sha256 != trained_configuration_sha256():
+        expected = (linked_configuration_sha256() if current.provider == LINKED_PROVIDER
+                    else trained_configuration_sha256())
+        if current.configuration_sha256 != expected:
             raise InterpretationConfigurationError("PROCESSING_CONFIGURATION_CONFLICT")
         return current
     active_release = current_runtime_release(session)

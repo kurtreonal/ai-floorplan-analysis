@@ -37,4 +37,20 @@ describe('relative draft room preview', () => {
     expect(() => buildDraftRoomScene({ rooms: [{ ...room, boundary: [{ x: -1, y: 0 }, ...room.boundary] }] }, 100, 60)).toThrow()
     expect(() => buildDraftRoomScene({ rooms: [{ ...room, boundary: [room.boundary[0], room.boundary[2], room.boundary[1], room.boundary[3]] }] }, 100, 60)).toThrow(/crosses/)
   })
+  it('renders named devices in source-aligned relative coordinates without creating mounting heights', () => {
+    const draft = { walls: [], rooms: [], symbols: [
+      { id: 'symbol-0001', disposition: 'unresolved', center: { x: 75, y: 50 } },
+      { id: 'symbol-0002', disposition: 'rejected', center: { x: 80, y: 40 } },
+      { id: 'symbol-0003', disposition: 'accepted', center: { x: 999, y: 40 } },
+    ] }
+    const before = structuredClone(draft)
+    const scene = buildDraftRoomScene(draft, 400, 300, 0.8, { 'symbol-0001': { name: 'Troffer light', family: 'troffer', mapped: false } })
+    expect(scene.symbols).toHaveLength(1)
+    expect(scene.symbols[0]).toMatchObject({ position: [1.875, 0, 1.25], status: 'unresolved', presentation: { name: 'Troffer light' } })
+    expect(scene.invalidSymbolCount).toBe(1)
+    expect(scene.sourceScale).toBe(0.025)
+    expect(draft).toEqual(before)
+    draft.symbols[0].center.x = 100
+    expect(buildDraftRoomScene(draft, 400, 300).symbols[0].position[0]).toBe(2.5)
+  })
 })

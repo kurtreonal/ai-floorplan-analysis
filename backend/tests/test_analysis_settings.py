@@ -168,5 +168,5 @@ class AnalysisSettingsTests(unittest.TestCase):
             self.assertEqual({i["name"] for i in inspector.get_indexes(name)}, {i.name for i in model.__table__.indexes})
         methods = {"get", "post", "put", "patch", "delete"}
         operations = [(path, method) for path, item in self.app.openapi()["paths"].items() for method in item if method in methods]
-        self.assertEqual(len(operations), 39)
+        self.assertEqual(len(operations), 43)
         self.assertEqual(len(operations), len(set(operations)))

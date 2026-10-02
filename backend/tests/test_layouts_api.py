@@ -5,6 +5,7 @@ import unittest
 from base64 import b64encode
 from datetime import datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
@@ -123,6 +124,14 @@ class LayoutApiTests(unittest.TestCase):
         cls.database_session.flush()
         cls.database_session.commit()
 
+        cls.file_sandbox = TemporaryDirectory(prefix="ved-layout-regression-")
+        cls.addClassCleanup(cls.file_sandbox.cleanup)
+        cls.file_root = Path(cls.file_sandbox.name)
+        for relative in ("uploads/originals/sentinel.png", "processed/sentinel.png",
+                         "models/yolo.pt", "models/vlm/sentinel.bin"):
+            target = cls.file_root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(b"synthetic immutable layout regression sentinel")
         settings = Settings(
             _env_file=None,
             app_env="development",
@@ -136,6 +145,10 @@ class LayoutApiTests(unittest.TestCase):
             ),
             oauth_scopes="openid profile email",
             session_secret=SESSION_SECRET,
+            upload_dir=cls.file_root / "uploads",
+            processed_dir=cls.file_root / "processed",
+            yolo_model_path=cls.file_root / "models/yolo.pt",
+            local_vlm_model_path=cls.file_root / "models/vlm",
         )
         cls.application = create_app(settings)
 
@@ -309,9 +322,9 @@ class LayoutApiTests(unittest.TestCase):
 
     def _file_state(self) -> dict[str, tuple[int, str]]:
         roots = (
-            REPOSITORY_ROOT / "storage" / "uploads" / "originals",
-            REPOSITORY_ROOT / "storage" / "processed",
-            REPOSITORY_ROOT / "models",
+            self.file_root / "uploads" / "originals",
+            self.file_root / "processed",
+            self.file_root / "models",
         )
         state = {}
         for root in roots:
@@ -319,12 +332,25 @@ class LayoutApiTests(unittest.TestCase):
                 continue
             for path in root.rglob("*"):
                 if path.is_file() and path.name != ".gitkeep":
-                    relative = path.relative_to(REPOSITORY_ROOT).as_posix()
+                    relative = path.relative_to(self.file_root).as_posix()
                     state[relative] = (
                         path.stat().st_size,
                         hashlib.sha256(path.read_bytes()).hexdigest(),
                     )
         return state
+
+    def test_file_mutation_guard_uses_nonempty_isolated_sentinels(self) -> None:
+        before = self._file_state()
+        self.assertEqual(len(before), 4)
+        self.assertFalse(self.file_root.is_relative_to(REPOSITORY_ROOT))
+        target = self.file_root / "processed/sentinel.png"
+        original = target.read_bytes()
+        try:
+            target.write_bytes(b"unexpected mutation")
+            self.assertNotEqual(self._file_state(), before)
+        finally:
+            target.write_bytes(original)
+        self.assertEqual(self._file_state(), before)
 
     def test_routes_openapi_models_and_schema_contract(self) -> None:
         schema = self.application.openapi()
@@ -339,7 +365,7 @@ class LayoutApiTests(unittest.TestCase):
             for method in item
             if method in {"get", "post", "put", "patch", "delete"}
         ]
-        self.assertEqual(len(operations), 39)
+        self.assertEqual(len(operations), 43)
         self.assertFalse(
             any("history" in path or "current" in path for path in schema["paths"])
         )

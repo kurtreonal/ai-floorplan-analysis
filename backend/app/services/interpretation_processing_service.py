@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.floor_plan_interpretation.candidate import CandidateHostProvenance, InferenceParameter, build_candidate_envelope
 from app.ai.floor_plan_interpretation import interpret_floor_plan_demo
+from app.ai.floor_plan_interpretation import multiclass_symbol_detector as multiclass
 from app.ai.floor_plan_interpretation.experimental_pull_station import (
     ExperimentalLocatorUnavailable, LOCAL_SOURCE,
     PROVIDER as EXPERIMENTAL_PROVIDER, THRESHOLD as EXPERIMENTAL_THRESHOLD,
@@ -24,6 +25,7 @@ from app.ai.floor_plan_interpretation.experimental_symbol_detector import (
     BASE_SHA256 as TRAINED_BASE_SHA256,
     CHECKPOINT_SHA256 as TRAINED_CHECKPOINT_SHA256,
     DATASET_SHA256 as TRAINED_DATASET_SHA256,
+    LINKED_CHECKPOINT_SHA256, LINKED_DATASET_SHA256, LINKED_PROVIDER,
     ExperimentalDetectorUnavailable,
     PROVIDER as TRAINED_PROVIDER,
     THRESHOLD as TRAINED_THRESHOLD,
@@ -477,7 +479,11 @@ def process_interpretation_job(
         )
         run_id = uuid4().hex
         experimental = pinned_configuration.provider == EXPERIMENTAL_PROVIDER
-        trained = pinned_configuration.provider == TRAINED_PROVIDER
+        linked = pinned_configuration.provider == LINKED_PROVIDER
+        general = pinned_configuration.provider == multiclass.PROVIDER
+        trained = pinned_configuration.provider in (TRAINED_PROVIDER, LINKED_PROVIDER, multiclass.PROVIDER)
+        trained_checkpoint = multiclass.CHECKPOINT_SHA256 if general else LINKED_CHECKPOINT_SHA256 if linked else TRAINED_CHECKPOINT_SHA256
+        trained_dataset = multiclass.DATASET_SHA256 if general else LINKED_DATASET_SHA256 if linked else TRAINED_DATASET_SHA256
         gateway_configured = None if experimental or trained else _configured_local_gateway(settings)
         if pinned_configuration.provider == PROVIDER:
             # Tests and unconfigured jobs may explicitly pin the deterministic
@@ -497,8 +503,12 @@ def process_interpretation_job(
                     raise InterpretationProcessingError(str(error)) from None
             if trained:
                 try:
-                    proposals, truncated = locate_trained_symbols(rgb)
-                    payload = with_trained_symbol_proposals(payload, proposals, truncated)
+                    if general:
+                        proposals, truncated = multiclass.locate(rgb)
+                        payload = multiclass.with_proposals(payload, proposals, truncated)
+                    else:
+                        proposals, truncated = locate_trained_symbols(rgb, linked=True) if linked else locate_trained_symbols(rgb)
+                        payload = with_trained_symbol_proposals(payload, proposals, truncated, linked=True) if linked else with_trained_symbol_proposals(payload, proposals, truncated)
                 except ExperimentalDetectorUnavailable as error:
                     raise InterpretationProcessingError(str(error)) from None
             candidate = build_candidate_envelope(
@@ -515,18 +525,20 @@ def process_interpretation_job(
                     expected_width_pixels=artifact.record.pixel_width,
                     expected_height_pixels=artifact.record.pixel_height,
                     model_release_id=provider,
-                    base_model_revision=(f"yolo11n-{TRAINED_BASE_SHA256[:12]}" if trained else
+                    base_model_revision=(f"yolo11n-warmstart-{multiclass.TRAINING_BASE_SHA256[:12]}" if general else
+                                         f"yolo11n-{TRAINED_BASE_SHA256[:12]}" if trained else
                                          f"opencv-template-{cv2.__version__}" if experimental else
                                          f"opencv-{cv2.__version__}"),
-                    adapter_revision=f"supervised-{TRAINED_CHECKPOINT_SHA256[:12]}" if trained else None,
-                    prompt_version=("partial-label-symbol-detector-v1" if trained else
+                    adapter_revision=f"supervised-{trained_checkpoint[:12]}" if trained else None,
+                    prompt_version=("reviewed-background-56-detector-v3" if general else
+                                    "partial-label-symbol-detector-v1" if trained else
                                     "pull-template-v1" if experimental else "demo-cv-room-v2"),
                     runtime_version=("ultralytics-local-cpu-v1" if trained else f"opencv-{cv2.__version__}"),
                     inference_parameters=(
                         (
-                            InferenceParameter(name="checkpoint-sha256", value=TRAINED_CHECKPOINT_SHA256),
-                            InferenceParameter(name="dataset-sha256", value=TRAINED_DATASET_SHA256),
-                            InferenceParameter(name="detector-score-threshold", value=str(TRAINED_THRESHOLD)),
+                            InferenceParameter(name="checkpoint-sha256", value=trained_checkpoint),
+                            InferenceParameter(name="dataset-sha256", value=trained_dataset),
+                            InferenceParameter(name="detector-score-threshold", value=str(multiclass.THRESHOLD if general else TRAINED_THRESHOLD)),
                             InferenceParameter(name="partial-label-training", value="true"),
                             InferenceParameter(name="provider", value=provider),
                             InferenceParameter(name="review-required", value="true"),

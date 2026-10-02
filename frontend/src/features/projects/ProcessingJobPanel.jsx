@@ -47,8 +47,7 @@ export function ProcessingJobPanel({
   const [viewState, setViewState] = useState(initialJob?.status || 'ready')
   const [job, setJob] = useState(initialJob)
   const [message, setMessage] = useState(null)
-  const [detectorMode, setDetectorMode] = useState('configured')
-  const [pageNumber, setPageNumber] = useState(1)
+  const [pageNumber, setPageNumber] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const mountedRef = useRef(true)
   const timerRef = useRef(null)
@@ -169,8 +168,7 @@ export function ProcessingJobPanel({
     startControllerRef.current = controller
     try {
       const options = { signal: controller.signal }
-      if (detectorMode !== 'configured') {
-        options.mode = detectorMode
+      if (pageNumber !== '') {
         options.pageNumber = Number(pageNumber)
       }
       const startedJob = await startFloorPlanProcessing(floorPlanId, options)
@@ -275,27 +273,11 @@ export function ProcessingJobPanel({
 
       {canStart && import.meta.env.DEV && !isActive && viewState !== 'starting' && (
         <div className="processing-detector-selection">
-          <label>Development detector
-            <select value={detectorMode} onChange={(event) => setDetectorMode(event.target.value)}>
-              <option value="configured">Existing configured detector (fallback)</option>
-              <option value="experimental_pull_station">Experimental Pull station template · two Group 7 templates · native scale</option>
-              <option value="experimental_symbol_detector">Experimental trained symbols · troffer / smoke / Pull station · review only</option>
-            </select>
+          <p role="note">Development default: one shared multi-class electrical-symbol detector trained on all 56 eligible legend entries, unless an administrator configured a local gateway. Inclusion does not guarantee successful detection. Review every proposal and drawing-specific legend before saving; scores are not calibrated. Not production or independently validated.</p>
+          <label>Page selection (blank processes all uploaded pages)
+            <input type="number" min="1" max="50" step="1" value={pageNumber}
+              onChange={(event) => setPageNumber(event.target.value)} />
           </label>
-          {detectorMode === 'experimental_pull_station' && <>
-            <label>One-based page to process
-              <input type="number" min="1" max="50" step="1" value={pageNumber}
-                onChange={(event) => setPageNumber(event.target.value)} />
-            </label>
-            <p role="note">Review-only Pull station proposals. Template similarity is not calibrated confidence; other classes remain unresolved. Not a VLM or production detector.</p>
-          </>}
-          {detectorMode === 'experimental_symbol_detector' && <>
-            <label>One-based page to process
-              <input type="number" min="1" max="50" step="1" value={pageNumber}
-                onChange={(event) => setPageNumber(event.target.value)} />
-            </label>
-            <p role="note">Local supervised detector, development only. Three named families from VED reviewed examples; same-source checks only. Proposals can include text/grid mistakes. Confirm each symbol and its drawing legend before saving. No production or 85% accuracy claim.</p>
-          </>}
         </div>
       )}
 

@@ -129,6 +129,7 @@ def start_floor_plan_processing_endpoint(
     page_numbers: Annotated[list[int] | None, Query(max_length=128)] = None,
     experimental_pull_station: bool = False,
     experimental_symbol_detector: bool = False,
+    experimental_linked_legend_detector: bool = False,
     current_user: User = Depends(require_roles("DESIGNER")),
     database_session: Session = Depends(get_db),
 ) -> ProcessingJobStartResponse:
@@ -140,6 +141,7 @@ def start_floor_plan_processing_endpoint(
             page_numbers=page_numbers,
             experimental_pull_station=experimental_pull_station,
             experimental_symbol_detector=experimental_symbol_detector,
+            experimental_linked_legend_detector=experimental_linked_legend_detector,
             settings=request.app.state.settings,
         )
         database_session.commit()

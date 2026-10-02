@@ -11,13 +11,101 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from prepare_symbol_detector_dev import build, digest, overlapping_reviewed_records, tile_supervision
-from probe_symbol_detector_dev import fuse, iou, origins, match_targets, probe
+from probe_symbol_detector_dev import fuse, iou, origins, match_targets, probe, probe_unreviewed_image
 from app.ai.symbol_detection.partial_label_training import (
     local_negative_mask, ReviewedBoxOnlyLoss, ReviewedBoxOnlyTrainer,
 )
 
 
 class DetectorDevelopmentDatasetTests(unittest.TestCase):
+    def test_unreviewed_upload_probe_never_invents_metrics_or_changes_source(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original = root / "page.png"
+            Image.new("RGB", (200, 200), "white").save(original)
+            before = digest(original)
+            with patch("app.ai.floor_plan_interpretation.multiclass_symbol_detector.locate",
+                       return_value=(({"bbox": (10, 10, 30, 30), "class_id": 1,
+                                       "score": .7, "tile_origin": (0, 0)},), False)):
+                summary = probe_unreviewed_image(original, root / "out")
+                self.assertEqual(summary["proposals"], 1)
+                self.assertIsNone(summary["precision"])
+                self.assertIsNone(summary["recall"])
+                self.assertEqual(digest(original), before)
+                report = json.loads((root / "out/report.json").read_text())
+                self.assertEqual(report["source_sha256"], before)
+                self.assertTrue((root / "out/overlay.png").is_file())
+                with self.assertRaises(FileExistsError):
+                    probe_unreviewed_image(original, root / "out")
+
+    def test_native_grid_alignment_preserves_seam_targets_and_source_coordinates(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sources = root / "source"
+            sources.mkdir()
+            original = sources / "page.png"
+            Image.new("RGB", (900, 900), "white").save(original)
+            before = digest(original)
+            # First target fits native windows; second spans every local grid
+            # seam but still fits a 256px centered training window.
+            records = [{"id": name, "sheet_id": "sheet-1", "source_sha256": before,
+                        "legend_entry": legend, "label": "Fixture", "group": "1",
+                        "bbox": box, "split": "train"}
+                       for name, legend, box in (("fit", "L1", [100, 100, 120, 120]),
+                                                ("seam", "L2", [180, 180, 390, 390]))]
+            manifest = root / "input.json"
+            manifest.write_text(json.dumps({"schema": "ved-reviewed-symbol-crops-v1", "records": records}))
+            output = root / "out"
+            build(manifest, sources, output, context_mode="full_partial",
+                  include_reviewed_neighbors=True, reviewed_box_only=True,
+                  all_entries=True, align_inference_grid=True)
+            data = json.loads((output / "manifest.json").read_text())
+            self.assertEqual([r["grid_alignment"] for r in data["images"]],
+                             ["native_inference_window", "centered_fallback_no_full_native_window"])
+            self.assertEqual([c["samples"] for c in data["classes"]], [1, 1])
+            for row in data["images"]:
+                left, top = row["tile_origin"]
+                cls, x, y, w, h = map(float, (output / "labels/train" / f"{row['record_id']}.txt").read_text().split())
+                recovered = [left+(x-w/2)*256, top+(y-h/2)*256,
+                             left+(x+w/2)*256, top+(y+h/2)*256]
+                for actual, expected in zip(recovered, row["source_box"]):
+                    self.assertAlmostEqual(actual, expected, places=4)
+            self.assertEqual(digest(original), before)
+
+    def test_all_entries_retains_scarce_overlaps_and_augments_without_new_sources(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            source_root.mkdir()
+            original = source_root / "page.png"
+            Image.new("RGB", (400, 400), "white").save(original)
+            before = digest(original)
+            records = [{"id": name, "sheet_id": "sheet-1", "source_sha256": before,
+                        "legend_entry": legend, "label": "Fixture", "group": "1",
+                        "bbox": box, "split": "train"}
+                       for name, legend, box in (("a", "L1", [180, 180, 200, 200]),
+                                                ("b", "L2", [181, 180, 201, 200]))]
+            manifest = root / "input.json"
+            manifest.write_text(json.dumps({"schema": "ved-reviewed-symbol-crops-v1", "records": records}))
+            output = root / "out"
+            build(manifest, source_root, output, context_mode="full_partial",
+                  include_reviewed_neighbors=True, reviewed_box_only=True,
+                  all_entries=True, balance_minimum=3)
+            data = json.loads((output / "manifest.json").read_text())
+            self.assertEqual([c["samples"] for c in data["classes"]], [1, 1])
+            self.assertEqual(len(data["images"]), 6)
+            self.assertEqual(data["balanced_augmentation"]["independent_sources_added"], 0)
+            self.assertEqual(data["overlap_exclusion_proposals"][0]["decision"],
+                             "retained_owner_attested_overlap_requires_review")
+            for row in data["images"]:
+                labels = (output / "labels/train" / f"{row['record_id']}.txt").read_text().splitlines()
+                self.assertEqual({int(line.split()[0]) for line in labels}, {0, 1})
+                for line in labels:
+                    _, x, y, w, h = map(float, line.split())
+                    self.assertTrue(0 <= x-w/2 < x+w/2 <= 1)
+                    self.assertTrue(0 <= y-h/2 < y+h/2 <= 1)
+            self.assertEqual(digest(original), before)
+
     def test_probe_scores_unique_neighbor_targets_without_claiming_precision(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

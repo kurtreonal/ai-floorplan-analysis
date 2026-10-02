@@ -43,6 +43,9 @@ describe('3D viewer page', () => {
     expect(screen.getByText(/Saved version 4/)).toBeTruthy()
     expect(screen.getByRole('link', { name: /Back to project/ }).getAttribute('href')).toBe('#/app/projects/15')
     expect(fetchCurrentLayout).toHaveBeenCalledWith(15, 2, expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    fireEvent.change(screen.getByLabelText('Inspect device'), { target: { value: 'detected:501' } })
+    expect(screen.getByRole('heading', { name: 'Power outlet' })).toBeTruthy()
+    expect(screen.getByText(/This saved snapshot is inspection-only/)).toBeTruthy()
   })
 
   it('resets the camera and reloads persisted geometry', async () => {

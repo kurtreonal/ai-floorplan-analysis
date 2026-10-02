@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { normalizeCanonicalGeometry } from '../../geometry/canonicalGeometry.js'
@@ -25,7 +25,7 @@ vi.mock('react-konva', () => {
     )
   }
   const shape = (kind) => function MockShape(props) {
-    return <span data-konva={kind} data-fill={props.fill} name={props.name} />
+    return <span data-konva={kind} data-fill={props.fill} name={props.name}>{props.text}</span>
   }
   return {
     Stage: container('Stage'), Layer: container('Layer'), Group: container('Group'),
@@ -40,6 +40,33 @@ const visible = { blueprint: true, walls: true, rooms: true, symbols: true, rout
 afterEach(cleanup)
 
 describe('canonical layout canvas', () => {
+  it('zooms, pans and fits the viewport without moving canonical geometry', () => {
+    const geometry = normalizeCanonicalGeometry(fixture)
+    const before = JSON.stringify(geometry)
+    const onMoveSymbol = vi.fn()
+    const { container } = render(<CanonicalLayoutCanvas geometry={geometry} visibility={visible} canEdit onMoveSymbol={onMoveSymbol} />)
+    const stage = container.querySelector('[data-konva="Stage"]')
+    const initialScale = stage.konvaProps.scaleX
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    expect(stage.konvaProps.scaleX).toBeCloseTo(initialScale * 1.25)
+    fireEvent.click(screen.getByRole('button', { name: 'Pan' }))
+    expect(stage.konvaProps.draggable).toBe(true)
+    expect([...container.querySelectorAll('[data-konva="Group"]')].every((group) => group.getAttribute('data-draggable') === 'false')).toBe(true)
+    const target = { getStage: () => target, x: () => 40, y: () => 70 }
+    act(() => stage.konvaProps.onDragEnd({ target }))
+    expect(stage.konvaProps.x).toBe(40)
+    const preventDefault = vi.fn()
+    act(() => stage.konvaProps.onWheel({ evt: { preventDefault, deltaY: -1 }, target: { getStage: () => ({ getPointerPosition: () => ({ x: 100, y: 100 }) }) } }))
+    expect(preventDefault).toHaveBeenCalled()
+    expect(stage.konvaProps.scaleX).toBeGreaterThan(initialScale)
+    fireEvent.click(screen.getByRole('button', { name: 'Fit plan' }))
+    expect(stage.konvaProps.scaleX).toBe(initialScale)
+    expect(stage.konvaProps.x).toBe(0)
+    expect(stage.konvaProps.y).toBe(0)
+    expect(onMoveSymbol).not.toHaveBeenCalled()
+    expect(JSON.stringify(geometry)).toBe(before)
+  })
+
   it('always mounts exactly six stable layers in the required order with isolated content', () => {
     const geometry = normalizeCanonicalGeometry(fixture)
     const before = JSON.stringify(geometry)
@@ -50,7 +77,8 @@ describe('canonical layout canvas', () => {
     expect(layers[0].querySelectorAll('[data-konva="Image"]')).toHaveLength(1)
     expect(layers[1].querySelectorAll('[data-konva="Line"]')).toHaveLength(1)
     expect(layers[2].querySelectorAll('[data-konva="Line"]')).toHaveLength(1)
-    expect(layers[3].querySelectorAll('[data-konva="Group"]')).toHaveLength(2)
+    expect(layers[3].querySelectorAll('[name^="canonical-symbol-"]')).toHaveLength(2)
+    expect(screen.getByText('Power outlet · reviewed')).toBeTruthy()
     expect([...layers[3].querySelectorAll('[data-konva="Circle"]')].map(
       (node) => node.getAttribute('data-fill'),
     )).toEqual(['#d9480f', '#7c3aed'])
@@ -80,7 +108,7 @@ describe('canonical layout canvas', () => {
         onMoveSymbol={onMoveSymbol}
       />,
     )
-    const groups = [...container.querySelectorAll('[data-konva="Group"]')]
+    const groups = [...container.querySelectorAll('[name^="canonical-symbol-"]')]
     expect(groups).toHaveLength(2)
     expect(groups.every((node) => node.getAttribute('data-draggable') === 'true')).toBe(true)
     fireEvent.click(groups[0])

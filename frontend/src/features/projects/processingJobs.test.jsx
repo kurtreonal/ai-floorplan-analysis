@@ -101,32 +101,39 @@ describe('processing job panel', () => {
     )
   })
 
-  it('offers the scoped development detector and pins one page when selected', async () => {
+  it('uses the shared detector and pins one page when selected', async () => {
     startFloorPlanProcessing.mockResolvedValueOnce({ job_id: JOB_ID, status: 'queued' })
     renderPanel()
-    fireEvent.change(screen.getByLabelText('Development detector'), {
-      target: { value: 'experimental_pull_station' },
-    })
-    fireEvent.change(screen.getByLabelText('One-based page to process'), { target: { value: '2' } })
+    expect(screen.queryByLabelText('Development detector')).toBeNull()
+    fireEvent.change(screen.getByLabelText(/Page selection/), { target: { value: '2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Start processing' }))
     await settle()
     expect(startFloorPlanProcessing).toHaveBeenCalledWith(FLOOR_PLAN_ID, {
-      signal: expect.any(AbortSignal), mode: 'experimental_pull_station', pageNumber: 2,
+      signal: expect.any(AbortSignal), pageNumber: 2,
     })
   })
 
-  it('offers trained multi-class proposals without auto-approval', async () => {
+  it('describes all 56 entries without claiming accuracy or auto-approval', async () => {
     startFloorPlanProcessing.mockResolvedValueOnce({ job_id: JOB_ID, status: 'queued' })
     renderPanel()
-    fireEvent.change(screen.getByLabelText('Development detector'), {
-      target: { value: 'experimental_symbol_detector' },
-    })
-    expect(screen.getByText(/same-source checks only/i)).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('One-based page to process'), { target: { value: '3' } })
+    expect(screen.getByText(/all 56 eligible legend entries/i)).toBeTruthy()
+    expect(screen.getByText(/not production or independently validated/i)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText(/Page selection/), { target: { value: '3' } })
     fireEvent.click(screen.getByRole('button', { name: 'Start processing' }))
     await settle()
     expect(startFloorPlanProcessing).toHaveBeenCalledWith(FLOOR_PLAN_ID, {
-      signal: expect.any(AbortSignal), mode: 'experimental_symbol_detector', pageNumber: 3,
+      signal: expect.any(AbortSignal), pageNumber: 3,
+    })
+  })
+
+  it('does not expose separate narrow detectors', async () => {
+    startFloorPlanProcessing.mockResolvedValueOnce({ job_id: JOB_ID, status: 'queued' })
+    renderPanel()
+    expect(screen.queryByRole('combobox')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Start processing' }))
+    await settle()
+    expect(startFloorPlanProcessing).toHaveBeenCalledWith(FLOOR_PLAN_ID, {
+      signal: expect.any(AbortSignal),
     })
   })
 

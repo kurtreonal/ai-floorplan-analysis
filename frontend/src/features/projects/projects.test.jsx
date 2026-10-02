@@ -6,6 +6,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -100,7 +101,7 @@ describe('project dashboard', () => {
     expect(await screen.findByRole('heading', { name: PROJECT.name })).toBeTruthy()
     expect(screen.getByText(PROJECT.client_name)).toBeTruthy()
     expect(screen.getByText(PROJECT.location)).toBeTruthy()
-    expect(screen.getByText('needs review')).toBeTruthy()
+    expect(within(screen.getByRole('heading', { name: PROJECT.name }).closest('article')).getByText('needs review')).toBeTruthy()
     expect(screen.getByRole('link', { name: `Open ${PROJECT.name}` }).getAttribute('href')).toBe(
       '#/app/projects/129',
     )
@@ -117,6 +118,34 @@ describe('project dashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByRole('heading', { name: PROJECT.name })).toBeTruthy()
     expect(screen.queryByText('internal detail')).toBeNull()
+  })
+
+  it('filters real project metadata and status without changing the records', async () => {
+    const second = { ...PROJECT, id: 130, name: 'Alpha workspace', client_name: 'Another client', status: 'draft', updated_at: '2026-08-25T22:00:00' }
+    const records = [PROJECT, second]
+    const original = JSON.stringify(records)
+    listProjects.mockResolvedValue(records)
+    render(<ProjectDashboardPage session={DESIGNER_SESSION} />)
+    await screen.findByRole('heading', { name: PROJECT.name })
+    fireEvent.change(screen.getByLabelText('Search projects'), { target: { value: 'Another client' } })
+    expect(screen.queryByRole('link', { name: `Open ${PROJECT.name}` })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Open Alpha workspace' })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Project status'), { target: { value: 'needs_review' } })
+    expect(screen.getByText('No matching projects.')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Search projects'), { target: { value: '' } })
+    expect(screen.getByRole('link', { name: `Open ${PROJECT.name}` })).toBeTruthy()
+    expect(JSON.stringify(records)).toBe(original)
+  })
+
+  it('sorts only the displayed list by name or last update', async () => {
+    const second = { ...PROJECT, id: 130, name: 'Alpha workspace', updated_at: '2026-08-23T22:00:00' }
+    listProjects.mockResolvedValue([PROJECT, second])
+    render(<ProjectDashboardPage session={DESIGNER_SESSION} />)
+    await screen.findByRole('heading', { name: PROJECT.name })
+    expect(screen.getAllByRole('link', { name: /^Open / }).map((link) => link.textContent)).toEqual(['Open project →', 'Open project →'])
+    expect(screen.getAllByRole('link', { name: /^Open / })[0].getAttribute('href')).toBe('#/app/projects/129')
+    fireEvent.change(screen.getByLabelText('Sort projects'), { target: { value: 'name' } })
+    expect(screen.getAllByRole('link', { name: /^Open / })[0].getAttribute('href')).toBe('#/app/projects/130')
   })
 
   it('adds the backend-created project to the dashboard', async () => {
@@ -145,7 +174,7 @@ describe('project dashboard', () => {
       },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     )
-    expect(screen.getByText('needs review')).toBeTruthy()
+    expect(within(screen.getByRole('heading', { name: PROJECT.name }).closest('article')).getByText('needs review')).toBeTruthy()
   })
 })
 

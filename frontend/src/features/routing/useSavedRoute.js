@@ -7,7 +7,11 @@ export function useSavedRoute(projectId, layoutId) {
     if (!layoutId) return undefined
     const controller = new AbortController()
     routingRequest(projectId, { signal: controller.signal }).then((record) => {
-      if (!controller.signal.aborted) setState((current) => current?.layoutId === layoutId && current.record?.version_number > record?.version_number ? current : { layoutId, record })
+      if (!controller.signal.aborted) setState((current) => {
+        const hasNewerRoute = current?.layoutId === layoutId && current.record
+          && (!record || current.record.version_number > record.version_number)
+        return hasNewerRoute ? current : { layoutId, record }
+      })
     }).catch(() => {})
     return () => controller.abort()
   }, [projectId, layoutId])
