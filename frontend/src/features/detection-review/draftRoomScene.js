@@ -17,11 +17,16 @@ function isSimpleBoundary(points) {
   return Math.abs(area) > 0.001
 }
 
-export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8) {
-  if (![width, height, relativeHeight].every(Number.isFinite) || width <= 0 || height <= 0 || relativeHeight < 0 || relativeHeight > 3) {
+export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8, presentations = {}, preview = {}) {
+  if (![width, height, relativeHeight].every(Number.isFinite) || width <= 0 || height <= 0 || relativeHeight < 0 || relativeHeight > 12) {
     throw new Error('Invalid preview dimensions.')
   }
   const scale = 10 / Math.max(width, height)
+  const longSideMeters = preview.longSideMeters ?? 40
+  if (!Number.isFinite(longSideMeters) || longSideMeters < 5 || longSideMeters > 500) throw new Error('Preview plan length must be between 5 and 500 m.')
+  const unitsPerMeter = 10 / longSideMeters
+  const wallThickness = (preview.wallThicknessMeters ?? 0.18) * unitsPerMeter
+  if (!Number.isFinite(wallThickness) || wallThickness <= 0) throw new Error('Invalid preview wall thickness.')
   const rooms = draft.rooms.filter((room) => room.disposition !== 'rejected').map((room) => {
     if (room.boundary.length < 3 || room.boundary.length > 512 || room.boundary.some(({ x, y }) => !Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > width || y > height)) {
       throw new Error('A room boundary is outside the image. Correct its points in 2D first.')
@@ -38,7 +43,7 @@ export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8) 
       const ey = wall.end.y * scale
       const length = Math.hypot(ex - sx, ey - sy)
       if (!length || !relativeHeight) return []
-      const thickness = Math.max(0.04, ((wall.estimated_thickness_pixels || wall.thickness_pixels || 12) * scale))
+      const thickness = wallThickness
       return [{
         id: wall.id,
         position: [(sx + ex) / 2, relativeHeight / 2, (sy + ey) / 2],
@@ -51,9 +56,16 @@ export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8) 
       const length = Math.hypot(end.x - start.x, end.y - start.y)
       if (!length || !relativeHeight) return []
       return [{ id: `${room.id}-edge-${i}`, position: [(start.x + end.x) / 2, relativeHeight / 2, (start.y + end.y) / 2],
-        size: [length, relativeHeight, 0.025], rotation: [0, -Math.atan2(end.y - start.y, end.x - start.x), 0] }]
+        size: [length, relativeHeight, wallThickness], rotation: [0, -Math.atan2(end.y - start.y, end.x - start.x), 0] }]
     }))
-  return { width: width * scale, depth: height * scale, elevation: 0,
+  const symbols = (draft.symbols || []).filter((symbol) => symbol.disposition !== 'rejected' && symbol.center
+    && [symbol.center.x, symbol.center.y].every(Number.isFinite)
+    && symbol.center.x >= 0 && symbol.center.y >= 0 && symbol.center.x <= width && symbol.center.y <= height)
+    .map((symbol) => ({ id: symbol.id, status: symbol.disposition,
+      position: [symbol.center.x * scale, 0, symbol.center.y * scale], presentation: presentations[symbol.id] }))
+  return { width: width * scale, depth: height * scale, elevation: 0, sourceScale: scale,
+    unitsPerMeter, ceilingElevation: relativeHeight, mountingWalls: walls,
     target: [width * scale / 2, 0, height * scale / 2], extent: 10,
-    rooms, walls, symbols: [], previewOnly: true, unit: 'relative' }
+    rooms, walls, symbols, previewOnly: true, unit: 'relative',
+    invalidSymbolCount: (draft.symbols || []).filter((symbol) => symbol.disposition !== 'rejected').length - symbols.length }
 }

@@ -63,6 +63,56 @@ def requested_configuration(settings) -> tuple[str, str, str]:
 def pin_job_configuration(
     session: Session, *, processing_job: ProcessingJob, settings
 ) -> InterpretationPageOutcome:
+    current = session.scalar(
+        select(InterpretationPageOutcome)
+        .where(InterpretationPageOutcome.processing_job_id == processing_job.id)
+        .order_by(InterpretationPageOutcome.page_number.asc())
+        .with_for_update()
+    )
+    if current is None:
+        raise InterpretationConfigurationError("PROCESSING_PAGES_NOT_FOUND")
+    from app.ai.floor_plan_interpretation import multiclass_symbol_detector as multiclass
+    if current.provider == multiclass.PROVIDER:
+        if getattr(settings, "app_env", None) != "development" or current_runtime_release(session) is not None:
+            raise InterpretationConfigurationError("EXPERIMENTAL_LOCATOR_DISABLED")
+        try:
+            multiclass.verify_artifacts()
+        except ValueError as error:
+            raise InterpretationConfigurationError(str(error)) from None
+        if current.configuration_sha256 != multiclass.configuration_sha256():
+            raise InterpretationConfigurationError("PROCESSING_CONFIGURATION_CONFLICT")
+        return current
+    from app.ai.floor_plan_interpretation.experimental_pull_station import (
+        ExperimentalLocatorUnavailable, LOCAL_SOURCE, PROVIDER as TEMPLATE_PROVIDER,
+        configuration_sha256, source_digest,
+    )
+    if current.provider == TEMPLATE_PROVIDER:
+        if getattr(settings, "app_env", None) != "development" or current_runtime_release(session) is not None:
+            raise InterpretationConfigurationError("EXPERIMENTAL_LOCATOR_DISABLED")
+        try:
+            source_digest(LOCAL_SOURCE)
+        except ExperimentalLocatorUnavailable as error:
+            raise InterpretationConfigurationError(str(error)) from None
+        if current.configuration_sha256 != configuration_sha256():
+            raise InterpretationConfigurationError("PROCESSING_CONFIGURATION_CONFLICT")
+        return current
+    from app.ai.floor_plan_interpretation.experimental_symbol_detector import (
+        LINKED_PROVIDER, PROVIDER as TRAINED_PROVIDER,
+        configuration_sha256 as trained_configuration_sha256,
+        linked_configuration_sha256, verify_artifacts, verify_linked_artifacts,
+    )
+    if current.provider in (TRAINED_PROVIDER, LINKED_PROVIDER):
+        if getattr(settings, "app_env", None) != "development" or current_runtime_release(session) is not None:
+            raise InterpretationConfigurationError("EXPERIMENTAL_LOCATOR_DISABLED")
+        try:
+            (verify_linked_artifacts if current.provider == LINKED_PROVIDER else verify_artifacts)()
+        except ValueError as error:
+            raise InterpretationConfigurationError(str(error)) from None
+        expected = (linked_configuration_sha256() if current.provider == LINKED_PROVIDER
+                    else trained_configuration_sha256())
+        if current.configuration_sha256 != expected:
+            raise InterpretationConfigurationError("PROCESSING_CONFIGURATION_CONFLICT")
+        return current
     active_release = current_runtime_release(session)
     if active_release is not None and active_release.status == "manual_review":
         provider = MANUAL_REVIEW_PROVIDER
@@ -91,14 +141,6 @@ def pin_job_configuration(
         ).hexdigest()
     else:
         provider, release, digest = requested_configuration(settings)
-    current = session.scalar(
-        select(InterpretationPageOutcome)
-        .where(InterpretationPageOutcome.processing_job_id == processing_job.id)
-        .order_by(InterpretationPageOutcome.page_number.asc())
-        .with_for_update()
-    )
-    if current is None:
-        raise InterpretationConfigurationError("PROCESSING_PAGES_NOT_FOUND")
     if current is not None:
         if current.configuration_sha256 is not None and current.configuration_sha256 != digest:
             raise InterpretationConfigurationError(

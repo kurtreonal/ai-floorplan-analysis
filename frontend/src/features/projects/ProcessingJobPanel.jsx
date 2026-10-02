@@ -47,6 +47,7 @@ export function ProcessingJobPanel({
   const [viewState, setViewState] = useState(initialJob?.status || 'ready')
   const [job, setJob] = useState(initialJob)
   const [message, setMessage] = useState(null)
+  const [pageNumber, setPageNumber] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const mountedRef = useRef(true)
   const timerRef = useRef(null)
@@ -166,9 +167,11 @@ export function ProcessingJobPanel({
     const controller = new AbortController()
     startControllerRef.current = controller
     try {
-      const startedJob = await startFloorPlanProcessing(floorPlanId, {
-        signal: controller.signal,
-      })
+      const options = { signal: controller.signal }
+      if (pageNumber !== '') {
+        options.pageNumber = Number(pageNumber)
+      }
+      const startedJob = await startFloorPlanProcessing(floorPlanId, options)
       if (mountedRef.current && startControllerRef.current === controller) {
         adoptJob(startedJob.job_id)
       }
@@ -267,6 +270,16 @@ export function ProcessingJobPanel({
         </div>
         {job && <span className="processing-job-id mono">JOB #{job.job_id}</span>}
       </div>
+
+      {canStart && import.meta.env.DEV && !isActive && viewState !== 'starting' && (
+        <div className="processing-detector-selection">
+          <p role="note">Development default: one shared multi-class electrical-symbol detector trained on all 56 eligible legend entries, unless an administrator configured a local gateway. Inclusion does not guarantee successful detection. Review every proposal and drawing-specific legend before saving; scores are not calibrated. Not production or independently validated.</p>
+          <label>Page selection (blank processes all uploaded pages)
+            <input type="number" min="1" max="50" step="1" value={pageNumber}
+              onChange={(event) => setPageNumber(event.target.value)} />
+          </label>
+        </div>
+      )}
 
       {viewState === 'ready' && (
         <>

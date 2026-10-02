@@ -3,6 +3,11 @@ export function parseProjectRoute(route) {
     return { view: 'dashboard', projectId: null }
   }
 
+  const estimateMatch = route.match(/^\/app\/projects\/([1-9]\d*)\/estimates$/)
+  if (estimateMatch && Number.isSafeInteger(Number(estimateMatch[1]))) {
+    return { view: 'estimates', projectId: Number(estimateMatch[1]) }
+  }
+
   const viewer3dMatch = route.match(
     /^\/app\/projects\/([^/]+)\/floors\/([^/]+)\/viewer-3d$/,
   )
@@ -81,6 +86,10 @@ export function parseProjectRoute(route) {
 export function getProjectHref(projectId) {
   if (!Number.isSafeInteger(projectId) || projectId <= 0) throw new Error('Invalid project ID.')
   return `#/app/projects/${projectId}`
+}
+
+export function getEstimateHref(projectId) {
+  return `${getProjectHref(projectId)}/estimates`
 }
 
 export function getLayoutHref(projectId, projectFloorId) {

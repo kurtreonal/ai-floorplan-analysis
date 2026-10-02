@@ -1,5 +1,140 @@
 # VED Electrical Services API
 
+### New annotation export intake (2026-09-24; training not started)
+
+Subsequent user amendment: groups 1–22 are approved for training. The exact
+statement is preserved in a hash-bound private approval record; the imported
+export remains unchanged, and groups 23–28 remain excluded. Versioned preparation
+produced `storage/training/symbol-crops-20260924-g1-22-v1/`: 433 reviewed,
+exact drawing-legend-matched symbol crops, split into 366 train and 67 development
+samples across 14 represented workspace groups. Prior experimental split
+assignments were checked and preserved. Explicit exclude/rescan flags, unresolved
+classes and unreviewed/deleted annotations remain excluded. This is symbol-crop
+classification, not complete-page detection, wall training or a gold release.
+Local SmolVLM-256M LoRA run `models/vlm/adapters/symbols-20260924-g1-22-v1`
+was launched for 500 steps with all 67 development samples, four CPU threads,
+network disabled and the existing RAM/time guards. At this checkpoint the process
+is alive in initial evaluation; completion and accuracy are not claimed.
+Fifty-five development samples have labels absent from the training split;
+do not hide this gap or change established splits to improve reported metrics.
+Approval binding/out-of-scope/version-tampering tests pass (four training-tool
+tests); five intake tests pass. Original snapshots, prior adapters, unrelated
+wall edits and the recovery stash are preserved. No production activation.
+
+The user identified the combined September 24 export as a new dataset version.
+Its immutable private snapshot is `storage/training/review-20260924-829de08a31e2/`;
+source and snapshot SHA256 match, and the directory is Git-ignored. The previous
+workspace session, datasets, models and checkpoints were not replaced. The
+preparation CLI now accepts `--review-export` separately from `--workspace`;
+five filter tests pass, including immutable revision and session preservation.
+The export contains 67 sheets across 28 workspace groups, `training_approved=false`,
+all sheets `training_eligible=false`, and no sheet split assignments. Filtering
+retains 457 annotations for further validation only; this is not training truth.
+Dataset-approver evidence, final scoped legend mappings, completeness/quality
+decisions and project-isolated splits must be reconciled before supervised
+training. Existing model weights were not changed or activated.
+
+### Wall-detection correction checkpoint (2026-09-21; incomplete)
+
+Latest September 24 continuation: retain the primary contrast threshold and use
+a separately validated lower-contrast mask only to extend already consolidated
+long wall spans. Extensions are bounded, require continuous width-supported
+pixels, stop at gaps, and cannot seed new candidates. A global lower-threshold
+experiment added clutter and was not adopted. New tests cover opening stops,
+no standalone supplemental candidates, immutable input, and shape rejection.
+Fresh isolated wall/demo/coordinate/persistence/worker checks: **121 passed,
+101 subtests passed**, two dependency warnings. Private lighting preview:
+`storage/previews/wall-fix-v14/`; power-plan preview:
+`storage/previews/wall-fix-power-v2/`. Both originals remain byte-identical.
+Several exterior and partition gaps are recovered; short false fixture strokes
+and some missed wall portions remain. Full-suite results below predate this
+latest continuity change and must not be represented as current full verification.
+No saved geometry or review was changed, and publication remains pending.
+
+September 24 verification: the apparent full-suite stall was the layout test's
+filesystem snapshot recursively hashing actual local uploads and model weights.
+The layout fixture now configures temporary upload, processed and model paths
+with four synthetic sentinels. A regression proves the snapshot detects changed
+bytes and restoration; original-file preservation assertions remain in place.
+The full isolated suite now finishes in 60.36 seconds: **973 passed, 17 failed,
+4 skipped, 509 subtests passed**, with two dependency deprecation warnings.
+All 17 failures concern API inventories that omit the four existing estimate
+routes (43 operations versus 39); these unrelated contracts were not rewritten
+as part of the wall correction. Full verification is therefore FAIL, not PASS.
+Current lighting overlay is `storage/previews/wall-fix-v12/` (70 walls, 11 rooms;
+counts are not accuracy). Originals and saved layouts are unchanged. No tests
+remain running. Next work remains short false fixture fragments and missing wall
+portions, followed by renewed focused verification; publication remains pending.
+
+September 23 continuation: structural candidates now reject repeated grid
+members only with three observed equally spaced parallels on each side and
+multiple transverse strokes continuing through the candidate. Bilateral pitch
+estimation tolerates scan jitter; repeated partitions without crossing evidence
+remain. Added helper and end-to-end perimeter-preservation regressions. Focused
+wall/demo verification: 56 tests and 59 subtests passed. Private lighting preview
+`storage/previews/wall-fix-v11/` removes two false grid segments relative to v7
+(70 wall and 11 room candidates; not accuracy measurements). A second private
+power-plan comparison is in `storage/previews/wall-fix-power-v1/`; both originals
+remain byte-identical. Short fixture/wiring fragments and missing wall portions
+remain, so the requested correction is not yet complete. The full isolated
+backend run was started and has failures plus a long-running test; it is NOT
+reported as passing. No checkpoint was published and no saved layout changed.
+
+Latest continuation: adaptive local contrast recovers pale walls under uneven
+scan illumination; room proposals now use structural-wall evidence rather than
+raw ceiling-grid ink. Fixed continuity-gap sampling to use the original segment
+anchor, and recover Hough endpoints only through contiguous observed pixels.
+Current private comparison: `storage/previews/wall-fix-v7/` (full HEAD baseline
+versus worktree). The scan has improved exterior/partition recovery but retains
+false thick-wiring and fixture candidates; this remains incomplete, not a
+measured accuracy or release claim. A grayscale-contrast rejection experiment
+did not distinguish the offending wiring from walls and was not implemented.
+Fresh isolated verification: 116 tests and 101 subtests passed, with two existing
+dependency deprecation warnings. Added uneven-illumination and ceiling-grid
+regressions. Original source SHA256 remains unchanged; no saved layout or manual
+correction was regenerated. Frontend canvas/wall-editing tests: 14 passed;
+shared 3D draft geometry tests: 4 passed. Full backend verification has not been
+rerun. Next: discriminate thick wiring/attached fixtures without removing real
+partitions, inspect a fresh private overlay, then repeat regression verification.
+
+Previous continuation: connected-stroke thinning (bounded to 128 iterations) and
+conservative outline restoration improve visible room boundaries on the local
+lighting scan. A larger closing kernel was tested and rejected because it joined
+fixture rows into false walls; the conservative version remains. The original
+image hash is unchanged. Private before/after overlays and candidate JSON are in
+`storage/previews/wall-fix-v2/`; `wall-fix-v3/` records the rejected experiment.
+`scripts/inspect_wall_detection.py` reproduces HEAD-versus-worktree diagnostics
+without changing the source. Counts are not accuracy measurements.
+
+The two stale operation-count assertions now reflect the already implemented
+four estimate routes (43 operations). Isolated wall, coordinate, persistence,
+demo API and worker verification now passes: 113 tests, 101 subtests. Faint
+exterior-wall recovery and remaining fixture rejection still require work and
+visual validation; no completed-fix or release claim is made. Existing layouts
+and manual corrections have not been regenerated.
+
+Earlier checkpoint evidence:
+
+The structural detector now estimates its stroke cutoff from sustained line
+evidence so compact thick fixtures do not erase thinner walls. Its skeleton
+retains the first erosion layer, and collinear distance checks use one reference
+line consistently. A regression reproduces the former zero-long-wall failure
+and checks recovery without modifying input pixels. Legacy non-structural mode,
+saved layouts, review contracts and manual corrections are unchanged.
+
+Verification: focused wall/demo/coordinate suite passed (79 tests, 67 subtests).
+Isolated wall persistence/demo API/worker regression: 110 passed, 2 failed,
+101 subtests passed. Both failures assert 39 OpenAPI operations; the existing
+uncommitted estimate router adds four operations (actual 43). They were not
+silently changed or reported as passing. Diff check passed.
+
+Real local lighting-sheet inspection still shows fragmented proposals (72 walls,
+9 room proposals); these counts are not accuracy measurements. The complete
+reported scan problem is NOT resolved. Do not publish this checkpoint as a
+completed wall-detection fix. Next: resolve the pre-existing API-count verification
+baseline, then improve and visually verify scan continuity/grid rejection against
+the supplied wall markup, preserving door gaps and all existing regression gates.
+
 This directory contains the FastAPI backend implemented through PRE12 and the
 bounded September upload-to-layout demo; the frontend includes the matching
 unified review workflow. The backend
@@ -1067,6 +1202,74 @@ Interactive OpenAPI documentation is available at `/docs` while the local
 server is running.
 
 ## Verification
+
+### Isolated supervised VLM experiment
+
+The September 21 crop-classification path is separate from the API and from the
+legacy simulated `LocalTrainingRunner`. It does not activate a model or complete
+U10/U14 acceptance. Use native Python 3.11 in `models/vlm/training-env`, install
+CPU PyTorch 2.6.0 from its official CPU wheel index, then install
+`backend/requirements-vlm-training.txt` into that environment only.
+
+From the repository root, `scripts/acquire_vlm_training_model.py` performs explicit
+public-only acquisition of the pinned Apache-2.0 SmolVLM-256M revision. It records
+artifact hashes and never reads private drawings. No remote code is enabled.
+
+`scripts/prepare_vlm_symbol_crops.py --workspace <private-workspace> --output
+<new-private-version-directory>` preserves source snapshots and resolves only
+exact labels or approved identities within each drawing's legend scope. It
+excludes pending/deleted annotations, excluded/rescan sheets, ambiguous mappings,
+invalid boxes and mismatched source images. Its output is supervised reviewed
+object classification, not a claim that partially reviewed pages are complete
+detection truth. Workspace group separation is provisional; independent project
+and sealed-test acceptance remain separate.
+
+`scripts/train_vlm_symbol_crops.py --manifest <private-manifest.json> --model
+models/vlm/smolvlm-256m --output <new-private-adapter-directory> --steps 375
+--validation-limit 58` runs real CPU LoRA with assistant-only loss, offline
+loading and blocked socket connections. Every output directory must be new.
+It verifies frozen-base integrity, adapter updates, and reload inference, and
+records actual validation loss and exact-label accuracy. Outputs remain inactive.
+This bounded experiment has no interrupted-run resume support; failed runs are
+retained and must be restarted in a new directory. It is not the completed U10
+resumable training/release workflow.
+
+Focused checks: run `python -m unittest discover -s scripts -p 'test*vlm*.py'`
+using the isolated environment. Private data and weights stay Git-ignored.
+
+### Development symbol-quality experiments
+
+`scripts/build_linked_symbol_manifest.py --recover-reviewed-placements` reconciles
+owner-reviewed placed symbols historically moved into the legend layer by class
+linking. It requires preserved symbol-placement history and an exact catalog ID;
+legend samples, deleted/excluded/unresolved targets and protected splits are not
+silently promoted. Original review revisions and source images remain unchanged.
+
+`scripts/prepare_symbol_quality_experiment.py` creates a new immutable dataset
+from the frozen 56-class head, recovered placements and explicitly inspected
+non-electrical regions. Additional recovered class IDs are reported separately,
+not merged into similar names. Recovered crops follow the shared inference grid,
+with recorded unclipped seam fallback. The reviewed-background training loss
+supervises only declared negative crops and reviewed positive boxes; other
+unlabeled pixels remain ignored. Assistant negative-region inspection is local
+development evidence, not independent human approval or complete-page labeling.
+
+`scripts/train_symbol_detector_dev.py --partial-label --fine-tune` supports this
+manifest and bounded learning-rate overrides. `--warm-start` continues weights
+from the same dataset in a new run directory, explicitly resetting the optimizer;
+it does not resume the optimizer or overwrite a failed run. Model class IDs and
+negative-image hashes are checked before training.
+
+`scripts/probe_symbol_quality_experiment.py` compares checkpoints with the shared
+tiler at score 0.50. It reports class+IoU reviewed-positive matches, proposals
+inside explicitly inspected negative regions, source overlays and truncation.
+Partial-page precision and independent accuracy remain unscored. Optional cached
+baseline reuse requires matching checkpoint hash and inference settings. All
+experiment images/weights/reports remain ignored under `storage/training/`.
+See `docs/U_VLM_PROGRESS.md` for measured results and actual activation status;
+training success alone never promotes a checkpoint.
+
+### Backend verification
 
 Run from `backend/` with the configured MySQL service and seeded roles
 available:

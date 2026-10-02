@@ -305,7 +305,7 @@ class DemoInterpretationApiTests(unittest.TestCase):
         }
 
     def test_schema_and_openapi_include_append_only_demo_contract(self):
-        self.assertEqual(len(Base.metadata.tables), 28)
+        self.assertEqual(len(Base.metadata.tables), 33)
         self.assertEqual(set(inspect(self.engine).get_table_names()), set(Base.metadata.tables))
         schema = self.client.app.openapi()
         self.assertIn("get", schema["paths"]["/api/floor-plans/{floor_plan_id}/interpretation"])
@@ -315,7 +315,7 @@ class DemoInterpretationApiTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 39)
+        self.assertEqual(operations, 43)  # Includes four implemented estimate operations.
 
     def test_owner_retrieves_candidate_but_other_designer_cannot(self):
         self._login()
@@ -375,6 +375,49 @@ class DemoInterpretationApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["detail"]["error"]["code"], "SYMBOL_MAPPING_REQUIRED")
 
+    def test_experimental_unresolved_correction_survives_draft_save_and_reload(self):
+        """An advisory proposal stays out of canonical geometry until approval."""
+        with Session(self.engine) as session:
+            run = session.get(FloorPlanInterpretationRun, self.ids["run"])
+            original = (run.provider, run.candidate_json, run.candidate_sha256)
+            candidate = self.candidate.model_copy(update={
+                "provenance": self.candidate.provenance.model_copy(update={
+                    "model_release_id": "experimental_pull_station_template",
+                }),
+            })
+            run.provider = "experimental_pull_station_template"
+            run.candidate_json = candidate.model_dump_json()
+            run.candidate_sha256 = sha256(run.candidate_json.encode()).hexdigest()
+            session.commit()
+        try:
+            self._login()
+            payload = self._review_payload(complete=False, approved=False)
+            payload["symbols"][0]["disposition"] = "unresolved"
+            payload["symbols"][0]["symbol_legend_id"] = None
+            path = f"/api/floor-plans/{self.ids['floor_plan']}/interpretation"
+            saved = self.client.post(f"{path}/reviews", json=payload)
+            self.assertEqual(saved.status_code, 201, saved.text)
+            self.assertFalse(saved.json()["review"]["approved_for_layout"])
+            reloaded = self.client.get(path)
+            self.assertEqual(reloaded.status_code, 200, reloaded.text)
+            self.assertEqual(reloaded.json()["review"]["symbols"][0]["disposition"], "unresolved")
+            self.assertEqual(reloaded.json()["candidate"]["provenance"]["model_release_id"],
+                             "experimental_pull_station_template")
+            corrected = self._review_payload(complete=False, approved=False, expected=1)
+            corrected["symbols"][0]["disposition"] = "corrected"
+            corrected["symbols"][0]["center"] = {"x": 75, "y": 85}
+            second = self.client.post(f"{path}/reviews", json=corrected)
+            self.assertEqual(second.status_code, 201, second.text)
+            reloaded = self.client.get(path).json()
+            self.assertEqual(reloaded["review"]["revision_number"], 2)
+            self.assertEqual(reloaded["review"]["symbols"][0]["center"], {"x": 75, "y": 85})
+            self.assertFalse(reloaded["review"]["approved_for_layout"])
+        finally:
+            with Session(self.engine) as session:
+                run = session.get(FloorPlanInterpretationRun, self.ids["run"])
+                run.provider, run.candidate_json, run.candidate_sha256 = original
+                session.commit()
+
     def test_approved_review_saves_and_reloads_shared_canonical_geometry(self):
         self._login()
         reviewed = self.client.post(
@@ -427,6 +470,40 @@ class DemoInterpretationApiTests(unittest.TestCase):
         )
         self.assertEqual(reloaded.status_code, 200)
         self.assertEqual(reloaded.json()["geometry"], geometry)
+
+    def test_device_move_remove_reload_preserves_revision_and_canonical_exclusion(self):
+        self._login()
+        path = f"/api/floor-plans/{self.ids['floor_plan']}/interpretation"
+        original = self.client.get(path).json()["candidate"]
+        payload = self._review_payload(complete=False, approved=False)
+        payload["symbols"][0].update(disposition="corrected", center={"x": 85, "y": 65})
+        moved = self.client.post(f"{path}/reviews", json=payload)
+        self.assertEqual(moved.status_code, 201, moved.text)
+        self.assertEqual(moved.json()["review"]["symbols"][0]["center"], {"x": 85, "y": 65})
+        self.assertIsNotNone(moved.json()["review"]["symbols"][0]["class_name"])
+        payload.update(expected_revision_number=1, review_complete=True, approved_for_layout=True,
+                       wall_thickness_meters=0.15, wall_height_meters=3.0)
+        payload["symbols"][0]["disposition"] = "rejected"
+        removed = self.client.post(f"{path}/reviews", json=payload)
+        self.assertEqual(removed.status_code, 201, removed.text)
+        loaded = self.client.get(path).json()
+        self.assertEqual(loaded["candidate"], original)
+        self.assertEqual(loaded["review"]["symbols"][0]["disposition"], "rejected")
+        self.assertEqual(loaded["review"]["symbols"][0]["center"], {"x": 85, "y": 65})
+        with Session(self.engine) as session:
+            revisions = session.scalars(select(FloorPlanInterpretationReview)
+                .where(FloorPlanInterpretationReview.interpretation_run_id == self.ids["run"])
+                .order_by(FloorPlanInterpretationReview.revision_number)).all()
+            self.assertEqual(len(revisions), 2)
+            self.assertEqual(json.loads(revisions[0].review_json)["symbols"][0]["disposition"], "corrected")
+        saved = self.client.post(
+            f"/api/projects/{self.ids['project']}/floors/{self.ids['floor']}/floor-plans/{self.ids['floor_plan']}/interpretation/layout",
+            json={"candidate_run_id": self.candidate.provenance.candidate_run_id,
+                  "review_revision_number": 2, "expected_layout_version_number": None,
+                  "idempotency_key": str(uuid4())},
+        )
+        self.assertEqual(saved.status_code, 201, saved.text)
+        self.assertEqual(saved.json()["geometry"]["symbols"], [])
 
     def test_newer_unapproved_review_blocks_old_approval(self):
         self._login()

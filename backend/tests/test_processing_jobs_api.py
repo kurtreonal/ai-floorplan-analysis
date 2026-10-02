@@ -15,6 +15,8 @@ from sqlalchemy.exc import DatabaseError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.ai.floor_plan_interpretation.experimental_pull_station import ExperimentalLocatorUnavailable
+from app.ai.floor_plan_interpretation.experimental_symbol_detector import ExperimentalDetectorUnavailable
 from app.core.database import get_db, get_engine
 from app.main import create_app
 from app.models import FloorPlan, ProcessingJob, Project, ProjectFloor, Role, User
@@ -398,9 +400,13 @@ class ProcessingJobApiTests(unittest.TestCase):
                 ("post", "/api/projects/{project_id}/floors/{project_floor_id}/floor-plans/{floor_plan_id}/interpretation/layout"),
                 ("get", "/api/projects/{project_id}/routes"),
                 ("post", "/api/projects/{project_id}/routes"),
+                ("get", "/api/projects/{project_id}/estimate-options"),
+                ("get", "/api/projects/{project_id}/estimates"),
+                ("post", "/api/projects/{project_id}/estimates"),
+                ("get", "/api/projects/{project_id}/estimates/{estimate_id}"),
             },
         )
-        self.assertEqual(len(operations), 39)
+        self.assertEqual(len(operations), 43)
 
     def test_owning_designer_creates_durable_queued_job(self) -> None:
         response = self._post(
@@ -466,6 +472,65 @@ class ProcessingJobApiTests(unittest.TestCase):
             with self.subTest(value=value):
                 response = self._post(value, user_id=self.user_ids["designer"])
                 self.assertEqual(response.status_code, 422, response.text)
+
+    def test_experimental_selection_is_explicit_and_unavailable_errors_are_safe(self) -> None:
+        missing_page = self._post(
+            self.floor_plan.id, user_id=self.user_ids["designer"],
+            query="?experimental_pull_station=true",
+        )
+        self.assertEqual(missing_page.status_code, 422, missing_page.text)
+        self.assertEqual(missing_page.json()["detail"]["error"]["code"],
+                         "EXPERIMENTAL_PAGE_SELECTION_REQUIRED")
+        with patch("app.api.routes.processing.start_floor_plan_processing",
+                   side_effect=ExperimentalLocatorUnavailable("EXPERIMENTAL_TEMPLATE_UNAVAILABLE")) as start:
+            response = self._post(
+                self.floor_plan.id, user_id=self.user_ids["designer"],
+                query="?experimental_pull_station=true&page_numbers=1",
+            )
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.json()["detail"]["error"]["code"],
+                         "EXPERIMENTAL_TEMPLATE_UNAVAILABLE")
+        self.assertEqual(start.call_args.kwargs["page_numbers"], [1])
+        self.assertTrue(start.call_args.kwargs["experimental_pull_station"])
+        self.assertEqual(start.call_args.kwargs["settings"].app_env, "development")
+
+    def test_trained_symbol_selection_is_explicit_and_unavailable_errors_are_safe(self) -> None:
+        missing_page = self._post(
+            self.floor_plan.id, user_id=self.user_ids["designer"],
+            query="?experimental_symbol_detector=true",
+        )
+        self.assertEqual(missing_page.status_code, 422, missing_page.text)
+        self.assertEqual(missing_page.json()["detail"]["error"]["code"],
+                         "EXPERIMENTAL_PAGE_SELECTION_REQUIRED")
+        with patch("app.api.routes.processing.start_floor_plan_processing",
+                   side_effect=ExperimentalDetectorUnavailable("EXPERIMENTAL_MODEL_UNAVAILABLE")) as start:
+            response = self._post(
+                self.floor_plan.id, user_id=self.user_ids["designer"],
+                query="?experimental_symbol_detector=true&page_numbers=1",
+            )
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.json()["detail"]["error"]["code"],
+                         "EXPERIMENTAL_MODEL_UNAVAILABLE")
+        self.assertEqual(start.call_args.kwargs["page_numbers"], [1])
+        self.assertTrue(start.call_args.kwargs["experimental_symbol_detector"])
+
+    def test_linked_legend_selection_requires_page_and_is_explicit(self) -> None:
+        missing_page = self._post(
+            self.floor_plan.id, user_id=self.user_ids["designer"],
+            query="?experimental_linked_legend_detector=true",
+        )
+        self.assertEqual(missing_page.status_code, 422, missing_page.text)
+        self.assertEqual(missing_page.json()["detail"]["error"]["code"],
+                         "EXPERIMENTAL_PAGE_SELECTION_REQUIRED")
+        with patch("app.api.routes.processing.start_floor_plan_processing",
+                   side_effect=ExperimentalDetectorUnavailable("EXPERIMENTAL_MODEL_UNAVAILABLE")) as start:
+            response = self._post(
+                self.floor_plan.id, user_id=self.user_ids["designer"],
+                query="?experimental_linked_legend_detector=true&page_numbers=1",
+            )
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(start.call_args.kwargs["page_numbers"], [1])
+        self.assertTrue(start.call_args.kwargs["experimental_linked_legend_detector"])
 
     def test_untrusted_inputs_cannot_change_ownership_or_job_fields(self) -> None:
         self._set_session(

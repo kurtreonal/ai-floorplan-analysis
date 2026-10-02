@@ -119,6 +119,18 @@ U2 may impose tighter entity/string/array bounds. U6 may recommend lower limits
 after real measurements, but it must not silently increase these limits without
 a new approval.
 
+### September 28 development-only detector allowance
+
+The user delegated the choice between retaining 96 detail windows and allowing
+500 smaller windows ("choose one"). The implementation owner selected **500
+256-pixel detail windows per page**, batch size **8**, one serial CPU inference
+pipeline, for the local supervised 56-entry development experiment only. A
+second deterministic 128-pixel-offset grid is included only when both grids fit
+within that cap. This does not increase the VLM's 96 large-tile allowance or
+authorize production promotion. All existing image, memory, storage, timeout,
+local-only, and single-worker constraints remain in force. Pages requiring
+more windows fail explicitly; scores remain uncalibrated review suggestions.
+
 ## Approved retention policy
 
 The user approved this policy on 2026-09-07.

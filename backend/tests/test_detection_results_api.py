@@ -44,6 +44,9 @@ TABLES = (
     "detected_symbols",
     "detection_class_corrections",
     "detection_reviews",
+    "estimate_items",
+    "estimate_sources",
+    "estimates",
     "floor_elevation_settings",
     "floor_plan_interpretation_reviews",
     "floor_plan_interpretation_runs",
@@ -56,6 +59,8 @@ TABLES = (
     "layout_save_requests",
     "layout_versions",
     "manual_symbols",
+    "material_prices",
+    "materials",
     "page_scale_settings",
     "processing_artifacts",
     "processing_job_attempts",
@@ -770,7 +775,7 @@ class DetectionResultsApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 39)
+        self.assertEqual(len(operations), 43)
 
     def test_schema_and_storage_remain_stable(self) -> None:
         self.assertEqual(tuple(sorted(Wall.metadata.tables)), TABLES)

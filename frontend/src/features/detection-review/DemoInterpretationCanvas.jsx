@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Circle, Group, Image as KonvaImage, Layer, Line, Stage, Text } from 'react-konva'
 
 import { fitCanvas } from './detectionCanvasGeometry.js'
+import { DeviceGlyph } from './DeviceGlyph.jsx'
+import { clampDevicePoint } from './devicePresentation.js'
 import {
   constrainPoint,
   findSnapPoint,
@@ -28,6 +30,9 @@ export function DemoInterpretationCanvas({
   onUpdateWall,
   onDeleteWall,
   onUpdateRoom,
+  onUpdateSymbol,
+  onDeleteSymbol,
+  presentations = {},
   scaleMeters = null,
   blueprintOpacity = 1.0,
 }) {
@@ -50,6 +55,7 @@ export function DemoInterpretationCanvas({
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [isShiftHeld, setIsShiftHeld] = useState(false)
   const [isSpaceHeld, setIsSpaceHeld] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
 
   // Measure container dimensions
   useEffect(() => {
@@ -75,7 +81,7 @@ export function DemoInterpretationCanvas({
     function handleKeyDown(event) {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName)) return
       if (event.key === 'Shift') setIsShiftHeld(true)
-      if (event.code === 'Space') setIsSpaceHeld(true)
+      if (event.code === 'Space') { event.preventDefault(); setIsSpaceHeld(true) }
       if (event.key === 'Escape') {
         if (drawingStart) {
           setDrawingStart(null)
@@ -86,6 +92,9 @@ export function DemoInterpretationCanvas({
         if (selected?.kind === 'wall' && onDeleteWall) {
           event.preventDefault()
           onDeleteWall(selected.id)
+        } else if (selected?.kind === 'symbol' && onDeleteSymbol) {
+          event.preventDefault()
+          onDeleteSymbol(selected.id)
         }
       }
     }
@@ -99,7 +108,7 @@ export function DemoInterpretationCanvas({
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [drawingStart, tool, selected, onDeleteWall, onToolChange])
+  }, [drawingStart, tool, selected, onDeleteWall, onDeleteSymbol, onToolChange])
 
   // Map pointer to source-image pixels via stage inverse transform
   function getSourcePoint(stage) {
@@ -202,7 +211,7 @@ export function DemoInterpretationCanvas({
 
   // Cursor style based on active tool and mode
   const cursorStyle = useMemo(() => {
-    if (isSpaceHeld) return 'grab'
+    if (isSpaceHeld || tool === 'pan') return 'grab'
     if (tool === 'draw') return 'crosshair'
     if (tool === 'delete') return 'pointer'
     return 'default'
@@ -230,7 +239,7 @@ export function DemoInterpretationCanvas({
           y={stageTransform.y}
           scaleX={stageTransform.scale}
           scaleY={stageTransform.scale}
-          draggable={isSpaceHeld || tool === 'move'}
+          draggable={isSpaceHeld || tool === 'pan'}
           onWheel={handleWheel}
           onMouseMove={handleMouseMove}
           onClick={handleStageClick}
@@ -530,15 +539,20 @@ export function DemoInterpretationCanvas({
 
           {/* Symbols Layer */}
           <Layer>
-            {layers.symbols && draft.symbols.map((symbol) => (
-              <Circle
+            {layers.symbols && draft.symbols.filter((symbol) => symbol.disposition !== 'rejected').map((symbol) => (
+              <Group
                 key={symbol.id}
+                name={`device-${symbol.id}`}
                 x={symbol.center.x}
                 y={symbol.center.y}
-                radius={10 / stageTransform.scale}
-                fill={symbol.disposition === 'accepted' ? 'rgba(225,76,31,0.28)' : 'rgba(139,47,47,0.12)'}
-                stroke={selected?.kind === 'symbol' && selected?.id === symbol.id ? '#2563eb' : '#e14c1f'}
-                strokeWidth={selected?.kind === 'symbol' && selected?.id === symbol.id ? 4 / stageTransform.scale : 2 / stageTransform.scale}
+                draggable={Boolean(onUpdateSymbol) && ['select', 'move'].includes(tool) && !isSpaceHeld}
+                onDragStart={(event) => { event.cancelBubble = true; onSelect?.({ kind: 'symbol', id: symbol.id }) }}
+                onDragEnd={(event) => {
+                  event.cancelBubble = true
+                  const center = clampDevicePoint({ x: event.target.x(), y: event.target.y() }, width, height)
+                  event.target.position(center || symbol.center)
+                  if (center) onUpdateSymbol?.({ ...symbol, center })
+                }}
                 onClick={(e) => {
                   e.cancelBubble = true
                   onSelect?.({ kind: 'symbol', id: symbol.id })
@@ -547,14 +561,22 @@ export function DemoInterpretationCanvas({
                   e.cancelBubble = true
                   onSelect?.({ kind: 'symbol', id: symbol.id })
                 }}
-              />
+              >
+                <Circle radius={14 / stageTransform.scale} fill="#ff6a3d18"
+                  stroke={selected?.kind === 'symbol' && selected.id === symbol.id ? '#ff6a3d' : '#c94e28'}
+                  strokeWidth={1.5 / stageTransform.scale} dash={presentations[symbol.id]?.mapped ? undefined : [3 / stageTransform.scale, 3 / stageTransform.scale]} />
+                <DeviceGlyph family={presentations[symbol.id]?.family || 'unknown'} color="#c94e28" scale={stageTransform.scale} />
+                {(layers.names !== false || selected?.id === symbol.id) && <Text x={18 / stageTransform.scale} y={-6 / stageTransform.scale}
+                  text={presentations[symbol.id]?.label || 'Unclassified device · proposal'} fontSize={11 / stageTransform.scale}
+                  fontFamily="IBM Plex Sans, sans-serif" fill="#0f2030" shadowColor="#fdfcf8" shadowBlur={3} listening={false} />}
+              </Group>
             ))}
           </Layer>
 
           {/* Room Handles (when room selected) */}
           <Layer>
             {layers.rooms && selected?.kind === 'room' && onUpdateRoom && draft.rooms
-              .filter((room) => room.id === selected.id)
+              .filter((room) => room.id === selected.id && room.disposition !== 'rejected' && tool !== 'pan' && !isSpaceHeld)
               .flatMap((room) => room.boundary.map((point, index) => (
                 <Circle
                   key={`${room.id}-handle-${index}`}
@@ -594,9 +616,12 @@ export function DemoInterpretationCanvas({
           className="demo-help-button"
           title="Wall editor shortcuts: Click to start/finish drawing, Esc cancels, Del deletes, Shift locks 90°"
           aria-label="Editor help"
+          aria-expanded={showHelp}
+          onClick={() => setShowHelp((current) => !current)}
         >
           ?
         </button>
+        {showHelp && <div className="studio-canvas-help" role="note">Select &amp; drag devices · Space + drag to pan · wheel to zoom · Delete removes the selection · Ctrl+Z undo · Shift locks wall angles · Esc exits drawing.</div>}
       </div>
       <p className="detection-canvas-note">
         Walls are rendered as centerlines with estimated thickness. Select a wall to drag its endpoints or body. Hold Shift for 90° constraint.

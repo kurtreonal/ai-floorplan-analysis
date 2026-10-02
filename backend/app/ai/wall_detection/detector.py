@@ -30,6 +30,7 @@ ERROR_MESSAGES = {
     "HOUGH_DETECTION_FAILED": "Candidate wall lines could not be detected.",
     "MALFORMED_OPENCV_RESULT": "The wall detector returned an invalid result.",
     "INVALID_COORDINATES": "A candidate wall segment has invalid coordinates.",
+    "THINNING_BUDGET_EXCEEDED": "The wall mask exceeds the bounded thinning budget.",
 }
 
 
@@ -297,7 +298,7 @@ def _consolidate_wall_segments(
 
             x1j, y1j, x2j, y2j, _, _ = canon[j]
             d1 = abs(a1 * x1j + b1 * y1j + c1)
-            d2 = abs(a1 * x2j + b2 * y2j + c1)
+            d2 = abs(a1 * x2j + b1 * y2j + c1)
             if max(d1, d2) > max(6.0, canon[i][4] * 0.4):
                 continue
 
@@ -311,18 +312,19 @@ def _consolidate_wall_segments(
             can_merge = False
             if gap <= max_gap:
                 can_merge = True
-            elif evidence_mask is not None and gap <= max_gap * 4:
+            elif evidence_mask is not None and gap <= max(max_gap * 4, min(width, height) * 0.12):
                 # Check if image evidence supports continuity across the gap
                 gap_start = min(p1_end, p2_end)
                 gap_end = max(p1_start, p2_start)
                 num_gap_pts = max(3, int(round(gap)))
                 t_samples = np.linspace(gap_start, gap_end, num_gap_pts)
-                gx = np.round(canon[i][0] + (t_samples - p1_start) * tx).astype(int)
-                gy = np.round(canon[i][1] + (t_samples - p1_start) * ty).astype(int)
+                anchor_projection = canon[i][0] * tx + canon[i][1] * ty
+                gx = np.round(canon[i][0] + (t_samples - anchor_projection) * tx).astype(int)
+                gy = np.round(canon[i][1] + (t_samples - anchor_projection) * ty).astype(int)
                 gx = np.clip(gx, 0, width - 1)
                 gy = np.clip(gy, 0, height - 1)
                 ink_support = np.mean(evidence_mask[gy, gx] > 0)
-                if ink_support >= 0.6:
+                if ink_support >= 0.95:
                     can_merge = True
 
             if can_merge:
@@ -368,9 +370,116 @@ def _consolidate_wall_segments(
     return merged
 
 
+def _thin_connected_strokes(mask: np.ndarray) -> np.ndarray:
+    """Zhang-Suen thinning preserves connected strokes without a contrib dependency."""
+    work = np.pad((mask > 0).astype(np.uint8), 1)
+    for _ in range(128):
+        changed = False
+        for phase in (0, 1):
+            center = work[1:-1, 1:-1]
+            n = (work[:-2, 1:-1], work[:-2, 2:], work[1:-1, 2:],
+                 work[2:, 2:], work[2:, 1:-1], work[2:, :-2],
+                 work[1:-1, :-2], work[:-2, :-2])
+            neighbors = sum(n)
+            transitions = sum(((n[i] == 0) & (n[(i + 1) % 8] == 1)).astype(np.uint8)
+                              for i in range(8))
+            if phase == 0:
+                preserve = (n[0] * n[2] * n[4] == 0) & (n[2] * n[4] * n[6] == 0)
+            else:
+                preserve = (n[0] * n[2] * n[6] == 0) & (n[0] * n[4] * n[6] == 0)
+            remove = (center == 1) & (neighbors >= 2) & (neighbors <= 6) & (transitions == 1) & preserve
+            if np.any(remove):
+                center[remove] = 0
+                changed = True
+        if not changed:
+            return work[1:-1, 1:-1] * 255
+    raise _error("THINNING_BUDGET_EXCEEDED")
+
+
+def _is_repeated_grid_member(
+    segment: tuple[int, int, int, int, float], image: np.ndarray,
+) -> bool:
+    """Require three equally spaced observed parallels on EACH side, not a wall guess."""
+    x1, y1, x2, y2, thickness = segment
+    height, width = image.shape
+    length = math.hypot(x2 - x1, y2 - y1)
+    minimum_pitch = max(8, thickness * 2.5, min(width, height) * 0.015)
+    maximum_pitch = min(length / 3, min(width, height) * 0.12)
+    if maximum_pitch < minimum_pitch:
+        return False
+    radius = math.ceil(maximum_pitch * 3.2)
+    offsets = np.arange(-radius, radius + 1)
+    t = np.linspace(0.1, 0.9, min(256, max(16, round(length))))
+    nx, ny = -(y2 - y1) / length, (x2 - x1) / length
+    xs = np.rint(x1 + t[None, :] * (x2 - x1) + offsets[:, None] * nx).astype(int)
+    ys = np.rint(y1 + t[None, :] * (y2 - y1) + offsets[:, None] * ny).astype(int)
+    valid = (xs >= 0) & (xs < width) & (ys >= 0) & (ys < height)
+    observed = valid & (image[np.clip(ys, 0, height - 1), np.clip(xs, 0, width - 1)] == 0)
+    support = observed.mean(axis=1)
+    active = support >= 0.55
+    starts = np.flatnonzero(active & ~np.r_[False, active[:-1]])
+    ends = np.flatnonzero(active & ~np.r_[active[1:], False])
+    peaks = np.array([float(np.average(offsets[a:b + 1], weights=support[a:b + 1]))
+                      for a, b in zip(starts, ends)])
+    # Scanned lines wander by a few pixels; estimate pitch from both neighbors
+    # instead of multiplying one side's offset error through the whole lattice.
+    pitches = [float((right - left) / 2) for left in peaks if left < 0
+               for right in peaks if right > 0
+               if abs(right + left) <= (right - left) * 0.15]
+    for pitch in pitches:
+        if not minimum_pitch <= pitch <= maximum_pitch:
+            continue
+        tolerance = max(2.0, pitch * 0.15)
+        if all(np.any(np.abs(peaks - multiple * pitch) <= tolerance)
+               for multiple in (-3, -2, -1, 1, 2, 3)):
+            # Parallel office partitions alone are not a ceiling grid. Require
+            # multiple transverse strokes continuing through the candidate.
+            left = (offsets < -thickness) & (offsets >= -pitch)
+            right = (offsets > thickness) & (offsets <= pitch)
+            if not left.any() or not right.any():
+                continue
+            crossings = ((observed[left].mean(axis=0) >= 0.55)
+                         & (observed[right].mean(axis=0) >= 0.55))
+            positions = t[crossings] * length
+            if positions.size > 1 and positions[-1] - positions[0] >= pitch:
+                return True
+    return False
+
+
+def _has_compact_parallel_bars(segment, image: np.ndarray) -> bool:
+    """Reject compact bar glyphs, not short solid or double-outline wall strokes."""
+    x1, y1, x2, y2, thickness = segment
+    height, width = image.shape
+    length = math.hypot(x2 - x1, y2 - y1)
+    if length <= 0 or length > min(width, height) * 0.10:
+        return False
+    radius = max(2, round(thickness * 1.5))
+    offsets = np.arange(-radius, radius + 1)
+    t = np.linspace(0.2, 0.8, 64)
+    dx, dy = (x2 - x1) / length, (y2 - y1) / length
+    xs = np.rint(x1 + t[None, :] * (x2 - x1) - offsets[:, None] * dy).astype(int)
+    ys = np.rint(y1 + t[None, :] * (y2 - y1) + offsets[:, None] * dx).astype(int)
+    valid = (xs >= 0) & (xs < width) & (ys >= 0) & (ys < height)
+    support = (valid & (image[np.clip(ys, 0, height - 1), np.clip(xs, 0, width - 1)] == 0)).mean(axis=1)
+    active = support > 0.65
+    starts = np.flatnonzero(active & ~np.r_[False, active[:-1]])
+    ends = np.flatnonzero(active & ~np.r_[active[1:], False])
+    widths = ends - starts + 1
+    if len(widths) < 5:
+        return False
+    main = int(np.argmax(widths))
+    if main < 2 or main > len(widths) - 3:
+        return False
+    center = (offsets[starts[main]] + offsets[ends[main]]) / 2
+    companions = np.r_[widths[main - 2:main], widths[main + 1:main + 3]]
+    return bool(abs(center) <= thickness * 0.5 and widths[main] >= 8
+                and np.all(companions >= 2) and np.all(companions <= widths[main] / 3))
+
+
 def _detect_structural_wall_lines(
     image: np.ndarray,
     parameters: WallDetectionParameters,
+    continuity_image: np.ndarray | None = None,
 ) -> list[tuple[int, int, int, int, float]]:
     height, width = image.shape
     if np.all(image == image.flat[0]):
@@ -380,14 +489,46 @@ def _detect_structural_wall_lines(
     if cv2.countNonZero(ink) == 0:
         return []
 
+    # Scans often depict walls as two dark outlines with a lighter fill. A small
+    # page-scaled close restores that stroke before measuring its centerline.
+    # Keep the radius below the configured continuity gap; door-sized gaps remain.
+    close_size = max(1, min(round(min(width, height) * 0.008), round(parameters.maximum_line_gap * 2 + 1)))
+    if close_size % 2 == 0:
+        close_size += 1
+    if close_size > 1:
+        ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE,
+                             cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size)))
+
     dist = cv2.distanceTransform(ink, cv2.DIST_L2, 5)
+    continuity_dist = None
+    if continuity_image is not None:
+        continuity_ink = cv2.bitwise_not(continuity_image)
+        if close_size > 1:
+            continuity_ink = cv2.morphologyEx(
+                continuity_ink, cv2.MORPH_CLOSE,
+                cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size)),
+            )
+        continuity_dist = cv2.distanceTransform(continuity_ink, cv2.DIST_L2, 5)
     ink_dist = dist[ink > 0]
     if len(ink_dist) == 0:
         return []
 
+    # Compact solid fixtures must not set the page-wide wall stroke cutoff.
+    # Measure sustained strokes instead; retain the general fallback for scans
+    # containing only diagonal evidence. This is still advisory CV, not semantics.
+    span = max(3, round(max(parameters.minimum_line_length * 2, min(width, height) * 0.16)))
+    horizontal = cv2.morphologyEx(ink, cv2.MORPH_OPEN,
+                                 cv2.getStructuringElement(cv2.MORPH_RECT, (span, 1)))
+    vertical = cv2.morphologyEx(ink, cv2.MORPH_OPEN,
+                               cv2.getStructuringElement(cv2.MORPH_RECT, (1, span)))
+    sustained = cv2.bitwise_or(horizontal, vertical)
+    sustained_radii = dist[sustained > 0]
     max_radius = float(np.max(ink_dist))
     if parameters.min_stroke_radius is not None:
         min_stroke_radius = float(parameters.min_stroke_radius)
+    elif sustained_radii.size:
+        stroke_radius = float(np.percentile(sustained_radii, 90))
+        min_stroke_radius = max(1.25, stroke_radius * 0.4) if stroke_radius >= 2 else max(0.5, stroke_radius * 0.6)
     elif max_radius >= 4.0:
         p90 = float(np.percentile(ink_dist, 90))
         min_stroke_radius = max(2.5, min(p90 * 0.6, max_radius * 0.25))
@@ -407,7 +548,7 @@ def _detect_structural_wall_lines(
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k_size, k_size))
     structural_ink = cv2.bitwise_and(cv2.dilate(core, kernel), ink)
 
-    min_span = max(min_wall_length * 0.6, min(width, height) * 0.015)
+    min_span = max(min_wall_length, min(width, height) * 0.12)
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(structural_ink, 8)
     clean_structural = np.zeros_like(structural_ink)
 
@@ -425,16 +566,7 @@ def _detect_structural_wall_lines(
     if cv2.countNonZero(clean_structural) == 0:
         return []
 
-    skeleton = np.zeros_like(clean_structural)
-    element = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
-    temp = clean_structural.copy()
-    while True:
-        eroded = cv2.erode(temp, element)
-        opened = cv2.morphologyEx(eroded, cv2.MORPH_OPEN, element)
-        cv2.bitwise_or(skeleton, cv2.subtract(eroded, opened), skeleton)
-        temp = eroded.copy()
-        if cv2.countNonZero(temp) == 0:
-            break
+    skeleton = _thin_connected_strokes(clean_structural)
 
     vote_threshold = max(10, int(round(min_wall_length * 0.35)))
     try:
@@ -473,18 +605,59 @@ def _detect_structural_wall_lines(
             continue
 
         thickness = round(median_radius * 2.0, 2)
+        # Hough voting can stop before an observed stroke ends. Recover only
+        # contiguous structural pixels; never extrapolate across a white opening.
+        dx, dy = (x2 - x1) / length, (y2 - y1) / length
+        extension_limit = max(2, round(min_wall_length))
+        extended = []
+        for ox, oy, direction in ((x1, y1, -1), (x2, y2, 1)):
+            last = (ox, oy)
+            for step in range(1, extension_limit + 1):
+                px, py = round(ox + direction * dx * step), round(oy + direction * dy * step)
+                if not (0 <= px < width and 0 <= py < height):
+                    break
+                supported = bool(clean_structural[py, px])
+                if not supported:
+                    break
+                last = (px, py)
+            extended.append(last)
+        (x1, y1), (x2, y2) = extended
+        length = math.hypot(x2 - x1, y2 - y1)
         raw_segments.append((x1, y1, x2, y2, thickness, length))
 
     consolidated = _consolidate_wall_segments(
         raw_segments, width, height, max_gap, evidence_mask=clean_structural
     )
-    return consolidated
+    if continuity_dist is not None:
+        recovered = []
+        for x1, y1, x2, y2, thickness in consolidated:
+            length = math.hypot(x2 - x1, y2 - y1)
+            if length >= min(width, height) * 0.15:
+                dx, dy = (x2 - x1) / length, (y2 - y1) / length
+                endpoints = []
+                for ox, oy, direction in ((x1, y1, -1), (x2, y2, 1)):
+                    last = (ox, oy)
+                    for step in range(1, round(min(width, height) * 0.12) + 1):
+                        px, py = round(ox + direction * dx * step), round(oy + direction * dy * step)
+                        if not (0 <= px < width and 0 <= py < height):
+                            break
+                        if continuity_dist[py, px] < max(min_stroke_radius, thickness * 0.25):
+                            break
+                        last = (px, py)
+                    endpoints.append(last)
+                (x1, y1), (x2, y2) = endpoints
+            recovered.append((x1, y1, x2, y2, thickness, math.hypot(x2 - x1, y2 - y1)))
+        consolidated = _consolidate_wall_segments(recovered, width, height, max_gap)
+    return [segment for segment in consolidated
+            if not _is_repeated_grid_member(segment, image)
+            and not _has_compact_parallel_bars(segment, image)]
 
 
 def detect_wall_lines(
     source: "PreprocessedImage | np.ndarray",
     *,
     parameters: WallDetectionParameters | None = None,
+    continuity_source: np.ndarray | None = None,
 ) -> WallDetectionResult:
     """Return deterministic candidate segments in raw top-left pixel space."""
     try:
@@ -498,13 +671,18 @@ def detect_wall_lines(
     if not isinstance(selected, WallDetectionParameters):
         raise _error("INVALID_CONFIGURATION")
     image = _extract_binary_image(source)
+    continuity_image = None
+    if continuity_source is not None:
+        continuity_image = _extract_binary_image(continuity_source)
+        if continuity_image.shape != image.shape:
+            raise _error("INVALID_DTYPE_OR_SHAPE")
     height, width = image.shape
     if np.all(image == image.flat[0]):
         return _empty_result(width, height)
 
     if selected.structural_mode:
         algorithm_name = "structural_stroke_centerline"
-        segments_with_th = _detect_structural_wall_lines(image, selected)
+        segments_with_th = _detect_structural_wall_lines(image, selected, continuity_image)
         truncated = len(segments_with_th) > selected.maximum_candidates
         limited = segments_with_th[: selected.maximum_candidates]
         candidates = tuple(

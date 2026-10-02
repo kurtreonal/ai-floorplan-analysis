@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { getProtectedRouteRedirect } from './authRoutes.js'
 import {
   getDemoInterpretationHref, getDetectionReviewHref, getLayoutHref, getProjectHref,
-  getViewer3dHref, parseProjectRoute,
+  getViewer3dHref, getEstimateHref, parseProjectRoute,
 } from './projectRoutes.js'
 
 
@@ -21,6 +21,13 @@ describe('project hash routes', () => {
     expect(getDetectionReviewHref(15, 81, 103)).toBe(
       '#/app/projects/15/floor-plans/81/detections/103',
     )
+  })
+
+  it('parses the project-bound estimate workspace and rejects unsafe addresses', () => {
+    expect(parseProjectRoute('/app/projects/15/estimates')).toEqual({ view: 'estimates', projectId: 15 })
+    expect(getEstimateHref(15)).toBe('#/app/projects/15/estimates')
+    for (const route of ['/app/projects/0/estimates', '/app/projects/15/estimates/extra', '/app/projects/999999999999999999/estimates']) expect(parseProjectRoute(route)).toEqual({ view: 'invalid', projectId: null })
+    expect(() => getEstimateHref(-1)).toThrow()
   })
 
   it('parses and builds an exact unified interpretation route', () => {

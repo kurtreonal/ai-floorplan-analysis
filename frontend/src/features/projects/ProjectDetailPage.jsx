@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 
 import { fetchProject, ProjectApiError } from '../../api/projects.js'
 import { ProjectFloorUploadPanel } from './ProjectFloorUploadPanel.jsx'
+import { getEstimateHref } from '../../routes/projectRoutes.js'
+import { Button } from '../../components/ui/button.jsx'
+import { Calculator } from 'lucide-react'
 
 
 function formatTimestamp(value) {
@@ -92,9 +95,9 @@ export function ProjectDetailPage({ projectId, session }) {
           <span className="project-kicker mono">PROJECT METADATA</span>
           <h1 id="project-detail-title">{project.name}</h1>
         </div>
-        <span className="project-status project-detail-status mono">
+        <div className="studio-detail-actions"><Button variant="outline" asChild><a href={getEstimateHref(project.id)}><Calculator aria-hidden="true" />Cost estimation</a></Button><span className="project-status project-detail-status mono">
           {project.status.replaceAll('_', ' ')}
-        </span>
+        </span></div>
       </div>
       <p className="project-detail-intro">
         Review the project metadata, organize its floors, and upload original floor-plan files.

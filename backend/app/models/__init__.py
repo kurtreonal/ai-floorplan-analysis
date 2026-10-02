@@ -1,4 +1,8 @@
 from app.models.base import Base
+from app.models.estimate import Estimate, EstimateItem
+from app.models.estimate_source import EstimateSource
+from app.models.material import Material
+from app.models.material_price import MaterialPrice
 from app.models.generated_route import GeneratedRouteVersion
 from app.models.analysis_settings import FloorElevationSetting, PageScaleSetting
 from app.models.detection_class_correction import DetectionClassCorrection
@@ -30,6 +34,11 @@ from app.models.wall import Wall
 
 __all__ = (
     "Base",
+    "Estimate",
+    "EstimateItem",
+    "EstimateSource",
+    "Material",
+    "MaterialPrice",
     "FloorElevationSetting",
     "PageScaleSetting",
     "DetectionClassCorrection",

@@ -21,6 +21,31 @@ def synthetic_plan(width=400, height=300):
 
 
 class DemoCVInterpretationTests(unittest.TestCase):
+    def test_faint_walls_survive_uneven_scan_illumination(self):
+        background = np.tile(np.linspace(150, 255, 600), (500, 1))
+        wall_mask = np.zeros((500, 600), dtype=np.uint8)
+        cv2.rectangle(wall_mask, (40, 40), (560, 460), 255, 7)
+        cv2.line(wall_mask, (300, 40), (300, 460), 255, 7)
+        gray = np.clip(background - (wall_mask > 0) * 45, 0, 255).astype(np.uint8)
+        image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        before = image.copy()
+
+        result = interpret_floor_plan_demo(image)
+
+        self.assertEqual(len(result.rooms.items), 2)
+        self.assertGreaterEqual(len(result.walls.items), 5)
+        self.assertTrue(all(wall.ambiguity == 'ambiguous' for wall in result.walls.items))
+        np.testing.assert_array_equal(image, before)
+
+    def test_ceiling_grid_does_not_partition_room_proposals(self):
+        image = synthetic_plan(400, 300)
+        for x in range(70, 190, 20):
+            cv2.line(image, (x, 50), (x, 250), (0, 0, 0), 1)
+        for y in range(60, 250, 20):
+            cv2.line(image, (60, y), (190, y), (0, 0, 0), 1)
+        result = interpret_floor_plan_demo(image)
+        self.assertEqual(len(result.rooms.items), 2)
+
     def test_room_proposals_ignore_short_wiring_dashes_and_keep_lower_page(self):
         image = synthetic_plan()
         for x in range(60, 330, 18):

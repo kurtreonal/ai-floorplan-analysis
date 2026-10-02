@@ -12,11 +12,14 @@ import { LAYOUT_LAYER_LABELS } from './layoutLayers.js'
 import './layoutEditor.css'
 import { useSavedRoute } from '../routing/useSavedRoute.js'
 import { projectRoute } from '../routing/routeProjection.js'
+import { Button } from '../../components/ui/button.jsx'
+import { Box, Layers3, Save } from 'lucide-react'
 
 const INITIAL_VISIBILITY = Object.freeze({
   blueprint: true, walls: true, rooms: true, symbols: true, routes: true,
 })
 const INITIAL_SAVE_STATE = Object.freeze({ status: 'idle', error: null, idempotencyKey: null })
+const NOOP = () => {}
 
 function decodeImage(url) {
   return new Promise((resolve, reject) => {
@@ -56,7 +59,7 @@ function saveFailure(error) {
   return { status: 'idle', message: 'The layout changes could not be saved. Please try again.' }
 }
 
-export function LayoutEditorPage({ projectId, projectFloorId, session }) {
+export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyChange = NOOP }) {
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState({
     status: 'loading', serverLayout: null, draft: null,
@@ -68,6 +71,12 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
   const [saveState, setSaveState] = useState(INITIAL_SAVE_STATE)
   const [announcement, setAnnouncement] = useState('All canonical layout layers are visible.')
   const saveControllerRef = useRef(null)
+  const draftDirty = state.status === 'ready' && !canonicalGeometriesEqual(state.serverLayout.geometry, state.draft)
+
+  useEffect(() => {
+    onDirtyChange(draftDirty)
+    return () => onDirtyChange(false)
+  }, [draftDirty, onDirtyChange])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -250,7 +259,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
   }
 
   const { serverLayout, draft: geometry } = state
-  const dirty = !canonicalGeometriesEqual(serverLayout.geometry, geometry)
+  const dirty = draftDirty
   const roleAllowsEditing = session?.user?.role === 'DESIGNER'
   const canEdit = roleAllowsEditing && saveState.status !== 'access-lost' && !serverLayout.hasExtension
   const busy = ['saving', 'reconciling'].includes(saveState.status)
@@ -264,7 +273,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
   return (
     <article className="layout-editor-page" aria-labelledby="layout-page-title">
       <a className="layout-back-link" href={getProjectHref(projectId)}>← Back to project</a>
-      {!dirty && !busy && <a href={getViewer3dHref(projectId, projectFloorId)}>View saved layout in 3D</a>}
+      <div className="studio-mode-bar"><span className="studio-mode-active"><Layers3 size={16} aria-hidden="true" />2D editor</span>{!dirty && !busy && <Button variant="ghost" size="sm" asChild><a href={getViewer3dHref(projectId, projectFloorId)}><Box aria-hidden="true" />View saved layout in 3D</a></Button>}<span className="mono">SHARED CANONICAL SNAPSHOT · V{serverLayout.version_number}</span></div>
       {dirty && <p role="note">Save or discard your position changes before comparing the saved 3D layout.</p>}
       {serverLayout.hasExtension && <p role="note">This layout includes reviewed extension data. Use its interpretation review workspace to edit it; this base-layout editor is read-only to preserve that data.</p>}
       <header className="layout-page-header">
@@ -291,9 +300,9 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
         {(canEdit || dirty) && (
           <div className="layout-save-actions">
             {canEdit && (
-              <button className="btn btn-dark" type="button" disabled={saveDisabled} onClick={saveLayout}>
+              <Button disabled={saveDisabled} onClick={saveLayout}><Save aria-hidden="true" />
                 {saveState.status === 'saving' ? 'Saving…' : saveState.status === 'reconciling' ? 'Checking server…' : saveState.status === 'uncertain' ? 'Check server before retry' : 'Save layout'}
-              </button>
+              </Button>
             )}
             <button className="btn btn-ghost" type="button" disabled={!dirty || busy} onClick={cancelChanges}>Cancel changes</button>
           </div>
@@ -301,9 +310,9 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
       </div>
       {saveState.error && <p className="layout-save-error" role="alert">{saveState.error}</p>}
 
-      <LayoutLayerControls visibility={visibility} onChange={toggleLayer} />
       <p className="sr-only" aria-live="polite">{announcement}</p>
-
+      <div className="studio-editor-workbench">
+      <aside className="studio-editor-layers"><span className="project-kicker mono">DISPLAY LAYERS</span><LayoutLayerControls visibility={visibility} onChange={toggleLayer} /><p>Display switches do not delete saved data. Use the inspector for exact coordinates.</p></aside>
       <CanonicalLayoutCanvas
         routeSegments={dirty ? [] : projectRoute(route, serverLayout)}
         geometry={geometry}
@@ -324,6 +333,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session }) {
         onSelectSymbol={selectSymbol}
         onGeometryChange={replaceDraft}
       />
+      </div>
 
       <section className="layout-accessible-summary" aria-labelledby="layout-summary-title">
         <h2 id="layout-summary-title">Layout summary</h2>

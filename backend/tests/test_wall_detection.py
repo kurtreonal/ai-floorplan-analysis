@@ -19,6 +19,10 @@ from app.ai.wall_detection.detector import (
     WallDetectionError,
     WallLineCandidate,
     detect_wall_lines,
+    _thin_connected_strokes,
+    _is_repeated_grid_member,
+    _has_compact_parallel_bars,
+    _consolidate_wall_segments,
 )
 
 
@@ -422,6 +426,121 @@ class WallDetectionIsolationTests(unittest.TestCase):
 
 
 class StructuralWallDetectionTests(unittest.TestCase):
+    def test_compact_bar_glyph_filter_preserves_plain_and_outlined_short_walls(self):
+        image = np.full((1000, 1000), 255, dtype=np.uint8)
+        cv2.rectangle(image, (290, 300), (310, 380), 0, -1)
+        segment = (300, 300, 300, 380, 40)
+        self.assertFalse(_has_compact_parallel_bars(segment, image))
+        for x in (275, 282, 318, 325):
+            cv2.line(image, (x, 300), (x, 380), 0, 2)
+        before = image.copy()
+        self.assertTrue(_has_compact_parallel_bars(segment, image))
+        self.assertFalse(_has_compact_parallel_bars((300, 300, 300, 800, 40), image))
+        np.testing.assert_array_equal(image, before)
+        outlined = np.full_like(image, 255)
+        cv2.rectangle(outlined, (290, 300), (310, 380), 0, 2)
+        self.assertFalse(_has_compact_parallel_bars(segment, outlined))
+
+    def test_faint_continuity_extends_existing_wall_without_new_candidates_or_gap_crossing(self):
+        primary = np.full((500, 500), 255, dtype=np.uint8)
+        cv2.line(primary, (100, 100), (100, 300), 0, 10)
+        continuity = primary.copy()
+        cv2.line(continuity, (100, 100), (100, 330), 0, 10)
+        cv2.line(continuity, (100, 355), (100, 450), 0, 10)
+        cv2.line(continuity, (350, 100), (350, 450), 0, 10)
+        before = continuity.copy()
+        parameters = WallDetectionParameters(structural_mode=True, minimum_line_length=24, maximum_line_gap=6)
+        baseline = detect_wall_lines(primary, parameters=parameters)
+        recovered = detect_wall_lines(primary, parameters=parameters, continuity_source=continuity)
+        self.assertEqual(len(recovered.candidates), len(baseline.candidates))
+        self.assertGreater(max(w.end.y for w in recovered.candidates), 320)
+        self.assertLess(max(w.end.y for w in recovered.candidates), 340)
+        self.assertTrue(all(abs(w.start.x - 100) < 10 for w in recovered.candidates))
+        np.testing.assert_array_equal(continuity, before)
+
+    def test_continuity_shape_mismatch_is_rejected(self):
+        with self.assertRaises(WallDetectionError):
+            detect_wall_lines(np.full((50, 50), 255, dtype=np.uint8),
+                              continuity_source=np.full((40, 50), 255, dtype=np.uint8))
+
+    def test_repeated_grid_filter_requires_bilateral_periodic_evidence(self):
+        image = np.full((500, 500), 255, dtype=np.uint8)
+        for x in range(100, 401, 50):
+            cv2.line(image, (x, 40), (x, 460), 0, 2)
+        cv2.line(image, (250, 40), (250, 460), 0, 7)
+        # Repeated partitions without transverse grid evidence must survive.
+        self.assertFalse(_is_repeated_grid_member((250, 40, 250, 460, 8), image))
+        for y in range(80, 450, 50):
+            cv2.line(image, (80, y), (420, y), 0, 2)
+        original = image.copy()
+        self.assertTrue(_is_repeated_grid_member((250, 40, 250, 460, 8), image))
+        self.assertFalse(_is_repeated_grid_member((100, 40, 100, 460, 8), image))
+        self.assertFalse(_is_repeated_grid_member((280, 40, 280, 460, 8), image))
+        np.testing.assert_array_equal(image, original)
+        image[:, 398:403] = 255
+        self.assertFalse(_is_repeated_grid_member((250, 40, 250, 460, 8), image))
+
+    def test_repeated_grid_filter_handles_scan_pitch_jitter(self):
+        image = np.full((500, 500), 255, dtype=np.uint8)
+        for x in (94, 143, 194, 250, 296, 346, 403):
+            cv2.line(image, (x, 40), (x, 460), 0, 2)
+        for y in range(80, 450, 50):
+            cv2.line(image, (80, y), (420, y), 0, 2)
+        cv2.line(image, (250, 40), (250, 460), 0, 7)
+        self.assertTrue(_is_repeated_grid_member((250, 40, 250, 460, 8), image))
+
+    def test_structural_pipeline_excludes_thick_grid_member_but_keeps_perimeter(self):
+        image = np.full((500, 500), 255, dtype=np.uint8)
+        cv2.rectangle(image, (40, 40), (460, 460), 0, 10)
+        for x in range(100, 401, 50):
+            cv2.line(image, (x, 45), (x, 455), 0, 2)
+        for y in range(80, 450, 50):
+            cv2.line(image, (45, y), (455, y), 0, 2)
+        cv2.line(image, (250, 40), (250, 460), 0, 7)
+        result = detect_wall_lines(image, parameters=WallDetectionParameters(
+            structural_mode=True, minimum_line_length=24, maximum_line_gap=6,
+        ))
+        self.assertGreaterEqual(sum(w.length_pixels > 350 for w in result.candidates), 4)
+        self.assertFalse(any(abs(w.start.x - 250) < 10 and abs(w.end.x - 250) < 10
+                             and w.length_pixels > 100 for w in result.candidates))
+
+    def test_long_gap_requires_continuous_ink_and_uses_fixed_projection_anchor(self):
+        segments = [(80, 50, 150, 50, 8, 70), (20, 50, 70, 50, 8, 50),
+                    (170, 50, 210, 50, 8, 40)]
+        mask = np.zeros((240, 300), dtype=np.uint8)
+        mask[50, 20:211] = 255
+        result = _consolidate_wall_segments(segments, 300, 240, 5, mask)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][:4], (20, 50, 210, 50))
+        mask[50, 151:170] = 0
+        self.assertEqual(len(_consolidate_wall_segments(segments, 300, 240, 5, mask)), 2)
+
+    def test_thinning_keeps_variable_width_path_connected_and_input_unchanged(self):
+        mask = np.zeros((100, 200), dtype=np.uint8)
+        cv2.line(mask, (10, 50), (100, 50), 255, 3)
+        cv2.line(mask, (100, 50), (180, 70), 255, 13)
+        original = mask.copy()
+        skeleton = _thin_connected_strokes(mask)
+        count, _ = cv2.connectedComponents(skeleton, 8)
+        self.assertEqual(count, 2)  # background plus one connected stroke
+        self.assertGreater(np.count_nonzero(skeleton), 150)
+        np.testing.assert_array_equal(mask, original)
+
+    def test_thick_fixtures_do_not_erase_thin_connected_walls(self):
+        image = binary_canvas(400, 600)
+        cv2.rectangle(image, (30, 30), (370, 570), 0, 2)
+        cv2.line(image, (110, 30), (110, 570), 0, 2)
+        for x in (160, 230, 300):
+            for y in (80, 180, 280, 380):
+                cv2.rectangle(image, (x, y), (x + 8, y + 38), 0, -1)
+        original = image.copy()
+        result = detect_wall_lines(image, parameters=WallDetectionParameters(
+            structural_mode=True, minimum_line_length=24, maximum_line_gap=6,
+        ))
+        self.assertGreaterEqual(sum(c.length_pixels > 200 for c in result.candidates), 5)
+        self.assertFalse(any(c.length_pixels < 60 for c in result.candidates))
+        np.testing.assert_array_equal(image, original)
+
     def test_thick_walls_detected_and_thin_grids_and_fixtures_rejected(self):
         # 500x400 canvas with thick exterior walls (thickness 10)
         image = binary_canvas(500, 400)

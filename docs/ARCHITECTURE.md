@@ -3,27 +3,27 @@
 > **Authority and status**
 >
 > `docs/FUNCTIONAL_SPEC.md` owns ticket scope and acceptance criteria;
-> `AGENTS.md` owns repository-wide implementation rules. This document records
-> the architecture actually implemented through L1 and PRE0-PRE12, including E3A, J1A, and J3A, and labels
+> `AGENTS.md` owns repository-wide implementation rules. Records
+> architecture actually implemented through L1 and PRE0-PRE12, including E3A, J1A, and J3A, and labels
 > downstream concepts as planned or proposed. The approved target AI migration
 > is governed by `docs/LOCAL_VLM_MIGRATION_PLAN.md`; it does not retroactively
-> make the local VLM an implemented capability.
+> make local VLM implemented capability.
 
 ## 1. Current implementation boundary
 
 September 19 M1-M7 update: `app/routing` owns bounded graph generation, A*,
 explicit service/wall/riser segments and measurements. The routing service pins
-canonical snapshots and rechecks them under floor locks; the repository stores
+canonical snapshots and rechecks them under floor locks; repository stores
 append-only `generated_route_versions`. Two authenticated project routes expose
 generation and latest retrieval (39 total operations, 28 tables). React/Konva
 and Three.js share persisted segments and backend measurements. Single-floor
-controls are in the 3D workspace; multi-floor configuration is API-supported.
+controls are in 3D workspace; multi-floor configuration is API-supported.
 
-September 19 L2-L5 update: `canonicalScene.js` projects the saved K1 base into
+September 19 L2-L5 update: `canonicalScene.js` projects saved K1 base into
 floor/room surfaces, stored verified wall meshes and reviewed symbol markers.
-`Viewer3DPage` reloads the same current-layout endpoint as `LayoutEditorPage`,
+`Viewer3DPage` reloads same current-layout endpoint as `LayoutEditorPage`,
 with abort/identity fencing. The API reader accepts additive U11 metadata;
-extended snapshots are read-only in the base editor to preserve that metadata.
+extended snapshots are read-only in base editor to preserve that metadata.
 No backend route, table, schema, dependency or persistence model changed.
 Earlier milestone descriptions below are historical; L ticket acceptance is
 recorded in `FUNCTIONAL_SPEC.md`, and later U status in `U_VLM_PROGRESS.md`.
@@ -31,7 +31,7 @@ recorded in `FUNCTIONAL_SPEC.md`, and later U status in `U_VLM_PROGRESS.md`.
 ### Implemented
 
 - A1–A4: repository, environment, React/Vite, and FastAPI foundations
-- B1–B5: SQLAlchemy/PyMySQL connectivity and the first five prototype tables
+- B1–B5: SQLAlchemy/PyMySQL connectivity and first five prototype tables
 - C1–C6: OAuth/OIDC, signed sessions, current-user restoration, role checks,
   frontend sign-in, and logout
 - D1–D4: project create/list/detail APIs and project dashboard UI
@@ -51,7 +51,7 @@ recorded in `FUNCTIONAL_SPEC.md`, and later U status in `U_VLM_PROGRESS.md`.
 - H1: deterministic probabilistic-Hough wall-line candidate detection
 - H2: immutable explicit-scale conversion from pixels to canonical meters
 - H3: transactional persistence and read-only retrieval of wall geometry
-- I1: validated local YOLO model loading with dynamic metadata and a bounded,
+- I1: validated local YOLO model loading with dynamic metadata and bounded,
   thread-safe process cache
 - I2: isolated, validated in-memory symbol inference over copied G3 binary data
 - I3: immutable in-memory confidence classification with configured threshold
@@ -59,8 +59,8 @@ recorded in `FUNCTIONAL_SPEC.md`, and later U status in `U_VLM_PROGRESS.md`.
   provenance
 - J1: ownership-aware read-only detection-results API with explicit symbol-job
   version selection and current H3 wall retrieval
-- J1A: ownership-aware read-only serving of the existing G2 normalized RGB PNG
-  as the aligned blueprint reference
+- J1A: ownership-aware read-only serving of existing G2 normalized RGB PNG
+  as aligned blueprint reference
 - J2: protected React-Konva detection review with separate blueprint, current
   wall, selected-job symbol, and selection layers plus accessible DOM inspection
 - J3: append-only, owning-Designer confirmation/rejection decisions with
@@ -70,13 +70,13 @@ recorded in `FUNCTIONAL_SPEC.md`, and later U status in `U_VLM_PROGRESS.md`.
 - J4: append-only owner-scoped Designer classification corrections with
   immutable original AI provenance and latest-authoritative retrieval
 - J5: owner-scoped, retry-idempotent manual symbol placement using trusted J1A
-  image dimensions, separate J1 retrieval, and a source-pixel K1 handoff
+  image dimensions, separate J1 retrieval, and source-pixel K1 handoff
 - K1: strict canonical geometry schema v1 plus pure H2-wall and J5-symbol
-  adapters shared with a renderer-independent JavaScript normalizer
+  adapters shared with renderer-independent JavaScript normalizer
 - K2: append-only canonical layout snapshots with per-floor version allocation,
   validated reconstruction, ordered history, and transactional current selection
 - K3: owning-Designer current-layout retrieval and snapshot creation plus
-  read-only Admin access, using the strict K1 request and K2 persistence contracts
+  read-only Admin access, using strict K1 request and K2 persistence contracts
 - K4: protected read-only canonical layout route, strict current-layout client,
   responsive source-pixel Konva stage, six stable layers, accessible local
   visibility controls, and provenance-safe optional J1A blueprint display
@@ -104,7 +104,7 @@ recorded in `FUNCTIONAL_SPEC.md`, and later U status in `U_VLM_PROGRESS.md`.
 - PRE8: conditional expected-version layout saves and durable UUIDv4
   idempotency records
 - PRE9: engine-neutral claim, lease, heartbeat, cancellation, recovery, and
-  retry controls without a worker
+  retry controls without worker
 - PRE10: history-preserving human VED AI Dataset Approver assignment authority
   with privacy-reduced current retrieval
 - PRE11: accepted canonical v1 compatibility and additive extension decision
@@ -114,8 +114,8 @@ recorded in `FUNCTIONAL_SPEC.md`, and later U status in `U_VLM_PROGRESS.md`.
 
 ### Planned
 
-PRE0-PRE12 now form a passing non-model foundation gate. U1-U14
-define the planned migration from the implemented YOLO-only symbol path to local
+PRE0-PRE12 now form passing non-model foundation gate. U1-U14
+define planned migration from implemented YOLO-only symbol path to local
 multimodal floor-plan interpretation. L2 and later roadmap tickets also remain
 unimplemented, including canonical 3D geometry, routing, quantities, estimates,
 reports, remaining administration UI/material workflows, and general audit
@@ -144,7 +144,7 @@ status mapping, and response schemas. Services own domain workflow. Repositories
 own SQLAlchemy persistence queries. Upload validation and filesystem storage are
 separate from route logic.
 
-The preferred Windows development database is MySQL-compatible and managed by
+preferred Windows development database is MySQL-compatible and managed by
 XAMPP. FastAPI connects directly through PyMySQL; phpMyAdmin is optional and
 Apache/PHP are not application dependencies.
 
@@ -158,10 +158,43 @@ TypeScript.
 
 Konva/React-Konva, `three@0.185.1`, and `@react-three/fiber@9.7.0` are installed.
 React Router, Axios/TanStack Query, and React Hook Form/Zod remain permitted by
-the target architecture but are introduced only when their owning tickets need
-them. The current project workflow uses a small hash route and Fetch-based API
-modules. L1 lazy-loads its 3D route so Three/R3F remain outside the initial
+target architecture but are introduced only when their owning tickets need
+them. The current project workflow uses small hash route and Fetch-based API
+modules. L1 lazy-loads its 3D route so Three/R3F remain outside initial
 application chunk.
+
+September 28 workspace UI: `WorkspaceSidebar` and scoped `workspace.css` own
+authenticated navigation/responsive shell, not project or geometry state.
+JavaScript shadcn/ui-style primitives live in `components/ui` (Radix Slot/Dialog,
+CVA, clsx/tailwind-merge); Lucide supplies icons. Existing palette/fonts remain.
+Konva viewport pan/zoom is presentation-only; conditional canonical saves and
+the shared saved Three.js scene remain authoritative. `api/estimates.js` checks
+project-bound snapshot responses; `EstimatePage` shows backend-captured totals
+and sends explicit mappings to existing estimate routes, preserving retry UUIDs
+on uncertain saves. No UI-owned official prices, geometry or approval records.
+
+Device-review follow-up: `ReviewToolRail` owns vertical editing navigation;
+`devicePresentation` resolves names from the selected approved legend or immutable
+candidate (provisional), never approves a class. `DeviceGlyph` and `DeviceMesh`
+provide schematic class-family representations without changing original class
+identity. Unknowns and homerun annotations are not fabricated equipment.
+`draftRoomScene` maps draft source X/Y to relative Three X/Z; `deviceDrag` fences
+planar movement to that source extent, preserving floor elevation. The inspector
+edits the same draft in both modes. Remove stores a rejected tombstone;
+undo/revision history and unchanged candidate evidence survive. Strict review
+writes strip rendering metadata and retain untouched extension layers. Saved
+metric 3D remains inspection-only; no schema change.
+
+3D mounting follow-up: `devicePlacement` supplies physical-size visual presets,
+ceiling/wall mounting and wall-face orientation independently of page extent.
+Logical plan anchors stay unchanged; dragging subtracts the visual wall offset
+before returning shared X/Y coordinates. `draftRoomScene` exposes units-per-metre
+from explicit preview dimensions, not an approved scale. Saved scenes remain metric.
+`roofPreview` uses room footprints or an explicitly illustrative wall-envelope cover;
+visibility defaults off and never hides ceiling devices. `repairDraftWalls` operates
+on the source-pixel draft, not a separate 3D mesh: bounded joins, overlapping segment
+unions, preserved rejection tombstones, undo and existing immutable review saves.
+It preserves collinear gaps and does not infer missing architecture across rooms.
 
 ### Backend
 
@@ -171,12 +204,12 @@ application chunk.
 - Authlib and signed Starlette sessions
 - Pillow and pypdf for upload validation
 - `pypdfium2` with bundled PDFium for G1 PDF page rendering
-- `ultralytics-opencv-headless==8.4.131` for lazy I1 model loading; the resolved
-  environment uses `torch==2.13.0`, `torchvision==0.28.0`, and the existing
+- `ultralytics-opencv-headless==8.4.131` for lazy I1 model loading; resolved
+  environment uses `torch==2.13.0`, `torchvision==0.28.0`, and existing
   `opencv-python-headless==4.14.0.94`
-- Python `unittest` for the current backend suite
+- Python `unittest` for current backend suite
 
-Prototype schema creation uses an explicit development-only
+Prototype schema creation uses explicit development-only
 `Base.metadata.create_all()` command. Alembic and production migration tooling
 remain deferred.
 
@@ -184,80 +217,80 @@ remain deferred.
 
 G1 PDF-to-image conversion, G2 image normalization, G3 preprocessing, H1 wall
 detection, H2 coordinate conversion, and H3 wall persistence are directly
-callable backend services. I1 lazily loads a readable local `.pt` model from
-`YOLO_MODEL_PATH`, using `models/yolo/electrical-symbols.pt` as the example
-relative path. No trained model is stored in the repository. Loads are cached by
+callable backend services. I1 lazily loads readable local `.pt` model from
+`YOLO_MODEL_PATH`, using `models/yolo/electrical-symbols.pt` as example
+relative path. No trained model is stored in repository. Loads are cached by
 canonical path, and class metadata comes dynamically from `model.names`.
-Invalid or missing models produce a controlled sanitized loader error without
+Invalid or missing models produce controlled sanitized loader error without
 breaking FastAPI startup. I2 consumes only G3's validated two-dimensional
-`uint8` binary threshold array, gives YOLO a separate contiguous three-channel
+`uint8` binary threshold array, gives YOLO separate contiguous three-channel
 copy, and converts one prediction result into immutable processed-pixel class,
 confidence, bounding-box, and center records. It uses `conf=0.0` to defer the
-application threshold to I3 and reports when the 300-result bound is reached.
-Empty inference succeeds. A successful job wrapper leaves the job processing;
-failure stores only the safe I2 message. No worker invokes the pipeline, and I2
+application threshold to I3 and reports when 300-result bound is reached.
+Empty inference succeeds. A successful job wrapper leaves job processing;
+failure stores only safe I2 message. No worker invokes pipeline, and I2
 adds no detection persistence, API, artifacts, UI, or automatic orchestration.
 
-I3 consumes that immutable I2 result without invoking YOLO. It uses the existing
+I3 consumes that immutable I2 result without invoking YOLO. It uses existing
 configured threshold, default `0.50`, classifies equality and higher confidence
 as `detected`, and classifies lower confidence as `needs_review`. It preserves
 all original prediction objects and result metadata in order. I3 itself has no
 database or processing-job side effects and does not perform Designer
 confirmation.
 
-I4 validates the complete I3 result before mutation, locks the parent floor
-plan, and atomically replaces only the selected processing job's detection rows.
+I4 validates complete I3 result before mutation, locks parent floor
+plan, and atomically replaces only selected processing job's detection rows.
 Other jobs remain preserved as earlier machine-result versions. Retrieval is
 ordered and relationship-isolated and does not execute I1-I3. Successful I4
 persistence leaves job and floor-plan state unchanged.
 
-J1 adds a read-only service/repository flow. It authorizes an exact
+J1 adds read-only service/repository flow. It authorizes exact
 `floor_plan_analysis` job by joining processing job, floor plan, project floor,
 and project without relationship lazy loading or row locks. Designers are
 filtered by database-owned project ownership; Admins may read any matching
-context. Symbols are selected only for the required query job, while walls are
-the current H3 floor-plan set and expose their own processing-job provenance.
-The route executes no AI/CV stage and performs no commit, flush, or state change.
+context. Symbols are selected only for required query job, while walls are
+current H3 floor-plan set and expose their own processing-job provenance.
+route executes no AI/CV stage and performs no commit, flush, or state change.
 
-J3 adds a Designer-only mutation flow from the existing detection route through
-a review service and repository. It locks the exact owner-scoped detected-symbol
-row, reads the latest sequence, treats identical decisions idempotently, and
+J3 adds Designer-only mutation flow from existing detection route through
+review service and repository. It locks exact owner-scoped detected-symbol
+row, reads latest sequence, treats identical decisions idempotently, and
 appends reversals. `detection_reviews` has no mutable timestamp or delete
 cascade. J1 obtains all latest reviews with one deterministic bulk query and
-keeps its machine status unchanged. I4 explicitly rejects replacement of a job
+keeps its machine status unchanged. I4 explicitly rejects replacement of job
 version once any of its detections has review history.
 
 J1A reuses that authorization context and PRE5's exact registered G2 artifact
-for the authorized job/source page beneath the processed root. It never trusts
-an unregistered filename fallback. It validates hash, containment, symlink safety, PNG content, RGB mode, byte
+for authorized job/source page beneath processed root. It never trusts
+unregistered filename fallback. It validates hash, containment, symlink safety, PNG content, RGB mode, byte
 size, and G2 dimensions before returning private, non-cacheable bytes. It does
 not generate missing images or mutate original files or database state.
 
-J3A adds a separate read-only legend flow. `symbol_legends` stores unique
-nonnegative model class IDs and unique normalized names with a deliberate
+J3A adds separate read-only legend flow. `symbol_legends` stores unique
+nonnegative model class IDs and unique normalized names with deliberate
 case-sensitive MySQL collation. Designers and Admins can retrieve active rows
 ordered by class ID then row ID. The catalog may be empty, and no production
 VED classes are inferred from detections or seeded without approved source
-data. PRE7 adds the P3 Admin API without adding a management UI: Admins can list
+data. PRE7 adds P3 Admin API without adding management UI: Admins can list
 all statuses, create records, and revise class/name/active state. Each real
-change appends an immutable old/new snapshot with actor and server time in
-`symbol_legend_history`; exact retries append nothing. P4 still owns the UI.
+change appends immutable old/new snapshot with actor and server time in
+`symbol_legend_history`; exact retries append nothing. P4 still owns UI.
 
-J4 adds a separate Designer-only mutation flow. The service locks the exact
-owner-scoped detection, resolves the latest effective class, locks the requested
-active legend, and appends an immutable old/new snapshot only for a real change.
-Selecting the current class is idempotent; selecting the original class restores
+J4 adds separate Designer-only mutation flow. The service locks exact
+owner-scoped detection, resolves latest effective class, locks requested
+active legend, and appends immutable old/new snapshot only for real change.
+Selecting current class is idempotent; selecting original class restores
 it as authoritative without deleting history. J1 retrieves latest corrections
 with one separate deterministic bulk query. J3 review decisions remain
 independent, and I4 refuses same-job replacement when either review or
 classification-correction history exists.
 
-Ultralytics is available under AGPL-3.0 and a separate Enterprise license.
-Commercial or production deployment requires a licensing review.
+Ultralytics is available under AGPL-3.0 and separate Enterprise license.
+Commercial or production deployment requires licensing review.
 
 ### Pre-migration foundation gate
 
-U1 does not start directly from the current L1 implementation. PRE0-PRE12 in
+U1 does not start directly from current L1 implementation. PRE0-PRE12 in
 `docs/PRE_VLM_FOUNDATION_PLAN.md` first close non-model gaps demonstrated by the
 repository:
 
@@ -279,27 +312,27 @@ canonical v1 compatibility decision for future page/opening/panel/route data
 PRE12 readiness report
 ```
 
-These foundations do not run inference, train a model, or remove YOLO. They
-make the existing project/upload/review/canonical boundaries durable enough for
-the U-series to extend them without rediscovering missing identity, recovery,
+These foundations do not run inference, train model, or remove YOLO. They
+make existing project/upload/review/canonical boundaries durable enough for
+U-series to extend them without rediscovering missing identity, recovery,
 authorization, or concurrency contracts midway through migration.
 
 ### Target local multimodal architecture
 
-The production target is a locally hosted open-weight **vision-language model
-(VLM)**, not a text-only LLM. Model choice is intentionally not frozen until U1
-records the actual CPU, RAM, GPU, VRAM, operating-system, privacy, and latency
+production target is locally hosted open-weight **vision-language model
+(VLM)**, not text-only LLM. Model choice is intentionally not frozen until U1
+records actual CPU, RAM, GPU, VRAM, operating-system, privacy, and latency
 constraints and U6 runs reviewed development validation against feasible
-candidates. The initial bake-off includes Qwen3-VL 4B/8B and a Qwen2.5-VL
+candidates. The initial bake-off includes Qwen3-VL 4B/8B and Qwen2.5-VL
 fallback, with Florence-2 and PaddleOCR/PaddleOCR-VL eligible as specialist
 grounding or OCR helpers rather than assumed sources of truth. Final test data
 remains sealed until U14; model/prompt selection must not read it.
 
-The complete execution handoff is `CODEX_U_VLM_MIGRATION_PROMPT.md`. U5
-bootstraps independent gold review offline; U9 owns the minimum durable
+complete execution handoff is `CODEX_U_VLM_MIGRATION_PROMPT.md`. U5
+bootstraps independent gold review offline; U9 owns minimum durable
 candidate/review history; U11 reuses it for production retrieval and atomic v1
 snapshot/additive-extension adaptation with PRE8 concurrency protection.
-U7 keeps high-resolution evidence separate from the bounded G2 reference, with
+U7 keeps high-resolution evidence separate from bounded G2 reference, with
 reversible transforms. U13 reuses PRE9 and rejects publication by stale attempts.
 These are planned boundaries, not implemented U capabilities.
 
@@ -329,7 +362,7 @@ Deterministic adapter into validated K1 canonical geometry
 K2 version snapshot → Konva 2D / Three.js 3D / routing / quantities
 ```
 
-`FloorPlanInterpretationCandidate` is an intermediate, versioned contract. It
+`FloorPlanInterpretationCandidate` is intermediate, versioned contract. It
 must carry source/page/model/prompt/adapter provenance; page classification and
 quality warnings; scale evidence; OCR regions; wall and room candidates;
 symbol/panel candidates; observed wiring candidates; and explicit ambiguity.
@@ -337,23 +370,23 @@ It is not K1 geometry. The model never writes SQLAlchemy entities, Konva nodes,
 Three.js meshes, routes, quantities, or estimates directly. Application-owned
 validators and adapters own all identity and coordinate transformations.
 
-The model must treat the drawing-specific approved legend as primary class
-evidence. PEC 2017 and PEC 2020 references may support a local retrieval pack,
+model must treat drawing-specific approved legend as primary class
+evidence. PEC 2017 and PEC 2020 references may support local retrieval pack,
 but their edition, part, page, copyright, and VED approval provenance must be
-recorded. The model must not infer that a glyph is approved merely because it
-resembles an example in a private reference scan.
+recorded. The model must not infer that glyph is approved merely because it
+resembles example in private reference scan.
 
 #### Annotation-free user workflow versus model training
 
 Ordinary users may submit previously unseen scans without drawing boxes or
-polygons. That is an inference requirement, not evidence that raw scans alone
+polygons. That is inference requirement, not evidence that raw scans alone
 are adequate supervised training data. The private learning workflow has four
 separate levels:
 
 1. immutable raw, unannotated corpus;
 2. model-generated pseudo-labels and deterministic evidence;
 3. Designer-corrected and VED-approved gold records;
-4. a project-separated frozen test set never used for training or class design.
+4. project-separated frozen test set never used for training or class design.
 
 Only levels 3 and approved non-test examples may enter supervised LoRA/QLoRA
 training. Production requests never change weights automatically. Each adapter
@@ -362,31 +395,31 @@ reversible.
 
 #### Observed and generated wiring
 
-Wiring visibly present in the upload is `observed` drawing evidence. It retains
+Wiring visibly present in upload is `observed` drawing evidence. It retains
 pixel/metric geometry, page and crop provenance, connected-symbol/panel
 candidates, ambiguity, and review state. A later A* result is `generated` and
 must retain routing-rule/version provenance. These collections must never be
-silently merged. When no wiring is visibly supported, the correct observed
-result is an empty collection; the VLM must not design missing circuits.
+silently merged. When no wiring is visibly supported, correct observed
+result is empty collection; VLM must not design missing circuits.
 
 #### Runtime trust boundary
 
-The model server runs on VED-controlled hardware, binds locally by default, has
+model server runs on VED-controlled hardware, binds locally by default, has
 no hosted-inference fallback, and receives only bounded pages/tiles for an
 authorized job. Model artifacts are pinned by name, revision, license, and
 hash. Grammar- or JSON-schema-constrained decoding reduces malformed output but
 does not replace Pydantic validation. The gateway enforces input limits,
 timeouts, cancellation, bounded concurrency, sanitized errors, health checks,
-and resource accounting. Training runs in a separate environment from FastAPI
+and resource accounting. Training runs in separate environment from FastAPI
 serving.
 
 #### Migration and rollback
 
-The local VLM first runs offline, then in shadow mode where its output is not
-authoritative. Release promotion requires the U5 metric contract, zero private
+local VLM first runs offline, then in shadow mode where its output is not
+authoritative. Release promotion requires U5 metric contract, zero private
 data egress, strict-schema and coordinate safety gates, Designer review, and a
-documented rollback. The I1-I4 YOLO path is removed only by a separately
-approved U14 decision after the new release meets its gates; until then it is a
+documented rollback. The I1-I4 YOLO path is removed only by separately
+approved U14 decision after new release meets its gates; until then it is a
 comparison and rollback implementation.
 
 ## 4. Authentication and session architecture
@@ -403,18 +436,18 @@ Local ADMIN or DESIGNER authorization
 Signed HttpOnly session containing local user_id only
 ```
 
-The OAuth/OIDC provider is environment-configurable. The login route creates
+OAuth/OIDC provider is environment-configurable. The login route creates
 state and nonce values. The callback validates state and uses Authlib's OIDC
-validation before accepting the provider subject. Provider tokens and
-authorization codes are not stored in MySQL or the application session.
+validation before accepting provider subject. Provider tokens and
+authorization codes are not stored in MySQL or application session.
 
-New verified identities receive the local `DESIGNER` role. Existing local roles
+New verified identities receive local `DESIGNER` role. Existing local roles
 are preserved, and provider claims cannot grant `ADMIN`. `/api/auth/me` reloads
-the user and role from MySQL for each request, so the database remains
+user and role from MySQL for each request, so database remains
 authoritative.
 
 Session cookies are signed and HttpOnly, use `SameSite=Lax`, and are secure
-outside development. Logout clears only the local VED session. Credentialed
+outside development. Logout clears only local VED session. Credentialed
 CORS accepts explicit configured origins and rejects wildcard origins.
 
 ## 5. Authorization behavior
@@ -436,7 +469,7 @@ trusted from client input or provider claims.
 
 ## 6. Implemented database schema
 
-The live and SQLAlchemy model table set contains twenty-three tables through PRE12:
+live and SQLAlchemy model table set contains twenty-three tables through PRE12:
 
 ```text
 roles
@@ -488,22 +521,22 @@ project_floors 1 ── * layout_versions
 floor_plans 1 ── * layout_versions
 ```
 
-- `users` maps provider plus subject to a local role and contains no password.
+- `users` maps provider plus subject to local role and contains no password.
 - Each `layout_save_requests` row references one project floor, creator user,
   and layout version; its layout-version reference is unique.
-- `projects.owner_id` identifies the authoritative Designer owner.
+- `projects.owner_id` identifies authoritative Designer owner.
 - `project_floors` supports multiple ordered floors per project.
-- `floor_plans` stores upload metadata and a relative storage reference.
-- `processing_jobs` stores a job type, constrained lifecycle status, bounded
-  progress, a safe nullable error message, and timestamps for one floor plan.
+- `floor_plans` stores upload metadata and relative storage reference.
+- `processing_jobs` stores job type, constrained lifecycle status, bounded
+  progress, safe nullable error message, and timestamps for one floor plan.
 - `detected_symbols` snapshots original I1/I2 output plus I3 classification and
   uses processing jobs as immutable machine-result version identifiers. A
   unique job/prediction index retains source order without duplicating project
   or project-floor identifiers.
-- `walls` stores the current detected or later-verified wall geometry with raw
+- `walls` stores current detected or later-verified wall geometry with raw
   pixel values, canonical meter values, scale, and processing provenance.
 - `detection_reviews` stores immutable Designer confirmation/rejection events.
-- `symbol_legends` stores the active/inactive approved class catalog. No
+- `symbol_legends` stores active/inactive approved class catalog. No
   production legend records are seeded by J3A.
 - `detection_class_corrections` stores append-only old/new class snapshots and
   reviewer provenance; it has no mutable timestamp or delete cascade.
@@ -511,20 +544,20 @@ floor_plans 1 ── * layout_versions
   context provenance, retry UUIDs, trusted review-image dimensions, and bounded
   source-pixel centers; it has no mutable timestamp or delete cascade.
 - `layout_versions` stores complete K1 schema-v1 JSON documents as append-only
-  snapshots. Positive versions are sequential per floor, `TRUE` marks the one
+  snapshots. Positive versions are sequential per floor, `TRUE` marks one
   current row while historical rows use `NULL`, and foreign keys have no
   destructive delete cascade.
-- `layout_save_requests` binds a floor-scoped UUIDv4 to its expected version,
-  canonical geometry hash, actor, and one created snapshot so an identical
-  retry returns the original result without appending another version.
+- `layout_save_requests` binds floor-scoped UUIDv4 to its expected version,
+  canonical geometry hash, actor, and one created snapshot so identical
+  retry returns original result without appending another version.
 
 Processing-job status is restricted by `ck_processing_jobs_status` to `queued`,
 `processing`, `completed`, `failed`, or `cancelled`. Progress is restricted by
-`ck_processing_jobs_progress` to the inclusive range 0–100. The defaults are
-`queued` and `0`. F2 uses each job row as the durable queue entry and does not
-change a floor plan's upload status.
+`ck_processing_jobs_progress` to inclusive range 0–100. The defaults are
+`queued` and `0`. F2 uses each job row as durable queue entry and does not
+change floor plan's upload status.
 
-The required seeded role names are `ADMIN` and `DESIGNER`. Schema initialization
+required seeded role names are `ADMIN` and `DESIGNER`. Schema initialization
 and role seeding are explicit development commands and do not run at FastAPI
 startup.
 
@@ -574,37 +607,37 @@ POST /api/admin/dataset-approver-assignments
 POST /api/admin/dataset-approver-assignments/{assignment_id}/deactivate
 ```
 
-The API contains 34 OpenAPI operations through PRE12. Floor-plan discovery
-returns safe persisted metadata to the owning Designer or an Admin, supports a
+API contains 34 OpenAPI operations through PRE12. Floor-plan discovery
+returns safe persisted metadata to owning Designer or Admin, supports a
 positive project-scoped optional floor filter, and orders by floor sort order,
 floor ID, then floor-plan ID without reading files or exposing storage paths.
-Processing-job history discovery returns only the authorized floor plan's
+Processing-job history discovery returns only authorized floor plan's
 `floor_plan_analysis` jobs, orders by creation time and job ID newest first,
-exposes sanitized status/error/timestamp metadata, and uses a validated default
-limit of 50 with a maximum of 100. It neither executes nor mutates jobs.
+exposes sanitized status/error/timestamp metadata, and uses validated default
+limit of 50 with maximum of 100. It neither executes nor mutates jobs.
 Detection retrieval requires a
 positive `processing_job_id`; it returns HTTP 200 with empty arrays for an
 authorized matching context that has no stored walls or symbols. Machine and
 manual symbols are returned in separate arrays. Symbols are
-job-versioned, whereas walls remain the current floor-plan wall set.
+job-versioned, whereas walls remain current floor-plan wall set.
 
-The layout `GET` returns only the current complete K2 snapshot. It permits the
+layout `GET` returns only current complete K2 snapshot. It permits the
 owning Designer and Admins. The matching `POST` is owning-Designer-only, accepts
-PRE8's envelope containing the complete K1 document, expected version and
+PRE8's envelope containing complete K1 document, expected version and
 idempotency key, verifies path and persisted-floor identity, and
-creates a new append-only current K2 version. K3 exposes no history or
+creates new append-only current K2 version. K3 exposes no history or
 current-version-selection API and performs no floor-plan file writes.
 
 All business responses use Pydantic response schemas. Project-floor listing is
-ordered by `sort_order` then ID. The upload endpoint requires a positive
-`project_floor_id` multipart field and an uploaded file.
-The processing endpoint requires an owning Designer, returns `202` with a
-durable queued job ID, locks the authorized parent floor-plan row before its
-active-job check, and returns `409` for an existing queued or processing job.
-Terminal jobs permit a new attempt.
-The status endpoint permits owning Designers and all Admins, selects only public
+ordered by `sort_order` then ID. The upload endpoint requires positive
+`project_floor_id` multipart field and uploaded file.
+processing endpoint requires owning Designer, returns `202` with a
+durable queued job ID, locks authorized parent floor-plan row before its
+active-job check, and returns `409` for existing queued or processing job.
+Terminal jobs permit new attempt.
+status endpoint permits owning Designers and all Admins, selects only public
 job fields without relationship loading or row locks, and maps any failed job to
-a stable generic public error message. Missing and cross-owner jobs use the same
+stable generic public error message. Missing and cross-owner jobs use same
 sanitized `404` response.
 
 Application-generated errors use FastAPI `HTTPException` and therefore appear
@@ -647,16 +680,16 @@ Designer starts a durable processing job
 Poll public job status sequentially until a terminal state
 ```
 
-The dashboard and project detail views include loading, empty, error, retry,
+dashboard and project detail views include loading, empty, error, retry,
 submission, and authorization-appropriate states. Backend responses remain
 authoritative for project status, upload metadata, and job progress. Processing
 controls recover after reload through PRE1-PRE3; Admins retain read-only
 floor/job visibility. PRE9 adds Designer cancellation. Polling uses one abortable
-request at a time and schedules the next request only after the prior response.
+request at time and schedules next request only after prior response.
 It stops for terminal states, authentication/authorization failures, unmounts,
-and non-retryable lookup errors. Temporary monitoring failures preserve the job
-ID and require an explicit status retry. Completed status does not imply that
-AI results or the later detection-review workflow exist.
+and non-retryable lookup errors. Temporary monitoring failures preserve job
+ID and require explicit status retry. Completed status does not imply that
+AI results or later detection-review workflow exist.
 
 ## 9. Validation and original storage pipeline
 
@@ -685,10 +718,10 @@ files, disguised content, invalid image dimensions, decompression bombs, and
 oversized files are rejected. Client filename path components cannot select the
 destination path. Existing originals are never overwritten or modified.
 
-The current endpoint holds the bounded upload in memory; streaming storage is
+current endpoint holds bounded upload in memory; streaming storage is
 not implemented. G1 resolves only persisted PDF references confined beneath
 `<UPLOAD_DIR>/originals`, preserves their bytes, and writes exactly one selected
-page to a collision-safe RGB PNG beneath:
+page to collision-safe RGB PNG beneath:
 
 ```text
 <PROCESSED_DIR>/pdf-pages/floor-plan-<id>/job-<id>/page-<NNNN>.png
@@ -696,24 +729,24 @@ page to a collision-safe RGB PNG beneath:
 
 Page selection is one-based and defaults to page 1. Rendering defaults to 150
 DPI. PRE5 registers output references and job/page/content provenance in
-`processing_artifacts`. Successful conversion leaves the broader job `processing`; a conversion
-failure persists only the safe failed-state message. G1 is not connected to F2
+`processing_artifacts`. Successful conversion leaves broader job `processing`; conversion
+failure persists only safe failed-state message. G1 is not connected to F2
 automatically because no worker exists.
 
-G2 accepts either an uploaded JPEG/PNG resolved beneath originals or a validated
-G1 page for the same floor plan and job. Its separate output contract is:
+G2 accepts either uploaded JPEG/PNG resolved beneath originals or validated
+G1 page for same floor plan and job. Its separate output contract is:
 
 ```text
 <PROCESSED_DIR>/normalized/floor-plan-<id>/job-<id>/image.png
 ```
 
-The typed result records encoded source, oriented, and normalized dimensions.
-PRE5 stores provenance in `processing_artifacts`, not a `processed_images`
-table. Success leaves the job
-`processing` with unchanged progress; failure persists only the stable safe
+typed result records encoded source, oriented, and normalized dimensions.
+PRE5 stores provenance in `processing_artifacts`, not `processed_images`
+table. Success leaves job
+`processing` with unchanged progress; failure persists only stable safe
 normalization message. Uploaded originals and G1 pages are never modified.
 
-G3 consumes only that normalized G2 PNG through the isolated
+G3 consumes only that normalized G2 PNG through isolated
 `app.ai.preprocessing` package. The pure array pipeline is:
 
 ```text
@@ -721,21 +754,21 @@ RGB uint8 -> grayscale -> median filter -> optional Gaussian blur
           -> Otsu or fixed binary threshold
 ```
 
-The implementation uses the server-oriented `opencv-python-headless==4.14.0.94`
+Uses server-oriented `opencv-python-headless==4.14.0.94`
 wheel with `numpy==2.5.2`, without OpenCV GUI or system-library dependencies.
 Central frozen parameters default to 3x3 median filtering, enabled 3x3 Gaussian
 blur with automatic sigma, Otsu threshold selection, no inversion, and no debug
 writes. Fixed thresholding and inversion are explicit alternatives.
 
-The filesystem boundary accepts only
+filesystem boundary accepts only
 `normalized/floor-plan-<id>/job-<id>/image.png` beneath `PROCESSED_DIR`, verifies
-the matching G2 IDs and dimensions, and decodes a three-channel PNG from bounded
-bytes. It never changes the G2 file. Optional evaluation artifacts use portable
+matching G2 IDs and dimensions, and decodes three-channel PNG from bounded
+bytes. It never changes G2 file. Optional evaluation artifacts use portable
 references beneath
 `preprocessed/floor-plan-<id>/job-<id>/` and are exclusive, single-channel
 `uint8` PNGs. Partial artifact creation receives compensating cleanup.
 
-The database-aware wrapper requires the matching analysis job to already be
+database-aware wrapper requires matching analysis job to already be
 `processing`; success changes neither status nor progress, while failure stores
 only `Floor-plan preprocessing failed.` No FastAPI route or worker invokes G3,
 and no schema or manifest persists its output. G3 ends at binary thresholding;
@@ -753,7 +786,7 @@ PreprocessedImage.thresholded
     -> deterministic candidate tuple
 ```
 
-The coordinate space is raw pixels with a top-left origin, x increasing right,
+coordinate space is raw pixels with top-left origin, x increasing right,
 and y increasing down. Endpoint order is topmost first and then leftmost for a
 tie. Candidate order is start y, start x, end y, end x; one-based IDs are
 assigned only after sorting. Length and normalized `[0, 180)` angle values are
@@ -762,20 +795,20 @@ merge or pair nearby/collinear detections.
 
 Central prototype defaults are Canny 50/200 with aperture 3 and probabilistic
 Hough rho 1.0, theta 1.0 degree, 50 votes, 50-pixel minimum length, 10-pixel
-maximum gap, and a 2000-candidate limit. Deterministic overflow truncation is
+maximum gap, and 2000-candidate limit. Deterministic overflow truncation is
 reported explicitly. Empty detections are successful empty results.
 
 These candidates remain unverified image-space suggestions. H1 has no file I/O,
 preview drawing, persistence, API, worker, job-state mutation, scale conversion,
 wall thickness/pairing, room construction, frontend overlay, or YOLO behavior.
 
-H2 adds `app.geometry` as the first shared, renderer-independent metric geometry
+H2 adds `app.geometry` as first shared, renderer-independent metric geometry
 boundary. It consumes H1's typed result without executing OpenCV and requires an
 explicit positive finite `pixels_per_meter` for every conversion. No default or
 scale inference exists, and PDF DPI is never treated as architectural scale.
-The `100 pixels_per_meter` specification sample is illustrative only.
+`100 pixels_per_meter` specification sample is illustrative only.
 
-The canonical wall-candidate plane is:
+canonical wall-candidate plane is:
 
 ```text
 unit: meter
@@ -798,15 +831,15 @@ It adds no persistence, database schema, project/floor association, API, worker,
 scale calibration, merging, snapping, thickness, rooms, or renderer.
 
 H3 persists that H2 contract without rerunning OpenCV. `walls.floor_plan_id`
-and `walls.processing_job_id` are indexed foreign keys; the floor chain remains
-`Wall -> FloorPlan -> ProjectFloor`. Numeric geometry crosses the persistence
+and `walls.processing_job_id` are indexed foreign keys; floor chain remains
+`Wall -> FloorPlan -> ProjectFloor`. Numeric geometry crosses persistence
 boundary as fixed-scale `Decimal` values. Machine writes always use `detected`,
-while the database contract also supports `verified` for later review work.
+while database contract also supports `verified` for later review work.
 
-Replacement locks the floor-plan row with `SELECT ... FOR UPDATE`, validates a
+Replacement locks floor-plan row with `SELECT ... FOR UPDATE`, validates a
 matching `floor_plan_analysis` job in `processing`, rejects truncated geometry,
-and refuses to overwrite verified rows. Otherwise it deletes the prior detected
-set and inserts the complete replacement with one commit. Empty geometry is a
+and refuses to overwrite verified rows. Otherwise it deletes prior detected
+set and inserts complete replacement with one commit. Empty geometry is a
 valid empty replacement, and any failure rolls back deletion and insertion.
 Read-only retrieval is ordered, immutable, relationship-isolated, and performs
 no OpenCV or H2 conversion. H3 adds no API, review transition, editing, worker,
@@ -821,8 +854,8 @@ document described by `geometry.md` without changing H2 persistence.
 - Static checks: frontend ESLint/build, Python compileall/pip check, environment
   template validation, OpenAPI/metadata inspection, and Git diff checks
 
-The verified backend surface remains unchanged through K5; K5 adds one focused
-K3 persistence/reload regression while using the existing operations. K4 adds focused
+verified backend surface remains unchanged through K5; K5 adds one focused
+K3 persistence/reload regression while using existing operations. K4 adds focused
 frontend API, route, navigation, coordinate, canvas, layer-toggle, page, and
 accessibility coverage:
 
@@ -874,13 +907,13 @@ PRE11 canonical frontend: 32 tests
 Full frontend:          280 tests
 ```
 
-The current Starlette TestClient/httpx combination emits a deprecation warning;
+current Starlette TestClient/httpx combination emits deprecation warning;
 it does not currently hide test failures. The backend suite runs with pytest
 while retaining its existing `unittest`-style test classes.
 
 ## 11. Planned downstream architecture
 
-The target data flow remains:
+target data flow remains:
 
 ```text
 Original floor plan
@@ -899,82 +932,82 @@ Persisted K2 canonical layout snapshots
 ```
 
 These modules are architectural commitments, not current application
-capabilities. Verified canonical geometry must eventually become the shared
+capabilities. Verified canonical geometry must eventually become shared
 source for 2D, 3D, routing, quantities, estimates, and reports. Raw AI output,
 Konva state, and Three.js scene state must not become competing sources of
 truth.
 
 ## 12. Current limitations and next decision
 
-- Start-processing creates a durable queued database row and status polling is
+- Start-processing creates durable queued database row and status polling is
   read-only. PRE9 adds engine-neutral claim/lease/heartbeat/retry controls and
-  an owning-Designer cancellation endpoint, but no worker, external queue, or
+  owning-Designer cancellation endpoint, but no worker, external queue, or
   automatic upload hook exists
 - G1 through H3 are callable by backend code but are not automatically
   orchestrated from F2; PRE5 persists registered processed-image provenance
 - I1-I4 can load configured local YOLO weights, run isolated inference,
   classify confidence, and persist versioned machine output, but
-  the repository has no trained model and no automatic OpenCV/YOLO pipeline
+  repository has no trained model and no automatic OpenCV/YOLO pipeline
   exists
-- U2 implements the strict immutable local-VLM candidate schema and synthetic
+- U2 implements strict immutable local-VLM candidate schema and synthetic
   fixtures under `app/ai/floor_plan_interpretation`. No local VLM runtime,
   model gateway, reviewed gold set, adapter, persistence, or VLM worker exists
   yet. Unannotated source scans and provisional boxes are not approved training
   truth.
-- J1/J1A/J2 retrieve and display stored walls, an explicitly selected symbol-job
+- J1/J1A/J2 retrieve and display stored walls, explicitly selected symbol-job
   version, and its aligned normalized blueprint reference; J3 persists
   confirmation/rejection decisions without changing machine provenance
 - Detection review supports J4 approved-catalog classification correction and
   J5 manual symbol creation; K1 geometry can be persisted through K2 and loaded
-  or saved as the current snapshot through the protected K3 API
-- J3A exposes an empty-safe approved legend catalog and PRE7 supplies Admin
+  or saved as current snapshot through protected K3 API
+- J3A exposes empty-safe approved legend catalog and PRE7 supplies Admin
   management operations; approved production VED class values remain absent
-- K5 renders an immutable draft of the current K3 snapshot in K4's six
+- K5 renders immutable draft of current K3 snapshot in K4's six
   always-mounted Konva layers. Symbols can be selected and repositioned by an
   owning Designer; visibility remains presentation-only. Walls, rooms, routes,
   scale, identity, elevation, class/status, deletion, and resizing are read-only.
-- K4 reuses the J1A review image only when wall/symbol provenance resolves to
-  exactly one safe processing job and decoded dimensions match the canonical
-  source plane. Missing/mixed provenance remains an explicit limitation until
-  a later blueprint-source contract is approved.
+- K4 reuses J1A review image only when wall/symbol provenance resolves to
+  exactly one safe processing job and decoded dimensions match canonical
+  source plane. Missing/mixed provenance remains explicit limitation until
+  later blueprint-source contract is approved.
 - Canonical symbol positions are editable in 2D; other canonical geometry is
   read-only. L2-L5 provide canonical base-geometry 3D rendering and saved-state
   synchronization; 3D itself does not edit or create geometry records.
 - No routing or multi-floor route calculation
 - No material pricing, estimates, reports, or audit logs
-- Production Vercel deployment remains frontend-only without a separately
+- Production Vercel deployment remains frontend-only without separately
   deployed HTTPS FastAPI backend
 
 K3 exposes K2 current-layout retrieval and snapshot creation; K5 uses those
 existing operations for canonical symbol movement and append-only saving. PRE8
-makes POST conditional and idempotent: the service locks the project floor,
-compares the authoritative current version, rejects stale saves with sanitized
+makes POST conditional and idempotent: service locks project floor,
+compares authoritative current version, rejects stale saves with sanitized
 `409`, and records successful request UUIDs. Floor elevation
-is required by the canonical contract, stored inside each complete snapshot, is not a
-`project_floors` column, and is never inferred. K5 preserves the same request
-UUID across an uncertain-result check and retry. PRE0's documentation/privacy
+is required by canonical contract, stored inside each complete snapshot, is not a
+`project_floors` column, and is never inferred. K5 preserves same request
+UUID across uncertain-result check and retry. PRE0's documentation/privacy
 baseline is complete and
 published. PRE1 floor-plan discovery and PRE2 processing-job history are also
 complete and published. PRE9 adds durable worker-attempt identity, single-owner
 claiming, bounded leases, named-stage heartbeats, deterministic retry/recovery,
-and queued/cooperative cancellation without implementing a worker or invoking
-AI/CV. PRE10 adds the human dataset-approver authority, and PRE11 accepts the
+and queued/cooperative cancellation without implementing worker or invoking
+AI/CV. PRE10 adds human dataset-approver authority, and PRE11 accepts the
 canonical compatibility decision in
 `decisions/0001-canonical-geometry-compatibility.md`. PRE12 publishes the
 passing evidence in `PRE_VLM_READINESS_REPORT.md`. U1's measured local-only
-operating baseline passes, and U2 supplies only the strict advisory candidate
+operating baseline passes, and U2 supplies only strict advisory candidate
 contract; no model/runtime work has started. L2 is paused unless explicitly selected. L1's
 grid and axes are neutral orientation helpers and it makes no layout,
 floor-plan, detection, or processing-job request. Canonical floor meshes,
 walls, openings, symbols, synchronization, and top/perspective switching remain
 future work.
-The PRE3 project workspace consumes persisted floor plans and bounded job
+PRE3 project workspace consumes persisted floor plans and bounded job
 history, deduplicates optimistic upload feedback, and resumes active polling.
 PRE4 gives originals and their pages immutable identity. PRE5 adds the
 `processing_artifacts` manifest and makes G1/G2 output provenance durable; J1A
-now resolves the exact registered normalized image and revalidates its file,
+now resolves exact registered normalized image and revalidates its file,
 hash, MIME, and dimensions. PRE6 adds reviewed metric inputs without rewriting
-K1 snapshots. PRE7 makes the approved catalog operational without seeding a
-class or adding the deferred P4 UI. PRE0-PRE12 and U1 are complete. U2 adds the
+K1 snapshots. PRE7 makes approved catalog operational without seeding a
+class or adding deferred P4 UI. PRE0-PRE12 and U1 are complete. U2 adds the
 separate source-pixel candidate contract without changing K1 v1 or adding
 persistence.

@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
-import vedLogo from '../../assets/ved-logo.png'
+import { WorkspaceSidebar } from '../../components/WorkspaceSidebar.jsx'
 import { getProtectedRouteRedirect } from '../../routes/authRoutes.js'
 import { parseProjectRoute } from '../../routes/projectRoutes.js'
 import { ProjectDashboardPage } from '../projects/ProjectDashboardPage.jsx'
@@ -8,12 +8,15 @@ import { ProjectDetailPage } from '../projects/ProjectDetailPage.jsx'
 import { DetectionReviewPage } from '../detection-review/DetectionReviewPage.jsx'
 import { DemoInterpretationPage } from '../detection-review/DemoInterpretationPage.jsx'
 import { LayoutEditorPage } from '../editor-2d/LayoutEditorPage.jsx'
+import { EstimatePage } from '../estimation/EstimatePage.jsx'
 import { Viewer3DErrorBoundary } from '../viewer-3d/Viewer3DErrorBoundary.jsx'
 import '../projects/projects.css'
+import '../../components/workspace.css'
 
 const Viewer3DPage = lazy(() => import('../viewer-3d/Viewer3DPage.jsx'))
 
 export function ProtectedAppPage({ route, session }) {
+  const [navigationBlocked, setNavigationBlocked] = useState(false)
   useEffect(() => {
     const redirect = getProtectedRouteRedirect(session.status)
     if (redirect) {
@@ -49,29 +52,12 @@ export function ProtectedAppPage({ route, session }) {
   }
 
   const projectRoute = parseProjectRoute(route)
-  const displayName = session.user.display_name || session.user.email || 'VED user'
 
   return (
-    <div className="project-app">
-      <header className="project-app-header">
-        <a className="project-app-brand" href="#/app" aria-label="VED project dashboard">
-          <img src={vedLogo} alt="VED Electrical Services" />
-        </a>
-        <div className="project-user-controls">
-          <div className="project-user-summary">
-            <strong>{displayName}</strong>
-            <span className="mono">{session.user.role}</span>
-          </div>
-          <button
-            className="btn btn-ghost project-sign-out"
-            type="button"
-            disabled={session.isSigningOut}
-            onClick={session.signOut}
-          >
-            {session.isSigningOut ? 'Signing out…' : 'Sign out'}
-          </button>
-        </div>
-      </header>
+    <div className="project-app studio-shell">
+      <WorkspaceSidebar projectRoute={projectRoute} session={session} navigationBlocked={navigationBlocked} />
+      <div className="studio-content">
+      <header className="studio-topbar"><span className="mono">VED / {projectRoute.projectId ? `PROJECT ${projectRoute.projectId}` : 'PROJECTS'}</span><span>Planning & estimation · review before use</span></header>
 
       {session.error && (
         <div className="auth-message auth-message-error project-shell-error" role="alert">
@@ -84,6 +70,7 @@ export function ProtectedAppPage({ route, session }) {
         {projectRoute.view === 'project' && (
           <ProjectDetailPage projectId={projectRoute.projectId} session={session} />
         )}
+        {projectRoute.view === 'estimates' && <EstimatePage key={projectRoute.projectId} projectId={projectRoute.projectId} session={session} />}
         {projectRoute.view === 'detection-review' && (
           <DetectionReviewPage
             key={`${projectRoute.projectId}-${projectRoute.floorPlanId}-${projectRoute.processingJobId}`}
@@ -107,6 +94,7 @@ export function ProtectedAppPage({ route, session }) {
             projectId={projectRoute.projectId}
             projectFloorId={projectRoute.projectFloorId}
             session={session}
+            onDirtyChange={setNavigationBlocked}
           />
         )}
         {projectRoute.view === 'viewer-3d' && (
@@ -127,6 +115,7 @@ export function ProtectedAppPage({ route, session }) {
           <ProjectDetailPage projectId={null} session={session} />
         )}
       </main>
+      </div>
     </div>
   )
 }

@@ -193,6 +193,52 @@ the saved result. Save a moved symbol in 2D, then reload the 3D layout to see th
 same persisted position. Human review and browser demonstration are still
 pending; see `docs/U_VLM_PROGRESS.md` for measured counts and remaining gates.
 
+### Local workspace UI (September 28)
+
+The authenticated app adopts the reference design's sidebar and canvas-first
+tool/canvas/inspector arrangement, retaining VED's charcoal/orange/cyan/cream
+palette and Space Grotesk/IBM Plex fonts. JavaScript shadcn/ui-style Button,
+Input and Sheet components use Radix primitives, Tailwind (already installed),
+Lucide icons, CVA and class-merging utilities. No new rendering or state engine.
+
+- Projects: metadata search, backend-status filtering and last-update/name sorting.
+- Saved 2D: Select/Pan/Zoom/Fit are viewport-only; Designer coordinate edits still
+  require conditional versioned saves. Sidebar links cannot bypass the unsaved
+  position guard. Read-only extension protections remain.
+- Saved 3D: camera tools and provenance inspector consume the same canonical
+  snapshot; visual mounting defaults do not change canonical coordinates or approvals.
+- Proposal review: vertical Select/Pan/wall/device tool rail, floating viewport
+  controls and a persistent inspector in 2D/3D. Devices show detector names as
+  proposals or their linked VED legend names; drag, classify, remove, undo/redo,
+  save draft and reload preserve the original candidate and review history.
+  New devices remain unresolved until reviewed. Removal stores a rejected
+  record, not a destructive deletion. Strict saves exclude visual metadata and
+  preserve untouched review extension layers.
+- 3D equipment: schematic troffer/linear and round fixtures, faceplates/switches,
+  panel cabinets, alarms/detectors and pull stations replace generic spheres.
+  Unknowns remain neutral glyphs; homeruns are annotations, not equipment.
+  Draft planar dragging updates the same source-pixel positions used by 2D.
+  Typical-size preview presets place 600 × 1200 mm troffers at wall-top height,
+  outlets at 0.3 m, switches at 1.2 m and panels at 1.5 m. These are illustrative
+  equipment defaults, not stored specifications. Unscaled drafts expose adjustable
+  page-length/wall-height settings (40 m/3 m defaults); saved layouts retain metric
+  scale. Show/Hide roof controls a preview cover, hidden initially. Room footprints
+  are preferred; a wall-envelope fallback does not infer courtyards or roof openings.
+- Connect walls: undoable source-pixel repair joins nearby T/corner intersections
+  and merges overlapping collinear segments. Rejected duplicates retain their IDs;
+  original candidates remain unchanged. Save draft persists the repair for both views.
+  Doorway gaps and distant gaps are not automatically bridged. Manual wall tools also
+  snap endpoints onto segment interiors.
+- Cost estimation: project sidebar or `#/app/projects/{id}/estimates`. Captured
+  backend totals/history and explicit material/conductor mappings use the existing
+  estimate APIs. Admin is read-only; stale routes and unpriced materials cannot
+  generate a valid snapshot. Uncertain saves retry the same request identity.
+
+Dependencies are in `frontend/package.json`; use `npm.cmd ci` in `frontend` on a
+new checkout. Existing local startup commands above remain valid. Browser visual
+acceptance is pending a connected session; frontend tests do not prove WebGL or
+responsive appearance in a real browser. No backend schema/API changes in this UI task.
+
 ### Frontend
 
 - JavaScript / JSX
