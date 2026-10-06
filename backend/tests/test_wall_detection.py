@@ -426,6 +426,95 @@ class WallDetectionIsolationTests(unittest.TestCase):
 
 
 class StructuralWallDetectionTests(unittest.TestCase):
+    @staticmethod
+    def outlined_lighting_plan(scale=1):
+        image = binary_canvas(500, 400)
+        cv2.rectangle(image, (40, 40), (460, 360), 0, 1)
+        cv2.rectangle(image, (46, 46), (454, 354), 0, 1)
+        for x in (244, 250):
+            cv2.line(image, (x, 46), (x, 354), 0, 1)
+        for y in (120, 200, 280):
+            cv2.line(image, (280, y), (425, y), 0, 3)
+            for x in (280, 355, 425):
+                cv2.rectangle(image, (x - 4, y - 12), (x + 4, y + 12), 0, 1)
+        cv2.line(image, (280, 120), (280, 280), 0, 3)
+        cv2.line(image, (430, 120), (430, 335), 0, 3)
+        cv2.line(image, (60, 380), (440, 380), 0, 3)
+        if scale != 1:
+            image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+        return image
+
+    def test_outlined_walls_survive_bolder_connected_circuits_and_fixtures(self):
+        for scale in (1, 2):
+            with self.subTest(scale=scale):
+                image = self.outlined_lighting_plan(scale)
+                before = image.copy()
+                result = detect_wall_lines(image, parameters=WallDetectionParameters(
+                    structural_mode=True, minimum_line_length=24 * scale, maximum_line_gap=6 * scale))
+                self.assertGreaterEqual(len(result.candidates), 5)
+                for wall in result.candidates:
+                    horizontal = abs(wall.start.y - wall.end.y) <= 3 * scale
+                    if horizontal:
+                        self.assertTrue(min(abs(wall.start.y / scale - y) for y in (43, 357)) < 10)
+                    else:
+                        self.assertTrue(min(abs(wall.start.x / scale - x) for x in (43, 247, 457)) < 10)
+                np.testing.assert_array_equal(image, before)
+
+    def test_outlined_wall_style_does_not_bridge_a_door_opening(self):
+        image = self.outlined_lighting_plan()
+        image[180:221, 239:256] = 255
+        result = detect_wall_lines(image, parameters=WallDetectionParameters(
+            structural_mode=True, minimum_line_length=24, maximum_line_gap=6))
+        partition = [w for w in result.candidates if abs(w.start.x - 247) < 5 and abs(w.end.x - 247) < 5]
+        self.assertGreaterEqual(len(partition), 2)
+        self.assertFalse(any(min(w.start.y, w.end.y) < 180 and max(w.start.y, w.end.y) > 220 for w in partition))
+
+    def test_rotated_outlined_walls_exclude_connected_circuits(self):
+        image = self.outlined_lighting_plan()
+        rotation = cv2.getRotationMatrix2D((250, 200), 6, 1)
+        rotated = cv2.warpAffine(image, rotation, (500, 400), borderValue=255)
+        _, rotated = cv2.threshold(rotated, 127, 255, cv2.THRESH_BINARY)
+        before = rotated.copy()
+        result = detect_wall_lines(rotated, parameters=WallDetectionParameters(
+            structural_mode=True, minimum_line_length=24, maximum_line_gap=6))
+        self.assertGreaterEqual(len(result.candidates), 5)
+        inverse = cv2.invertAffineTransform(rotation)
+        for wall in result.candidates:
+            midpoint = inverse @ np.array([(wall.start.x + wall.end.x) / 2,
+                                          (wall.start.y + wall.end.y) / 2, 1])
+            self.assertLess(min(*(abs(midpoint[0] - x) for x in (43, 247, 457)),
+                                *(abs(midpoint[1] - y) for y in (43, 357))), 10)
+        np.testing.assert_array_equal(rotated, before)
+
+    def test_outline_hough_failure_uses_safe_error_contract(self):
+        with patch('app.ai.wall_detection.detector.cv2.HoughLinesP', side_effect=RuntimeError('private detail')):
+            with self.assertRaises(WallDetectionError) as caught:
+                detect_wall_lines(self.outlined_lighting_plan(), parameters=WallDetectionParameters(structural_mode=True))
+        self.assertEqual(caught.exception.code, 'HOUGH_DETECTION_FAILED')
+        self.assertNotIn('private detail', str(caught.exception))
+
+    def test_outline_hough_malformed_result_is_rejected(self):
+        with patch('app.ai.wall_detection.detector.cv2.HoughLinesP', return_value=np.array([[[1, 2, 3]]])):
+            with self.assertRaises(WallDetectionError) as caught:
+                detect_wall_lines(self.outlined_lighting_plan(), parameters=WallDetectionParameters(structural_mode=True))
+        self.assertEqual(caught.exception.code, 'MALFORMED_OPENCV_RESULT')
+
+    def test_broad_solid_structure_is_retained_with_outline_walls(self):
+        image = self.outlined_lighting_plan()
+        cv2.line(image, (170, 46), (170, 354), 0, 6)
+        result = detect_wall_lines(image, parameters=WallDetectionParameters(
+            structural_mode=True, minimum_line_length=24, maximum_line_gap=6))
+        self.assertTrue(any(abs(w.start.x - 170) < 5 and abs(w.end.x - 170) < 5
+                            and w.length_pixels > 200 for w in result.candidates))
+
+    def test_two_pixel_circuit_beside_perimeter_does_not_form_a_false_wall_pair(self):
+        image = self.outlined_lighting_plan()
+        image[260:351, 440:442] = 0
+        result = detect_wall_lines(image, parameters=WallDetectionParameters(
+            structural_mode=True, minimum_line_length=24, maximum_line_gap=6))
+        self.assertFalse(any(443 < w.start.x < 452 and 443 < w.end.x < 452
+                             and w.length_pixels > 40 for w in result.candidates))
+
     def test_compact_bar_glyph_filter_preserves_plain_and_outlined_short_walls(self):
         image = np.full((1000, 1000), 255, dtype=np.uint8)
         cv2.rectangle(image, (290, 300), (310, 380), 0, -1)

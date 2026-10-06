@@ -4,6 +4,97 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 6 main synchronization checkpoint
+
+- Selected source: `codex/verified-progress-20261006` at `24d1f1f`, integrating
+  only verified PDF intake/public-source inspection, hollow-wall/wiring evidence
+  and their tests/progress records. Non-fast-forward merge into `main` from
+  `fae4a7c`; no unrelated implementation work included.
+- PASS fresh merged-tree verification: 16 intake, 54 wall, 30 coordinate,
+  12 demo-CV and 37 preprocessing tests (148 passed, one existing Windows
+  symlink capability skip), compilation and scoped diff checks. Expected
+  malformed-image OpenCV diagnostics only. Full database/backend/frontend/
+  browser and independent real-drawing accuracy/release checks NOT RUN.
+- Original implementation worktree/branch and pending training, detector,
+  catalog, UI, database tools and planning edits retained locally. Recovery stash
+  `bb78854e87833124a1725b51f0be6099a8ac0cfa` untouched. No data reset, deletion,
+  credential change, private-artifact upload, model activation or deployment.
+  API/schema/dependencies unchanged; OpenAPI/table counts not re-run.
+
+
+### October 6 Git publication and retention checkpoint
+
+- PASS remote publication: intake `acf661f`, hollow-wall fix `ba70005` pushed
+  to `origin/codex/verified-progress-20261006`; remote branch hash verified.
+  Built/tested from clean `origin/main` baseline `fae4a7c`, not from pending
+  detector/UI/database edits. Main remains `fae4a7c`; no merge or deployment.
+- Retention audit: 94 original changed/untracked/deleted path entries checked;
+  92 byte/status-identical, two intentional changes (this ledger and the existing
+  PDF preparation test module's standalone intake coverage/import correction).
+  No unrelated edit, deletion, original drawing or training artifact discarded.
+  Recovery stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` unchanged.
+- Verification: 148 passed / one existing Windows symlink skip; focused only.
+  Clean publication worktree, compilation/diff checks PASS; full database,
+  frontend/browser and independent quality/release checks NOT RUN.
+- Next: reconcile/verify pending runtime, legend/catalog, UI and PEC-training
+  changes before any further publication. Original implementation branch
+  `codex/vlm-localization-experiment` remains at `85448ef` with its WIP retained.
+  Private source PDFs, annotations, datasets/results, weights and secrets remain
+  local/Git-ignored. Publication does not activate the experimental 129-ID model.
+
+
+### October 6 selected publication — hollow-wall evidence
+
+- Scope: structural wall detection recognizes persistent paired outlines with
+  a white cavity and evidence in both principal directions, rather than
+  mistaking one filled circuit stroke for two wall edges. Broad solid/hatched
+  structure retained; endpoint recovery and deduplication follow qualified
+  observed wall ink and do not bridge white door openings. No page-specific
+  coordinates, new class mappings or canonical geometry contract changes.
+- PASS in the clean publication worktree: 54 wall detection tests (including
+  scaled/rotated hollow walls, bolder connected circuits, neighboring circuits,
+  door openings, solid structure and sanitized OpenCV failures), 30 coordinate
+  tests, 12 unchanged demo-CV tests, 37 preprocessing tests with one existing
+  Windows file-symlink capability skip. Thus 132 passed / one skipped for this
+  checkpoint; combined with intake: 148 passed / one skipped. Compilation and
+  scoped diff checks PASS. Malformed-image OpenCV messages are expected tests;
+  LF/CRLF Git warnings remain. No failed required focused check remains.
+- NOT RUN: full database-backed regression, frontend/browser workflow or
+  independent real-drawing wall accuracy. These focused checks do not prove
+  general detection or release readiness. API/database schema unchanged here;
+  OpenAPI/table totals not re-counted. No model activation/training/download.
+- Prior intake commit: `acf661f`. Pending runtime/catalog/UI/account-reset/PEC-
+  training changes
+  remain in the original workspace; no blind stash application or deletion.
+
+
+### October 6 selected publication — electrical PDF intake
+
+- Scope: bounded official-Philippine PDF discovery, explicit electrical-page
+  inspection/legend-panel proposals, source-authorized PDF preparation and
+  standalone regression coverage. Exact source hashes, one-based page identity,
+  reversible rendered-page coordinates and immutable revisions preserved.
+  Public accessibility/PEC notes do NOT establish training rights or certification;
+  reference proposals do NOT become reviewed labels or training-ready pages.
+- PASS: 16 focused intake tests against a separate worktree based on
+  `origin/main` (`fae4a7c`), not the dirty implementation workspace; compilation
+  and scoped diff checks. Decoupled discovery/selection tests from pending PEC
+  learning helpers by including them in the existing PDF preparation test module.
+  Initial extracted tests missed a TemporaryDirectory import; fixed and rerun
+  all 16 successfully. No application/route/database/dependency changes.
+- Publication branch: `codex/verified-progress-20261006`. Private PDFs, images,
+  authorization records, training manifests/results, weights and credentials
+  remain local and Git-ignored. Recovery stash remains untouched.
+- Retained, NOT included in this checkpoint: pending detector/class/catalog/UI
+  integration, database-repair/account-reset tools, unrelated planning changes
+  and documentation deletion, and PEC training/diagnostic tooling. The local
+  129-ID replay retains all 56 original mappings and reports 800/830 reviewed
+  training-source matches, 29/29 dependent upload targets and 59/62 native
+  reference glyphs; these are not independent accuracy or activation approval.
+  Full application/database/frontend/browser/release acceptance NOT established
+  by this intake checkpoint.
+
+
 ## Resume index
 
 ### September 21 real local supervised crop experiment
