@@ -4,6 +4,33 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 6 selected publication — electrical PDF intake
+
+- Scope: bounded official-Philippine PDF discovery, explicit electrical-page
+  inspection/legend-panel proposals, source-authorized PDF preparation and
+  standalone regression coverage. Exact source hashes, one-based page identity,
+  reversible rendered-page coordinates and immutable revisions preserved.
+  Public accessibility/PEC notes do NOT establish training rights or certification;
+  reference proposals do NOT become reviewed labels or training-ready pages.
+- PASS: 16 focused intake tests against a separate worktree based on
+  `origin/main` (`fae4a7c`), not the dirty implementation workspace; compilation
+  and scoped diff checks. Decoupled discovery/selection tests from pending PEC
+  learning helpers by including them in the existing PDF preparation test module.
+  Initial extracted tests missed a TemporaryDirectory import; fixed and rerun
+  all 16 successfully. No application/route/database/dependency changes.
+- Publication branch: `codex/verified-progress-20261006`. Private PDFs, images,
+  authorization records, training manifests/results, weights and credentials
+  remain local and Git-ignored. Recovery stash remains untouched.
+- Retained, NOT included in this checkpoint: pending detector/class/catalog/UI
+  integration, database-repair/account-reset tools, unrelated planning changes
+  and documentation deletion, and PEC training/diagnostic tooling. The local
+  129-ID replay retains all 56 original mappings and reports 800/830 reviewed
+  training-source matches, 29/29 dependent upload targets and 59/62 native
+  reference glyphs; these are not independent accuracy or activation approval.
+  Full application/database/frontend/browser/release acceptance NOT established
+  by this intake checkpoint.
+
+
 ## Resume index
 
 ### September 21 real local supervised crop experiment
