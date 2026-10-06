@@ -4,6 +4,27 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 6 Git publication and retention checkpoint
+
+- PASS remote publication: intake `acf661f`, hollow-wall fix `ba70005` pushed
+  to `origin/codex/verified-progress-20261006`; remote branch hash verified.
+  Built/tested from clean `origin/main` baseline `fae4a7c`, not from pending
+  detector/UI/database edits. Main remains `fae4a7c`; no merge or deployment.
+- Retention audit: 94 original changed/untracked/deleted path entries checked;
+  92 byte/status-identical, two intentional changes (this ledger and the existing
+  PDF preparation test module's standalone intake coverage/import correction).
+  No unrelated edit, deletion, original drawing or training artifact discarded.
+  Recovery stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` unchanged.
+- Verification: 148 passed / one existing Windows symlink skip; focused only.
+  Clean publication worktree, compilation/diff checks PASS; full database,
+  frontend/browser and independent quality/release checks NOT RUN.
+- Next: reconcile/verify pending runtime, legend/catalog, UI and PEC-training
+  changes before any further publication. Original implementation branch
+  `codex/vlm-localization-experiment` remains at `85448ef` with its WIP retained.
+  Private source PDFs, annotations, datasets/results, weights and secrets remain
+  local/Git-ignored. Publication does not activate the experimental 129-ID model.
+
+
 ### October 6 selected publication — hollow-wall evidence
 
 - Scope: structural wall detection recognizes persistent paired outlines with
