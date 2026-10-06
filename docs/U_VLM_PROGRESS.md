@@ -4,6 +4,31 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 6 selected publication — hollow-wall evidence
+
+- Scope: structural wall detection recognizes persistent paired outlines with
+  a white cavity and evidence in both principal directions, rather than
+  mistaking one filled circuit stroke for two wall edges. Broad solid/hatched
+  structure retained; endpoint recovery and deduplication follow qualified
+  observed wall ink and do not bridge white door openings. No page-specific
+  coordinates, new class mappings or canonical geometry contract changes.
+- PASS in the clean publication worktree: 54 wall detection tests (including
+  scaled/rotated hollow walls, bolder connected circuits, neighboring circuits,
+  door openings, solid structure and sanitized OpenCV failures), 30 coordinate
+  tests, 12 unchanged demo-CV tests, 37 preprocessing tests with one existing
+  Windows file-symlink capability skip. Thus 132 passed / one skipped for this
+  checkpoint; combined with intake: 148 passed / one skipped. Compilation and
+  scoped diff checks PASS. Malformed-image OpenCV messages are expected tests;
+  LF/CRLF Git warnings remain. No failed required focused check remains.
+- NOT RUN: full database-backed regression, frontend/browser workflow or
+  independent real-drawing wall accuracy. These focused checks do not prove
+  general detection or release readiness. API/database schema unchanged here;
+  OpenAPI/table totals not re-counted. No model activation/training/download.
+- Prior intake commit: `acf661f`. Pending runtime/catalog/UI/account-reset/PEC-
+  training changes
+  remain in the original workspace; no blind stash application or deletion.
+
+
 ### October 6 selected publication — electrical PDF intake
 
 - Scope: bounded official-Philippine PDF discovery, explicit electrical-page

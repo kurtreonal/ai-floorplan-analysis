@@ -476,6 +476,108 @@ def _has_compact_parallel_bars(segment, image: np.ndarray) -> bool:
                 and np.all(companions >= 2) and np.all(companions <= widths[main] / 3))
 
 
+def _paired_edge_stroke_width(ink, xs, ys, nx, ny, radius):
+    """Measure contiguous ink across an edge, not a thick wire's thin rim."""
+    offsets = np.arange(-radius, radius + 1)
+    px = np.rint(xs[:, None] + nx * offsets).astype(int)
+    py = np.rint(ys[:, None] + ny * offsets).astype(int)
+    height, width = ink.shape
+    valid = (px >= 0) & (px < width) & (py >= 0) & (py < height)
+    profiles = valid & (ink[np.clip(py, 0, height - 1), np.clip(px, 0, width - 1)] > 0)
+    widths = []
+    for profile in profiles:
+        center = next((r for r in (radius, radius - 1, radius + 1) if profile[r]), None)
+        if center is None:
+            continue
+        left = right = center
+        while left > 0 and profile[left - 1]:
+            left -= 1
+        while right < radius * 2 and profile[right + 1]:
+            right += 1
+        widths.append(right - left + 1)
+    return float(np.median(widths)) if widths else 0.0
+
+
+def _outlined_wall_evidence(ink, parameters):
+    """Bounded paired-ink evidence, not the two edges of one filled wire.
+
+    Only activate the outlined drawing style when long observed pairs exist in
+    two directions. Single strokes retain the legacy path on solid-wall plans.
+    No sheet-specific coordinates or symbol classifications enter this test.
+    """
+    height, width = ink.shape
+    minimum = max(16, round(parameters.minimum_line_length))
+    try:
+        raw = cv2.HoughLinesP(ink, 1, math.pi / 180, max(12, minimum // 2),
+                              minLineLength=minimum, maxLineGap=round(parameters.maximum_line_gap))
+    except Exception:
+        raise _error("HOUGH_DETECTION_FAILED") from None
+    if raw is None:
+        return None
+    lines = []
+    for x1, y1, x2, y2 in _canonical_segments(raw, width=width, height=height):
+        length = math.hypot(x2 - x1, y2 - y1)
+        if length >= minimum:
+            lines.append((length, x1, y1, x2, y2))
+    lines = sorted(set(lines), key=lambda row: (-row[0], row[1:]))[:256]
+    maximum_separation = min(32, max(4, min(width, height) * .03))
+    long_span = max(minimum * 2, min(width, height) * .14)
+    nearby_ink = cv2.dilate(ink, np.ones((3, 3), dtype=np.uint8))
+    pairs = []
+    strong_directions = set()
+    for index, (length, x1, y1, x2, y2) in enumerate(lines):
+        tx, ty = (x2 - x1) / length, (y2 - y1) / length
+        for other_length, ax, ay, bx, by in lines[index + 1:]:
+            alignment = abs(tx * (bx - ax) + ty * (by - ay)) / other_length
+            if alignment < math.cos(math.radians(2)):
+                continue
+            da = -ty * (ax - x1) + tx * (ay - y1)
+            db = -ty * (bx - x1) + tx * (by - y1)
+            separation = abs((da + db) / 2)
+            if not 2 <= separation <= maximum_separation or abs(da - db) > max(1, separation * .3):
+                continue
+            ta, tb = tx * (ax - x1) + ty * (ay - y1), tx * (bx - x1) + ty * (by - y1)
+            start, end = max(0, min(ta, tb)), min(length, max(ta, tb))
+            if end - start < max(minimum, min(length, other_length) * .6):
+                continue
+            samples = np.linspace(start + 1, end - 1, 64)
+            distance = (da + db) / 2
+            px, py = x1 + samples * tx, y1 + samples * ty
+            qx, qy = px - ty * distance, py + tx * distance
+            mx, my = (px + qx) / 2, (py + qy) / 2
+            coordinates = [np.rint(v).astype(int) for v in (px, py, qx, qy, mx, my)]
+            sx, sy, ex, ey, cx, cy = coordinates
+            if (min(sx.min(), ex.min(), cx.min()) < 0 or max(sx.max(), ex.max(), cx.max()) >= width
+                    or min(sy.min(), ey.min(), cy.min()) < 0 or max(sy.max(), ey.max(), cy.max()) >= height):
+                continue
+            # A wire's Canny edges enclose black, not a persistent white cavity.
+            if (np.mean((nearby_ink[sy, sx] > 0) & (nearby_ink[ey, ex] > 0)) < .8
+                    or np.mean(ink[cy, cx] == 0) < .45):
+                continue
+            radius = min(12, max(3, round(separation / 2)))
+            edge_widths = [_paired_edge_stroke_width(ink, xx, yy, -ty, tx, radius)
+                           for xx, yy in ((px, py), (qx, qy))]
+            if min(edge_widths) == 0 or max(edge_widths) > min(edge_widths) * 2.2:
+                # A bold circuit beside one thin wall outline is not a wall pair.
+                continue
+            if separation > max(edge_widths) * 4 and max(edge_widths) > min(edge_widths) * 1.6:
+                # Widely separated, differently weighted strokes are weak pair
+                # evidence (e.g. a circuit beside the building boundary). Allow
+                # one-pixel scan differences on the close wall-outline pairs.
+                continue
+            center = (x1 - ty * distance / 2, y1 + tx * distance / 2)
+            endpoints = tuple((round(center[0] + t * tx), round(center[1] + t * ty)) for t in (start, end))
+            pairs.append((endpoints, separation + 1))
+            if end - start >= long_span:
+                strong_directions.add('horizontal' if abs(tx) > abs(ty) else 'vertical')
+    if len(strong_directions) != 2:
+        return None
+    mask = np.zeros_like(ink)
+    for (start, end), thickness in pairs:
+        cv2.line(mask, start, end, 255, max(2, round(thickness)))
+    return mask, float(np.median([thickness for _, thickness in pairs]))
+
+
 def _detect_structural_wall_lines(
     image: np.ndarray,
     parameters: WallDetectionParameters,
@@ -488,6 +590,7 @@ def _detect_structural_wall_lines(
     ink = np.where(image == 0, 255, 0).astype(np.uint8)
     if cv2.countNonZero(ink) == 0:
         return []
+    outlined = _outlined_wall_evidence(ink, parameters)
 
     # Scans often depict walls as two dark outlines with a lighter fill. A small
     # page-scaled close restores that stroke before measuring its centerline.
@@ -499,9 +602,20 @@ def _detect_structural_wall_lines(
         ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE,
                              cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size)))
 
+    if outlined is not None:
+        outline_mask, outline_width = outlined
+        # Keep broad solid/hatched structure as well. On an outlined plan a
+        # thinner single stroke is insufficient wall evidence, even if long.
+        solid_radius = max(2.5, outline_width * .5)
+        solid_core = cv2.distanceTransform(ink, cv2.DIST_L2, 5) >= solid_radius
+        solid_kernel = round(solid_radius) * 2 + 1
+        solid_mask = cv2.dilate(solid_core.astype(np.uint8) * 255,
+                               cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (solid_kernel, solid_kernel)))
+        ink = cv2.bitwise_or(outline_mask, cv2.bitwise_and(ink, solid_mask))
+
     dist = cv2.distanceTransform(ink, cv2.DIST_L2, 5)
     continuity_dist = None
-    if continuity_image is not None:
+    if continuity_image is not None and outlined is None:
         continuity_ink = cv2.bitwise_not(continuity_image)
         if close_size > 1:
             continuity_ink = cv2.morphologyEx(
@@ -608,7 +722,8 @@ def _detect_structural_wall_lines(
         # Hough voting can stop before an observed stroke ends. Recover only
         # contiguous structural pixels; never extrapolate across a white opening.
         dx, dy = (x2 - x1) / length, (y2 - y1) / length
-        extension_limit = max(2, round(min_wall_length))
+        extension_limit = max(2, round(min_wall_length),
+                              round(min(width, height) * .12) if outlined is not None else 0)
         extended = []
         for ox, oy, direction in ((x1, y1, -1), (x2, y2, 1)):
             last = (ox, oy)
@@ -617,6 +732,15 @@ def _detect_structural_wall_lines(
                 if not (0 <= px < width and 0 <= py < height):
                     break
                 supported = bool(clean_structural[py, px])
+                if outlined is not None and not supported:
+                    # Follow slight raster centerline jitter only within already
+                    # qualified wall ink; raw wiring cannot extend this stroke.
+                    radius = min(2, max(1, round(thickness * .35)))
+                    for offset in range(-radius, radius + 1):
+                        qx, qy = round(px - dy * offset), round(py + dx * offset)
+                        if 0 <= qx < width and 0 <= qy < height and clean_structural[qy, qx]:
+                            supported = True
+                            break
                 if not supported:
                     break
                 last = (px, py)
@@ -628,6 +752,13 @@ def _detect_structural_wall_lines(
     consolidated = _consolidate_wall_segments(
         raw_segments, width, height, max_gap, evidence_mask=clean_structural
     )
+    if outlined is not None:
+        # After fitting the outline bands, merge duplicate centerlines that now
+        # overlap. Still require the same observed mask across any actual gap.
+        consolidated = _consolidate_wall_segments(
+            [(x1, y1, x2, y2, thickness, math.hypot(x2 - x1, y2 - y1))
+             for x1, y1, x2, y2, thickness in consolidated],
+            width, height, max_gap, evidence_mask=clean_structural)
     if continuity_dist is not None:
         recovered = []
         for x1, y1, x2, y2, thickness in consolidated:
