@@ -202,6 +202,11 @@ def _registered_artifact(
             digest.update(chunk)
     if digest.hexdigest() != source_manifest.original_sha256:
         raise InterpretationProcessingError("ORIGINAL_INTEGRITY_FAILED")
+    # Database resets and a crash between file creation and registration can
+    # leave historical files at an otherwise valid job/page path. Do not trust
+    # or overwrite unregistered pixels. Every new preparation gets a private
+    # namespace; registered artifacts are still reused only after hash checks.
+    preparation_directory = processed_directory / "interpretation-runs" / uuid4().hex
     if floor_plan.mime_type == "application/pdf":
         try:
             rendered = resolve_trusted_processing_artifact(
@@ -216,7 +221,7 @@ def _registered_artifact(
         except ProcessingArtifactError:
             converted = convert_pdf_page(
                 source_path=original,
-                processed_directory=processed_directory,
+                processed_directory=preparation_directory,
                 floor_plan_id=floor_plan.id,
                 processing_job_id=job.id,
                 page_number=page.page_number,
@@ -228,7 +233,8 @@ def _registered_artifact(
                 page_number=page.page_number,
                 artifact_kind="pdf_page",
                 processed_directory=processed_directory,
-                relative_path=converted.output_reference,
+                relative_path=converted.absolute_output_path.relative_to(
+                    processed_directory.resolve()).as_posix(),
                 mime_type=converted.mime_type,
             )
             session.commit()
@@ -242,7 +248,7 @@ def _registered_artifact(
     normalized = normalize_image(
         source_path=source_path,
         source_mime_type=source_mime_type,
-        processed_directory=processed_directory,
+        processed_directory=preparation_directory,
         floor_plan_id=floor_plan.id,
         processing_job_id=job.id,
         page_number=page.page_number,
@@ -254,7 +260,8 @@ def _registered_artifact(
         page_number=page.page_number,
         artifact_kind="normalized_image",
         processed_directory=processed_directory,
-        relative_path=normalized.output_reference,
+        relative_path=normalized.absolute_output_path.relative_to(
+            processed_directory.resolve()).as_posix(),
         mime_type=normalized.output_mime_type,
     )
     session.commit()

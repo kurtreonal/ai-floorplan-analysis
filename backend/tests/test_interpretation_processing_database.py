@@ -9,6 +9,105 @@ class InterpretationProcessingDatabaseTests(fixture.DemoProcessingWorkerTests):
     assert_page_outcome = True
 
 
+class InterpretationArtifactCollisionDatabaseTests(InterpretationProcessingDatabaseTests):
+    """Reset IDs or interrupted writes cannot overwrite/reuse unregistered pixels."""
+
+    def process(self, session, **kwargs):
+        from pathlib import Path
+        from PIL import Image
+        from app.models import ProcessingArtifact, ProcessingJob
+        from sqlalchemy import select
+        job = session.get(ProcessingJob, kwargs['job_id'])
+        root = Path(kwargs['settings'].processed_dir)
+        legacy = root / 'normalized' / f'floor-plan-{job.floor_plan_id}' / f'job-{job.id}' / 'page-0001.png'
+        legacy.parent.mkdir(parents=True, exist_ok=True)
+        with Image.new('RGB', (29, 17), 'red') as image:
+            image.save(legacy, format='PNG')
+        before = legacy.read_bytes()
+        run = process_interpretation_job(session, **kwargs)
+        artifact = session.scalar(select(ProcessingArtifact).where(
+            ProcessingArtifact.id == run.source_artifact_id))
+        self.assertTrue(artifact.relative_path.startswith('interpretation-runs/'))
+        self.assertEqual((artifact.pixel_width, artifact.pixel_height), (400, 300))
+        self.assertEqual(legacy.read_bytes(), before)
+        self.assertNotEqual((root / artifact.relative_path).resolve(), legacy.resolve())
+        return run
+
+
+def test_pdf_preparation_preserves_orphans_page_identity_and_registered_reuse(tmp_path):
+    """Real PDF conversion/registry; isolated DB transaction, no model inference."""
+    from unittest.mock import patch
+    from uuid import uuid4
+
+    from PIL import Image
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+    from app.core.config import Settings
+    from app.core.database import get_engine
+    from app.models import (FloorPlan, FloorPlanSource, FloorPlanPage,
+                            ProcessingArtifact, ProcessingJob, Project, ProjectFloor, Role, User)
+    from app.services import interpretation_processing_service as service
+
+    uploads, processed = tmp_path / 'uploads', tmp_path / 'processed'
+    original = uploads / 'originals' / 'two-pages.pdf'
+    original.parent.mkdir(parents=True)
+    with Image.new('RGB', (160, 100), 'white') as first, \
+         Image.new('RGB', (120, 180), 'white') as second:
+        first.save(original, 'PDF', save_all=True, append_images=[second])
+    original_bytes = original.read_bytes()
+    settings = Settings(_env_file=None, app_env='development',
+                        upload_dir=uploads, processed_dir=processed)
+    with get_engine().connect() as connection:
+        outer = connection.begin()
+        try:
+            with Session(connection, join_transaction_mode='create_savepoint',
+                         expire_on_commit=False) as session:
+                role = session.scalar(select(Role).where(Role.name == 'DESIGNER'))
+                user = User(oauth_provider='pdf-collision-test', oauth_subject=uuid4().hex, role=role)
+                project = Project(owner=user, name='PDF collision verification')
+                floor = ProjectFloor(project=project, name='Ground')
+                plan = FloorPlan(project_floor=floor, original_filename='two-pages.pdf',
+                                 storage_path='originals/two-pages.pdf', mime_type='application/pdf',
+                                 file_size=len(original_bytes), processing_status='uploaded')
+                source = FloorPlanSource(floor_plan=plan, original_sha256=sha256(original_bytes).hexdigest(),
+                                         pages=[FloorPlanPage(page_number=1), FloorPlanPage(page_number=2)])
+                job = ProcessingJob(floor_plan=plan, job_type='floor_plan_analysis', status='processing')
+                session.add_all([source, job]); session.flush()
+                orphans = []
+                for folder in ('pdf-pages', 'normalized'):
+                    for page in source.pages:
+                        path = processed / folder / f'floor-plan-{plan.id}' / f'job-{job.id}' / f'page-{page.page_number:04d}.png'
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        with Image.new('RGB', (29, 17), 'red') as image:
+                            image.save(path, 'PNG')
+                        orphans.append((path, path.read_bytes()))
+                artifacts = [service._registered_artifact(session, job=job, floor_plan=plan,
+                             source_manifest=source, settings=settings, page=page) for page in source.pages]
+                artifact_paths = {item.absolute_path for item in artifacts}
+                assert len(artifact_paths) == 2
+                assert not artifact_paths.intersection(path for path, _ in orphans)
+                records = session.scalars(select(ProcessingArtifact).where(
+                    ProcessingArtifact.processing_job_id == job.id)).all()
+                assert len(records) == 4
+                page_numbers = {page.id: page.page_number for page in source.pages}
+                assert {(item.artifact_kind, page_numbers[item.floor_plan_page_id]) for item in records} == {
+                    ('pdf_page', 1), ('normalized_image', 1), ('pdf_page', 2), ('normalized_image', 2)}
+                assert all(item.relative_path.startswith('interpretation-runs/') for item in records)
+                with Image.open(artifacts[0].absolute_path) as image:
+                    assert image.width > image.height
+                with Image.open(artifacts[1].absolute_path) as image:
+                    assert image.height > image.width
+                with patch.object(service, 'convert_pdf_page', side_effect=AssertionError('must reuse')), \
+                     patch.object(service, 'normalize_image', side_effect=AssertionError('must reuse')):
+                    reused = service._registered_artifact(session, job=job, floor_plan=plan,
+                             source_manifest=source, settings=settings, page=source.pages[1])
+                assert reused.absolute_path == artifacts[1].absolute_path
+                assert all(path.read_bytes() == content for path, content in orphans)
+                assert original.read_bytes() == original_bytes
+        finally:
+            outer.rollback()
+
+
 class ExperimentalPullStationWorkerDatabaseTests(fixture.DemoProcessingWorkerTests):
     expected_provider = "experimental_pull_station_template"
     assert_page_outcome = True
