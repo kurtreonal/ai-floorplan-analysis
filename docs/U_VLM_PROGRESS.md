@@ -4,6 +4,69 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### Whole-sheet drawing-scope diagnostic checkpoint (after 9351e32)
+
+- PASS: reproduced the actual page-7 PDF conversion/normalization path: 150 DPI,
+  4500x3000 render, 4096x2731 normalized raster. Frozen power80 checkpoint,
+  score threshold 0.50, class IDs, fusion and CPU/window bounds unchanged.
+  Original PDF/page/crop hashes verified before inference. No training or
+  model activation. Whole-sheet CV selects almost the full sheet, producing
+  walls on notes, borders and non-floor diagrams: a verified scope failure.
+- PASS: corrected diagnostic pairing of crop-local power targets with whole-
+  page lamp/switch targets using exact manifest identities and offsets. The
+  initial v1 omitted 16 power targets; preserved unchanged. Corrected v2 has
+  45 class/location matches out of 45 checked positives, 98 total proposals,
+  48.2815s wall extraction and 5.2014s symbol inference. Precision remains
+  unscored because this is partially annotated same-source development data.
+- PASS: reusable explicit DrawingRegion core runs unchanged-resolution copied
+  pixels and restores all candidate geometry, evidence transforms and raw
+  fused/alias boxes and tile origins to the full source plane. Strict integer
+  selections, image/box bounds, 200-row/flat-observation limits, warning budget
+  and validation fence malformed data. Originals and input payloads stay
+  unchanged. Outside selection is explicitly unprocessed, not empty background;
+  classes remain unresolved and all proposals require review. Separate views
+  are not silently merged as one canonical floor. No page-specific runtime mask.
+- PASS: v3 uses the existing assistant-proposed lighting/power rectangles from
+  the source preparation manifest, independent of target positions. Same
+  PDF/raster/model/settings: 45/45 checked class/location matches, 48 proposals,
+  wall extraction 3.1048s and symbol inference 2.5964s. Lighting/power produced
+  13/15 wall proposals and 31/17 symbol proposals. All raw candidates and source
+  overlays retained under storage/training/whole-pdf-development-20261008-regions-v3.
+  Current bounded recovery exactly reproduces its 48 frozen predictions,
+  including retained raw observations. This does not establish general accuracy.
+- Assistant inspection proposals, not human approval: the three unmatched crops
+  show a probable one-gang prediction on S_ab two-gang notation, a wall corner
+  mistaken for a fluorescent lamp and a raceway dash mistaken for a lamp.
+  Versioned atlas/assessments retain source boxes, hashes and uncertainty in
+  the matching regions-v3-inspection-v1 directory. No automatic label edits.
+  Notes/legend/border wall proposals disappear with drawing scope, but some
+  double-outline and short wiring-associated wall proposals remain. No wall
+  completeness, measured precision, independent recall or release claim.
+- Verification: focused backend 44 passed / 13 subtests; diagnostic script
+  5 passed. Full isolated backend 1149 passed, 4 skipped, 597 subtests and
+  5 existing warnings. Compilation and diff checks pass. Initial focused
+  invocations used incorrect test paths and ran no tests; corrected and rerun.
+  OpenAPI metadata probe initially shadowed the app binding; corrected and rerun.
+  OpenAPI remains 36 paths / 44 operations; model tables remain 33.
+  No frontend changes in this checkpoint; frontend tests/build/lint not rerun.
+- NOT TESTED: live drawing selection, durable job pinning, process/review/save/
+  reload, and WebGL rendering. Core is not wired into live worker defaults yet.
+  Computer-use inventory still has no browser; no alternate browser bypass.
+  Existing 9351e32 circuit workflow and its verification remain unchanged.
+- Wiring evidence: source legend distinguishes concealed ceiling raceway
+  (solid) from concealed under-floor raceway (dashed). Under-floor is not proof
+  of underground burial depth. Supplied 3D screenshots clarify ceiling runs
+  and wall drops, not underground rules. No invented measurements or approvals.
+- Preserved: originals, prepared page, checkpoint, unrelated edits and recovery
+  stash@{0} bb78854e87833124a1725b51f0be6099a8ac0cfa. No DB reset, schema changes
+  or production promotion. Scope/coordinate handling follows CV/surgical-patch
+  runbooks. Next: durable source/hash-bound drawing selection and development
+  review reprocessing using this core; then address remaining class/wall errors
+  before extending wiring installation types. Goal remains active.
+  This is a local checkpoint, not publication: the diagnostic depends on the
+  existing uncommitted power80/fusion workspace. Missing prerequisites fail
+  explicitly rather than substituting a different model or inference method.
+
 ### Versioned circuit save and mounting checkpoint (after 0ef8e44)
 
 - PASS: explicit save_planning_circuit requests append immutable route versions
