@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchCurrentLayout, LayoutApiError, saveCurrentLayout } from './layouts.js'
+import extensionFixture from '../../../fixtures/canonical_extension_v2.json'
 
 const fixture = JSON.parse(readFileSync(new URL('../../../fixtures/canonical_geometry_v1.json', import.meta.url), 'utf8'))
 const idempotencyKey = '123e4567-e89b-42d3-a456-426614174000'
@@ -19,6 +20,16 @@ function response(overrides = {}) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('current layout API', () => {
+  it('retains only validated, immutable route provenance while preserving legacy base-only responses', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => response({ extension: extensionFixture }) }))
+    const result = await fetchCurrentLayout(15, 2)
+    expect(result.extension.route_details).toEqual(extensionFixture.route_details)
+    expect(Object.isFrozen(result.extension.route_details[0])).toBe(true)
+    const corrupted = structuredClone(extensionFixture)
+    corrupted.route_details[0].route_id = 999999
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => response({ extension: corrupted }) }))
+    expect(await fetchCurrentLayout(15, 2)).toMatchObject({ geometry: fixture, hasExtension: true, extension: null })
+  })
   it.each([null, { schema_version: 2, openings: [] }])('accepts the additive backend extension without treating it as base geometry: %j', async (extension) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => response({ extension }) }))
     const result = await fetchCurrentLayout(15, 2)

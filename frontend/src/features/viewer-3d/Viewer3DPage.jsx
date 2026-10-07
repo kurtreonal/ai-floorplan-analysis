@@ -28,7 +28,7 @@ function SavedViewer({ projectId, projectFloorId }) {
   useEffect(() => {
     const controller = new AbortController()
     fetchCurrentLayout(projectId, projectFloorId, { signal: controller.signal }).then((layout) => {
-      if (!controller.signal.aborted) setLayoutState({ status: 'ready', layout, scene: buildCanonicalScene(layout.geometry) })
+      if (!controller.signal.aborted) setLayoutState({ status: 'ready', layout, scene: buildCanonicalScene(layout.geometry, layout.extension) })
     }).catch((error) => {
       if (controller.signal.aborted) return
       setLayoutState({ status: 'error', message: error.status === 404
@@ -97,7 +97,9 @@ function SavedViewer({ projectId, projectFloorId }) {
           <p>This saved snapshot is inspection-only. Use the review workspace for classification or removal, or saved 2D for supported position edits.</p>
         </div>)}
       </>}
-      {layoutState.status === 'ready' && layoutState.layout.hasExtension && <p role="note">This view shows the canonical base geometry. Additional openings, panels and observed wiring remain in the saved review data and are not rendered here.</p>}
+      {layoutState.status === 'ready' && <p role="note">Saved wiring uses its stored elevations; an unresolved installation type is not a ceiling or underground approval. Generated ceiling/service runs are orange; wall rises/drops are muted and dashed.</p>}
+      {layoutState.status === 'ready' && layoutState.scene.omittedRouteSegmentCount > 0 && <p role="note">{layoutState.scene.omittedRouteSegmentCount} cross-floor wiring segments are omitted until floor alignment is available.</p>}
+      {layoutState.status === 'ready' && layoutState.layout.hasExtension && <p role="note">Additional openings and panels remain in saved review data and are not rendered here.</p>}
       {layoutState.status === 'ready' && <p>Source plane: {layoutState.scene.width} × {layoutState.scene.depth} m; floor elevation: {layoutState.scene.elevation} m. The rectangle represents the source image extent; room surfaces follow saved boundaries.</p>}
       {layoutState.status === 'ready' && layoutState.scene.omittedWallCount > 0 && <p role="note">{layoutState.scene.omittedWallCount} unverified or zero-length walls are omitted. Verified walls require stored height and thickness.</p>}
       <p className="sr-only" aria-live="polite">{announcement}</p>

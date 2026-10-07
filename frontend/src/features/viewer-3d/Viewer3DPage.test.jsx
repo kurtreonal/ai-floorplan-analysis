@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import Viewer3DPage from './Viewer3DPage.jsx'
 import fixture from '../../../../fixtures/canonical_geometry_v1.json'
+import extensionFixture from '../../../../fixtures/canonical_extension_v2.json'
 import { fetchCurrentLayout } from '../../api/layouts.js'
 vi.mock('../../api/layouts.js', () => ({ fetchCurrentLayout: vi.fn() }))
 
@@ -32,6 +33,23 @@ afterEach(() => {
 })
 
 describe('3D viewer page', () => {
+  it('passes saved route provenance and exact elevations to the shared scene after reload', async () => {
+    const geometry = structuredClone(fixture)
+    Object.assign(geometry.walls[0], { status: 'verified', height_meters: 3, thickness_meters: .15 })
+    fetchCurrentLayout.mockResolvedValueOnce({ version_number: 4, geometry, extension: extensionFixture, hasExtension: true })
+    render(<Viewer3DPage projectId={15} projectFloorId={2} />)
+    await screen.findByTestId('viewer-canvas')
+    expect(mocks.canvasRenders.mock.calls.at(-1)[0].routeSegments[0]).toMatchObject({
+      provenance: 'observed', installationMethod: 'unresolved', start: [.5, -1.5, .5], end: [2.5, 0, 1.5],
+    })
+    const changed = structuredClone(geometry)
+    changed.routes[0].points[1].elevation_meters = 1.2
+    fetchCurrentLayout.mockResolvedValueOnce({ version_number: 5, geometry: changed, extension: extensionFixture })
+    fireEvent.click(screen.getByRole('button', { name: 'Reload saved layout' }))
+    await screen.findByText(/Saved version 5/)
+    expect(mocks.canvasRenders.mock.calls.at(-1)[0].routeSegments[0].end).toEqual([2.5, 1.2, 1.5])
+    expect(screen.getByText(/unresolved installation type/)).toBeTruthy()
+  })
   it('loads the same saved canonical snapshot as 2D', async () => {
     const geometry = structuredClone(fixture)
     Object.assign(geometry.walls[0], { status: 'verified', height_meters: 3, thickness_meters: 0.15 })

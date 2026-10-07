@@ -4,6 +4,25 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 8 shared wiring visualization checkpoint
+
+- PASS: saved canonical wiring now reaches 3D with exact stored elevations and
+  validated observed/generated provenance. Unknown installation methods remain
+  unresolved; cross-floor edges are omitted without invented transforms. Both
+  views share generated ceiling/service orange, muted dashed wall drops/rises,
+  and riser styling. Geometry, routing measurements and approval rules unchanged.
+- PASS: focused frontend 54 tests; full frontend 53 files / 459 tests; Vite
+  build and scoped lint. Existing large-chunk warning remains. Full-repository
+  lint still has unrelated DeviceMeshCatalog issues recorded below.
+- BLOCKED browser proof: connected Designer account and manual power upload
+  9382 were observed, but browser connection disappeared after interruption.
+  Reconnect the preview for process/review/save/reload and rendered 3D checks.
+  Source screenshots establish ceiling runs/drops, not underground routing.
+- Remaining: wall-completeness repairs/source checks; reviewed device/panel
+  elevations and circuit associations; explicit installation-method metadata;
+  multi-target/shared-segment routing and underfloor/underground planning.
+  No general detection accuracy, optimal circuit network or release claim.
+
 ## Resume index
 
 ### September 21 real local supervised crop experiment

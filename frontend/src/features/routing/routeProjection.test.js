@@ -1,5 +1,14 @@
 import { expect, it } from 'vitest'
-import { projectRoute, routeWorldPositions } from './routeProjection.js'
+import { projectRoute, routeAppearance, routeWorldPositions } from './routeProjection.js'
+
+it('shares explicit installation colors without treating unknown wiring as ceiling service', () => {
+  expect(routeAppearance('ceiling_service')).toMatchObject({ color: '#f05a28', dashed: false })
+  expect(routeAppearance('wall_drop')).toEqual(routeAppearance('wall_rise'))
+  expect(routeAppearance('riser').color).toBe('#9c36b5')
+  for (const kind of [undefined, 'observed', 'underground', 'downlight']) {
+    expect(routeAppearance(kind)).toMatchObject({ color: '#8a5a00', label: expect.stringContaining('unresolved') })
+  }
+})
 
 it('uses stored aligned segments and hides stale or unrelated snapshots', () => {
   const record = { stale: false, layout_versions: { 2: 10 }, configuration: { floors: [{ floor_id: 2, offset_x: 4, offset_y: 1 }] },

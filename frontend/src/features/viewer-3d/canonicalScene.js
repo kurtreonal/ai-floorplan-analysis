@@ -1,4 +1,5 @@
 import { normalizeCanonicalGeometry } from '../../geometry/canonicalGeometry.js'
+import { normalizeCanonicalExtension } from '../../geometry/canonicalExtension.js'
 
 export function canonicalPointToWorld(point, elevation) {
   if (![point.x, point.y, elevation].every(Number.isFinite)) throw new Error('Invalid metric position.')
@@ -10,8 +11,10 @@ export function canonicalRoomShapePoints(boundary) {
   return boundary.map((point) => [point.x, -point.y])
 }
 
-export function buildCanonicalScene(document) {
+export function buildCanonicalScene(document, extension = null) {
   const geometry = normalizeCanonicalGeometry(document)
+  const details = extension ? normalizeCanonicalExtension(extension, geometry).route_details : []
+  const routeDetails = new Map(details.map((detail) => [detail.route_id, detail]))
   const elevation = geometry.floor.elevation_meters
   const width = geometry.coordinate_system.width_meters
   const depth = geometry.coordinate_system.height_meters
@@ -24,11 +27,28 @@ export function buildCanonicalScene(document) {
     size: [wall.length_meters, wall.height_meters, wall.thickness_meters],
     rotation: [0, -Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x), 0],
   }))
+  let omittedRouteSegmentCount = 0
+  const routeSegments = geometry.routes.flatMap((route) => route.points.slice(1).flatMap((end, index) => {
+    const start = route.points[index]
+    // Other floors have no approved transform in a single-floor snapshot.
+    if (start.project_floor_id !== geometry.floor.project_floor_id || end.project_floor_id !== geometry.floor.project_floor_id) {
+      omittedRouteSegmentCount += 1
+      return []
+    }
+    return [{
+      routeId: route.id, segmentIndex: index,
+      provenance: routeDetails.get(route.id)?.route_kind ?? 'unresolved',
+      installationMethod: 'unresolved', elevationState: 'stored',
+      start: canonicalPointToWorld(start, start.elevation_meters),
+      end: canonicalPointToWorld(end, end.elevation_meters),
+    }]
+  }))
   return {
     width, depth, elevation,
     target: [width / 2, elevation, depth / 2],
     extent: Math.max(width, depth, ...walls.map((wall) => wall.size[1]), 1),
     walls,
+    routeSegments, omittedRouteSegmentCount,
     omittedWallCount: geometry.walls.length - walls.length,
     rooms: geometry.rooms.map((room) => ({ id: room.id, boundary: room.boundary })),
     symbols: geometry.symbols.map((symbol) => ({

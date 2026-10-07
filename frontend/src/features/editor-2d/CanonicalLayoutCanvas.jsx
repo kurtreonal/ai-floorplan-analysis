@@ -3,6 +3,7 @@ import { Hand, Maximize, MousePointer2, Minus, Plus } from 'lucide-react'
 import { Button } from '../../components/ui/button.jsx'
 import { DeviceGlyph } from '../detection-review/DeviceGlyph.jsx'
 import { deviceFamily } from '../detection-review/devicePresentation.js'
+import { routeAppearance } from '../routing/routeProjection.js'
 import {
   Circle,
   Group,
@@ -193,8 +194,10 @@ export function CanonicalLayoutCanvas({
 
           <Layer name="routes" visible={visibility.routes} listening={false}>
             {routeSegments.map((segment, index) => <Line key={`generated-${index}`}
+              name={routeAppearance(segment.kind).label}
               points={metricPointsToPixels([segment.start, segment.end], coordinateSystem)}
-              stroke="#00897b" strokeWidth={Math.max(3 / stage.scale, 1)} />)}
+              stroke={routeAppearance(segment.kind).color} strokeWidth={Math.max(3 / stage.scale, 1)}
+              dash={routeAppearance(segment.kind).dashed ? [5 / stage.scale, 3 / stage.scale] : undefined} />)}
             {geometry.routes.map((route) => (
               <Line
                 key={route.id}

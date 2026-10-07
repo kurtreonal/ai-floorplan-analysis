@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './auth.js'
 import { normalizeCanonicalGeometry } from '../geometry/canonicalGeometry.js'
+import { normalizeCanonicalExtension } from '../geometry/canonicalExtension.js'
 
 const LOAD_ERROR = 'The current layout could not be loaded safely.'
 const SAVE_ERROR = 'The layout changes could not be saved safely.'
@@ -34,8 +35,8 @@ function exactObject(value, keys) {
 function validateResponse(payload, projectId, projectFloorId, message = LOAD_ERROR) {
   const keys = payload && Object.hasOwn(payload, 'extension')
     ? [...RESPONSE_KEYS, 'extension'] : RESPONSE_KEYS
-  // U11 adds opaque extension metadata. K1 consumers render only the validated
-  // base document; extension entities must never bypass their own adapter.
+  // K1 remains readable even if a future/unsupported extension cannot be
+  // interpreted. Only the strict extension adapter may supply route provenance.
   if (!exactObject(payload, keys)
     || (payload.extension != null && (typeof payload.extension !== 'object' || Array.isArray(payload.extension)))
     || !positiveId(payload.id)
@@ -63,6 +64,12 @@ function validateResponse(payload, projectId, projectFloorId, message = LOAD_ERR
     throw new LayoutApiError(message)
   }
 
+  let extension = null
+  if (payload.extension != null) {
+    try { extension = normalizeCanonicalExtension(payload.extension, geometry) }
+    catch { /* Preserve the valid base layout; never render invalid metadata. */ }
+  }
+
   return Object.freeze({
     id: payload.id,
     project_id: payload.project_id,
@@ -73,6 +80,7 @@ function validateResponse(payload, projectId, projectFloorId, message = LOAD_ERR
     is_current: true,
     created_at: payload.created_at,
     geometry,
+    extension,
     hasExtension: payload.extension != null,
   })
 }

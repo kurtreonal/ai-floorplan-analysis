@@ -32,6 +32,15 @@ export function CanonicalScene({ scene, showRoof = false, selectedSymbolId, onSe
       <boxGeometry args={wall.size} />
       <meshStandardMaterial color="#8397a1" />
     </mesh>)}
+    {(scene.routeSegments ?? []).map((segment) => <line name="canonical-route"
+      key={`${segment.routeId}-${segment.segmentIndex}`}
+      userData={{ routeId: segment.routeId, provenance: segment.provenance,
+        installationMethod: segment.installationMethod, elevationState: segment.elevationState }}>
+      <bufferGeometry><bufferAttribute attach="attributes-position"
+        args={[new Float32Array([...segment.start, ...segment.end]), 3]} /></bufferGeometry>
+      {/* An elevation alone does not establish a ceiling/wall installation. */}
+      <lineBasicMaterial color={segment.provenance === 'observed' ? '#8a5a00' : '#64748b'} />
+    </line>)}
     {scene.symbols.map((symbol) => <DeviceMesh key={symbol.id} symbol={symbol} scene={scene}
       selected={selectedSymbolId === symbol.id} onSelect={onSelectSymbol} onMove={onMoveSymbol} onDraggingChange={onDraggingChange} />)}
   </group>

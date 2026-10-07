@@ -3,6 +3,7 @@ import fixture from '../../../../fixtures/canonical_geometry_v1.json'
 import { buildCanonicalScene, canonicalPointToWorld } from './canonicalScene.js'
 import { canonicalRoomShapePoints } from './canonicalScene.js'
 import { Vector3 } from 'three'
+import { CanonicalScene } from './CanonicalScene.jsx'
 
 function reviewed() {
   const geometry = structuredClone(fixture)
@@ -10,7 +11,72 @@ function reviewed() {
   return geometry
 }
 
+function wiringGeometry() {
+  const geometry = reviewed()
+  geometry.routes = [{ id: 41, points: [
+    { project_floor_id: 2, x: 1, y: 1, elevation_meters: -2 },
+    { project_floor_id: 2, x: 3, y: 2, elevation_meters: 0.75 },
+  ] }]
+  return geometry
+}
+
+function routeExtension(geometry, kind) {
+  return { extension_schema_version: 2, base_schema_version: 1,
+    source_plane_reference: { floor_plan_page_id: 1, source_artifact_id: 2,
+      width_pixels: geometry.coordinate_system.image_width_pixels,
+      height_pixels: geometry.coordinate_system.image_height_pixels },
+    openings: [], panels: [], symbol_details: [],
+    route_details: [{ route_id: 41, route_kind: kind, provenance_ref: null }] }
+}
+
+function elements(node) {
+  if (Array.isArray(node)) return node.flatMap(elements)
+  if (!node || typeof node !== 'object' || !node.props) return []
+  return [node, ...elements(node.props.children)]
+}
+
 describe('canonical scene coordinates', () => {
+  it('renders saved route elevations without assuming observed provenance or installation method', () => {
+    const geometry = wiringGeometry()
+    const before = JSON.stringify(geometry)
+    const scene = buildCanonicalScene(geometry)
+    expect(scene.routeSegments).toEqual([{ routeId: 41, segmentIndex: 0,
+      provenance: 'unresolved', installationMethod: 'unresolved', elevationState: 'stored',
+      start: [1, -2, 1], end: [3, 0.75, 2] }])
+    expect(JSON.stringify(geometry)).toBe(before)
+    const rendered = elements(CanonicalScene({ scene }))
+    const line = rendered.find((element) => element.type === 'line')
+    expect(line.props.userData).toMatchObject({ provenance: 'unresolved', elevationState: 'stored' })
+    expect(Array.from(rendered.find((element) => element.type === 'bufferAttribute').props.args[0]))
+      .toEqual([1, -2, 1, 3, 0.75, 2])
+  })
+  it.each(['observed', 'generated'])('uses only validated extension metadata for %s provenance', (kind) => {
+    const geometry = wiringGeometry()
+    const scene = buildCanonicalScene(geometry, routeExtension(geometry, kind))
+    expect(scene.routeSegments[0]).toMatchObject({ provenance: kind, installationMethod: 'unresolved' })
+    const material = elements(CanonicalScene({ scene })).find((element) => element.type === 'lineBasicMaterial')
+    expect(material.props.color).toBe(kind === 'observed' ? '#8a5a00' : '#64748b')
+    const invalid = routeExtension(geometry, kind)
+    invalid.route_details[0].route_id = 99
+    expect(() => buildCanonicalScene(geometry, invalid)).toThrow(/canonical geometry/)
+  })
+  it('omits cross-floor edges without bridging the remaining points or inventing offsets', () => {
+    const geometry = wiringGeometry()
+    const [start, end] = geometry.routes[0].points
+    geometry.routes[0].points = [start, { ...end, project_floor_id: 3 }, start, end]
+    const scene = buildCanonicalScene(geometry)
+    expect(scene.omittedRouteSegmentCount).toBe(2)
+    expect(scene.routeSegments).toHaveLength(1)
+    expect(scene.routeSegments[0]).toMatchObject({ segmentIndex: 2, start: [1, -2, 1], end: [3, 0.75, 2] })
+  })
+  it('rejects invalid saved elevations and supports older scenes without route segments', () => {
+    const geometry = wiringGeometry()
+    geometry.routes[0].points[0].elevation_meters = NaN
+    expect(() => buildCanonicalScene(geometry)).toThrow(/canonical geometry/)
+    const scene = buildCanonicalScene(reviewed())
+    delete scene.routeSegments
+    expect(elements(CanonicalScene({ scene })).filter((element) => element.type === 'line')).toEqual([])
+  })
   it('derives the floor extent from scale, including an empty layout', () => {
     const geometry = reviewed()
     Object.assign(geometry.coordinate_system, { pixels_per_meter: 50, width_meters: 12.8, height_meters: 9.6 })
