@@ -10,10 +10,14 @@ import extensionFixture from '../../../../fixtures/canonical_extension_v2.json'
 import { fetchCurrentLayout } from '../../api/layouts.js'
 vi.mock('../../api/layouts.js', () => ({ fetchCurrentLayout: vi.fn() }))
 
-const mocks = vi.hoisted(() => ({ reset: vi.fn(), canvasRenders: vi.fn() }))
+const mocks = vi.hoisted(() => ({ reset: vi.fn(), canvasRenders: vi.fn(), canvasRoutes: vi.fn(), circuitPreview: null }))
+
+vi.mock('../routing/CircuitPlanningPanel.jsx', () => ({
+  CircuitPlanningPanel: ({ onPreview }) => <button onClick={() => onPreview(mocks.circuitPreview)}>Test circuit preview</button>,
+}))
 
 vi.mock('./Viewer3DCanvas.jsx', () => ({
-  Viewer3DCanvas: ({ controlsRef, onControlsReady, scene }) => {
+  Viewer3DCanvas: ({ controlsRef, onControlsReady, scene, routeSegments }) => {
     useEffect(() => {
       controlsRef.current = { reset: mocks.reset }
       onControlsReady(true)
@@ -23,6 +27,7 @@ vi.mock('./Viewer3DCanvas.jsx', () => ({
       }
     }, [controlsRef, onControlsReady])
     mocks.canvasRenders(scene)
+    mocks.canvasRoutes(routeSegments)
     return <div data-testid="viewer-canvas" />
   },
 }))
@@ -33,6 +38,23 @@ afterEach(() => {
 })
 
 describe('3D viewer page', () => {
+  it('renders the pinned circuit preview in 3D and removes it on saved-layout reload', async () => {
+    const geometry = structuredClone(fixture)
+    geometry.walls = []
+    const segments = [{ kind: 'ceiling_service', start: { floor_id: 2, x: 1, y: 1, elevation_meters: 3 },
+      end: { floor_id: 2, x: 2.5, y: 1, elevation_meters: 3 } }]
+    mocks.circuitPreview = { layout_versions: { 2: 5 }, stale: false,
+      configuration: { floors: [{ floor_id: 2, offset_x: 0, offset_y: 0 }] }, result: { segments } }
+    fetchCurrentLayout.mockResolvedValueOnce({ id: 5, project_id: 15, project_floor_id: 2, version_number: 4, geometry })
+    render(<Viewer3DPage projectId={15} projectFloorId={2} />)
+    await screen.findByTestId('viewer-canvas')
+    fireEvent.click(screen.getByRole('button', { name: 'Test circuit preview' }))
+    expect(mocks.canvasRoutes.mock.calls.at(-1)[0]).toEqual(segments)
+    fetchCurrentLayout.mockResolvedValueOnce({ id: 8, project_id: 15, project_floor_id: 2, version_number: 5, geometry })
+    fireEvent.click(screen.getByRole('button', { name: 'Reload saved layout' }))
+    await screen.findByText(/Saved version 5/)
+    expect(mocks.canvasRoutes.mock.calls.at(-1)[0]).toEqual([])
+  })
   it('passes saved route provenance and exact elevations to the shared scene after reload', async () => {
     const geometry = structuredClone(fixture)
     Object.assign(geometry.walls[0], { status: 'verified', height_meters: 3, thickness_meters: .15 })

@@ -126,3 +126,68 @@ def test_material_lengths_require_current_persisted_route(context):
     session.flush()
     with pytest.raises(ValueError, match="stale"):
         retrieve_route_material_lengths(session, current_user=owner, project_id=snapshot.project_id)
+
+
+def test_circuit_preview_pins_snapshot_and_cannot_replace_saved_route_or_quantities(context):
+    client, url, payload, session, snapshot, *_ = context
+    saved = client.post(url, json=payload).json()
+    preview_request = {key: value for key, value in payload.items() if key != 'target'}
+    preview_request.update(circuit_id='C-LGT', installation_method='ceiling_service', targets=[payload['target']])
+    result = client.post(url, json=preview_request)
+    assert result.status_code == 200, result.text
+    preview = result.json()
+    assert preview['result']['status'] == 'preview_not_saved'
+    assert preview['result']['optimality'] == 'graph_heuristic_not_global_optimum'
+    assert preview['result']['total_meters'] == 2
+    assert preview['layout_versions'] == {str(snapshot.project_floor_id): snapshot.id}
+    assert client.get(url).json() == saved
+    assert len(session.scalars(select(GeneratedRouteVersion)).all()) == 1
+    preview_request['floors'][0]['expected_layout_version'] = 2
+    assert client.post(url, json=preview_request).status_code == 409
+
+
+def test_circuit_preview_enforces_owner_roles_and_explicit_supported_installation(context):
+    client, url, payload, session, snapshot, app, other, admin = context
+    data = {key: value for key, value in payload.items() if key != 'target'}
+    data.update(circuit_id='C-LGT', installation_method='ceiling_service', targets=[payload['target']])
+    app.dependency_overrides[get_current_user] = lambda: other
+    assert client.post(url, json=data).status_code == 404
+    app.dependency_overrides[get_current_user] = lambda: admin
+    assert client.post(url, json=data).status_code == 403
+    # Return the fixture owner without inventing any new permissions.
+    owner = session.get(User, session.get(Project, snapshot.project_id).owner_id)
+    app.dependency_overrides[get_current_user] = lambda: owner
+    data['installation_method'] = 'underground'
+    assert client.post(url, json=data).status_code == 422
+    assert not session.scalars(select(GeneratedRouteVersion)).all()
+
+
+def test_circuit_preview_uses_current_read_and_fences_layout_change_during_planning(context, monkeypatch):
+    from app.services import routing_service
+    client, url, payload, session, snapshot, *_ = context
+    planner = routing_service.plan_circuit
+    reader = routing_service.current_layout_ids
+    reads = []
+
+    def current_read(*args, **kwargs):
+        reads.append(kwargs.get('lock', False))
+        return reader(*args, **kwargs)
+
+    def changed_after_planning(request, documents):
+        result = planner(request, documents)
+        snapshot.is_current = None
+        session.flush()
+        session.add(LayoutVersion(project_id=snapshot.project_id, project_floor_id=snapshot.project_floor_id,
+            floor_plan_id=snapshot.floor_plan_id, version_number=2, schema_version=1, is_current=True,
+            geometry_document=snapshot.geometry_document))
+        session.commit()
+        return result
+
+    monkeypatch.setattr(routing_service, 'current_layout_ids', current_read)
+    monkeypatch.setattr(routing_service, 'plan_circuit', changed_after_planning)
+    data = {key: value for key, value in payload.items() if key != 'target'}
+    data.update(circuit_id='C-LGT', installation_method='ceiling_service', targets=[payload['target']])
+    reply = client.post(url, json=data)
+    assert reply.status_code == 409
+    assert reads == [True]
+    assert not session.scalars(select(GeneratedRouteVersion)).all()

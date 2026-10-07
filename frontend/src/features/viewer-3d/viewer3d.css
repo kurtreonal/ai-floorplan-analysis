@@ -21,3 +21,8 @@
   .viewer-3d-canvas { min-height: 360px; }
   .viewer-3d-help ul { display: grid; }
 }
+.circuit-preview-members {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}

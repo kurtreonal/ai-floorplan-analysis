@@ -4,6 +4,40 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### Shared-circuit preview checkpoint (after b10e28d)
+
+- PASS: one explicit circuit can preview 1–32 saved target devices on a shared,
+  bounded service-plane graph. Greedy nearest-tree attachment reuses trunks;
+  overlapping wall drops split at supplied elevations and count physical spans
+  once. Per-device path lengths remain separate. No inferred class, membership,
+  panel association, height or installation approval. No global optimum claim.
+- PASS: existing route POST also accepts explicit circuit-preview requests;
+  preview returns HTTP 200 / preview_not_saved without creating a route version,
+  replacing the saved route or changing material/estimate quantities. Legacy
+  single-target create/reload remains unchanged. Designer/owner checks apply;
+  current locking reads reject a layout changed during planning, including under
+  MySQL REPEATABLE READ. OpenAPI remains 36 paths / 44 operations; 33 tables.
+- PASS: shared-circuit controls in saved 3D accept named canonical devices and
+  explicit installation/elevation/wall inputs. Existing 3D lines and the reusable
+  Konva 2D comparison consume the same projected backend segments. Edits, discard,
+  reload and aborted/unmounted requests remove or fence obsolete previews. UI
+  runbook informed labeled inputs, focused errors and explicit preview-only state.
+- PASS: routing refactor baseline 12/12 before and after graph extraction;
+  focused routing/API 26 tests; frontend preview/routing/viewer 25 tests.
+  Fresh full isolated backend 1128 passed, 4 skipped, 589 subtests, 5 warnings;
+  full frontend 55 files / 470 tests; Vite build, compilation, scoped lint and
+  diff checks pass. Existing large-chunk warning remains. Independent review
+  found overlap accounting and stale-read issues; both fixed and regression-tested.
+- FAIL outside scope: full lint retains 6 pre-existing errors in the unrelated,
+  untracked DeviceMeshCatalog. BLOCKED live browser proof: no connected surfaces.
+  API/component tests are not screenshots or real-device interaction evidence.
+- Remaining: versioned circuit persistence and circuit/material semantics;
+  saved installation metadata to synchronize actual device mounting with route
+  elevations; underfloor/underground rules and inputs; live process/review/save/
+  reload proof. Preview is ceiling/service only, not release/design approval.
+- Preservation: scoped local wall b8161be and source preparation b10e28d;
+  originals, dataset/checkpoint files, unrelated edits and recovery stash retained.
+
 ### October 8 wall/source-preparation verification checkpoint
 
 - PASS: outlined-wall recovery now extends fitted, qualified bands only. Faint

@@ -148,3 +148,114 @@ def test_riser_obstacle_blocks_vertical_shortcut():
     data['obstacles'] = [dict(floor_id=2, min_x=1.9, max_x=2.1, min_y=.9, max_y=1.1, bottom=4, top=5)]
     with pytest.raises(RoutingError, match='NO_ROUTE'):
         generate_route(RoutingRequest.model_validate(data), documents)
+
+
+def circuit_inputs():
+    from app.routing.circuit import CircuitPlanningRequest
+    data = request_data()
+    geometry = document().to_dict()
+    template = geometry['symbols'][0]
+    positions = [(2.5, 1.5), (4, 1.5), (4, 3)]
+    geometry['symbols'] = [{**template, 'id': f'detected:{501+i}', 'source_record_id': 501+i,
+                            'position': {'x': x, 'y': y}} for i, (x, y) in enumerate(positions)]
+    targets = [{**data['target'], 'symbol_id': item['id'], **item['position']} for item in geometry['symbols']]
+    data.pop('target')
+    return CircuitPlanningRequest(circuit_id='C-LGT', installation_method='ceiling_service',
+                                  targets=targets, **data), {2: canonical_geometry_from_dict(geometry)}
+
+
+def test_circuit_tree_shares_trunks_and_does_not_claim_global_optimality():
+    from app.routing.circuit import plan_circuit
+    request, documents = circuit_inputs()
+    before = request.model_dump(), documents[2].to_dict()
+    network = plan_circuit(request, documents)
+    assert network.total_meters == 5
+    assert [branch.total_meters for branch in network.branches] == [2, 3.5, 5]
+    assert sum(branch.total_meters for branch in network.branches) > network.total_meters
+    assert network.status == 'preview_not_saved'
+    assert network.optimality == 'graph_heuristic_not_global_optimum'
+    assert all(s.start.x == s.end.x or s.start.y == s.end.y for s in network.segments)
+    assert plan_circuit(request, documents) == network
+    assert (request.model_dump(), documents[2].to_dict()) == before
+    for target, branch in zip(request.targets, network.branches):
+        assert (branch.points[-1].x, branch.points[-1].y) == (target.x, target.y)
+
+
+def test_circuit_requires_explicit_membership_method_and_supported_targets():
+    from app.routing.circuit import CircuitPlanningRequest, plan_circuit
+    request, documents = circuit_inputs()
+    data = request.model_dump()
+    for change in ({'targets': []}, {'targets': data['targets'] * 2},
+                   {'installation_method': 'underground'}, {'circuit_id': ' '},
+                   {'targets': [data['targets'][0]] * 33}, {'alignment_confirmed': False}):
+        with pytest.raises(ValidationError):
+            CircuitPlanningRequest.model_validate({**data, **change})
+    data['targets'][0]['x'] = 3
+    with pytest.raises(RoutingError, match='SAVED_SYMBOL'):
+        plan_circuit(CircuitPlanningRequest.model_validate(data), documents)
+
+
+def test_circuit_disconnection_returns_no_partial_network_or_diagonal_fallback():
+    from app.routing.circuit import CircuitPlanningRequest, plan_circuit
+    request, documents = circuit_inputs()
+    data = request.model_dump()
+    data['obstacles'] = [dict(floor_id=2, min_x=3.1, max_x=3.2, min_y=-1,
+                             max_y=20, bottom=0, top=4)]
+    with pytest.raises(RoutingError, match='NO_ROUTE'):
+        plan_circuit(CircuitPlanningRequest.model_validate(data), documents)
+
+
+def test_circuit_counts_wall_drops_once_and_keeps_device_branch_lengths():
+    from app.routing.circuit import CircuitPlanningRequest, plan_circuit
+    request, documents = circuit_inputs()
+    data = request.model_dump()
+    geometry = documents[2].to_dict()
+    geometry['walls'] = wall_document().to_dict()['walls']
+    data['targets'] = [{**target, 'elevation_meters': 0, 'wall_id': 1} for target in data['targets'][:2]]
+    network = plan_circuit(CircuitPlanningRequest.model_validate(data), {2: canonical_geometry_from_dict(geometry)})
+    assert network.vertical_meters == 6
+    assert network.horizontal_meters == 3.5
+    assert network.total_meters == 9.5
+    assert [branch.vertical_meters for branch in network.branches] == [3, 3]
+    assert sum(s.kind == 'wall_drop' for s in network.segments) == 2
+
+
+def test_circuit_shared_riser_preserves_explicit_offsets_and_connector_identity():
+    from app.routing.circuit import CircuitPlanningRequest, plan_circuit
+    data, documents = multi_floor()
+    first_target = {**data['target'], 'floor_id': 2, 'elevation_meters': 3}
+    data['targets'] = [first_target, data.pop('target')]
+    network = plan_circuit(CircuitPlanningRequest(circuit_id='C-R', installation_method='ceiling_service', **data), documents)
+    assert network.vertical_meters == 3
+    assert sum(s.kind == 'riser' for s in network.segments) == 1
+    riser = next(s for s in network.segments if s.kind == 'riser')
+    assert riser.start.x == riser.end.x == 2
+    assert riser.connector_id == 'riser-a'
+    data['connectors'] = []
+    with pytest.raises(RoutingError, match='NO_ROUTE'):
+        plan_circuit(CircuitPlanningRequest(circuit_id='C-R', installation_method='ceiling_service', **data), documents)
+
+
+def test_circuit_search_is_bounded_and_rejects_invalid_edge_weights():
+    from app.routing.circuit import _nearest_path
+    a, b = (2, 0, 0), (2, 1, 0)
+    for weight in (-1, float('nan')):
+        with pytest.raises(RoutingError, match='INVALID_GRAPH_WEIGHT'):
+            _nearest_path({a: [(b, weight)], b: []}, {a}, {b})
+    with pytest.raises(RoutingError, match='GRAPH_RESOURCE_LIMIT'):
+        _nearest_path({(2, i, 0): [] for i in range(40001)}, {a}, {b})
+
+
+def test_circuit_overlapping_colocated_drops_are_split_without_double_counting():
+    from app.routing.circuit import CircuitPlanningRequest, plan_circuit
+    request, documents = circuit_inputs()
+    data = request.model_dump()
+    geometry = documents[2].to_dict()
+    geometry['walls'] = wall_document().to_dict()['walls']
+    geometry['symbols'][1]['position'] = geometry['symbols'][0]['position'].copy()
+    data['targets'] = [{**target, **geometry['symbols'][0]['position'], 'elevation_meters': height, 'wall_id': 1}
+                       for target, height in zip(data['targets'][:2], (0, 1))]
+    network = plan_circuit(CircuitPlanningRequest.model_validate(data), {2: canonical_geometry_from_dict(geometry)})
+    assert network.vertical_meters == 3  # union 3->0, not 3->0 plus 3->1
+    assert [branch.vertical_meters for branch in network.branches] == [3, 2]
+    assert len(set(network.branches[0].segment_indices) & set(network.branches[1].segment_indices)) > 0

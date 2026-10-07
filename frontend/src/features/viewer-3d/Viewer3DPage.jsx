@@ -4,6 +4,7 @@ import { buildCanonicalScene } from './canonicalScene.js'
 import { useSavedRoute } from '../routing/useSavedRoute.js'
 import { projectRoute } from '../routing/routeProjection.js'
 import { RoutingPanel } from '../routing/RoutingPanel.jsx'
+import { CircuitPlanningPanel } from '../routing/CircuitPlanningPanel.jsx'
 
 import { getLayoutHref, getProjectHref } from '../../routes/projectRoutes.js'
 import { Viewer3DCanvas } from './Viewer3DCanvas.jsx'
@@ -23,6 +24,7 @@ function SavedViewer({ projectId, projectFloorId }) {
   const [canvasAttempt, setCanvasAttempt] = useState(0)
   const [selectedSymbolId, setSelectedSymbolId] = useState(null)
   const [showRoof, setShowRoof] = useState(false)
+  const [circuitPreview, setCircuitPreview] = useState(null)
   const [layoutState, setLayoutState] = useState({ status: 'loading' })
   const [route, setRoute] = useSavedRoute(projectId, layoutState.layout?.id)
   useEffect(() => {
@@ -50,6 +52,7 @@ function SavedViewer({ projectId, projectFloorId }) {
   }
 
   function reloadLayout() {
+    setCircuitPreview(null)
     setLayoutState({ status: 'loading' })
     setControlsReady(false)
     setSelectedSymbolId(null)
@@ -83,7 +86,7 @@ function SavedViewer({ projectId, projectFloorId }) {
         projectId={projectId}
         title="3D canvas unavailable"
       >
-        <Viewer3DCanvas scene={layoutState.scene} showRoof={showRoof} routeSegments={projectRoute(route, layoutState.layout)} controlsRef={controlsRef} onControlsReady={handleControlsReady}
+        <Viewer3DCanvas scene={layoutState.scene} showRoof={showRoof} routeSegments={projectRoute(circuitPreview ?? route, layoutState.layout)} controlsRef={controlsRef} onControlsReady={handleControlsReady}
           selectedSymbolId={selectedSymbolId} onSelectSymbol={setSelectedSymbolId} />
       </Viewer3DErrorBoundary>}
       </div>
@@ -114,6 +117,7 @@ function SavedViewer({ projectId, projectFloorId }) {
       </aside>
       </div>
       {layoutState.status === 'ready' && <RoutingPanel key={layoutState.layout.id} layout={layoutState.layout} record={route} onSaved={setRoute} />}
+      {layoutState.status === 'ready' && <CircuitPlanningPanel key={`circuit:${layoutState.layout.id}`} layout={layoutState.layout} onPreview={setCircuitPreview} />}
 
       <section className="viewer-3d-help" aria-labelledby="viewer-3d-help-title">
         <h2 id="viewer-3d-help-title">Camera controls</h2>

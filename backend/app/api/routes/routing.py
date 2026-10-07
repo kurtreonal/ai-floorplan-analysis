@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -8,10 +8,11 @@ from app.api.dependencies import require_roles
 from app.core.database import get_db
 from app.models import User
 from app.routing.contracts import RoutingRequest, RouteResult
+from app.routing.circuit import CircuitPlanningRequest, CircuitPlanningResult
 from app.routing.graph import RoutingError
 from app.services.layout_service import LayoutServiceError
 from app.services.project_service import ProjectNotFoundError
-from app.services.routing_service import load_routes, create_route
+from app.services.routing_service import load_routes, create_route, preview_circuit
 
 router = APIRouter(prefix='/api/projects', tags=['routing'])
 
@@ -24,6 +25,15 @@ class RoutingResponse(BaseModel):
     layout_versions: dict[str, int]
     configuration: RoutingRequest
     result: RouteResult
+    stale: bool
+
+
+class CircuitPlanningResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    project_id: int
+    layout_versions: dict[str, int]
+    configuration: CircuitPlanningRequest
+    result: CircuitPlanningResult
     stale: bool
 
 
@@ -51,6 +61,11 @@ def get_routes(project_id: Annotated[int, Path(gt=0)], user: User = Depends(requ
     return execute(session, lambda: load_routes(session, user, project_id))
 
 
-@router.post('/{project_id}/routes', response_model=RoutingResponse, status_code=201)
-def post_routes(project_id: Annotated[int, Path(gt=0)], payload: RoutingRequest, user: User = Depends(require_roles('DESIGNER')), session: Session = Depends(get_db)):
+@router.post('/{project_id}/routes', response_model=RoutingResponse | CircuitPlanningResponse, status_code=201)
+def post_routes(project_id: Annotated[int, Path(gt=0)], payload: RoutingRequest | CircuitPlanningRequest, response: Response, user: User = Depends(require_roles('DESIGNER')), session: Session = Depends(get_db)):
+    if isinstance(payload, CircuitPlanningRequest):
+        # Preserve legacy route creation. Circuit requests return a preview,
+        # never a misleading 201 or a persisted singleton-route replacement.
+        response.status_code = 200
+        return execute(session, lambda: preview_circuit(session, user, project_id, payload))
     return execute(session, lambda: create_route(session, user, project_id, payload))

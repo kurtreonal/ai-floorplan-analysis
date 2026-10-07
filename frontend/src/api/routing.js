@@ -23,3 +23,42 @@ export async function routingRequest(projectId, { configuration, signal } = {}) 
   }
   return record
 }
+
+export async function previewCircuit(projectId, configuration, { signal } = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/routes`, {
+    method: 'POST', credentials: 'include', signal,
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(configuration),
+  })
+  const record = await response.json().catch(() => null)
+  if (!response.ok) {
+    const code = record?.detail?.error?.code
+    throw new Error(typeof code === 'string' && /^[A-Z_]+$/.test(code) ? code : 'Circuit preview is unavailable.')
+  }
+  const result = record?.result
+  const metric = (n) => Number.isFinite(n) && n >= 0
+  const point = (p) => p && Number.isSafeInteger(p.floor_id) && p.floor_id > 0
+    && [p.x, p.y, p.elevation_meters].every(Number.isFinite)
+  const lengths = (value) => value && ['horizontal_meters', 'vertical_meters', 'total_meters'].every((key) => metric(value[key]))
+    && Math.abs(value.total_meters - value.horizontal_meters - value.vertical_meters) < 1e-6
+  const expected = new Set(configuration.targets.map((target) => `${target.floor_id}:${target.symbol_id}`))
+  if (response.status !== 200 || record?.project_id !== projectId || record.stale !== false
+    || !record.layout_versions || !Object.values(record.layout_versions).every((id) => Number.isSafeInteger(id) && id > 0)
+    || record.configuration?.circuit_id !== configuration.circuit_id || !Array.isArray(record.configuration?.floors)
+    || result?.circuit_id !== configuration.circuit_id || result.installation_method !== 'ceiling_service'
+    || result.provenance !== 'generated' || result.status !== 'preview_not_saved'
+    || result.algorithm !== 'greedy_shared_service_tree_v1' || result.optimality !== 'graph_heuristic_not_global_optimum'
+    || !lengths(result) || !Array.isArray(result.segments) || !result.segments.length
+    || result.segments.some((segment) => !point(segment.start) || !point(segment.end)
+      || !['ceiling_service', 'wall_rise', 'wall_drop', 'riser'].includes(segment.kind)
+      || !metric(segment.horizontal_meters) || !metric(segment.vertical_meters))
+    || !Array.isArray(result.branches) || result.branches.length !== expected.size
+    || new Set(result.branches.map((branch) => `${branch.floor_id}:${branch.symbol_id}`)).size !== expected.size
+    || result.branches.some((branch) => !expected.has(`${branch.floor_id}:${branch.symbol_id}`) || !lengths(branch)
+      || !Array.isArray(branch.points) || !branch.points.length || branch.points.some((p) => !point(p))
+      || !Array.isArray(branch.segment_indices) || branch.segment_indices.some((index) => !Number.isSafeInteger(index)
+        || index < 0 || index >= result.segments.length))) {
+    throw new Error('Invalid circuit preview response.')
+  }
+  return record
+}

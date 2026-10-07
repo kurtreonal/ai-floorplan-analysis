@@ -56,14 +56,12 @@ def attachment(endpoint, config, document, obstacles):
                  y=endpoint.y + config.offset_y, elevation_meters=endpoint.elevation_meters)
 
 
-def generate_route(request, documents):
-    validate_target(request, documents)
+def service_graph(request, documents, endpoints):
+    """One bounded service-plane graph with exact anchors for every endpoint."""
     configs = {c.floor_id: c for c in request.floors}
-    panel = attachment(request.panel, configs[request.panel.floor_id], documents[request.panel.floor_id], request.obstacles)
-    target = attachment(request.target, configs[request.target.floor_id], documents[request.target.floor_id], request.obstacles)
     graph, connector_edges = {}, {}
     for config in request.floors:
-        anchors = [(e.x, e.y) for e in (request.panel, request.target) if e.floor_id == config.floor_id]
+        anchors = [(e.x, e.y) for e in endpoints if e.floor_id == config.floor_id]
         anchors += [(c.x-config.offset_x, c.y-config.offset_y) for c in request.connectors
                     if config.floor_id in (c.from_floor_id, c.to_floor_id)]
         local = floor_graph(documents[config.floor_id], config, anchors, request.grid_step_meters, request.obstacles)
@@ -94,11 +92,24 @@ def generate_route(request, documents):
             graph[a].append((b, high-low))
             graph[b].append((a, high-low))
             connector_edges[(a, b)] = connector_edges[(b, a)] = connector.id
+    return graph, connector_edges, configs
+
+
+def world_point(node, configs):
+    floor_id, x, y = node
+    config = configs[floor_id]
+    return Point(floor_id=floor_id, x=x+config.offset_x, y=y+config.offset_y,
+                 elevation_meters=config.service_elevation_meters)
+
+
+def generate_route(request, documents):
+    validate_target(request, documents)
+    configs = {c.floor_id: c for c in request.floors}
+    panel = attachment(request.panel, configs[request.panel.floor_id], documents[request.panel.floor_id], request.obstacles)
+    target = attachment(request.target, configs[request.target.floor_id], documents[request.target.floor_id], request.obstacles)
+    graph, connector_edges, configs = service_graph(request, documents, (request.panel, request.target))
     def world(node):
-        floor_id, x, y = node
-        config = configs[floor_id]
-        return Point(floor_id=floor_id, x=x+config.offset_x, y=y+config.offset_y,
-                     elevation_meters=config.service_elevation_meters)
+        return world_point(node, configs)
     def heuristic(a, b):
         a, b = world(a), world(b)
         return abs(a.x-b.x) + abs(a.y-b.y) + abs(a.elevation_meters-b.elevation_meters)

@@ -3,6 +3,7 @@ from app.routing.engine import generate_route
 from app.routing.graph import RoutingError
 from app.services.layout_service import retrieve_accessible_current_layout
 from app.services.project_service import get_accessible_project
+from app.routing.circuit import plan_circuit
 
 
 def response(session, record):
@@ -17,6 +18,30 @@ def response(session, record):
 def load_routes(session, user, project_id):
     get_accessible_project(session, current_user=user, project_id=project_id)
     return response(session, latest_route(session, project_id))
+
+
+def preview_circuit(session, user, project_id, request):
+    """Read-only preview, pinned to owned saved layouts; no route/quantity publication."""
+    if user.role.name != 'DESIGNER':
+        raise RoutingError('AUTHORIZATION_DENIED')
+    get_accessible_project(session, current_user=user, project_id=project_id)
+    documents, versions = {}, {}
+    for config in request.floors:
+        record = retrieve_accessible_current_layout(session, current_user=user,
+                    project_id=project_id, project_floor_id=config.floor_id)
+        if record.version_number != config.expected_layout_version:
+            raise RoutingError('STALE_LAYOUT_VERSION')
+        documents[config.floor_id] = record.geometry
+        versions[str(config.floor_id)] = record.id
+    generated = plan_circuit(request, documents)
+    # MySQL REPEATABLE READ can keep a nonlocking recheck on its old snapshot.
+    # Use the canonical save lock order/current read, without publishing data.
+    lock_context(session, project_id, sorted(documents))
+    if current_layout_ids(session, project_id, list(documents), lock=True) != versions:
+        raise RoutingError('STALE_LAYOUT_VERSION')
+    return dict(project_id=project_id, layout_versions=versions,
+                configuration=request.model_dump(mode='json'),
+                result=generated.model_dump(mode='json'), stale=False)
 
 
 def create_route(session, user, project_id, request):
