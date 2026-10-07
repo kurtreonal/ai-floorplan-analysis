@@ -2,8 +2,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { CircuitPlanningPanel } from './CircuitPlanningPanel.jsx'
-import { previewCircuit } from '../../api/routing.js'
-vi.mock('../../api/routing.js', () => ({ previewCircuit: vi.fn() }))
+import { previewCircuit, saveCircuit } from '../../api/routing.js'
+vi.mock('../../api/routing.js', () => ({ previewCircuit: vi.fn(), saveCircuit: vi.fn() }))
 vi.mock('../editor-2d/CanonicalLayoutCanvas.jsx', () => ({ CanonicalLayoutCanvas: ({ routeSegments }) => <div data-testid="circuit-2d">{JSON.stringify(routeSegments)}</div> }))
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 const layout = { id: 5, project_id: 1, project_floor_id: 2, version_number: 3,
@@ -60,4 +60,23 @@ it('aborts unmounted requests and fences a late response', async () => {
   finish(record)
   await Promise.resolve()
   expect(onPreview).not.toHaveBeenCalled()
+})
+
+it('saves a preview and retries an uncertain response with the identical request identity', async () => {
+  previewCircuit.mockResolvedValue(record)
+  const saved = { ...record, id: 9, version_number: 2, result: { ...record.result, status: 'saved_planning' } }
+  saveCircuit.mockRejectedValueOnce(new Error('Connection lost')).mockResolvedValueOnce(saved)
+  const onPreview = vi.fn(), onSaved = vi.fn()
+  render(<CircuitPlanningPanel layout={layout} record={{ version_number: 1, result: {} }} onPreview={onPreview} onSaved={onSaved} />)
+  fill()
+  const button = await screen.findByRole('button', { name: 'Save planning circuit' })
+  fireEvent.click(button)
+  await screen.findByText('Connection lost')
+  const payload = saveCircuit.mock.calls[0][1]
+  expect(payload).toMatchObject({ intent: 'save_planning_circuit', expected_route_version: 1 })
+  expect(payload.request_id).toMatch(/^[0-9a-f-]{36}$/)
+  fireEvent.click(button)
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith(saved))
+  expect(saveCircuit.mock.calls[1][1]).toEqual(payload)
+  expect(onPreview).toHaveBeenLastCalledWith(null)
 })

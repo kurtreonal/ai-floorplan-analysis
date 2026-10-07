@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { routingRequest } from '../../api/routing.js'
 
 export function RoutingPanel({ layout, record, onSaved }) {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const requestRef = useRef(null)
+  useEffect(() => () => requestRef.current?.abort(), [])
   async function submit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -11,20 +13,24 @@ export function RoutingPanel({ layout, record, onSaved }) {
     const wall = (name) => form.get(name) ? number(name) : null
     const symbol = layout.geometry.symbols.find((s) => s.id === form.get('symbol'))
     if (!symbol) return
+    requestRef.current?.abort()
+    const controller = new AbortController()
+    requestRef.current = controller
     setBusy(true)
     setMessage('Calculating route…')
     try {
-      const result = await routingRequest(layout.project_id, { configuration: {
+      const result = await routingRequest(layout.project_id, { signal: controller.signal, configuration: {
         floors: [{ floor_id: layout.project_floor_id, expected_layout_version: layout.version_number,
           service_elevation_meters: number('service'), offset_x: 0, offset_y: 0 }],
         panel: { floor_id: layout.project_floor_id, x: number('panelX'), y: number('panelY'), elevation_meters: number('panelHeight'), wall_id: wall('panelWall') },
         target: { floor_id: layout.project_floor_id, symbol_id: symbol.id, ...symbol.position, elevation_meters: number('targetHeight'), wall_id: wall('targetWall') },
         connectors: [], obstacles: [], grid_step_meters: number('step'), alignment_confirmed: true, purpose: 'planning',
       } })
+      if (controller.signal.aborted) return
       onSaved(result)
       setMessage(`Route version ${result.version_number} saved.`)
-    } catch (error) { setMessage(error.message) }
-    finally { setBusy(false) }
+    } catch (error) { if (!controller.signal.aborted) setMessage(error.message) }
+    finally { if (!controller.signal.aborted) setBusy(false) }
   }
   return <section aria-label="Electrical routing">
     <h2>Electrical routing</h2>

@@ -8,6 +8,14 @@ def latest_route(session, project_id, lock=False):
     return session.scalar(query.with_for_update() if lock else query)
 
 
+def circuit_retry(session, project_id, request_id, lock=False):
+    query = select(GeneratedRouteVersion).where(
+        GeneratedRouteVersion.project_id == project_id,
+        GeneratedRouteVersion.configuration['intent'].as_string() == 'save_planning_circuit',
+        GeneratedRouteVersion.configuration['request_id'].as_string() == str(request_id))
+    return session.scalar(query.with_for_update() if lock else query)
+
+
 def current_layout_ids(session, project_id, floor_ids, lock=False):
     query = select(LayoutVersion).where(
         LayoutVersion.project_id == project_id, LayoutVersion.project_floor_id.in_(floor_ids),

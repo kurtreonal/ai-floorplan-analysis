@@ -68,7 +68,7 @@ export function EstimatePage({ projectId, session }) {
 
   async function generate(event) {
     event.preventDefault()
-    if (!designer || inFlight.current || !options?.route_version_id || options.stale) return
+    if (!designer || inFlight.current || !options?.route_version_id || options.stale || options.route_blocker) return
     const payload = retryPayload.current || {
       request_id: globalThis.crypto.randomUUID(), route_version_id: options.route_version_id,
       components: options.components.map((component) => ({ class_id: component.class_id,
@@ -112,7 +112,8 @@ export function EstimatePage({ projectId, session }) {
         {!designer && <p role="note">Admin read-only view. A Designer generates estimates.</p>}
         {optionsError && <p role="alert">{optionsError}</p>}
         {options && (!options.route_version_id || options.stale) && <p role="note">Save a current route against reviewed layouts before generating an estimate. Existing snapshots remain available.</p>}
-        {designer && options?.route_version_id && !options.stale && <form onSubmit={generate}>
+        {options?.route_blocker && <p role="note">Shared circuit saved for planning. Circuit conductor and material mappings are not configured; existing estimate snapshots remain available.</p>}
+        {designer && options?.route_version_id && !options.stale && !options.route_blocker && <form onSubmit={generate}>
           <fieldset disabled={saveState !== 'idle'}><legend className="sr-only">Material and route mappings</legend>
             <p className="studio-panel-note">Route #{options.route_version_id} · {options.floors.length} floors. Specify conversion factors; none are assumed.</p>
             {options.components.map((component) => <div className="studio-material-binding" key={component.class_id}><p><strong>{component.class_name}</strong><small>{component.quantity} reviewed symbols · class {component.class_id}</small></p><MaterialSelect label={`Material for ${component.class_name}`} materials={pricedMaterials} value={bindings[component.class_id]?.material || ''} onChange={(material) => setBindings((current) => ({ ...current, [component.class_id]: { ...current[component.class_id], material } }))} /><label className="studio-field"><span>Material units per {component.class_name}</span><Input type="number" min="0.0001" max="1000" step="0.0001" required value={bindings[component.class_id]?.units || ''} onChange={(event) => setBindings((current) => ({ ...current, [component.class_id]: { ...current[component.class_id], units: event.target.value } }))} /></label></div>)}

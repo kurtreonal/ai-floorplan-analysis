@@ -8,7 +8,9 @@ import Viewer3DPage from './Viewer3DPage.jsx'
 import fixture from '../../../../fixtures/canonical_geometry_v1.json'
 import extensionFixture from '../../../../fixtures/canonical_extension_v2.json'
 import { fetchCurrentLayout } from '../../api/layouts.js'
+import { routingRequest } from '../../api/routing.js'
 vi.mock('../../api/layouts.js', () => ({ fetchCurrentLayout: vi.fn() }))
+vi.mock('../../api/routing.js', () => ({ routingRequest: vi.fn().mockResolvedValue(null) }))
 
 const mocks = vi.hoisted(() => ({ reset: vi.fn(), canvasRenders: vi.fn(), canvasRoutes: vi.fn(), circuitPreview: null }))
 
@@ -35,9 +37,33 @@ vi.mock('./Viewer3DCanvas.jsx', () => ({
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  routingRequest.mockResolvedValue(null)
 })
 
 describe('3D viewer page', () => {
+  it('reloads the same saved circuit segments and explicit device elevation without changing XY', async () => {
+    const geometry = structuredClone(fixture)
+    geometry.walls = []
+    const target = geometry.symbols[0]
+    const record = { id: 7, project_id: 15, version_number: 2, layout_versions: { 2: 5 }, stale: false,
+      configuration: { floors: [{ floor_id: 2, offset_x: 0, offset_y: 0 }],
+        targets: [{ floor_id: 2, symbol_id: target.id, ...target.position, elevation_meters: 3, wall_id: null }] },
+      result: { status: 'saved_planning', algorithm: 'greedy_shared_service_tree_v1',
+        horizontal_meters: 1, vertical_meters: 0, total_meters: 1, segments: [{ kind: 'ceiling_service',
+          start: { floor_id: 2, ...target.position, elevation_meters: 3 },
+          end: { floor_id: 2, x: target.position.x + 1, y: target.position.y, elevation_meters: 3 } }] } }
+    routingRequest.mockResolvedValue(record)
+    fetchCurrentLayout.mockResolvedValue({ id: 5, project_id: 15, project_floor_id: 2, version_number: 4, geometry })
+    render(<Viewer3DPage projectId={15} projectFloorId={2} />)
+    await waitFor(() => expect(mocks.canvasRenders.mock.calls.at(-1)[0].symbols[0].installation?.elevation_meters).toBe(3))
+    expect(mocks.canvasRoutes.mock.calls.at(-1)[0]).toEqual(record.result.segments)
+    expect(mocks.canvasRenders.mock.calls.at(-1)[0].symbols[0].position).toEqual([target.position.x, geometry.floor.elevation_meters, target.position.y])
+    fireEvent.change(screen.getByLabelText('Inspect device'), { target: { value: target.id } })
+    expect(screen.getByText(/Entered circuit elevation: 3 m absolute/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Reload saved layout' }))
+    await waitFor(() => expect(routingRequest).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(mocks.canvasRenders.mock.calls.at(-1)[0].symbols[0].installation?.route_version_id).toBe(7))
+  })
   it('renders the pinned circuit preview in 3D and removes it on saved-layout reload', async () => {
     const geometry = structuredClone(fixture)
     geometry.walls = []

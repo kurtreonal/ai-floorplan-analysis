@@ -74,3 +74,13 @@ it('handles stale sources safely and refreshes readiness without hiding history'
   await screen.findByRole('button', { name: 'Generate estimate snapshot' })
   await waitFor(() => expect(fetchEstimateOptions).toHaveBeenCalledTimes(2))
 })
+
+it('keeps historical estimates visible but does not offer incomplete circuit takeoff', async () => {
+  listEstimates.mockResolvedValue([record])
+  fetchEstimateOptions.mockResolvedValue({ ...options, route_blocker: 'CIRCUIT_ESTIMATION_NOT_CONFIGURED', components: [] })
+  render(<EstimatePage projectId={15} session={designer} />)
+  await screen.findByText('Reviewed fixture')
+  expect(await screen.findByText(/Circuit conductor and material mappings are not configured/)).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Generate estimate snapshot' })).toBeNull()
+  expect(createEstimate).not.toHaveBeenCalled()
+})

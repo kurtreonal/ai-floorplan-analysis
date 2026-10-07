@@ -58,6 +58,7 @@ class EstimateResponse(BaseModel):
 class EstimateOptions(BaseModel):
     route_version_id: int | None
     stale: bool
+    route_blocker: str | None = None
     floors: list[int]
     components: list[dict]
     materials: list[dict]

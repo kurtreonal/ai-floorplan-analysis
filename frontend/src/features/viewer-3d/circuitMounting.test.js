@@ -1,0 +1,32 @@
+import { expect, it } from 'vitest'
+import { bindCircuitMounting } from './circuitMounting.js'
+import { devicePlacement } from './devicePlacement.js'
+
+const scene = { elevation: 0, width: 10, depth: 10, walls: [], symbols: [{ id: 's', position: [2, 0, 1] }] }
+const layout = { id: 5, project_id: 1, project_floor_id: 2, geometry: { symbols: [{ id: 's', position: { x: 2, y: 1 } }] } }
+const record = { id: 7, project_id: 1, layout_versions: { 2: 5 }, stale: false,
+  configuration: { targets: [{ floor_id: 2, symbol_id: 's', x: 2, y: 1, elevation_meters: 2.7, wall_id: null }] },
+  result: { status: 'saved_planning', algorithm: 'greedy_shared_service_tree_v1' } }
+
+it('binds explicit saved and preview elevations without changing canonical anchors', () => {
+  const original = structuredClone(scene)
+  for (const status of ['preview_not_saved', 'saved_planning']) {
+    const bound = bindCircuitMounting(scene, { ...record, result: { ...record.result, status } }, layout)
+    const light = devicePlacement(bound.symbols[0], bound, 'troffer')
+    expect(light.position).toEqual([2, 2.7 - 0.045, 1])
+    expect(devicePlacement(bound.symbols[0], bound, 'switch').position).toEqual([2, 2.7, 1])
+    expect(bound.symbols[0].installation.provenance).toBe('designer_supplied_planning')
+  }
+  expect(scene).toEqual(original)
+})
+
+it.each([{ stale: true }, { project_id: 9 }, { layout_versions: { 2: 9 } }])('ignores stale and unrelated metadata %j', (patch) => {
+  expect(bindCircuitMounting(scene, { ...record, ...patch }, layout)).toBe(scene)
+})
+
+it('ignores mismatched XY, unresolved walls and other-floor targets', () => {
+  for (const patch of [{ x: 99 }, { wall_id: 123 }, { floor_id: 9 }, { elevation_meters: NaN }]) {
+    const bound = bindCircuitMounting(scene, { ...record, configuration: { targets: [{ ...record.configuration.targets[0], ...patch }] } }, layout)
+    expect(bound.symbols[0]).toBe(scene.symbols[0])
+  }
+})

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { previewCircuit } from './routing.js'
+import { previewCircuit, saveCircuit, routingRequest } from './routing.js'
 
 afterEach(() => vi.unstubAllGlobals())
 const configuration = { circuit_id: 'C-LGT', targets: [{ floor_id: 2, symbol_id: 'detected:1' }] }
@@ -35,4 +35,26 @@ it.each(['saved', 'branch', 'nan', 'kind', 'length'])('rejects malformed or misl
 it('does not display an arbitrary backend exception as a user-facing error', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({ detail: { error: { code: 'private connection string' } } }) }))
   await expect(previewCircuit(1, configuration)).rejects.toThrow('Circuit preview is unavailable.')
+})
+
+it('saves and reloads the same versioned planning circuit, including a stale historical result', async () => {
+  const record = response()
+  Object.assign(record, { id: 7, version_number: 1 })
+  Object.assign(record.configuration, { intent: 'save_planning_circuit', request_id: '123' })
+  record.result.status = 'saved_planning'
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 201, json: async () => record }))
+  expect(await saveCircuit(1, record.configuration)).toEqual(record)
+  record.stale = true
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => record }))
+  expect(await routingRequest(1)).toEqual(record)
+})
+
+it('rejects a saved circuit with invalid branch references on reload', async () => {
+  const record = response()
+  Object.assign(record, { id: 7, version_number: 1 })
+  Object.assign(record.configuration, { intent: 'save_planning_circuit', request_id: '123' })
+  record.result.status = 'saved_planning'
+  record.result.branches[0].segment_indices = [99]
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => record }))
+  await expect(routingRequest(1)).rejects.toThrow('Invalid circuit preview response.')
 })

@@ -28,7 +28,10 @@ export function devicePlacement(symbol, scene, family) {
   const position = [...symbol.position]
   let rotation = 0
   let nearest = null
+  const installation = symbol.installation?.provenance === 'designer_supplied_planning'
+    && Number.isFinite(symbol.installation.elevation_meters) ? symbol.installation : null
   for (const wall of scene.mountingWalls || scene.walls) {
+    if (installation && wall.id !== installation.wall_id) continue
     const angle = -wall.rotation[1], dx = Math.cos(angle), dz = Math.sin(angle)
     const along = Math.max(-wall.size[0] / 2, Math.min(wall.size[0] / 2,
       (position[0] - wall.position[0]) * dx + (position[2] - wall.position[2]) * dz))
@@ -38,9 +41,10 @@ export function devicePlacement(symbol, scene, family) {
   }
   const ceiling = scene.ceilingElevation ?? (nearest
     ? nearest.wall.position[1] + nearest.wall.size[1] / 2 : sceneCeiling(scene))
-  if (profile.mount === 'ceiling') position[1] = ceiling - size[1] / 2
+  if (profile.mount === 'ceiling') position[1] = (installation ? installation.elevation_meters * unit : ceiling) - size[1] / 2
   else if (profile.mount === 'wall') {
-    position[1] = scene.elevation + Math.min(profile.height * unit, Math.max(size[1] / 2, ceiling - scene.elevation - size[1] / 2))
+    position[1] = installation ? installation.elevation_meters * unit
+      : scene.elevation + Math.min(profile.height * unit, Math.max(size[1] / 2, ceiling - scene.elevation - size[1] / 2))
     // Only mount to a nearby wall; never teleport an uncertain device across a room.
     if (nearest && nearest.distance <= 0.6 * unit + nearest.wall.size[2] / 2) {
       let nx = -nearest.dz, nz = nearest.dx
@@ -53,7 +57,7 @@ export function devicePlacement(symbol, scene, family) {
       position[2] = nearest.z + nz * offset
       rotation = Math.atan2(nx, nz)
     }
-  } else position[1] = scene.elevation + size[1] / 2 + 0.002 * unit
+  } else position[1] = installation ? installation.elevation_meters * unit : scene.elevation + size[1] / 2 + 0.002 * unit
   return { position, size, rotation, mount: profile.mount,
     anchorOffset: [position[0] - symbol.position[0], position[2] - symbol.position[2]] }
 }

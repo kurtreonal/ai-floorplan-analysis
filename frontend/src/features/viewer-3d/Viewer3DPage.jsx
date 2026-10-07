@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchCurrentLayout } from '../../api/layouts.js'
 import { buildCanonicalScene } from './canonicalScene.js'
+import { bindCircuitMounting } from './circuitMounting.js'
 import { useSavedRoute } from '../routing/useSavedRoute.js'
 import { projectRoute } from '../routing/routeProjection.js'
 import { RoutingPanel } from '../routing/RoutingPanel.jsx'
@@ -27,6 +28,11 @@ function SavedViewer({ projectId, projectFloorId }) {
   const [circuitPreview, setCircuitPreview] = useState(null)
   const [layoutState, setLayoutState] = useState({ status: 'loading' })
   const [route, setRoute] = useSavedRoute(projectId, layoutState.layout?.id)
+  const displayRecord = circuitPreview ?? route
+  const displayScene = useMemo(() => layoutState.status === 'ready'
+    ? bindCircuitMounting(layoutState.scene, displayRecord, layoutState.layout) : null, [layoutState, displayRecord])
+  const displayRoutes = useMemo(() => layoutState.status === 'ready'
+    ? projectRoute(displayRecord, layoutState.layout) : [], [layoutState, displayRecord])
   useEffect(() => {
     const controller = new AbortController()
     fetchCurrentLayout(projectId, projectFloorId, { signal: controller.signal }).then((layout) => {
@@ -73,7 +79,7 @@ function SavedViewer({ projectId, projectFloorId }) {
       <div className="studio-mode-bar"><Button variant="ghost" size="sm" asChild><a href={getLayoutHref(projectId, projectFloorId)}><Layers3 aria-hidden="true" />Compare saved 2D layout</a></Button><span className="studio-mode-active"><Box size={16} aria-hidden="true" />3D viewer</span><span className="mono">SAVED GEOMETRY · NO SEPARATE 3D MODEL</span></div>
 
       <p className="viewer-3d-scope-note" role="note">
-        Devices use typical equipment sizes and mounting heights; ceiling lights follow wall tops. These are visual defaults, not equipment specifications. Reload after saving 2D changes.
+        Devices use illustrative sizes. Configured circuit devices use entered planning elevations; others use visual mounting defaults. Neither is electrical approval. Reload after saving 2D changes.
       </p>
       <div className="studio-viewer-workbench">
       <aside className="studio-viewer-tools" aria-label="3D view tools"><span className="project-kicker mono">CAMERA</span><Button variant="outline" disabled={!controlsReady} onClick={resetCamera}><RotateCcw aria-hidden="true" />Reset view</Button><Button variant="outline" disabled={!controlsReady} onClick={() => controlsRef.current?.top()}><Scan aria-hidden="true" />Top view</Button><Button variant="outline" disabled={!controlsReady} onClick={resetCamera}><Move3D aria-hidden="true" />Perspective view</Button><Button variant="outline" disabled={layoutState.status === 'loading'} onClick={reloadLayout}><RefreshCw aria-hidden="true" />Reload saved layout</Button><p>Orbit, pan and zoom change your view—not saved coordinates.</p></aside>
@@ -86,7 +92,7 @@ function SavedViewer({ projectId, projectFloorId }) {
         projectId={projectId}
         title="3D canvas unavailable"
       >
-        <Viewer3DCanvas scene={layoutState.scene} showRoof={showRoof} routeSegments={projectRoute(circuitPreview ?? route, layoutState.layout)} controlsRef={controlsRef} onControlsReady={handleControlsReady}
+        <Viewer3DCanvas scene={displayScene} showRoof={showRoof} routeSegments={displayRoutes} controlsRef={controlsRef} onControlsReady={handleControlsReady}
           selectedSymbolId={selectedSymbolId} onSelectSymbol={setSelectedSymbolId} />
       </Viewer3DErrorBoundary>}
       </div>
@@ -95,8 +101,9 @@ function SavedViewer({ projectId, projectFloorId }) {
         <label className="studio-field">Inspect device<select value={selectedSymbolId || ''} onChange={(event) => setSelectedSymbolId(event.target.value || null)}>
           <option value="">Select a device</option>{layoutState.scene.symbols.map((symbol) => <option key={symbol.id} value={symbol.id}>{symbol.classification.name} · {symbol.id}</option>)}
         </select></label>
-        {layoutState.scene.symbols.filter((symbol) => symbol.id === selectedSymbolId).map((symbol) => <div key={symbol.id}>
+        {displayScene.symbols.filter((symbol) => symbol.id === selectedSymbolId).map((symbol) => <div key={symbol.id}>
           <h3>{symbol.classification.name}</h3><p>X {symbol.position[0]} m · Y {symbol.position[2]} m<br />{symbol.status} · {symbol.id}</p>
+          {symbol.installation && <p>Entered circuit elevation: {symbol.installation.elevation_meters} m absolute. {symbol.installation.state === 'saved_planning' ? 'Saved planning input' : 'Unsaved preview input'}; not engineering approval.</p>}
           <p>This saved snapshot is inspection-only. Use the review workspace for classification or removal, or saved 2D for supported position edits.</p>
         </div>)}
       </>}
@@ -116,8 +123,8 @@ function SavedViewer({ projectId, projectFloorId }) {
       </details>}
       </aside>
       </div>
-      {layoutState.status === 'ready' && <RoutingPanel key={layoutState.layout.id} layout={layoutState.layout} record={route} onSaved={setRoute} />}
-      {layoutState.status === 'ready' && <CircuitPlanningPanel key={`circuit:${layoutState.layout.id}`} layout={layoutState.layout} onPreview={setCircuitPreview} />}
+      {layoutState.status === 'ready' && <RoutingPanel key={layoutState.layout.id} layout={layoutState.layout} record={route} onSaved={(saved) => { setCircuitPreview(null); setRoute(saved) }} />}
+      {layoutState.status === 'ready' && <CircuitPlanningPanel key={`circuit:${layoutState.layout.id}`} layout={layoutState.layout} record={route} onPreview={setCircuitPreview} onSaved={setRoute} />}
 
       <section className="viewer-3d-help" aria-labelledby="viewer-3d-help-title">
         <h2 id="viewer-3d-help-title">Camera controls</h2>

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { previewCircuit } from '../../api/routing.js'
+import { previewCircuit, saveCircuit } from '../../api/routing.js'
 import { Button } from '../../components/ui/button.jsx'
 import { CanonicalLayoutCanvas } from '../editor-2d/CanonicalLayoutCanvas.jsx'
 import { projectRoute } from './routeProjection.js'
 
-export function CircuitPlanningPanel({ layout, onPreview }) {
+export function CircuitPlanningPanel({ layout, record = null, onPreview, onSaved }) {
   const [selected, setSelected] = useState([])
   const [preview, setPreview] = useState(null)
   const [show2D, setShow2D] = useState(false)
@@ -12,11 +12,36 @@ export function CircuitPlanningPanel({ layout, onPreview }) {
   const [error, setError] = useState('')
   const errorRef = useRef(null)
   const requestRef = useRef(null)
+  const retryRef = useRef(null)
   useEffect(() => () => requestRef.current?.abort(), [])
   useEffect(() => { if (error) errorRef.current?.focus() }, [error])
 
   function clearPreview() {
+    retryRef.current = null
     if (preview) { setPreview(null); onPreview(null) }
+  }
+
+  async function save() {
+    if (!preview || busy) return
+    const configuration = retryRef.current ?? {
+      ...preview.configuration, intent: 'save_planning_circuit',
+      expected_route_version: record?.version_number ?? 0, request_id: globalThis.crypto.randomUUID(),
+    }
+    retryRef.current = configuration
+    const controller = new AbortController()
+    requestRef.current = controller
+    setBusy(true); setError('')
+    try {
+      const saved = await saveCircuit(layout.project_id, configuration, { signal: controller.signal })
+      if (controller.signal.aborted) return
+      if (saved.stale || saved.layout_versions[String(layout.project_floor_id)] !== layout.id) throw new Error('Layout changed. Reload before using this saved circuit.')
+      clearPreview(); onSaved(saved)
+    } catch (failure) {
+      if (!controller.signal.aborted) {
+        setError(failure.message)
+        if (failure.status && failure.status < 500) retryRef.current = null
+      }
+    } finally { if (!controller.signal.aborted) setBusy(false) }
   }
 
   async function submit(event) {
@@ -66,10 +91,11 @@ export function CircuitPlanningPanel({ layout, onPreview }) {
   const wallOptions = <><option value="">At service elevation; no wall attachment</option>{walls.map((wall) => <option key={wall.id} value={wall.id}>Wall {wall.id}</option>)}</>
   return <section aria-label="Shared circuit planning preview">
     <h2>Shared circuit preview</h2>
+    {error && <p ref={errorRef} role="alert" tabIndex={-1}>{error}</p>}
+    {record?.result.status === 'saved_planning' && <p role="status">Saved circuit {record.result.circuit_id}, route version {record.version_number}: {record.result.branches.length} devices; {record.result.total_meters.toFixed(3)} m unique path. {record.stale ? 'Layout changed; reload and recalculate.' : 'Entered planning elevations reload with this route; not electrical approval.'}</p>}
     <p>Assign saved devices to one circuit explicitly. Ceiling/service paths share a bounded graph; wall drops use your entered absolute elevations and verified wall attachments. This is a greedy planning preview, not a proven global optimum.</p>
     <details><summary>Configure circuit preview</summary>
       <form onSubmit={submit} onChange={clearPreview}>
-        {error && <p ref={errorRef} role="alert" tabIndex={-1}>{error}</p>}
         <fieldset disabled={busy}><legend>Circuit and panel</legend>
           <label className="studio-field">Circuit identifier<input name="circuit" maxLength={80} required /></label>
           <label className="studio-field">Installation method<select name="installation" required defaultValue=""><option value="">Choose explicitly</option><option value="ceiling_service">Ceiling/service with verified wall drops</option></select></label>
@@ -92,9 +118,10 @@ export function CircuitPlanningPanel({ layout, onPreview }) {
     {busy && <p role="status">Planning shared circuit…</p>}
     {preview && <>
       <p role="status">Preview only: {preview.result.branches.length} devices; {preview.result.total_meters.toFixed(3)} m unique path ({preview.result.horizontal_meters.toFixed(3)} m horizontal + {preview.result.vertical_meters.toFixed(3)} m vertical). Not saved; no estimate or conductor quantities changed.</p>
-      <p>Routes use entered elevations; device meshes retain illustrative mounting defaults. Physical mounting synchronization requires saved installation metadata.</p>
+      <p>Entered device elevations are shared with 3D for this snapshot. Equipment dimensions remain illustrative. Saving does not approve electrical design or publish material quantities.</p>
+      <Button disabled={busy} onClick={save}>Save planning circuit</Button>
       <Button variant="outline" aria-pressed={show2D} onClick={() => setShow2D((value) => !value)}>{show2D ? 'Hide circuit 2D preview' : 'Compare circuit in 2D'}</Button>
-      <Button variant="ghost" onClick={clearPreview}>Discard circuit preview</Button>
+      <Button variant="ghost" disabled={busy} onClick={clearPreview}>Discard circuit preview</Button>
       {show2D && <CanonicalLayoutCanvas geometry={layout.geometry} routeSegments={projectRoute(preview, layout)} visibility={{ blueprint: false, walls: true, rooms: true, symbols: true, routes: true }} />}
     </>}
   </section>

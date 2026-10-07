@@ -57,15 +57,16 @@ def components_for_route(session, user, project_id, route):
 def estimate_options(session, user, project_id):
     get_accessible_project(session, current_user=user, project_id=project_id)
     route = latest_route(session, project_id)
+    route_blocker = 'CIRCUIT_ESTIMATION_NOT_CONFIGURED' if route and route.result.get('status') == 'saved_planning' else None
     stale = bool(route and current_layout_ids(session, project_id, [int(k) for k in route.layout_versions]) != route.layout_versions)
-    grouped = components_for_route(session, user, project_id, route)[0] if route and not stale else {}
+    grouped = components_for_route(session, user, project_id, route)[0] if route and not stale and not route_blocker else {}
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     materials = []
     for material in repository.catalog(session):
         price = prices.latest_price(session, material.id, at=now)
         materials.append({"id": material.id, "code": material.code, "name": material.name, "unit": material.unit,
                           "has_price": bool(price and price.unit == material.unit), "currency": price.currency if price else None})
-    return dict(route_version_id=route.id if route else None, stale=stale,
+    return dict(route_version_id=route.id if route else None, stale=stale, route_blocker=route_blocker,
         floors=sorted(int(k) for k in route.layout_versions) if route else [],
         components=[grouped[k] for k in sorted(grouped)], materials=materials)
 
@@ -90,6 +91,8 @@ def generate_estimate(session, user, project_id, request):
         raise EstimateError("STALE_ROUTE")
     if current_layout_ids(session, project_id, [int(k) for k in route.layout_versions], lock=True) != route.layout_versions:
         raise EstimateError("STALE_ROUTE")
+    if route.result.get('status') == 'saved_planning':
+        raise EstimateError('CIRCUIT_ESTIMATION_NOT_CONFIGURED')
     grouped, snapshots = components_for_route(session, user, project_id, route)
     if set(grouped) != {item.class_id for item in request.components}:
         raise EstimateError("COMPLETE_COMPONENT_MAPPING_REQUIRED")

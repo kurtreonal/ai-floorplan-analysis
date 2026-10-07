@@ -8,6 +8,7 @@ is inferred, and this preview does not publish quantities or change layouts.
 from heapq import heappop, heappush
 import math
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import Field, model_validator
 
@@ -58,6 +59,12 @@ class CircuitBranch(Contract):
     total_meters: Number
 
 
+class CircuitSaveRequest(CircuitPlanningRequest):
+    intent: Literal['save_planning_circuit']
+    expected_route_version: Annotated[int, Field(strict=True, ge=0)]
+    request_id: UUID
+
+
 class CircuitPlanningResult(Contract):
     circuit_id: str
     installation_method: Literal['ceiling_service']
@@ -71,6 +78,10 @@ class CircuitPlanningResult(Contract):
     horizontal_meters: Number
     vertical_meters: Number
     total_meters: Number
+
+
+class SavedCircuitResult(CircuitPlanningResult):
+    status: Literal['saved_planning'] = 'saved_planning'
 
 
 def _nearest_path(graph, sources, targets):

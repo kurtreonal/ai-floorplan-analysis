@@ -55,6 +55,8 @@ def retrieve_route_material_lengths(session, *, current_user, project_id, conduc
         raise ValueError("A saved generated route is required.")
     if record["stale"]:
         raise ValueError("Recalculate the stale route before measuring materials.")
+    if record['result'].get('status') == 'saved_planning':
+        raise ValueError('Circuit conductor and material semantics are not configured.')
     lengths = measure_material_lengths(RouteResult.model_validate(record["result"]),
                                        conductor_count=conductor_count)
     return {"route_version_id": record["id"], "version_number": record["version_number"],

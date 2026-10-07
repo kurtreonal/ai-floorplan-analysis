@@ -4,6 +4,56 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### Versioned circuit save and mounting checkpoint (after 0ef8e44)
+
+- PASS: explicit save_planning_circuit requests append immutable route versions
+  in existing storage. Project/floor locks, current reads and expected route /
+  layout versions fence stale writes. Normalized UUID/payload retries return the
+  same original record, including after later saves; changed payloads conflict.
+  Ownership/Designer checks remain enforced. Preview stays read-only HTTP 200;
+  save/retry returns 201 / saved_planning. No schema migration or data reset.
+- PASS: development UI saves the preview configuration with an identity retained
+  across uncertain network results. GET reload supports legacy and circuit
+  versions. Late older saves, replay responses and obsolete-layout callbacks
+  cannot downgrade the displayed latest route. Obsolete legacy requests abort
+  and suppress callbacks, preserving newer previews. Errors remain visible outside
+  closed configuration controls. Existing single-device routing remains usable.
+- PASS: explicit circuit target elevations bind to the same saved canonical XY
+  in 3D. Stale/project/layout/position/wall mismatches do not bind. Ceiling fixture
+  tops meet the entered elevation; wall devices use entered elevations and only
+  the specified wall. Unconfigured devices retain labeled illustrative defaults.
+  Shared 2D/3D lines use identical persisted backend segments and existing styles.
+  Inspector distinguishes saved planning inputs from unsaved preview inputs;
+  dimensions, elevations and circuit saving are not engineering approval.
+- PASS: saved circuits explicitly block new material takeoff / estimates until
+  conductor and circuit material semantics exist. Options expose the blocker,
+  generation returns a meaningful 422, and historical estimates remain readable
+  and unchanged. Physical shared path length is not a wire/conductor quantity.
+- Verification: focused backend 46 passed; focused frontend 53 passed. Full
+  isolated backend 1140 passed, 4 skipped, 589 subtests, 5 existing warnings.
+  Full frontend 56 files / 484 passed; Vite build and scoped lint pass.
+  Compilation and diff checks pass. OpenAPI remains 36 paths / 44 operations;
+  model tables remain 33. Review found a late-save downgrade; fixed and tested.
+- NOT TESTED: live browser process/review/save/reload and actual WebGL visual
+  placement. Connected-surface inventory is empty; opening the existing local
+  preview binding is unavailable. Component/API results are not browser proof.
+  Manual gate: reconnect localhost:5173 as Designer, retry the existing supplied
+  upload 9382 without duplicating it, inspect/correct detections and save review;
+  use saved 2D/3D after required scale/wall inputs are reviewed. Configure named
+  circuit devices, explicit panel/service/device elevations and wall attachments;
+  preview, compare 2D, save planning circuit, reload and inspect stored elevations.
+  Compare saved 2D/3D and roof visibility; capture actual renders and failures.
+- FAIL outside scope: full lint retains six existing errors in unrelated,
+  untracked DeviceMeshCatalog. Large build chunks remain a warning. Originals,
+  supplied source PDF/page hashes, trained checkpoint, unrelated work and
+  stash@{0} bb78854e87833124a1725b51f0be6099a8ac0cfa remain preserved.
+- Remaining: detection completeness / cross-source validation, live repaired
+  job retry and review persistence, circuit conductor/material semantics,
+  wall-only / underground routing rules and verified depth/obstacle inputs.
+  No global optimality, independent detection accuracy or release claim.
+  Next: inspect existing wiring legend metadata and bound installation-method
+  planning without interpreting unknown glyphs as underground approval.
+
 ### Shared-circuit preview checkpoint (after b10e28d)
 
 - PASS: one explicit circuit can preview 1–32 saved target devices on a shared,
