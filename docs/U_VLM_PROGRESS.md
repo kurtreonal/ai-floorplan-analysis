@@ -4,6 +4,36 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 8 wall/source-preparation verification checkpoint
+
+- PASS: outlined-wall recovery now extends fitted, qualified bands only. Faint
+  paired tails and bracketed one-outline scan dropouts recover without changing
+  Hough inputs, seeding wires/panel rules or bridging actual two-edge openings.
+  The rejected pre-Hough variant remains in ignored v1 development evidence.
+- PASS: v2 supplied-power probe retains 16/16 inspected class/location matches
+  at native and 0.375 scale; zero proposals in 14 inspected negative patches.
+  Native wall count remains 13; small count remains 10. Unrelated fitted walls
+  are preserved. This is source-retention evidence, not measured precision or
+  independent accuracy. Original PDF/page hashes and model checkpoint unchanged.
+- PASS: job 24194 source-preparation failure traced to an unregistered old image
+  at a reused job ID. New preparations use unique interpretation-runs namespaces;
+  trusted registered artifacts still require integrity checks. Regression proves
+  old pixels remain unchanged and are neither overwritten nor adopted. A real
+  two-page PDF check also proves distinct page identities, preservation of old
+  render/normalized files and reuse of registered output without reprocessing.
+- PASS: focused wall/demo 72 tests + 69 subtests; fresh isolated backend full
+  regression 1117 passed, 4 skipped, 589 subtests, 5 existing deprecation warnings.
+  Worker/PDF focused checks after the added PDF regression: 30 passed (one
+  initial test assertion used page_number instead of floor_plan_page_id; fixed).
+  Compilation and diff checks pass. Frontend checkpoint is cfd3f4b on
+  codex/vlm-localization-experiment; recovery stash unchanged.
+- NOT TESTED: browser retry/review/save/reload after source repair; no connected
+  browser surface. Downscaled cavity loss and ambiguous wiring-overlaid junctions
+  remain unresolved. Full lint retains 6 unrelated DeviceMeshCatalog errors.
+- Next: authoritative circuit/panel/device installation inputs, bounded shared
+  network planning, then browser/2D/3D proof. No invented heights, underground
+  classification, optimality, approval or general detection-readiness claim.
+
 ### October 8 shared wiring visualization checkpoint
 
 - PASS: saved canonical wiring now reaches 3D with exact stored elevations and

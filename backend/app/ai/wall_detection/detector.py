@@ -476,6 +476,228 @@ def _has_compact_parallel_bars(segment, image: np.ndarray) -> bool:
                 and np.all(companions >= 2) and np.all(companions <= widths[main] / 3))
 
 
+def _paired_edge_stroke_width(ink, xs, ys, nx, ny, radius):
+    """Measure contiguous ink across an edge, not a thick wire's thin rim."""
+    offsets = np.arange(-radius, radius + 1)
+    px = np.rint(xs[:, None] + nx * offsets).astype(int)
+    py = np.rint(ys[:, None] + ny * offsets).astype(int)
+    height, width = ink.shape
+    valid = (px >= 0) & (px < width) & (py >= 0) & (py < height)
+    profiles = valid & (ink[np.clip(py, 0, height - 1), np.clip(px, 0, width - 1)] > 0)
+    widths = []
+    for profile in profiles:
+        center = next((r for r in (radius, radius - 1, radius + 1) if profile[r]), None)
+        if center is None:
+            continue
+        left = right = center
+        while left > 0 and profile[left - 1]:
+            left -= 1
+        while right < radius * 2 and profile[right + 1]:
+            right += 1
+        widths.append(right - left + 1)
+    return float(np.median(widths)) if widths else 0.0
+
+
+def _without_detached_enclosing_bands(pairs):
+    """Exclude paired frame rules only when they bracket a joined wall network.
+
+    Disconnection alone is insufficient: preserve isolated walls, parallel
+    partitions, and any band with an observed perpendicular wall junction.
+    Projections along each band keep this evidence independent of page rotation.
+    """
+    # A dense drawing may offer thousands of overlapping pair hypotheses. Keep
+    # this optional enclosure check bounded and retain evidence on budget exit.
+    if len(pairs) > 512:
+        return pairs
+    geometry = []
+    for (start, end), thickness in pairs:
+        start, end = np.asarray(start, dtype=float), np.asarray(end, dtype=float)
+        length = float(np.linalg.norm(end - start))
+        geometry.append((start, end, (end - start) / length, thickness))
+    joined = set()
+    for index, (start, end, direction, thickness) in enumerate(geometry):
+        for other in range(index + 1, len(geometry)):
+            a, b, transverse, other_thickness = geometry[other]
+            if abs(float(direction @ transverse)) > .5:
+                continue
+            tolerance = (thickness + other_thickness) / 2 + 2
+            # An endpoint meeting the body of the other band is an L/T junction.
+            for point, origin, finish, axis in ((start, a, b, transverse), (end, a, b, transverse),
+                                               (a, start, end, direction), (b, start, end, direction)):
+                delta = point - origin
+                projection = float(delta @ axis)
+                distance = abs(float(delta[0] * axis[1] - delta[1] * axis[0]))
+                if distance <= tolerance and -tolerance <= projection <= np.linalg.norm(finish - origin) + tolerance:
+                    joined.update((index, other))
+                    break
+    if len(joined) < 4:
+        return pairs
+    network = np.asarray([point for index in joined for point in geometry[index][:2]])
+    rejected = set()
+    for index, (start, end, direction, thickness) in enumerate(geometry):
+        if index in joined:
+            continue
+        normal = np.array([-direction[1], direction[0]])
+        along, across = network @ direction, network @ normal
+        lo, hi = float(along.min()), float(along.max())
+        low, high = float(across.min()), float(across.max())
+        margin = thickness + 2
+        span = sorted((float(start @ direction), float(end @ direction)))
+        side = float(((start + end) / 2) @ normal)
+        if span[0] > lo + margin or span[1] < hi - margin:
+            continue
+        if not (side < low - margin or side > high + margin):
+            continue
+        for other, (a, b, axis, other_thickness) in enumerate(geometry):
+            if other == index or other in joined or abs(float(direction @ axis)) < math.cos(math.radians(2)):
+                continue
+            other_span = sorted((float(a @ direction), float(b @ direction)))
+            other_side = float(((a + b) / 2) @ normal)
+            if (other_span[0] <= lo + other_thickness + 2 and other_span[1] >= hi - other_thickness - 2
+                    and ((side < low - margin and other_side > high + other_thickness + 2)
+                         or (side > high + margin and other_side < low - other_thickness - 2))):
+                rejected.update((index, other))
+    return [pair for index, pair in enumerate(pairs) if index not in rejected]
+
+
+def _recover_paired_band_ends(pairs, ink, continuity_ink, minimum):
+    """Recover an established band from observed mates, never project through air."""
+    if len(pairs) > 512:
+        return []
+    height, width = ink.shape
+    limit = max(2, round(min(width, height) * .15))
+    nearby = cv2.dilate(ink, np.ones((3, 3), dtype=np.uint8))
+    continuity_nearby = (cv2.dilate(continuity_ink, np.ones((3, 3), dtype=np.uint8))
+                         if continuity_ink is not None else None)
+    geometry = []
+    for (start, end), thickness in pairs:
+        start, end = np.asarray(start, dtype=float), np.asarray(end, dtype=float)
+        length = float(np.linalg.norm(end-start))
+        if length > 0:
+            geometry.append((start, end, (end-start)/length, thickness, length))
+    recovered = []
+    for start, end, axis, thickness, length in geometry:
+        normal = np.array([-axis[1], axis[0]])
+        edge_offset = (thickness-1)/2
+        for origin, direction in ((start,-1), (end,1)):
+            # One surviving outline is sufficient only between two already
+            # established collinear bands of the same observed width.
+            brackets = []
+            for a,b,other_axis,other_thickness,other_length in geometry:
+                if (other_length < minimum or abs(float(axis @ other_axis)) < math.cos(math.radians(2))
+                        or abs(thickness-other_thickness) > max(1,thickness*.25)
+                        or max(abs(float((a-start) @ normal)),abs(float((b-start) @ normal))) > max(1,thickness*.2)):
+                    continue
+                projections = sorted((float((a-origin) @ axis)*direction,
+                                      float((b-origin) @ axis)*direction))
+                if 0 < projections[0] <= limit:
+                    brackets.append(projections[0])
+            bracket = min(brackets) if brackets else 0
+            last = origin
+            for step in range(1,limit+1):
+                point = origin + axis*direction*step
+                edges = [np.rint(point+normal*side*edge_offset).astype(int) for side in (-1,1)]
+                center = np.rint(point).astype(int)
+                if any(not (0 <= p[0] < width and 0 <= p[1] < height) for p in (*edges,center)):
+                    break
+                primary = [bool(nearby[p[1],p[0]]) for p in edges]
+                primary_cavity = ink[center[1],center[0]] == 0
+                paired = all(primary) and primary_cavity
+                bracketed_mate = bracket and step <= math.ceil(bracket) and any(primary) and primary_cavity
+                faint_pair = (continuity_nearby is not None
+                              and all(continuity_nearby[p[1],p[0]] for p in edges)
+                              and continuity_ink[center[1],center[0]] == 0)
+                if not (paired or bracketed_mate or faint_pair):
+                    break
+                last = point
+            if float(np.linalg.norm(last-origin)) > 1:
+                recovered.append(((tuple(np.rint(origin).astype(int)),tuple(np.rint(last).astype(int))),thickness))
+    return recovered
+
+
+def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
+    """Bounded paired-ink evidence, not the two edges of one filled wire.
+
+    Only activate the outlined drawing style when long observed pairs exist in
+    two directions. Single strokes retain the legacy path on solid-wall plans.
+    No sheet-specific coordinates or symbol classifications enter this test.
+    """
+    height, width = ink.shape
+    minimum = max(16, round(parameters.minimum_line_length))
+    try:
+        raw = cv2.HoughLinesP(ink, 1, math.pi / 180, max(12, minimum // 2),
+                              minLineLength=minimum, maxLineGap=round(parameters.maximum_line_gap))
+    except Exception:
+        raise _error("HOUGH_DETECTION_FAILED") from None
+    if raw is None:
+        return None
+    lines = []
+    for x1, y1, x2, y2 in _canonical_segments(raw, width=width, height=height):
+        length = math.hypot(x2 - x1, y2 - y1)
+        if length >= minimum:
+            lines.append((length, x1, y1, x2, y2))
+    lines = sorted(set(lines), key=lambda row: (-row[0], row[1:]))[:256]
+    maximum_separation = min(32, max(4, min(width, height) * .03))
+    long_span = max(minimum * 2, min(width, height) * .14)
+    nearby_ink = cv2.dilate(ink, np.ones((3, 3), dtype=np.uint8))
+    pairs = []
+    strong_directions = set()
+    for index, (length, x1, y1, x2, y2) in enumerate(lines):
+        tx, ty = (x2 - x1) / length, (y2 - y1) / length
+        for other_length, ax, ay, bx, by in lines[index + 1:]:
+            alignment = abs(tx * (bx - ax) + ty * (by - ay)) / other_length
+            if alignment < math.cos(math.radians(2)):
+                continue
+            da = -ty * (ax - x1) + tx * (ay - y1)
+            db = -ty * (bx - x1) + tx * (by - y1)
+            separation = abs((da + db) / 2)
+            if not 2 <= separation <= maximum_separation or abs(da - db) > max(1, separation * .3):
+                continue
+            ta, tb = tx * (ax - x1) + ty * (ay - y1), tx * (bx - x1) + ty * (by - y1)
+            start, end = max(0, min(ta, tb)), min(length, max(ta, tb))
+            if end - start < max(minimum, min(length, other_length) * .6):
+                continue
+            samples = np.linspace(start + 1, end - 1, 64)
+            distance = (da + db) / 2
+            px, py = x1 + samples * tx, y1 + samples * ty
+            qx, qy = px - ty * distance, py + tx * distance
+            mx, my = (px + qx) / 2, (py + qy) / 2
+            coordinates = [np.rint(v).astype(int) for v in (px, py, qx, qy, mx, my)]
+            sx, sy, ex, ey, cx, cy = coordinates
+            if (min(sx.min(), ex.min(), cx.min()) < 0 or max(sx.max(), ex.max(), cx.max()) >= width
+                    or min(sy.min(), ey.min(), cy.min()) < 0 or max(sy.max(), ey.max(), cy.max()) >= height):
+                continue
+            # A wire's Canny edges enclose black, not a persistent white cavity.
+            if (np.mean((nearby_ink[sy, sx] > 0) & (nearby_ink[ey, ex] > 0)) < .8
+                    or np.mean(ink[cy, cx] == 0) < .45):
+                continue
+            radius = min(12, max(3, round(separation / 2)))
+            edge_widths = [_paired_edge_stroke_width(ink, xx, yy, -ty, tx, radius)
+                           for xx, yy in ((px, py), (qx, qy))]
+            if min(edge_widths) == 0 or max(edge_widths) > min(edge_widths) * 2.2:
+                # A bold circuit beside one thin wall outline is not a wall pair.
+                continue
+            if separation > max(edge_widths) * 4 and max(edge_widths) > min(edge_widths) * 1.6:
+                # Widely separated, differently weighted strokes are weak pair
+                # evidence (e.g. a circuit beside the building boundary). Allow
+                # one-pixel scan differences on the close wall-outline pairs.
+                continue
+            center = (x1 - ty * distance / 2, y1 + tx * distance / 2)
+            endpoints = tuple((round(center[0] + t * tx), round(center[1] + t * ty)) for t in (start, end))
+            pairs.append((endpoints, separation + 1))
+            if end - start >= long_span:
+                strong_directions.add('horizontal' if abs(tx) > abs(ty) else 'vertical')
+    if len(strong_directions) != 2:
+        return None
+    qualified = set(_without_detached_enclosing_bands(pairs))
+    rejected = [pair for pair in pairs if pair not in qualified]
+    mask = np.zeros_like(ink)
+    for (start, end), thickness in pairs:
+        cv2.line(mask, start, end, 255, max(2, round(thickness)))
+    recovery = _recover_paired_band_ends(pairs,ink,continuity_ink,minimum)
+    return mask, float(np.median([thickness for _, thickness in pairs])), rejected, recovery
+
+
 def _detect_structural_wall_lines(
     image: np.ndarray,
     parameters: WallDetectionParameters,
@@ -488,6 +710,8 @@ def _detect_structural_wall_lines(
     ink = np.where(image == 0, 255, 0).astype(np.uint8)
     if cv2.countNonZero(ink) == 0:
         return []
+    outlined = _outlined_wall_evidence(ink, parameters,
+                                     cv2.bitwise_not(continuity_image) if continuity_image is not None else None)
 
     # Scans often depict walls as two dark outlines with a lighter fill. A small
     # page-scaled close restores that stroke before measuring its centerline.
@@ -499,9 +723,20 @@ def _detect_structural_wall_lines(
         ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE,
                              cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size)))
 
+    if outlined is not None:
+        outline_mask, outline_width = outlined[:2]
+        # Keep broad solid/hatched structure as well. On an outlined plan a
+        # thinner single stroke is insufficient wall evidence, even if long.
+        solid_radius = max(2.5, outline_width * .5)
+        solid_core = cv2.distanceTransform(ink, cv2.DIST_L2, 5) >= solid_radius
+        solid_kernel = round(solid_radius) * 2 + 1
+        solid_mask = cv2.dilate(solid_core.astype(np.uint8) * 255,
+                               cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (solid_kernel, solid_kernel)))
+        ink = cv2.bitwise_or(outline_mask, cv2.bitwise_and(ink, solid_mask))
+
     dist = cv2.distanceTransform(ink, cv2.DIST_L2, 5)
     continuity_dist = None
-    if continuity_image is not None:
+    if continuity_image is not None and outlined is None:
         continuity_ink = cv2.bitwise_not(continuity_image)
         if close_size > 1:
             continuity_ink = cv2.morphologyEx(
@@ -608,7 +843,8 @@ def _detect_structural_wall_lines(
         # Hough voting can stop before an observed stroke ends. Recover only
         # contiguous structural pixels; never extrapolate across a white opening.
         dx, dy = (x2 - x1) / length, (y2 - y1) / length
-        extension_limit = max(2, round(min_wall_length))
+        extension_limit = max(2, round(min_wall_length),
+                              round(min(width, height) * .12) if outlined is not None else 0)
         extended = []
         for ox, oy, direction in ((x1, y1, -1), (x2, y2, 1)):
             last = (ox, oy)
@@ -617,6 +853,15 @@ def _detect_structural_wall_lines(
                 if not (0 <= px < width and 0 <= py < height):
                     break
                 supported = bool(clean_structural[py, px])
+                if outlined is not None and not supported:
+                    # Follow slight raster centerline jitter only within already
+                    # qualified wall ink; raw wiring cannot extend this stroke.
+                    radius = min(2, max(1, round(thickness * .35)))
+                    for offset in range(-radius, radius + 1):
+                        qx, qy = round(px - dy * offset), round(py + dx * offset)
+                        if 0 <= qx < width and 0 <= qy < height and clean_structural[qy, qx]:
+                            supported = True
+                            break
                 if not supported:
                     break
                 last = (px, py)
@@ -628,6 +873,13 @@ def _detect_structural_wall_lines(
     consolidated = _consolidate_wall_segments(
         raw_segments, width, height, max_gap, evidence_mask=clean_structural
     )
+    if outlined is not None:
+        # After fitting the outline bands, merge duplicate centerlines that now
+        # overlap. Still require the same observed mask across any actual gap.
+        consolidated = _consolidate_wall_segments(
+            [(x1, y1, x2, y2, thickness, math.hypot(x2 - x1, y2 - y1))
+             for x1, y1, x2, y2, thickness in consolidated],
+            width, height, max_gap, evidence_mask=clean_structural)
     if continuity_dist is not None:
         recovered = []
         for x1, y1, x2, y2, thickness in consolidated:
@@ -648,6 +900,63 @@ def _detect_structural_wall_lines(
                 (x1, y1), (x2, y2) = endpoints
             recovered.append((x1, y1, x2, y2, thickness, math.hypot(x2 - x1, y2 - y1)))
         consolidated = _consolidate_wall_segments(recovered, width, height, max_gap)
+    if outlined is not None and outlined[2]:
+        # Keep the original stroke statistics, skeleton and Hough votes intact.
+        # Excluding the frame before those stages would change unrelated walls.
+        retained = []
+        for segment in consolidated:
+            start, end = np.asarray(segment[:2]), np.asarray(segment[2:4])
+            excluded = False
+            for (a, b), thickness in outlined[2]:
+                a, b = np.asarray(a), np.asarray(b)
+                axis = (b - a) / np.linalg.norm(b - a)
+                normal = np.array([-axis[1], axis[0]])
+                distances = [abs(float((point - a) @ normal)) for point in (start, end)]
+                projections = sorted(float((point - a) @ axis) for point in (start, end))
+                if (max(distances) <= thickness + 2 and projections[0] >= -thickness - 2
+                        and projections[1] <= np.linalg.norm(b - a) + thickness + 2):
+                    excluded = True
+                    break
+            if not excluded:
+                retained.append(segment)
+        consolidated = retained
+    if outlined is not None and outlined[3]:
+        # Recovery is endpoint-only. Never alter stroke statistics, skeleton or
+        # Hough votes: additional mask ink can otherwise seed panel/wiring walls.
+        unchanged, changed = [], []
+        recovery_mask = np.zeros_like(ink)
+        for (a, b), band_width in outlined[3]:
+            cv2.line(recovery_mask,a,b,255,max(2,round(band_width)))
+        combined = cv2.bitwise_or(clean_structural,recovery_mask)
+        for segment in consolidated:
+            x1,y1,x2,y2,thickness = segment
+            origin = np.array([x1,y1],dtype=float)
+            length = math.hypot(x2-x1,y2-y1)
+            axis = np.array([x2-x1,y2-y1],dtype=float)/length
+            normal = np.array([-axis[1],axis[0]])
+            relevant = np.zeros_like(ink)
+            for (a,b),band_width in outlined[3]:
+                a,b = np.asarray(a),np.asarray(b)
+                other_length = float(np.linalg.norm(b-a))
+                if (other_length and abs(float(axis @ ((b-a)/other_length))) >= math.cos(math.radians(2))
+                        and max(abs(float((p-origin) @ normal)) for p in (a,b)) <= max(2,thickness*.35)):
+                    cv2.line(relevant,tuple(a),tuple(b),255,max(2,round(band_width)))
+            endpoints = []
+            for point,direction in ((origin,-1),(np.array([x2,y2],dtype=float),1)):
+                last = point
+                for step in range(1,max(2,round(min(width,height)*.15))+1):
+                    next_point = point+axis*direction*step
+                    px,py = np.rint(next_point).astype(int)
+                    if not (0<=px<width and 0<=py<height and relevant[py,px]):
+                        break
+                    last = next_point
+                endpoints.append(tuple(np.rint(last).astype(int)))
+            (a,b),(c,d) = endpoints
+            if (a,b,c,d) == segment[:4]:
+                unchanged.append(segment)
+            else:
+                changed.append((a,b,c,d,thickness,math.hypot(c-a,d-b)))
+        consolidated = unchanged + _consolidate_wall_segments(changed,width,height,max_gap,evidence_mask=combined)
     return [segment for segment in consolidated
             if not _is_repeated_grid_member(segment, image)
             and not _has_compact_parallel_bars(segment, image)]
