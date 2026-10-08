@@ -30,22 +30,23 @@ def validate_target(request, documents):
         raise RoutingError("TARGET_MUST_MATCH_SAVED_SYMBOL")
 
 
-def attachment(endpoint, config, document, obstacles):
+def attachment(endpoint, config, document, obstacles, installation_method="ceiling_service"):
     service = config.service_elevation_meters
     if endpoint.elevation_meters == service:
         return None
-    wall = next((w for w in document.walls if w.id == endpoint.wall_id), None)
-    if wall is None or wall.status != 'verified' or not wall.height_meters or not wall.thickness_meters:
-        raise RoutingError("WALL_ATTACHMENT_REQUIRED")
-    if not document.floor.elevation_meters <= endpoint.elevation_meters <= document.floor.elevation_meters + wall.height_meters:
-        raise RoutingError("ENDPOINT_OUTSIDE_WALL_HEIGHT")
-    dx, dy = wall.end.x-wall.start.x, wall.end.y-wall.start.y
-    length2 = dx*dx + dy*dy
-    if length2 == 0:
-        raise RoutingError("WALL_ATTACHMENT_REQUIRED")
-    t = max(0, min(1, ((endpoint.x-wall.start.x)*dx + (endpoint.y-wall.start.y)*dy)/length2))
-    if math.hypot(endpoint.x-wall.start.x-t*dx, endpoint.y-wall.start.y-t*dy) > wall.thickness_meters/2 + 1e-9:
-        raise RoutingError("ENDPOINT_NOT_ON_WALL")
+    if installation_method != "underground" or endpoint.elevation_meters > document.floor.elevation_meters:
+        wall = next((w for w in document.walls if w.id == endpoint.wall_id), None)
+        if wall is None or wall.status != 'verified' or not wall.height_meters or not wall.thickness_meters:
+            raise RoutingError("WALL_ATTACHMENT_REQUIRED")
+        if not document.floor.elevation_meters <= endpoint.elevation_meters <= document.floor.elevation_meters + wall.height_meters:
+            raise RoutingError("ENDPOINT_OUTSIDE_WALL_HEIGHT")
+        dx, dy = wall.end.x-wall.start.x, wall.end.y-wall.start.y
+        length2 = dx*dx + dy*dy
+        if length2 == 0:
+            raise RoutingError("WALL_ATTACHMENT_REQUIRED")
+        t = max(0, min(1, ((endpoint.x-wall.start.x)*dx + (endpoint.y-wall.start.y)*dy)/length2))
+        if math.hypot(endpoint.x-wall.start.x-t*dx, endpoint.y-wall.start.y-t*dy) > wall.thickness_meters/2 + 1e-9:
+            raise RoutingError("ENDPOINT_NOT_ON_WALL")
     low, high = sorted((endpoint.elevation_meters, service))
     for obstacle in obstacles:
         if obstacle.floor_id == endpoint.floor_id and low <= obstacle.top and high >= obstacle.bottom:
@@ -56,6 +57,32 @@ def attachment(endpoint, config, document, obstacles):
                  y=endpoint.y + config.offset_y, elevation_meters=endpoint.elevation_meters)
 
 
+def validate_service_elevations(request, documents):
+    """Validate explicit depth before constructing any endpoint legs."""
+    if request.installation_method == "underground":
+        for config in request.floors:
+            if config.service_elevation_meters >= documents[config.floor_id].floor.elevation_meters:
+                raise RoutingError("INVALID_UNDERGROUND_ELEVATION")
+
+
+def vertical_kind(start, end, installation_method, floor_elevation):
+    direction = "rise" if end.elevation_meters > start.elevation_meters else "drop"
+    underground = (installation_method == "underground"
+                   and max(start.elevation_meters, end.elevation_meters) <= floor_elevation)
+    return f"underground_{direction}" if underground else f"wall_{direction}"
+
+
+def endpoint_segments(start, end, installation_method, floor_elevation):
+    points = [start]
+    low, high = sorted((start.elevation_meters, end.elevation_meters))
+    if installation_method == "underground" and low < floor_elevation < high:
+        points.append(Point(floor_id=start.floor_id, x=start.x, y=start.y,
+                            elevation_meters=floor_elevation))
+    points.append(end)
+    return [segment(a, b, vertical_kind(a, b, installation_method, floor_elevation))
+            for a, b in zip(points, points[1:])]
+
+
 def service_graph(request, documents, endpoints):
     """One bounded service-plane graph with exact anchors for every endpoint."""
     configs = {c.floor_id: c for c in request.floors}
@@ -64,7 +91,8 @@ def service_graph(request, documents, endpoints):
         anchors = [(e.x, e.y) for e in endpoints if e.floor_id == config.floor_id]
         anchors += [(c.x-config.offset_x, c.y-config.offset_y) for c in request.connectors
                     if config.floor_id in (c.from_floor_id, c.to_floor_id)]
-        local = floor_graph(documents[config.floor_id], config, anchors, request.grid_step_meters, request.obstacles)
+        local = floor_graph(documents[config.floor_id], config, anchors, request.grid_step_meters,
+                            request.obstacles, request.installation_method)
         for (x, y), edges in local.items():
             graph[(config.floor_id, x, y)] = [((config.floor_id, p[0], p[1]), cost) for p, cost in edges]
         if len(graph) > 40000:
@@ -104,9 +132,10 @@ def world_point(node, configs):
 
 def generate_route(request, documents):
     validate_target(request, documents)
+    validate_service_elevations(request, documents)
     configs = {c.floor_id: c for c in request.floors}
-    panel = attachment(request.panel, configs[request.panel.floor_id], documents[request.panel.floor_id], request.obstacles)
-    target = attachment(request.target, configs[request.target.floor_id], documents[request.target.floor_id], request.obstacles)
+    panel = attachment(request.panel, configs[request.panel.floor_id], documents[request.panel.floor_id], request.obstacles, request.installation_method)
+    target = attachment(request.target, configs[request.target.floor_id], documents[request.target.floor_id], request.obstacles, request.installation_method)
     graph, connector_edges, configs = service_graph(request, documents, (request.panel, request.target))
     def world(node):
         return world_point(node, configs)
@@ -117,10 +146,12 @@ def generate_route(request, documents):
     end = (request.target.floor_id, request.target.x, request.target.y)
     path = astar(graph, start, end, heuristic)
     points = [world(node) for node in path]
-    segments = [segment(points[i], points[i+1], "riser" if a[0] != b[0] else "ceiling_service",
+    segments = [segment(points[i], points[i+1], "riser" if a[0] != b[0] else request.installation_method,
                         connector_edges.get((a, b))) for i, (a, b) in enumerate(zip(path, path[1:]))]
     if panel:
-        segments.insert(0, segment(panel, points[0], "wall_rise" if panel.elevation_meters < points[0].elevation_meters else "wall_drop"))
+        segments = endpoint_segments(panel, points[0], request.installation_method,
+                                    documents[panel.floor_id].floor.elevation_meters) + segments
     if target:
-        segments.append(segment(points[-1], target, "wall_drop" if target.elevation_meters < points[-1].elevation_meters else "wall_rise"))
+        segments.extend(endpoint_segments(points[-1], target, request.installation_method,
+                                          documents[target.floor_id].floor.elevation_meters))
     return result(segments)

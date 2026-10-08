@@ -1,4 +1,4 @@
-"""Bounded planning preview for one explicitly assigned ceiling/service circuit.
+"""Bounded planning preview for one explicitly assigned service circuit.
 
 Greedily attach the closest unconnected target to the existing service tree.
 This is a graph heuristic, not a proof of global conduit/wire optimality or
@@ -15,13 +15,15 @@ from pydantic import Field, model_validator
 from app.routing.contracts import (
     Contract, Connector, Endpoint, FloorConfig, Number, Obstacle, Point, RoutingRequest, Segment,
 )
-from app.routing.engine import attachment, segment, service_graph, validate_target, world_point
+from app.routing.engine import (attachment, segment, service_graph, validate_target, world_point,
+                                validate_service_elevations, vertical_kind)
 from app.routing.graph import RoutingError
 
 
 class CircuitPlanningRequest(Contract):
     circuit_id: Annotated[str, Field(min_length=1, max_length=80, strict=True)]
-    installation_method: Literal['ceiling_service']
+    installation_method: Literal['ceiling_service', 'underground']
+    floor_passages_confirmed: Annotated[bool, Field(strict=True)] = False
     floors: Annotated[list[FloorConfig], Field(min_length=1, max_length=8)]
     panel: Endpoint
     targets: Annotated[list[Endpoint], Field(min_length=1, max_length=32)]
@@ -44,6 +46,8 @@ class CircuitPlanningRequest(Contract):
 
     def single_target(self, target):
         return RoutingRequest(floors=self.floors, panel=self.panel, target=target,
+                              installation_method=self.installation_method,
+                              floor_passages_confirmed=self.floor_passages_confirmed,
                               connectors=self.connectors, obstacles=self.obstacles,
                               grid_step_meters=self.grid_step_meters,
                               alignment_confirmed=self.alignment_confirmed, purpose=self.purpose)
@@ -67,7 +71,7 @@ class CircuitSaveRequest(CircuitPlanningRequest):
 
 class CircuitPlanningResult(Contract):
     circuit_id: str
-    installation_method: Literal['ceiling_service']
+    installation_method: Literal['ceiling_service', 'underground']
     provenance: Literal['generated'] = 'generated'
     algorithm: Literal['greedy_shared_service_tree_v1'] = 'greedy_shared_service_tree_v1'
     optimality: Literal['graph_heuristic_not_global_optimum'] = 'graph_heuristic_not_global_optimum'
@@ -114,14 +118,15 @@ def _nearest_path(graph, sources, targets):
 
 
 def plan_circuit(request: CircuitPlanningRequest, documents):
+    validate_service_elevations(request, documents)
     configs = {config.floor_id: config for config in request.floors}
     panel_drop = attachment(request.panel, configs[request.panel.floor_id],
-                            documents[request.panel.floor_id], request.obstacles)
+                            documents[request.panel.floor_id], request.obstacles, request.installation_method)
     target_drops = []
     for target in request.targets:
         validate_target(request.single_target(target), documents)
         target_drops.append(attachment(target, configs[target.floor_id],
-                           documents[target.floor_id], request.obstacles))
+                           documents[target.floor_id], request.obstacles, request.installation_method))
     graph, connectors, configs = service_graph(request, documents, (request.panel, *request.targets))
     root = (request.panel.floor_id, request.panel.x, request.panel.y)
     pending = {(target.floor_id, target.x, target.y) for target in request.targets}
@@ -146,7 +151,7 @@ def plan_circuit(request: CircuitPlanningRequest, documents):
         return identities[identity]
 
     root_point = world_point(root, configs)
-    # Split overlapping wall drops/rises at every explicit endpoint elevation.
+    # Split overlapping endpoint legs at explicit elevations and floor passages.
     # Exact endpoint-pair dedup alone would double-count a 3->2 run inside 3->1.
     levels = {}
     for endpoint, drop in ((request.panel, panel_drop), *zip(request.targets, target_drops)):
@@ -154,25 +159,28 @@ def plan_circuit(request: CircuitPlanningRequest, documents):
             key = (drop.floor_id, drop.x, drop.y)
             levels.setdefault(key, set()).update((drop.elevation_meters,
                                                  configs[endpoint.floor_id].service_elevation_meters))
+            if request.installation_method == 'underground':
+                levels[key].add(documents[endpoint.floor_id].floor.elevation_meters)
 
-    def vertical_path(a, b, kind):
+    def vertical_path(a, b):
         key = (a.floor_id, a.x, a.y)
         low, high = sorted((a.elevation_meters, b.elevation_meters))
         middle = sorted((value for value in levels[key] if low < value < high),
                         reverse=a.elevation_meters > b.elevation_meters)
         points = [a, *(Point(floor_id=a.floor_id, x=a.x, y=a.y, elevation_meters=value)
                        for value in middle), b]
-        return points, [add(first, last, kind) for first, last in zip(points, points[1:])]
+        return points, [add(first, last, vertical_kind(first, last, request.installation_method,
+                           documents[first.floor_id].floor.elevation_meters))
+                        for first, last in zip(points, points[1:])]
 
     panel_points, panel_indices = [], []
     if panel_drop is not None:
-        panel_points, panel_indices = vertical_path(panel_drop, root_point,
-                          'wall_rise' if panel_drop.elevation_meters < root_point.elevation_meters else 'wall_drop')
+        panel_points, panel_indices = vertical_path(panel_drop, root_point)
     # Insertion order follows the deterministic rooted tree, not request order.
     edge_indices = {}
     for b, a in parents.items():
         edge_indices[(a, b)] = add(world_point(a, configs), world_point(b, configs),
-                                  'riser' if a[0] != b[0] else 'ceiling_service', connectors.get((a, b)))
+                                  'riser' if a[0] != b[0] else request.installation_method, connectors.get((a, b)))
 
     branches = []
     for target, drop in zip(request.targets, target_drops):
@@ -188,8 +196,7 @@ def plan_circuit(request: CircuitPlanningRequest, documents):
             points = panel_points[:-1] + points
             indices = panel_indices + indices
         if drop is not None:
-            drop_points, drop_indices = vertical_path(points[-1], drop,
-                               'wall_drop' if drop.elevation_meters < points[-1].elevation_meters else 'wall_rise')
+            drop_points, drop_indices = vertical_path(points[-1], drop)
             indices.extend(drop_indices)
             points.extend(drop_points[1:])
         horizontal = sum(segments[index].horizontal_meters for index in indices)

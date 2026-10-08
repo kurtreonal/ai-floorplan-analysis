@@ -4,6 +4,51 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 9 explicit underground planning (after c30967b)
+
+- Added single-floor underground circuit planning to the existing orthogonal
+  shared-tree engine. Requires an entered service elevation below the saved
+  floor and explicit passage inputs at selected endpoints. Above-floor legs
+  require real verified wall attachments; no implicit riser, depth, wall,
+  mounting height or engineering approval is created. Closed obstacles still
+  block horizontal and vertical spans. Legs split at the saved floor boundary;
+  overlapping branches count shared path length once.
+- Existing save/CAS/retry/authorization contracts persist the new inputs and
+  segment kinds without new tables. Legacy ceiling retry comparison normalizes
+  only the absent passage default, without rewriting historical JSON. Dedicated
+  isolated API checks prove underground save/reload/idempotence and unchanged
+  canonical geometry. Measurement validation recognizes underground kinds;
+  planning circuits remain blocked from unconfigured material estimation.
+- Shared 2D/3D projection uses blue dashed below-floor runs and passages. The
+  explicit 3D X-ray inspection toggle changes occlusion, not coordinates or
+  saved geometry. Ordinary depth occlusion remains default. Compatible saved
+  membership, depths and passage inputs restore; general confirmation is not
+  assumed. Existing ceiling fallback remains.
+- PASS: focused isolated backend82 tests; focused frontend7 files/45 tests;
+  full isolated backend1244 tests/4 skipped/663 subtests,5 dependency warnings;
+  full frontend61 files/514 tests; scoped lint, compilation and diff checks;
+  build with existing >500kB chunk warning. Full lint FAIL: six pre-existing
+  errors in unrelated untracked DeviceMeshCatalog.jsx. Full runs cover the
+  current mixed worktree, not a clean production release. OpenAPI endpoints
+  and ORM tables unchanged (36 paths/44 operations/34 tables).
+- Browser computer use: fresh whole-page school job24212 completed with14 wall
+  proposals/2 rooms/29 unresolved symbol proposals; 2D overlay and draft WebGL
+  scene rendered. Unfinished review revision1 saved without approval; reload
+  retains14 walls,29 unresolved symbols and non-approval notes. Current
+  floor6323 still lacks an approved scale/elevation and reviewed canonical
+  layout; live metric circuit generation/X-ray rendering remains NOT TESTED.
+  Screenshots retained under wall-routing-runtime-20261009-v1. No measurements
+  were fabricated. Template/VLM/model/training activation unchanged.
+- Initial DB preflight was blocked by sandbox connectivity; a privileged
+  read-only check verified restricted account, empty data tables and seeded
+  roles. Isolated reruns above passed; no credentials, permissions or data reset.
+  Initial legacy test assertion incorrectly expected raw JSON on a defaulted
+  response; corrected while retaining exact stored-history assertions.
+- Scope checkpoint only. Multiple simultaneous saved circuits remain open;
+  wall skeleton gap diagnosis continues separately. Originals, dataset history,
+  unrelated edits and recovery stash bb78854e87833124a1725b51f0be6099a8ac0cfa
+  retained. Independent detection accuracy and production release pending.
+
 ### October 9 native-resolution hollow-wall recovery (after 98f1f05)
 
 - General detector repair, without source-specific coordinates: native outline

@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { previewCircuit, saveCircuit, routingRequest } from './routing.js'
 
 afterEach(() => vi.unstubAllGlobals())
-const configuration = { circuit_id: 'C-LGT', targets: [{ floor_id: 2, symbol_id: 'detected:1' }] }
+const configuration = { circuit_id: 'C-LGT', installation_method: 'ceiling_service', targets: [{ floor_id: 2, symbol_id: 'detected:1' }] }
 function response() {
   const a = { floor_id: 2, x: 1, y: 1, elevation_meters: 3 }
   const b = { ...a, x: 2 }
@@ -57,4 +57,17 @@ it('rejects a saved circuit with invalid branch references on reload', async () 
   record.result.branches[0].segment_indices = [99]
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => record }))
   await expect(routingRequest(1)).rejects.toThrow('Invalid circuit preview response.')
+})
+
+it('accepts explicit underground elevations and rejects unconfirmed or mismatched installation responses', async () => {
+  const record = response()
+  record.configuration = { ...record.configuration, installation_method: 'underground', floor_passages_confirmed: true }
+  record.result.installation_method = 'underground'
+  record.result.segments[0].kind = 'underground'
+  record.result.segments[0].start.elevation_meters = -.4
+  record.result.segments[0].end.elevation_meters = -.4
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => record }))
+  expect(await previewCircuit(1, record.configuration)).toEqual(record)
+  await expect(previewCircuit(1, { ...record.configuration, floor_passages_confirmed: false })).rejects.toThrow('Invalid circuit preview response.')
+  await expect(previewCircuit(1, configuration)).rejects.toThrow('Invalid circuit preview response.')
 })

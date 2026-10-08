@@ -257,6 +257,53 @@ def test_circuit_save_normalized_retry_is_idempotent_after_latest_route_changes(
     assert len(session.scalars(select(GeneratedRouteVersion)).all()) == 2
 
 
+def test_legacy_ceiling_retry_normalizes_absent_passage_default_without_rewriting(context):
+    client, url, payload, session, *_ = context
+    data = circuit_save_payload(payload)
+    first = client.post(url, json=data)
+    assert first.status_code == 201, first.text
+    row = session.get(GeneratedRouteVersion, first.json()['id'])
+    legacy = deepcopy(row.configuration)
+    legacy.pop('floor_passages_confirmed')
+    row.configuration = legacy
+    session.commit()
+    retry = client.post(url, json=data)
+    assert retry.status_code == 201, retry.text
+    # The response schema supplies its default; stored historical JSON stays exact.
+    assert retry.json()['configuration'] == {**legacy, 'floor_passages_confirmed': False}
+    assert len(session.scalars(select(GeneratedRouteVersion)).all()) == 1
+    assert row.configuration == legacy
+    assert client.get(url).json() == retry.json()
+
+
+def test_underground_planning_persist_reload_retry_and_preserve_canonical(context):
+    client, url, payload, session, snapshot, *_ = context
+    original = deepcopy(snapshot.geometry_document)
+    data = circuit_save_payload(payload)
+    floor_elevation = snapshot.geometry_document['floor']['elevation_meters']
+    data.update(installation_method='underground', floor_passages_confirmed=True)
+    data['floors'][0]['service_elevation_meters'] = floor_elevation - .4
+    data['panel']['elevation_meters'] = floor_elevation
+    data['targets'][0]['elevation_meters'] = floor_elevation
+    first = client.post(url, json=data)
+    assert first.status_code == 201, first.text
+    saved = first.json()
+    assert saved['configuration']['floor_passages_confirmed'] is True
+    assert saved['result']['installation_method'] == 'underground'
+    assert {segment['kind'] for segment in saved['result']['segments']} == {'underground', 'underground_drop', 'underground_rise'}
+    assert saved['result']['horizontal_meters'] == 2
+    assert saved['result']['vertical_meters'] == pytest.approx(.8)
+    assert saved['result']['total_meters'] == pytest.approx(2.8)
+    assert client.get(url).json() == saved
+    assert client.post(url, json=data).json() == saved
+    assert len(session.scalars(select(GeneratedRouteVersion)).all()) == 1
+    assert snapshot.geometry_document == original
+    invalid = deepcopy(data)
+    invalid.update(request_id=str(uuid4()), expected_route_version=1, floor_passages_confirmed=False)
+    assert client.post(url, json=invalid).status_code == 422
+    assert len(session.scalars(select(GeneratedRouteVersion)).all()) == 1
+
+
 def test_circuit_save_changed_payload_same_request_id_conflicts_without_append(context):
     client, url, payload, session, *_ = context
     data = circuit_save_payload(payload)

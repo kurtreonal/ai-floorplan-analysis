@@ -8,6 +8,8 @@ export function routeAppearance(kind) {
   if (kind === 'ceiling_service') return { color: '#f05a28', label: 'Generated ceiling/service run', dashed: false }
   if (kind === 'wall_rise' || kind === 'wall_drop') return { color: '#c8816a', label: 'Generated wall rise/drop', dashed: true }
   if (kind === 'riser') return { color: '#9c36b5', label: 'Generated inter-floor riser', dashed: false }
+  if (kind === 'underground') return { color: '#2563eb', label: 'Generated underground run', dashed: true }
+  if (kind === 'underground_rise' || kind === 'underground_drop') return { color: '#2563eb', label: 'Generated floor passage', dashed: true }
   return { color: '#8a5a00', label: 'Stored wiring — installation unresolved', dashed: true }
 }
 

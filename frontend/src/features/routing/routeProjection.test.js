@@ -5,7 +5,9 @@ it('shares explicit installation colors without treating unknown wiring as ceili
   expect(routeAppearance('ceiling_service')).toMatchObject({ color: '#f05a28', dashed: false })
   expect(routeAppearance('wall_drop')).toEqual(routeAppearance('wall_rise'))
   expect(routeAppearance('riser').color).toBe('#9c36b5')
-  for (const kind of [undefined, 'observed', 'underground', 'downlight']) {
+  expect(routeAppearance('underground')).toMatchObject({ color: '#2563eb', dashed: true })
+  expect(routeAppearance('underground_drop')).toEqual(routeAppearance('underground_rise'))
+  for (const kind of [undefined, 'observed', 'downlight']) {
     expect(routeAppearance(kind)).toMatchObject({ color: '#8a5a00', label: expect.stringContaining('unresolved') })
   }
 })

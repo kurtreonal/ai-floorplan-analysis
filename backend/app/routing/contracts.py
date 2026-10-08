@@ -64,6 +64,9 @@ class Obstacle(Contract):
 
 
 class RoutingRequest(Contract):
+    installation_method: Literal["ceiling_service", "underground"] = "ceiling_service"
+    # Explicit planning input for penetrations; this is not engineering approval.
+    floor_passages_confirmed: Annotated[bool, Field(strict=True)] = False
     floors: Annotated[list[FloorConfig], Field(min_length=1, max_length=8)]
     panel: Endpoint
     target: Endpoint
@@ -75,6 +78,11 @@ class RoutingRequest(Contract):
 
     @model_validator(mode="after")
     def references(self):
+        if self.installation_method == "underground":
+            if len(self.floors) != 1 or self.connectors:
+                raise ValueError("Underground planning requires one floor and no inter-floor connectors.")
+            if not self.floor_passages_confirmed:
+                raise ValueError("Underground planning requires explicit floor passage confirmation.")
         ids = [floor.floor_id for floor in self.floors]
         if len(set(ids)) != len(ids):
             raise ValueError("Duplicate floors.")
@@ -95,7 +103,8 @@ class RoutingRequest(Contract):
 class Segment(Contract):
     start: Point
     end: Point
-    kind: Literal["ceiling_service", "wall_rise", "wall_drop", "riser"]
+    kind: Literal["ceiling_service", "wall_rise", "wall_drop", "riser",
+                  "underground", "underground_rise", "underground_drop"]
     horizontal_meters: Number
     vertical_meters: Number
     connector_id: str | None = None

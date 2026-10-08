@@ -32,14 +32,16 @@ def measure_material_lengths(route: RouteResult, *, conductor_count: int | None 
         dx, dy, dz = abs(b.x - a.x), abs(b.y - a.y), abs(b.elevation_meters - a.elevation_meters)
         if sum(value > 0 for value in (dx, dy, dz)) != 1:
             raise ValueError("Route segments must be nonzero and orthogonal.")
-        if segment.kind == "ceiling_service":
+        if segment.kind in {"ceiling_service", "underground"}:
             valid = dz == 0 and a.floor_id == b.floor_id and segment.connector_id is None
         elif segment.kind == "riser":
             valid = dx == dy == 0 and a.floor_id != b.floor_id and bool(segment.connector_id)
             riser.append(dz)
         else:
             valid = dx == dy == 0 and a.floor_id == b.floor_id and segment.connector_id is None
-            valid &= b.elevation_meters > a.elevation_meters if segment.kind == "wall_rise" else b.elevation_meters < a.elevation_meters
+            valid &= (b.elevation_meters > a.elevation_meters
+                      if segment.kind in {"wall_rise", "underground_rise"}
+                      else b.elevation_meters < a.elevation_meters)
         if not valid:
             raise ValueError("Route segment type contradicts geometry or floor identity.")
         h = math.hypot(dx, dy)

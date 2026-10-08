@@ -42,10 +42,13 @@ def structural_boxes(document, elevation):
     return boxes
 
 
-def floor_graph(document, config, anchors, step, obstacles=()):
+def floor_graph(document, config, anchors, step, obstacles=(), installation_method="ceiling_service"):
     width = document.coordinate_system.width_meters
     height = document.coordinate_system.height_meters
-    if config.service_elevation_meters <= document.floor.elevation_meters:
+    if installation_method == "underground":
+        if config.service_elevation_meters >= document.floor.elevation_meters:
+            raise RoutingError("INVALID_UNDERGROUND_ELEVATION")
+    elif installation_method != "ceiling_service" or config.service_elevation_meters <= document.floor.elevation_meters:
         raise RoutingError("INVALID_SERVICE_ELEVATION")
     nx, ny = math.ceil(width / step), math.ceil(height / step)
     if nx > 10000 or ny > 10000 or (nx + 1) * (ny + 1) > 20000:

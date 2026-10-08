@@ -7,7 +7,7 @@ vi.mock('../../api/routing.js', () => ({ previewCircuit: vi.fn(), saveCircuit: v
 vi.mock('../editor-2d/CanonicalLayoutCanvas.jsx', () => ({ CanonicalLayoutCanvas: ({ routeSegments }) => <div data-testid="circuit-2d">{JSON.stringify(routeSegments)}</div> }))
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 const layout = { id: 5, project_id: 1, project_floor_id: 2, version_number: 3,
-  geometry: { walls: [], symbols: [{ id: 'detected:1', class: { name: 'Troffer light' }, position: { x: 2, y: 1 } }] } }
+  geometry: { floor: { elevation_meters: 0 }, walls: [], symbols: [{ id: 'detected:1', class: { name: 'Troffer light' }, position: { x: 2, y: 1 } }] } }
 const record = { project_id: 1, layout_versions: { 2: 5 }, configuration: { floors: [{ floor_id: 2, offset_x: 0, offset_y: 0 }] }, stale: false,
   result: { branches: [{ symbol_id: 'detected:1' }], total_meters: 1, horizontal_meters: 1, vertical_meters: 0,
     segments: [{ kind: 'ceiling_service', start: { floor_id: 2, x: 1, y: 1, elevation_meters: 3 }, end: { floor_id: 2, x: 2, y: 1, elevation_meters: 3 } }] } }
@@ -21,6 +21,33 @@ function fill() {
   fireEvent.click(screen.getByLabelText(/I confirm this circuit membership/))
   fireEvent.submit(screen.getByRole('button', { name: 'Preview shared circuit' }).closest('form'))
 }
+
+it('sends underground planning only with entered depth and explicit floor passages, then restores those inputs', async () => {
+  previewCircuit.mockResolvedValue(record)
+  const onPreview = vi.fn()
+  const rendered = render(<CircuitPlanningPanel layout={wallLayout} onPreview={onPreview} />)
+  fireEvent.click(screen.getByLabelText('Include Troffer light · detected:1'))
+  for (const [label, value] of [['Circuit identifier', 'C-POWER'], ['Installation method', 'underground'],
+    ['Circuit panel x (m)', '1'], ['Circuit panel y (m)', '1'], ['Circuit panel elevation (m)', '1.4'],
+    ['Circuit service elevation (m)', '-0.4'], ['Elevation for detected:1 (m)', '1.2'],
+    ['Circuit panel wall', '7'], ['Wall for detected:1', '7']]) fireEvent.change(screen.getByLabelText(label), { target: { value } })
+  expect(screen.getByText(/below this saved floor \(0 m\)/)).toBeTruthy()
+  fireEvent.click(screen.getByLabelText(/Use floor passages at the entered/))
+  fireEvent.click(screen.getByLabelText(/I confirm this circuit membership/))
+  fireEvent.submit(screen.getByRole('button', { name: 'Preview shared circuit' }).closest('form'))
+  await waitFor(() => expect(previewCircuit).toHaveBeenCalled())
+  expect(previewCircuit.mock.calls[0][1]).toMatchObject({ installation_method: 'underground', floor_passages_confirmed: true,
+    floors: [{ service_elevation_meters: -.4 }], panel: { elevation_meters: 1.4, wall_id: 7 },
+    targets: [{ elevation_meters: 1.2, wall_id: 7 }] })
+  const saved = savedCircuit()
+  saved.configuration = { ...saved.configuration, installation_method: 'underground', floor_passages_confirmed: true,
+    floors: [{ ...saved.configuration.floors[0], service_elevation_meters: -.4 }] }
+  rendered.rerender(<CircuitPlanningPanel layout={wallLayout} record={saved} onPreview={onPreview} />)
+  expect(screen.getByLabelText('Installation method').value).toBe('underground')
+  expect(screen.getByLabelText('Circuit service elevation (m)').value).toBe('-0.4')
+  expect(screen.getByLabelText(/Use floor passages at the entered/).checked).toBe(true)
+  expect(screen.getByLabelText(/I confirm this circuit membership/).checked).toBe(false)
+})
 it('selects named saved devices with explicit heights, shares 2D coordinates and clears edited previews', async () => {
   previewCircuit.mockResolvedValue(record)
   const onPreview = vi.fn()

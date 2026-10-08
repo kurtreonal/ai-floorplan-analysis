@@ -18,9 +18,10 @@ function savedConfiguration(record, layout) {
     || record.layout_versions?.[String(layout.project_floor_id)] !== layout.id
     || record.result?.status !== 'saved_planning') return null
   const configuration = record.configuration
-  if (configuration?.installation_method !== 'ceiling_service' || configuration.floors?.length !== 1
+  if (!['ceiling_service', 'underground'].includes(configuration?.installation_method) || configuration.floors?.length !== 1
     || !configuration.targets?.length || configuration.targets.length > 32
     || configuration.connectors?.length || configuration.obstacles?.length) return null
+  if (configuration.installation_method === 'underground' && configuration.floor_passages_confirmed !== true) return null
   const floor = configuration.floors[0], panel = configuration.panel
   if (floor.floor_id !== layout.project_floor_id || floor.expected_layout_version !== layout.version_number
     || floor.offset_x !== 0 || floor.offset_y !== 0 || panel?.floor_id !== layout.project_floor_id
@@ -41,6 +42,7 @@ function savedConfiguration(record, layout) {
 
 function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved }) {
   const [selected, setSelected] = useState(() => initialConfiguration?.targets.map((target) => target.symbol_id) ?? [])
+  const [installation, setInstallation] = useState(initialConfiguration?.installation_method ?? '')
   const [preview, setPreview] = useState(null)
   const [show2D, setShow2D] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -103,6 +105,7 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
       if (!selected.length || selected.length > 32) throw new Error('Select between 1 and 32 devices for this circuit.')
       configuration = {
         circuit_id: form.get('circuit').trim(), installation_method: form.get('installation'),
+        floor_passages_confirmed: form.get('installation') === 'underground' && form.get('floorPassages') === 'on',
         floors: [{ floor_id: layout.project_floor_id, expected_layout_version: layout.version_number,
           service_elevation_meters: number('service'), offset_x: 0, offset_y: 0 }],
         panel: { floor_id: layout.project_floor_id, x: number('panelX'), y: number('panelY'),
@@ -144,13 +147,16 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
     {record?.result.status === 'saved_planning' && <p role="status">Saved circuit {record.result.circuit_id}, route version {record.version_number}: {record.result.branches.length} devices; {record.result.total_meters.toFixed(3)} m unique path. {record.stale ? 'Layout changed; reload and recalculate.' : 'Entered planning elevations reload with this route; not electrical approval.'}</p>}
     {initialConfiguration && <p role="note">Saved circuit inputs restored. Confirm them before recalculating.</p>}
     {record?.result.status === 'saved_planning' && !initialConfiguration && <p role="note">Saved circuit inputs do not match this editable floor snapshot. Enter current inputs to recalculate; saved values have not been applied.</p>}
-    <p>Assign saved devices to one circuit explicitly. Ceiling/service paths share a bounded graph; wall drops use your entered absolute elevations and verified wall attachments. This is a greedy planning preview, not a proven global optimum.</p>
+    <p>Assign saved devices to one circuit. Routes share a planning path; wall connections use your entered elevations and verified wall attachments.</p>
     <details><summary>Configure circuit preview</summary>
       <form onSubmit={submit} onChange={clearPreview}>
         <fieldset disabled={busy}><legend>Circuit and panel</legend>
           <label className="studio-field">Circuit identifier<input name="circuit" maxLength={80} required defaultValue={initialConfiguration?.circuit_id ?? ''} /></label>
-          <label className="studio-field">Installation method<select name="installation" required defaultValue={initialConfiguration?.installation_method ?? ''}><option value="">Choose explicitly</option><option value="ceiling_service">Ceiling/service with verified wall drops</option></select></label>
-          <p>Underground and underfloor routing are not implemented. Do not substitute a ceiling route for those legends.</p>
+          <label className="studio-field">Installation method<select name="installation" required value={installation} onChange={(event) => setInstallation(event.target.value)}><option value="">Choose explicitly</option><option value="ceiling_service">Ceiling/service with verified wall drops</option><option value="underground">Underground with explicit floor passages</option></select></label>
+          {installation === 'underground' && <>
+            <p>Enter an absolute service elevation below this saved floor ({layout.geometry.floor.elevation_meters} m). Route depth is measured from that floor; passage locations use the panel and selected device coordinates.</p>
+            <label><input name="floorPassages" type="checkbox" required defaultChecked={initialConfiguration?.floor_passages_confirmed === true} />Use floor passages at the entered panel and device positions for this planning route.</label>
+          </>}
           {[['panelX', 'Circuit panel x (m)'], ['panelY', 'Circuit panel y (m)'], ['panelHeight', 'Circuit panel elevation (m)'], ['service', 'Circuit service elevation (m)']].map(([name, label]) => <label className="studio-field" key={name}>{label}<input name={name} type="number" step="any" required defaultValue={savedFields[name] ?? ''} /></label>)}
           <label className="studio-field">Circuit panel wall<select name="panelWall" defaultValue={initialConfiguration?.panel.wall_id ?? ''}>{wallOptions}</select></label>
           <label className="studio-field">Circuit graph spacing (m)<input name="step" type="number" min="0.1" max="5" step="0.1" defaultValue={initialConfiguration?.grid_step_meters ?? '0.5'} required /></label>

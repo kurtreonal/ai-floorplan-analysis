@@ -25,6 +25,7 @@ function SavedViewer({ projectId, projectFloorId }) {
   const [canvasAttempt, setCanvasAttempt] = useState(0)
   const [selectedSymbolId, setSelectedSymbolId] = useState(null)
   const [showRoof, setShowRoof] = useState(false)
+  const [inspectUnderground, setInspectUnderground] = useState(false)
   const [circuitPreview, setCircuitPreview] = useState(null)
   const [layoutState, setLayoutState] = useState({ status: 'loading' })
   const [route, setRoute] = useSavedRoute(projectId, layoutState.layout?.id)
@@ -58,6 +59,7 @@ function SavedViewer({ projectId, projectFloorId }) {
   }
 
   function reloadLayout() {
+    setInspectUnderground(false)
     setCircuitPreview(null)
     setLayoutState({ status: 'loading' })
     setControlsReady(false)
@@ -85,6 +87,10 @@ function SavedViewer({ projectId, projectFloorId }) {
       <aside className="studio-viewer-tools" aria-label="3D view tools"><span className="project-kicker mono">CAMERA</span><Button variant="outline" disabled={!controlsReady} onClick={resetCamera}><RotateCcw aria-hidden="true" />Reset view</Button><Button variant="outline" disabled={!controlsReady} onClick={() => controlsRef.current?.top()}><Scan aria-hidden="true" />Top view</Button><Button variant="outline" disabled={!controlsReady} onClick={resetCamera}><Move3D aria-hidden="true" />Perspective view</Button><Button variant="outline" disabled={layoutState.status === 'loading'} onClick={reloadLayout}><RefreshCw aria-hidden="true" />Reload saved layout</Button><p>Orbit, pan and zoom change your view—not saved coordinates.</p></aside>
       <div className="studio-viewer-scene">
       <Button variant="outline" size="sm" aria-pressed={showRoof} onClick={() => setShowRoof((value) => !value)}>{showRoof ? 'Hide roof' : 'Show roof'}</Button>
+      {displayRoutes.some((segment) => segment.kind.startsWith('underground')) && <label>
+        <input type="checkbox" checked={inspectUnderground} onChange={(event) => setInspectUnderground(event.target.checked)} /> Inspect underground paths through floor (X-ray)
+      </label>}
+      {inspectUnderground && <p role="note">X-ray inspection only: blue paths retain their entered below-floor elevation; the floor is not penetrated visually or modified.</p>}
       {layoutState.status === 'loading' && <p role="status">Loading saved layout…</p>}
       {layoutState.status === 'error' && <p role="alert">{layoutState.message}</p>}
       {layoutState.status === 'ready' && <Viewer3DErrorBoundary
@@ -92,7 +98,7 @@ function SavedViewer({ projectId, projectFloorId }) {
         projectId={projectId}
         title="3D canvas unavailable"
       >
-        <Viewer3DCanvas scene={displayScene} showRoof={showRoof} routeSegments={displayRoutes} controlsRef={controlsRef} onControlsReady={handleControlsReady}
+        <Viewer3DCanvas scene={displayScene} showRoof={showRoof} routeSegments={displayRoutes} inspectUnderground={inspectUnderground} controlsRef={controlsRef} onControlsReady={handleControlsReady}
           selectedSymbolId={selectedSymbolId} onSelectSymbol={setSelectedSymbolId} />
       </Viewer3DErrorBoundary>}
       </div>
@@ -107,7 +113,7 @@ function SavedViewer({ projectId, projectFloorId }) {
           <p>This saved snapshot is inspection-only. Use the review workspace for classification or removal, or saved 2D for supported position edits.</p>
         </div>)}
       </>}
-      {layoutState.status === 'ready' && <p role="note">Saved wiring uses its stored elevations; an unresolved installation type is not a ceiling or underground approval. Generated ceiling/service runs are orange; wall rises/drops are muted and dashed.</p>}
+      {layoutState.status === 'ready' && <p role="note">Saved wiring uses its stored elevations; an unresolved installation type is not a ceiling or underground approval. Generated ceiling/service runs are orange; wall rises/drops are muted and dashed. Underground runs and floor passages are blue and dashed, using entered planning depth—not engineering approval.</p>}
       {layoutState.status === 'ready' && layoutState.scene.omittedRouteSegmentCount > 0 && <p role="note">{layoutState.scene.omittedRouteSegmentCount} cross-floor wiring segments are omitted until floor alignment is available.</p>}
       {layoutState.status === 'ready' && layoutState.layout.hasExtension && <p role="note">Additional openings and panels remain in saved review data and are not rendered here.</p>}
       {layoutState.status === 'ready' && <p>Source plane: {layoutState.scene.width} × {layoutState.scene.depth} m; floor elevation: {layoutState.scene.elevation} m. The rectangle represents the source image extent; room surfaces follow saved boundaries.</p>}

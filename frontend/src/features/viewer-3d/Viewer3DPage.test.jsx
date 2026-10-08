@@ -12,14 +12,14 @@ import { routingRequest } from '../../api/routing.js'
 vi.mock('../../api/layouts.js', () => ({ fetchCurrentLayout: vi.fn() }))
 vi.mock('../../api/routing.js', () => ({ routingRequest: vi.fn().mockResolvedValue(null) }))
 
-const mocks = vi.hoisted(() => ({ reset: vi.fn(), canvasRenders: vi.fn(), canvasRoutes: vi.fn(), circuitPreview: null }))
+const mocks = vi.hoisted(() => ({ reset: vi.fn(), canvasRenders: vi.fn(), canvasRoutes: vi.fn(), canvasInspection: vi.fn(), circuitPreview: null }))
 
 vi.mock('../routing/CircuitPlanningPanel.jsx', () => ({
   CircuitPlanningPanel: ({ onPreview }) => <button onClick={() => onPreview(mocks.circuitPreview)}>Test circuit preview</button>,
 }))
 
 vi.mock('./Viewer3DCanvas.jsx', () => ({
-  Viewer3DCanvas: ({ controlsRef, onControlsReady, scene, routeSegments }) => {
+  Viewer3DCanvas: ({ controlsRef, onControlsReady, scene, routeSegments, inspectUnderground }) => {
     useEffect(() => {
       controlsRef.current = { reset: mocks.reset }
       onControlsReady(true)
@@ -30,6 +30,7 @@ vi.mock('./Viewer3DCanvas.jsx', () => ({
     }, [controlsRef, onControlsReady])
     mocks.canvasRenders(scene)
     mocks.canvasRoutes(routeSegments)
+    mocks.canvasInspection(inspectUnderground)
     return <div data-testid="viewer-canvas" />
   },
 }))
@@ -41,6 +42,28 @@ afterEach(() => {
 })
 
 describe('3D viewer page', () => {
+  it('requires explicit X-ray inspection and clears it on reload without changing depth', async () => {
+    const geometry = structuredClone(fixture)
+    geometry.walls = []
+    const segments = [{ kind: 'underground', start: { floor_id: 2, x: 1, y: 1, elevation_meters: -2 },
+      end: { floor_id: 2, x: 2.5, y: 1, elevation_meters: -2 } }]
+    mocks.circuitPreview = { layout_versions: { 2: 5 }, stale: false,
+      configuration: { floors: [{ floor_id: 2, offset_x: 0, offset_y: 0 }] }, result: { segments } }
+    fetchCurrentLayout.mockResolvedValue({ id: 5, project_id: 15, project_floor_id: 2, version_number: 4, geometry })
+    render(<Viewer3DPage projectId={15} projectFloorId={2} />)
+    await screen.findByTestId('viewer-canvas')
+    expect(screen.queryByLabelText(/Inspect underground paths/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Test circuit preview' }))
+    expect(mocks.canvasInspection.mock.calls.at(-1)[0]).toBe(false)
+    fireEvent.click(screen.getByLabelText(/Inspect underground paths/))
+    expect(mocks.canvasInspection.mock.calls.at(-1)[0]).toBe(true)
+    expect(mocks.canvasRoutes.mock.calls.at(-1)[0]).toEqual(segments)
+    expect(screen.getByText(/X-ray inspection only/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Reload saved layout' }))
+    await screen.findByTestId('viewer-canvas')
+    expect(mocks.canvasInspection.mock.calls.at(-1)[0]).toBe(false)
+    expect(screen.queryByLabelText(/Inspect underground paths/)).toBeNull()
+  })
   it('reloads the same saved circuit segments and explicit device elevation without changing XY', async () => {
     const geometry = structuredClone(fixture)
     geometry.walls = []

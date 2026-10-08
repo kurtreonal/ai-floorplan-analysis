@@ -69,12 +69,17 @@ function validateCircuit(record, projectId, configuration, status) {
       || record.configuration?.intent !== 'save_planning_circuit' || !record.configuration.request_id))
     || !record.layout_versions || !Object.values(record.layout_versions).every((id) => Number.isSafeInteger(id) && id > 0)
     || record.configuration?.circuit_id !== configuration.circuit_id || !Array.isArray(record.configuration?.floors)
-    || result?.circuit_id !== configuration.circuit_id || result.installation_method !== 'ceiling_service'
+    || result?.circuit_id !== configuration.circuit_id
+    || !['ceiling_service', 'underground'].includes(result.installation_method)
+    || result.installation_method !== configuration.installation_method
+    || (result.installation_method === 'underground' && (configuration.floor_passages_confirmed !== true
+      || record.configuration.floor_passages_confirmed !== true))
     || result.provenance !== 'generated' || result.status !== status
     || result.algorithm !== 'greedy_shared_service_tree_v1' || result.optimality !== 'graph_heuristic_not_global_optimum'
     || !lengths(result) || !Array.isArray(result.segments) || !result.segments.length
     || result.segments.some((segment) => !point(segment.start) || !point(segment.end)
-      || !['ceiling_service', 'wall_rise', 'wall_drop', 'riser'].includes(segment.kind)
+      || !['ceiling_service', 'wall_rise', 'wall_drop', 'riser', 'underground', 'underground_rise', 'underground_drop'].includes(segment.kind)
+      || (segment.kind.startsWith('underground') && result.installation_method !== 'underground')
       || !metric(segment.horizontal_meters) || !metric(segment.vertical_meters))
     || !Array.isArray(result.branches) || result.branches.length !== expected.size
     || new Set(result.branches.map((branch) => `${branch.floor_id}:${branch.symbol_id}`)).size !== expected.size

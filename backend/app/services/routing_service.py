@@ -79,7 +79,12 @@ def save_circuit(session, user, project_id, request):
     configuration = request.model_dump(mode='json')
 
     def replay(record):
-        if record.configuration != configuration:
+        # Legacy ceiling records predate explicit floor-passage inputs. Normalize
+        # only the absent default for comparison; never rewrite saved history.
+        stored = dict(record.configuration)
+        if stored.get('installation_method') == 'ceiling_service':
+            stored.setdefault('floor_passages_confirmed', False)
+        if stored != configuration:
             raise RoutingError('CIRCUIT_RETRY_CONFLICT')
         payload = response(session, record, lock=True)
         session.commit()
