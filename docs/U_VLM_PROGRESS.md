@@ -4,6 +4,49 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 9 bracketed wall-gap recovery (after 84eda30)
+
+- Diagnosed actual missing edges: original grayscale AND primary binary retain
+  exterior mates, but the page-wide stroke-radius skeleton discards their thin
+  ink. A one-direction hollow style fails the global two-direction outline
+  gate. General recovery now uses compatible existing fragments, bounded paired
+  hypotheses, both original mate rays and white cavity evidence. No page-specific
+  coordinates, new wall seeds, unbracketed extension or changed Hough voting.
+  True two-edge openings and filled-wire gaps remain unbridged. Caps:512
+  fragments/pairs,128 endpoint hypotheses, gap<=40% of raster short edge.
+- Existing grid/glyph guards qualify anchors BEFORE recovery; proposed merges
+  pass the same guards BEFORE replacing them. A rejected merge preserves both
+  original accepted fragments. Initial replay exposed a fixture-as-long-wall
+  regression despite passing tests; fixed ordering and added its regression.
+  In-memory red/green proof confirms the prefilter-less version produces that
+  false extension and the final version rejects it. Earlier artifacts retained.
+- Frozen final detector SHA256
+  c4ad4b61d9008520d52d26e7698c047a4600a6a92c138d00c0967ad9877340a3,
+  evidence cv-bracketed-outline-recovery-v6. Lighting source22f024...350d28:
+  56->54 walls,4->5 rooms. Exactly three exterior fragments become one observed
+  band(217,1439)->(210,2986), recovering both gaps; every other53 wall geometries
+  unchanged. Selected school sourcecfb10f...8cac72 retains11 walls/5 rooms and
+  byte-identical before/after JSON. Both original hashes unchanged; v5
+  geometry-delta artifacts bind code/source/JSON/overlay hashes. These are
+  development comparisons, not precision, recall or human approval.
+- PASS: final focused wall95 tests/126 subtests; independent review13 tests;
+  final isolated full backend1257 tests/4 skipped/663 subtests,5 warnings;
+  compilation/diff checks. Frontend remains514 tests passing, scoped lint/build
+  PASS; six unrelated full-lint errors and chunk warning remain. Endpoint/table
+  counts unchanged36 paths/44 operations/34 tables. Mixed worktree, not release.
+- Verified idle backend restarted locally with final code; credentials,
+  configuration, source uploads and selected symbol checkpoint unchanged.
+  Browser computer use: fresh lighting job24213 completed54 walls/5 rooms;
+  unfinished review revision1 saved and reloaded with70 unresolved symbols and
+  explicit non-approval notes. Wall-only overlay inspected; screenshot retained
+  under wall-routing-runtime-20261009-v1/browser-job-24213.jpg. No duplicate
+  upload or canonical approval created. Pending: dimension-chain false
+  wall and ambiguous fixture/grid/wiring fragments; metric wiring requires
+  real reviewed scale/elevation/canonical layout. No wall model trained:313
+  source-verified polylines/12 pages are a potential partial benchmark; complete
+  masks, deduplication and project splits remain unverified. Current OpenCV has
+  no trainable weights. Unrelated work and recovery stash retained.
+
 ### October 9 explicit underground planning (after c30967b)
 
 - Added single-floor underground circuit planning to the existing orthogonal

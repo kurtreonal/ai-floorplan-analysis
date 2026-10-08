@@ -31,7 +31,7 @@ MAXIMUM_IMAGE_EDGE = 4096
 MAXIMUM_IMAGE_PIXELS = 60_000_000
 SAFE_ERROR_MESSAGE = "The local demo floor-plan interpretation failed."
 # Bump when preprocessing/structural evidence changes; independent of symbol weights.
-EVIDENCE_VERSION = "cv-native-outline-recovery-v5"
+EVIDENCE_VERSION = "cv-bracketed-outline-recovery-v6"
 
 
 class DemoCVError(RuntimeError):

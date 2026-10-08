@@ -895,7 +895,7 @@ def _axis_boundary_segments(ink, minimum):
     return result
 
 
-def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
+def _outlined_wall_evidence(ink, parameters, continuity_ink=None, *, partial_pairs=None):
     """Bounded paired-ink evidence, not the two edges of one filled wire.
 
     Only activate the outlined drawing style when long observed pairs exist in
@@ -1021,6 +1021,11 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
                 axis_pairs.append((endpoints, separation + 1))
             if end - start >= long_span:
                 strong_directions.add('horizontal' if abs(tx) > abs(ty) else 'vertical')
+    # Mixed-style drawings may provide clear hollow evidence in only one
+    # direction. Preserve those observed pairs for bracketed recovery without
+    # switching the page-wide solid/outline inference mode.
+    if partial_pairs is not None and len(pairs) <= 512:
+        partial_pairs.extend(pairs)
     if len(strong_directions) != 2:
         return None
     # Bound recovery and require an independently established first wave.
@@ -1074,6 +1079,111 @@ def _add_verified_outline_bands(segments,bands):
     return result
 
 
+def _bracketed_pair_hypotheses(segments, minimum, maximum_gap, limit):
+    """Bound hypotheses from existing compatible fragment ends, not new ink."""
+    hypotheses = []
+    for first in segments:
+        a,b = np.asarray(first[:2],dtype=float),np.asarray(first[2:4],dtype=float)
+        span = float(np.linalg.norm(b-a))
+        if span < minimum:
+            continue
+        axis = (b-a)/span
+        normal = np.array([-axis[1],axis[0]])
+        for second in segments:
+            c,d = np.asarray(second[:2],dtype=float),np.asarray(second[2:4],dtype=float)
+            other_span = float(np.linalg.norm(d-c))
+            band_width = (first[4]+second[4])/2
+            if (other_span < minimum or abs(float(axis @ ((d-c)/other_span))) < math.cos(math.radians(2))
+                    or abs(first[4]-second[4]) > max(2,band_width*.3)
+                    or max(abs(float((p-a) @ normal)) for p in (c,d)) > max(2,band_width*.3)):
+                continue
+            if float((c-a) @ axis) > float((d-a) @ axis):
+                c,d = d,c
+            gap = float((c-b) @ axis)
+            if not max(minimum,band_width*6) <= gap <= maximum_gap:
+                continue
+            hypotheses.append(((tuple(map(int,b)),tuple(map(int,c))),band_width))
+            if len(hypotheses) >= limit:
+                return hypotheses
+    return hypotheses
+
+
+def _recover_bracketed_paired_gaps(segments, pairs, ink, minimum, *, accept_merge=None):
+    """Join existing wall fragments only where both observed mates survive.
+
+    This cannot seed a wall, extend an unbracketed end, alter global Hough votes,
+    or cross a step where both outlines disappear at a doorway. Thick column
+    intersections retain both mate positions and can stay within one wall.
+    """
+    if len(pairs) > 512 or len(segments) > 512:
+        return segments
+    height, width = ink.shape
+    maximum_gap = min(width, height) * .4
+    nearby = cv2.dilate(ink, np.ones((3, 3), dtype=np.uint8))
+    result = list(segments)
+    candidates = list(dict.fromkeys(pairs))
+    if len(candidates) < 512:
+        candidates.extend(_bracketed_pair_hypotheses(segments, minimum, maximum_gap,
+                                                    min(128,512-len(candidates))))
+    for (start, end), band_width in dict.fromkeys(candidates):
+        origin = np.asarray(start, dtype=float)
+        delta = np.asarray(end, dtype=float)-origin
+        length = float(np.linalg.norm(delta))
+        if length < minimum or band_width < 3 or length < band_width*6:
+            continue
+        axis = delta/length
+        normal = np.array([-axis[1], axis[0]])
+        related = []
+        for index, segment in enumerate(result):
+            a, b = np.asarray(segment[:2], dtype=float), np.asarray(segment[2:4], dtype=float)
+            span = float(np.linalg.norm(b-a))
+            if (span < minimum or abs(float(axis @ ((b-a)/span))) < math.cos(math.radians(2))
+                    or abs(segment[4]-band_width) > max(2,band_width*.3)
+                    or max(abs(float((p-origin) @ normal)) for p in (a,b)) > max(2,band_width*.3)):
+                continue
+            low, high = float((a-origin) @ axis), float((b-origin) @ axis)
+            if low > high:
+                a,b,low,high = b,a,high,low
+            related.append((low,high,index,a,b))
+        related.sort(key=lambda row: (row[0],row[1],row[2]))
+        for first, second in zip(related, related[1:]):
+            low, high = first[1], second[0]
+            gap = high-low
+            if (not 1 < gap <= maximum_gap
+                    or min(length,high)-max(0,low) < minimum):
+                continue
+            a,b = first[4],second[3]
+            steps = np.linspace(0,1,max(2,math.ceil(np.linalg.norm(b-a))+1))
+            points = a[None,:]+steps[:,None]*(b-a)
+            supported = np.ones(steps.shape,dtype=bool)
+            for side in (-1,1):
+                edges = np.rint(points+normal*side*(band_width-1)/2).astype(int)
+                xs,ys = edges[:,0],edges[:,1]
+                valid = (xs>=0)&(xs<width)&(ys>=0)&(ys<height)
+                supported &= valid & (nearby[np.clip(ys,0,height-1),np.clip(xs,0,width-1)]>0)
+            if not supported.all():
+                continue
+            # The two sides of a single filled wire are insufficient. Original
+            # white cavity evidence must survive over the recovered interval;
+            # occasional column intersections may occupy its center.
+            center = np.rint(points).astype(int)
+            left,right = points-normal*(band_width-1)/2,points+normal*(band_width-1)/2
+            if (np.mean(ink[center[:,1],center[:,0]]==0) < .45
+                    or not _has_observed_side_cavities(ink,left[:,0],left[:,1],right[:,0],right[:,1])):
+                continue
+            begin, finish = first[3], second[4]
+            merged = (*map(int,begin),*map(int,finish),max(result[first[2]][4],result[second[2]][4]))
+            if accept_merge is not None and not accept_merge(merged):
+                # A longer band may reveal grid/glyph evidence unavailable on
+                # short fragments. Preserve both accepted anchors on rejection.
+                continue
+            result = [row for index,row in enumerate(result) if index not in (first[2],second[2])]+[merged]
+            # Rebuild indices on the next distinct observed pair; stale indices
+            # must never remove an unrelated candidate after this replacement.
+            break
+    return result
+
+
 def _detect_structural_wall_lines(
     image: np.ndarray,
     parameters: WallDetectionParameters,
@@ -1087,8 +1197,10 @@ def _detect_structural_wall_lines(
     original_ink = ink
     if cv2.countNonZero(ink) == 0:
         return []
+    partial_pairs = []
     outlined = _outlined_wall_evidence(ink, parameters,
-                                     cv2.bitwise_not(continuity_image) if continuity_image is not None else None)
+                                     cv2.bitwise_not(continuity_image) if continuity_image is not None else None,
+                                     partial_pairs=partial_pairs)
 
     # Scans often depict walls as two dark outlines with a lighter fill. A small
     # page-scaled close restores that stroke before measuring its centerline.
@@ -1343,10 +1455,19 @@ def _detect_structural_wall_lines(
         consolidated = _add_verified_outline_bands(consolidated,outlined[4])
     if outlined is not None and len(outlined) > 5 and outlined[5]:
         consolidated = _add_verified_outline_bands(consolidated, outlined[5])
-    return [segment for segment in consolidated
-            if not _is_repeated_grid_member(segment, image)
-            and not _has_compact_parallel_bars(segment, image)
-            and not _has_compact_annotated_outline(segment, image)]
+    def passes_final_guards(segment):
+        return (not _is_repeated_grid_member(segment, image)
+                and not _has_compact_parallel_bars(segment, image)
+                and not _has_compact_annotated_outline(segment, image))
+
+    retained = [segment for segment in consolidated if passes_final_guards(segment)]
+    if outlined is None:
+        # Rejected fixture/grid fragments cannot acquire wall identity merely
+        # by joining into a longer band that escapes the compact-glyph guard.
+        retained = _recover_bracketed_paired_gaps(retained, partial_pairs,
+                                                  original_ink, min_wall_length,
+                                                  accept_merge=passes_final_guards)
+    return retained
 
 
 def detect_wall_lines(
