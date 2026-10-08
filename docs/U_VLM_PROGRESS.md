@@ -4,6 +4,97 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 8 junction-backed cavity recovery (after b0ea5e7)
+
+- Missing school-plan left perimeter traced to original-pixel evidence, not
+  absent Hough votes: sustained outlines at x21/27 from y52..307 exist. A dashed
+  middle stroke leaves only37.5% white at the exact center, below the45% cavity
+  test; nearby original cavities retain96.9%/57.8% white. Short fragments also
+  trigger the equally thin three-bar wire guard. No source coordinates enter
+  application rules. Four native/2x/rotation RED subcases reproduced the loss.
+- Deferred recovery requires two independently established perpendicular wall
+  junctions at the band endpoints, long span, observed white on both interior
+  sides, compatible original stroke widths, and actual gaps in a three-bar
+  middle stroke. Filled-wire interiors, continuous wire bundles, wide bundles,
+  unjoined bands and mutual self-support cannot qualify. Optional hypothesis
+  and support pools are bounded at512. Geometry version
+  `cv-junction-backed-cavity-v3`; no symbol model or detector threshold changed.
+- Live wider-padding context fragments the same observed Hough mate into73px,
+  53px and37px pieces. Deferred bands now follow BOTH original observed edges
+  until the first unsupported raster step, then require independent endpoint
+  junctions. Recovery cannot bridge a doorway-sized blank; native/2x opening
+  controls pass. Established transverse support needs the normal minimum line
+  span, while the recovered band must remain long. Current working padding stays
+  unrelated/unstaged; an intermediate replay restored(24,46)->(24,313).
+  That intermediate working context still had incomplete horizontal spans / zero room proposals;
+  this is not represented as complete live geometry or measured room detection.
+- Focused new/previous ceiling-grid checks13 passed /35 subtests. First rotation
+  retry failed because the global center sample was white45.3% while the
+  narrower bar sample looked continuous; explicit observed-middle-gap evidence
+  resolves that discrepancy. No failed attempt is represented as passed.
+- Initial staged mask-mutating replay restored the left boundary and room partition, removed
+  two apparent diagonal artifacts:12 walls/1 room->12 walls/3 rooms. Lighting
+  selection50 walls/4 rooms and all wall coordinates unchanged. Both sources
+  retain their SHA256. Same development project, not independent accuracy.
+  The tight school drawing crop still produces fixture-shaped wall proposals;
+  this remains a failing development case, not evidence of detection readiness.
+- A later tight-crop replay exposed a newly introduced fixture-wall proposal:
+  appending recovered ink to the mask changed distance/skeleton/Hough statistics
+  for unrelated objects. Recovery now occurs AFTER consolidation, replacing only
+  covered collinear fragments. Original vote mask, median width and existing
+  end recovery stay identical. Dedicated invariance and duplicate tests cover
+  this boundary. Latest working tight-crop replay retains17 wall proposals and
+  extends only the top outline(522,53)->(675,53) to(20,53)->(675,53).
+  The left crop-boundary fragment and existing lamp false walls remain unresolved;
+  six room proposals are unreviewed development output, not measured correctness.
+- Initial staged focus126 passed/124 subtests, isolated persistence67 passed/
+  34 subtests. Full staged1114 passed/4 skipped/566 subtests with ONE FAIL:
+  existing review-image OpenAPI assertion expects44 operations; scoped source43.
+  These totals precede the additional observed-edge recovery; they are not final
+  checkpoint verification.
+- Final staged proof `cavity-index-proof-20261008-v3`:152 focused tests passed /
+  126 subtests. Working-tree focus153 passed/126 subtests includes an unrelated
+  pending test; it is not substituted for staged evidence. Isolated persisted
+  review/save/processing focus41 passed/34 subtests. Full isolated staged run:
+  1118 passed,4 skipped,568 subtests,5 dependency deprecation warnings,ONE FAIL
+  at `test_review_image_api.py:367` (43 versus44 operations). Scope has35 paths,
+  43 operations,34 model tables. The count failure already exists at HEAD;
+  unrelated catalog endpoint/test edits remain unstaged. Full suite is NOT PASS.
+  Compilation and staged diff checks PASS. No frontend code changed in this
+  checkpoint; frontend unit/build/lint NOT RERUN. Existing unrelated untracked
+  DeviceMeshCatalog lint failures are not resolved by this backend checkpoint.
+- Final immutable before/after evidence:school automatic1%-padding scope
+  12 walls/1 room->13 walls/2 rooms, adding ONLY observed left(24,50)->(24,309)
+  while preserving every previous wall coordinate. Drawing-only selection
+  (18,45,660,270) remains17 walls, room proposals1->6; only the top band extends,
+  with other coordinates unchanged. Native lighting selection remains50 walls/
+  4 rooms with every coordinate identical. Both source SHA256 values unchanged.
+  Explicit selection avoids the unrelated live3%-padding hunk. These pages belong
+  to the same development project; no independent precision/recall is measured.
+- Computer-use browser verification PASS for existing plan9377 (no duplicate
+  upload):job24202 completed with `development_multiclass56_yolo`, geometry
+  `cv-junction-backed-cavity-v3`, saved selection(18,45,660,270),17 raw walls,
+  6 raw room proposals,20 unresolved symbol proposals. Visually compared the
+  fluorescent body at(511,82)->(511,124); saved wall-0006 rejection as an ASSISTANT
+  development proposal in revision1, with explicit non-approval notes. Reload
+  retained rejection and note; active wall count16. Review-complete and approved
+  remainFALSE. Previous job24189/revision1 fluorescent legend correction retained;
+  source/candidate hash checks PASS. Raw candidates are unchanged by draft review.
+  Browser 2D and shared draft3D rendered; evidence images are saved beside the
+  final selected replay. Measured canonical2D/3D/routing verification BLOCKED:
+  no approved scale/elevation or completed legend-mapped placements for this run;
+  draft40m/3m display is explicitly illustrative, not approved measurements.
+- Acceptance:source integrity, bounded recovery, unaffected vote mask, focused
+  checks and draft save/reload PASS; general wall/symbol correctness still FAIL
+  (cropped-left incompleteness, lamp false walls, spurious symbols). Wiring and
+  production readiness NOT IMPLEMENTED/NOT CLAIMED. Next smallest experiment:
+  suppress compact fluorescent-rectangle wall hypotheses using original-pixel
+  side/end evidence while retaining hollow structural partitions, then replay
+  both frozen native sources. It has not started in this checkpoint.
+  Original scans, annotation history, model weights and recovery stash preserved.
+  Incomplete boundaries/columns and erroneous symbol classes remain advisory;
+  wiring implementation and production readiness remain unclaimed.
+
 ### October 8 native compact-fixture evidence (after 8a8e177)
 
 - Source inspection identified two remaining troffer-body wall proposals:

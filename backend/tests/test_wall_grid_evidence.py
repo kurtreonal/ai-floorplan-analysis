@@ -29,6 +29,137 @@ def outlined_ceiling_plan(*, troffer_bars=False, scale=1):
 
 
 class CeilingGridEvidenceTests(unittest.TestCase):
+    def test_late_recovery_preserves_unrelated_segments_and_skips_existing_band(self):
+        fragment = (43, 140, 43, 200, 7.)
+        parallel = (55, 140, 55, 200, 7.)
+        transverse = (43, 200, 180, 200, 7.)
+        unrelated = (280, 140, 280, 173, 3.)
+        segments = [fragment, parallel, transverse, unrelated]
+        band = (((43, 40), (43, 360)), 7.)
+        recovered = detector._add_verified_outline_bands(segments, [band])
+        self.assertEqual(recovered, [parallel, transverse, unrelated, (43, 40, 43, 360, 7.)])
+        self.assertEqual(segments, [fragment, parallel, transverse, unrelated])
+        self.assertEqual(detector._add_verified_outline_bands(recovered, [band]), recovered)
+        reverse = (((43, 360), (43, 40)), 7.)
+        self.assertEqual(detector._add_verified_outline_bands(recovered, [reverse]), recovered)
+
+    def test_junction_recovery_does_not_change_mask_width_or_original_votes(self):
+        image = np.full((400, 500), 255, dtype=np.uint8)
+        for inset in (0, 6):
+            cv2.rectangle(image, (40+inset, 40+inset), (460-inset, 360-inset), 0, 1)
+        for y in range(46, 349, 30):
+            cv2.line(image, (43, y), (43, min(y+20, 354)), 0, 1)
+        ink = cv2.bitwise_not(image)
+        before = ink.copy()
+        parameters = WallDetectionParameters(
+            structural_mode=True, minimum_line_length=24, maximum_line_gap=6)
+        with patch.object(detector, '_has_two_observed_wall_junctions', return_value=False):
+            without = detector._outlined_wall_evidence(ink, parameters)
+        with_recovery = detector._outlined_wall_evidence(ink, parameters)
+        self.assertTrue(with_recovery[4])
+        self.assertFalse(without[4])
+        np.testing.assert_array_equal(with_recovery[0], without[0])
+        self.assertEqual(with_recovery[1:4], without[1:4])
+        np.testing.assert_array_equal(ink, before)
+
+    def test_short_ambiguous_glyph_is_not_grown_into_a_long_wall(self):
+        image=np.full((400,500),255,dtype=np.uint8)
+        for inset in (0,6):
+            cv2.rectangle(image,(40+inset,40+inset),(460-inset,360-inset),0,1)
+        for x in (280,286):
+            cv2.line(image,(x,140),(x,173),0,1)
+        cv2.line(image,(283,140),(283,160),0,1)
+        before=image.copy()
+        with patch.object(detector,'_extend_observed_pair',wraps=detector._extend_observed_pair) as grow:
+            self.detect(image,1)
+        for call in grow.call_args_list:
+            (start,end),_=call.args[0]
+            self.assertGreaterEqual(np.linalg.norm(np.subtract(end,start)),56,
+                'Only already-long observed bands may grow; a compact glyph cannot become wall evidence.')
+        np.testing.assert_array_equal(image,before)
+
+    def test_junction_recovery_requires_both_endpoint_supports_and_bounded_pool(self):
+        pair=(((40,40),(40,360)),7)
+        top=(((40,40),(460,40)),7)
+        bottom=(((40,360),(460,360)),7)
+        middle=(((40,200),(460,200)),7)
+        parallel=(((46,40),(46,360)),7)
+        self.assertTrue(detector._has_two_observed_wall_junctions(pair,[top,bottom],80))
+        for supports in ([],[top],[bottom],[middle],[top,middle],[top,parallel], [top,bottom]*257):
+            with self.subTest(supports=len(supports)):
+                self.assertFalse(detector._has_two_observed_wall_junctions(pair,supports,80))
+        self.assertFalse(detector._has_two_observed_wall_junctions(pair,[top,bottom],400))
+        short_top=(((30,40),(70,40)),7)
+        short_bottom=(((30,360),(70,360)),7)
+        self.assertFalse(detector._has_two_observed_wall_junctions(pair,[short_top,short_bottom],80))
+        self.assertTrue(detector._has_two_observed_wall_junctions(
+            pair,[short_top,short_bottom],80,minimum_support_span=24))
+
+    def test_observed_pair_extension_stops_at_opening_without_changing_pixels(self):
+        for scale in (1,2):
+            with self.subTest(scale=scale):
+                ink=np.zeros((400,500),dtype=np.uint8)
+                for x in (100,106):
+                    cv2.line(ink,(x,60),(x,330),255,1)
+                ink[180:220,95:112]=0
+                ink=cv2.resize(ink,None,fx=scale,fy=scale,interpolation=cv2.INTER_NEAREST)
+                before=ink.copy()
+                nearby=cv2.dilate(ink,np.ones((3,3),dtype=np.uint8))
+                pair=(((103*scale,100*scale),(103*scale,160*scale)),6*scale+1)
+                (start,end),width=detector._extend_observed_pair(pair,nearby)
+                self.assertLessEqual(end[1]/scale,181)
+                self.assertGreaterEqual(end[1]/scale,178)
+                self.assertLessEqual(start[1]/scale,61)
+                self.assertEqual(width,6*scale+1)
+                np.testing.assert_array_equal(ink,before)
+
+    def test_center_lane_recovery_does_not_accept_unjoined_or_continuous_wire_bundles(self):
+        for scale in (1,2):
+            for kind in ('unjoined_intermittent','joined_continuous'):
+                with self.subTest(scale=scale,kind=kind):
+                    image=np.full((400,500),255,dtype=np.uint8)
+                    for inset in (0,6):
+                        cv2.rectangle(image,(40+inset,40+inset),(460-inset,360-inset),0,1)
+                    low,high=(70,330) if kind=='unjoined_intermittent' else (46,354)
+                    for x in (110,122):
+                        cv2.line(image,(x,low),(x,high),0,1)
+                    if kind=='joined_continuous':
+                        cv2.line(image,(116,low),(116,high),0,1)
+                    else:
+                        for y in range(low,high,30):
+                            cv2.line(image,(116,y),(116,min(y+20,high)),0,1)
+                    image=cv2.resize(image,None,fx=scale,fy=scale,interpolation=cv2.INTER_NEAREST)
+                    before=image.copy()
+                    segments=self.detect(image,scale)
+                    self.assertFalse(any(100<a<135 and 100<c<135 for a,b,c,d in segments),
+                        'No second junction, or no intermittent cavity: keep wiring out of wall proposals.')
+                    np.testing.assert_array_equal(image,before)
+
+    def test_center_hatched_outline_keeps_observed_perimeter_junctions(self):
+        for scale, angle in ((1,0),(2,0),(1,6),(2,6)):
+            with self.subTest(scale=scale,angle=angle):
+                image = np.full((400,500),255,dtype=np.uint8)
+                for inset in (0,6):
+                    cv2.rectangle(image,(40+inset,40+inset),(460-inset,360-inset),0,1)
+                # A center construction/hatch stroke occupies most of the band
+                # center, while original pixels retain sustained white cavities.
+                for y in range(46,349,30):
+                    cv2.line(image,(43,y),(43,min(y+20,354)),0,1)
+                rotation = cv2.getRotationMatrix2D((250,200),angle,1)
+                image = cv2.warpAffine(image,rotation,(500,400),flags=cv2.INTER_NEAREST,borderValue=255)
+                image = cv2.resize(image,None,fx=scale,fy=scale,interpolation=cv2.INTER_NEAREST)
+                before=image.copy()
+                result=detect_wall_lines(image,parameters=WallDetectionParameters(
+                    structural_mode=True,minimum_line_length=24*scale,maximum_line_gap=6*scale))
+                inverse=cv2.invertAffineTransform(rotation)
+                endpoints=[(inverse @ np.array([wall.start.x/scale,wall.start.y/scale,1]),
+                            inverse @ np.array([wall.end.x/scale,wall.end.y/scale,1]))
+                           for wall in result.candidates]
+                self.assertTrue(any(max(abs(a[0]-43),abs(b[0]-43))<4
+                    and min(a[1],b[1])<55 and max(a[1],b[1])>345 for a,b in endpoints),
+                    'Observed white cavities and both wall junctions must retain the full boundary.')
+                np.testing.assert_array_equal(image,before)
+
     def test_compact_five_bar_fixture_keeps_one_pixel_scan_companions(self):
         for scale in (1, 2):
             with self.subTest(scale=scale):

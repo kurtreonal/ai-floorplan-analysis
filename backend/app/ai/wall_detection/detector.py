@@ -669,6 +669,93 @@ def _recover_paired_band_ends(pairs, ink, continuity_ink, minimum):
     return recovered
 
 
+def _has_intermittent_middle_bar(segment,image):
+    """Three stripes qualify only when the observed middle stroke has real gaps."""
+    widths,centers,_ = _parallel_ink_runs(segment,image)
+    if len(widths) != 3:
+        return False
+    x1,y1,x2,y2,_ = segment
+    length = math.hypot(x2-x1,y2-y1)
+    nx,ny = -(y2-y1)/length,(x2-x1)/length
+    t = np.linspace(.1,.9,64)
+    middle_ink = np.zeros(t.shape,dtype=bool)
+    for offset in (centers[1]-1,centers[1],centers[1]+1):
+        xs = np.rint(x1+t*(x2-x1)+nx*offset).astype(int)
+        ys = np.rint(y1+t*(y2-y1)+ny*offset).astype(int)
+        if ((xs<0)|(xs>=image.shape[1])|(ys<0)|(ys>=image.shape[0])).any():
+            return False
+        middle_ink |= image[ys,xs]==0
+    return float(np.mean(~middle_ink)) >= .1
+
+
+def _has_observed_side_cavities(ink,px,py,qx,qy):
+    """White original pixels on both interior sides despite raster jitter."""
+    support = []
+    for fractions in ((1/4,1/3,5/12),(7/12,2/3,3/4)):
+        white = np.zeros(px.shape,dtype=bool)
+        for fraction in fractions:
+            ix = np.rint(px+(qx-px)*fraction).astype(int)
+            iy = np.rint(py+(qy-py)*fraction).astype(int)
+            white |= ink[iy,ix]==0
+        support.append(float(np.mean(white)))
+    return min(support) >= .45 and max(support) >= .8
+
+
+def _extend_observed_pair(pair,nearby_ink):
+    """Follow both observed mates, stopping at the first unsupported raster step."""
+    (start,end),thickness = pair
+    start,end = np.asarray(start,dtype=float),np.asarray(end,dtype=float)
+    axis = (end-start)/np.linalg.norm(end-start)
+    normal = np.array([-axis[1],axis[0]])
+    height,width = nearby_ink.shape
+    steps = np.arange(1,math.ceil(math.hypot(width,height))+1)
+    endpoints = []
+    for origin,direction in ((start,-1),(end,1)):
+        points = origin[None,:]+steps[:,None]*direction*axis
+        supported = np.ones(steps.shape,dtype=bool)
+        for side in (-1,1):
+            edges = np.rint(points+normal*side*(thickness-1)/2).astype(int)
+            xs,ys = edges[:,0],edges[:,1]
+            valid = (xs>=0)&(xs<width)&(ys>=0)&(ys<height)
+            supported &= valid & (nearby_ink[np.clip(ys,0,height-1),np.clip(xs,0,width-1)]>0)
+        stops = np.flatnonzero(~supported)
+        last = int(stops[0]) if stops.size else len(steps)
+        endpoints.append(tuple(np.rint(origin+last*direction*axis).astype(int)))
+    return (tuple(endpoints),thickness)
+
+
+def _has_two_observed_wall_junctions(pair, supports, minimum_span, *, minimum_support_span=None):
+    """Both endpoints must meet independently established transverse wall bands."""
+    if len(supports) > 512:
+        return False
+    (start,end),thickness = pair
+    start,end = np.asarray(start,dtype=float),np.asarray(end,dtype=float)
+    length = float(np.linalg.norm(end-start))
+    if length < minimum_span:
+        return False
+    axis = (end-start)/length
+    support_span = minimum_span if minimum_support_span is None else minimum_support_span
+    joined = [False,False]
+    for (a,b),other_thickness in supports:
+        a,b = np.asarray(a,dtype=float),np.asarray(b,dtype=float)
+        other_length = float(np.linalg.norm(b-a))
+        if other_length < support_span:
+            continue
+        transverse = (b-a)/other_length
+        if abs(float(axis @ transverse)) > .2:
+            continue
+        tolerance = (thickness+other_thickness)/2+2
+        for index,point in enumerate((start,end)):
+            delta = point-a
+            projection = float(delta @ transverse)
+            distance = abs(float(delta[0]*transverse[1]-delta[1]*transverse[0]))
+            if distance <= tolerance and -tolerance <= projection <= other_length+tolerance:
+                joined[index] = True
+        if all(joined):
+            return True
+    return False
+
+
 def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
     """Bounded paired-ink evidence, not the two edges of one filled wire.
 
@@ -713,6 +800,7 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
     nearby_ink = cv2.dilate(ink, np.ones((3, 3), dtype=np.uint8))
     original_binary = cv2.bitwise_not(ink)
     pairs = []
+    center_obscured = []
     strong_directions = set()
     for index, (length, x1, y1, x2, y2) in enumerate(lines):
         tx, ty = (x2 - x1) / length, (y2 - y1) / length
@@ -740,9 +828,18 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
                     or min(sy.min(), ey.min(), cy.min()) < 0 or max(sy.max(), ey.max(), cy.max()) >= height):
                 continue
             # A wire's Canny edges enclose black, not a persistent white cavity.
-            if (np.mean((nearby_ink[sy, sx] > 0) & (nearby_ink[ey, ex] > 0)) < .8
-                    or np.mean(ink[cy, cx] == 0) < .45):
+            if np.mean((nearby_ink[sy, sx] > 0) & (nearby_ink[ey, ex] > 0)) < .8:
                 continue
+            center_white = float(np.mean(ink[cy,cx]==0))
+            obscured = center_white < .45
+            if obscured:
+                # A construction/hatch stroke can occupy the exact center of a
+                # hollow wall. Require white ORIGINAL pixels in both interior
+                # lanes, one sustained >=80%; defer acceptance until both ends
+                # meet independently established transverse wall bands. This
+                # does not accept the filled interior of a thick single wire.
+                if center_white < .1 or not _has_observed_side_cavities(ink,px,py,qx,qy):
+                    continue
             radius = min(12, max(3, round(separation / 2)))
             edge_widths = [_paired_edge_stroke_width(ink, xx, yy, -ty, tx, radius)
                            for xx, yy in ((px, py), (qx, qy))]
@@ -758,21 +855,71 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
             endpoints = tuple((round(center[0] + t * tx), round(center[1] + t * ty)) for t in (start, end))
             # A repeated bundle of equally thin strokes is not a two-outline
             # wall cavity. Do not fill each neighboring pair into a solid wall.
-            if _regular_thin_parallel_bars((*endpoints[0], *endpoints[1], separation + 1),
-                                           original_binary):
+            band = (*endpoints[0],*endpoints[1],separation+1)
+            if _regular_thin_parallel_bars(band,original_binary):
+                # Only an intermittent center stroke between two outer outlines
+                # may be rescued by TWO observed wall junctions. Continuous
+                # three-wire bundles and all wider repeated bundles stay out.
+                if (not _has_intermittent_middle_bar(band,original_binary)
+                        or not _has_observed_side_cavities(ink,px,py,qx,qy)):
+                    continue
+                obscured = True
+            if obscured:
+                center_obscured.append((endpoints,separation+1))
                 continue
             pairs.append((endpoints, separation + 1))
             if end - start >= long_span:
                 strong_directions.add('horizontal' if abs(tx) > abs(ty) else 'vertical')
     if len(strong_directions) != 2:
         return None
+    # Bound this optional recovery; recovered bands cannot approve each other.
+    recovered_bands = []
+    if len(center_obscured) <= 512:
+        supports = tuple(pairs)
+        # A compact fixture cannot acquire structural identity merely because
+        # its short edges connect to longer circuit strokes. It must be long
+        # BEFORE observed-edge recovery as well as after it.
+        extended = dict.fromkeys(_extend_observed_pair(pair,nearby_ink)
+                                 for pair in dict.fromkeys(center_obscured)
+                                 if math.dist(*pair[0]) >= long_span)
+        recovered_bands = [pair for pair in extended
+                           if _has_two_observed_wall_junctions(pair,supports,long_span,
+                                                             minimum_support_span=minimum)]
     qualified = set(_without_detached_enclosing_bands(pairs))
     rejected = [pair for pair in pairs if pair not in qualified]
     mask = np.zeros_like(ink)
     for (start, end), thickness in pairs:
         cv2.line(mask, start, end, 255, max(2, round(thickness)))
     recovery = _recover_paired_band_ends(pairs,ink,continuity_ink,minimum)
-    return mask, float(np.median([thickness for _, thickness in pairs])), rejected, recovery
+    return mask, float(np.median([thickness for _, thickness in pairs])), rejected, recovery, recovered_bands
+
+
+def _add_verified_outline_bands(segments,bands):
+    """Add observed recovery without reseeding Hough votes or unrelated geometry."""
+    result = list(segments)
+    for (start,end),thickness in bands:
+        start,end = np.asarray(start,dtype=float),np.asarray(end,dtype=float)
+        length = float(np.linalg.norm(end-start))
+        axis = (end-start)/length
+        normal = np.array([-axis[1],axis[0]])
+        covered = []
+        present = False
+        for index,segment in enumerate(result):
+            a,b = np.asarray(segment[:2]),np.asarray(segment[2:4])
+            other_length = float(np.linalg.norm(b-a))
+            if (other_length == 0 or abs(float(axis @ ((b-a)/other_length))) < math.cos(math.radians(2))
+                    or max(abs(float((p-start) @ normal)) for p in (a,b)) > max(2,thickness*.25)):
+                continue
+            low,high = sorted(float((point-start) @ axis) for point in (a,b))
+            if low <= 1 and high >= length-1:
+                present = True
+                break
+            if low >= -1 and high <= length+1:
+                covered.append(index)
+        if not present:
+            result = [segment for index,segment in enumerate(result) if index not in covered]
+            result.append((*map(int,start),*map(int,end),float(thickness)))
+    return result
 
 
 def _detect_structural_wall_lines(
@@ -1037,6 +1184,11 @@ def _detect_structural_wall_lines(
             else:
                 changed.append((a,b,c,d,thickness,math.hypot(c-a,d-b)))
         consolidated = unchanged + _consolidate_wall_segments(changed,width,height,max_gap,evidence_mask=combined)
+    if outlined is not None and len(outlined) > 4 and outlined[4]:
+        # New mask ink changes global thickness statistics and randomized Hough
+        # voting, which can seed fixture/wiring artifacts. Recovery therefore
+        # changes only its independently verified band and covered fragments.
+        consolidated = _add_verified_outline_bands(consolidated,outlined[4])
     return [segment for segment in consolidated
             if not _is_repeated_grid_member(segment, image)
             and not _has_compact_parallel_bars(segment, image)]
