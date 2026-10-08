@@ -4,6 +4,53 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 9 native-resolution hollow-wall recovery (after 98f1f05)
+
+- General detector repair, without source-specific coordinates: native outline
+  separation now scales with the page within a 64px cap. Overflowing dense Hough
+  pools receive at most 256 deterministic axis proposals, checked against the
+  original ink/cavity, enclosure and existing wiring/fixture guards. Two halves
+  beside a true door gap survive high-resolution voting; the opening is retained.
+  Row-streaming uses 128-entry heaps per axis instead of raster-sized coordinate
+  arrays. Demo geometry evidence is versioned cv-native-outline-recovery-v5.
+- PASS: focused wall regression 60 tests/64 subtests plus bounded-stream test;
+  independent review's two native tests passed. Additional 4000x3200 synthetic
+  drawing retains six architectural walls, suppresses bold wiring and preserves
+  its doorway (22.76s full detection). At 4096x4096 the supplement takes 1.63s
+  on alternating strokes and 0.223s on filled ink, with <=256 proposals.
+- Current-source frozen v2 replays bind detector SHA256
+  74a62d098bacdea2c350d516e60d477cc31f13c6690d6a961b627c6aa4aa3266:
+  lighting24210 keeps exact56 walls/4rooms; selected school keeps exact11
+  walls/5rooms. Both original hashes unchanged. This proves retained geometry,
+  not improved accuracy on those two pages. Lighting still has weak-gray exterior
+  gaps, a dimension false wall and uncertain grid/fixture/wiring segments; see
+  ignored wall-native-20261009-lighting-inspection-v1 proposal overlay.
+- Wall training feasibility, source export SHA256
+  829de08a31e2c8014ac6194cb958f999b2aa534297af749a661b31d7a383afc9:
+  313 wall-named polylines on12 exact-source-verified pages pass finite/bounds
+  checks. Excluded58 non-wall records,20 deleted walls,5 needs-review walls,
+  53 wall bbox/polygon records and27 unmatched-source wall polylines. These are
+  preparation counts; deduplication, project splits and complete mask coverage
+  remain unverified. No wall model was trained; OpenCV has no learnable weights.
+- Full isolated backend PASS1208 tests,4 skipped,663 subtests,5 existing warnings.
+  This run covers the then-current worktree, not a clean-checkout release gate;
+  it supersedes the earlier recorded OpenAPI-count failure. Final streaming and
+  provenance changes additionally passed focused25 tests/5 subtests. OpenAPI
+  freshly inspected36 paths/44 operations; ORM34 tables. No schema change.
+  Full frontend510 tests/build and scoped lint passed in the preceding wiring
+  checkpoint; full lint still has six unrelated DeviceMeshCatalog errors.
+- Experimental symbol repairs remain inactive: v1 removed seven inspected
+  mezzanine errors while retaining8/8 known positives, but introduced hatch-like
+  troffers. v2 also retains8/8 there but loses a known sheet17 positive; its
+  training-source replay is805/830 exact-class matches, precision unscored.
+  Existing power80 checkpoint/fallback retained. No larger training run.
+- Next: apply these verified changes to the idle local runtime and browser-check
+  processing; preserve grayscale wall evidence generally. Saved metric wiring
+  on current floor still needs an actual reviewed canonical layout; no scale,
+  height, approval or walls will be fabricated. Multiple-circuit and underground
+  work remains open. Originals, historical artifacts, unrelated changes and
+  stash bb78854e87833124a1725b51f0be6099a8ac0cfa preserved.
+
 ### October 9 saved 2D circuit workflow and ceiling boundary (after 056c2bb)
 
 - Saved canonical 2D now uses the existing shared circuit preview/save workflow,

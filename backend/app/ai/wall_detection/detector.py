@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import heapq
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -862,6 +863,38 @@ def _recover_junction_backed_bands(candidates, supports, minimum_span, minimum_s
     return recovered
 
 
+def _axis_boundary_segments(ink, minimum):
+    """Bound deterministic straight-edge proposals on a dense raster.
+
+    Dense Hough voting can choose opposing halves of parallel outlines at a
+    doorway. These native pixel runs supplement only an overflowing Hough
+    pool; the ordinary paired-cavity checks still decide wall membership.
+    """
+    result = []
+    for horizontal, raster in ((True, ink), (False, ink.T)):
+        retained = []
+        # Stream rows with a fixed-size heap. A noisy high-resolution image
+        # must not materialize millions of start/end coordinate pairs.
+        for row, values in enumerate(raster):
+            active = np.r_[False, values > 0, False]
+            transitions = np.flatnonzero(active[1:] != active[:-1])
+            for low, stop in zip(transitions[::2], transitions[1::2]):
+                if stop-low < minimum:
+                    continue
+                # Longest first; ties retain the smallest source coordinates.
+                entry = (int(stop-low), -row, -int(low), int(stop-1))
+                if len(retained) < 128:
+                    heapq.heappush(retained, entry)
+                elif entry > retained[0]:
+                    heapq.heapreplace(retained, entry)
+        runs = [(-row, -low, high) for _, row, low, high
+                in sorted(retained, reverse=True)]
+        result.extend((int(lo), int(row), int(hi), int(row)) if horizontal
+                      else (int(row), int(lo), int(row), int(hi))
+                      for row, lo, hi in runs)
+    return result
+
+
 def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
     """Bounded paired-ink evidence, not the two edges of one filled wire.
 
@@ -879,6 +912,7 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
     if raw is None:
         return None
     canonical = _canonical_segments(raw, width=width, height=height)
+    axis_segments = set()
     if len(canonical) > 256:
         # On dense weighted scans many pixels of the same stroke crowd other
         # edges out of the 256-line pool. Retry voting on rising ink boundaries
@@ -895,17 +929,25 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
         if raw is None:
             return None
         canonical = _canonical_segments(raw, width=width, height=height)
+        axis_segments = set(_axis_boundary_segments(vote_ink, minimum))
+        canonical += list(axis_segments)
     lines = []
     for x1, y1, x2, y2 in canonical:
         length = math.hypot(x2 - x1, y2 - y1)
         if length >= minimum:
             lines.append((length, x1, y1, x2, y2))
     lines = sorted(set(lines), key=lambda row: (-row[0], row[1:]))[:256]
-    maximum_separation = min(32, max(4, min(width, height) * .03))
+    # Native-resolution outlines scale with the drawing. A fixed 32px cap
+    # makes the same hollow wall lose its evidence on a higher-resolution
+    # upload, then falls back to treating bold circuit strokes as walls. Keep
+    # the search page-scaled and bounded; pair cavity/width checks still decide
+    # whether the wider gap is observed architectural evidence.
+    maximum_separation = min(64, max(4, min(width, height) * .03))
     long_span = max(minimum * 2, min(width, height) * .14)
     nearby_ink = cv2.dilate(ink, np.ones((3, 3), dtype=np.uint8))
     original_binary = cv2.bitwise_not(ink)
     pairs = []
+    axis_pairs = []
     center_obscured = []
     strong_directions = set()
     for index, (length, x1, y1, x2, y2) in enumerate(lines):
@@ -974,6 +1016,9 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
                 center_obscured.append((endpoints,separation+1))
                 continue
             pairs.append((endpoints, separation + 1))
+            if ((x1, y1, x2, y2) in axis_segments
+                    and (ax, ay, bx, by) in axis_segments and end-start >= long_span):
+                axis_pairs.append((endpoints, separation + 1))
             if end - start >= long_span:
                 strong_directions.add('horizontal' if abs(tx) > abs(ty) else 'vertical')
     if len(strong_directions) != 2:
@@ -995,7 +1040,10 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
     for (start, end), thickness in pairs:
         cv2.line(mask, start, end, 255, max(2, round(thickness)))
     recovery = _recover_paired_band_ends(pairs,ink,continuity_ink,minimum)
-    return mask, float(np.median([thickness for _, thickness in pairs])), rejected, recovery, recovered_bands
+    # Retain independently qualified long axis bands if skeleton voting later
+    # misses one door-separated half. This only supplements dense-pool cases.
+    axis_pairs = [pair for pair in dict.fromkeys(axis_pairs) if pair in qualified]
+    return mask, float(np.median([thickness for _, thickness in pairs])), rejected, recovery, recovered_bands, axis_pairs
 
 
 def _add_verified_outline_bands(segments,bands):
@@ -1293,6 +1341,8 @@ def _detect_structural_wall_lines(
         # voting, which can seed fixture/wiring artifacts. Recovery therefore
         # changes only its independently verified band and covered fragments.
         consolidated = _add_verified_outline_bands(consolidated,outlined[4])
+    if outlined is not None and len(outlined) > 5 and outlined[5]:
+        consolidated = _add_verified_outline_bands(consolidated, outlined[5])
     return [segment for segment in consolidated
             if not _is_repeated_grid_member(segment, image)
             and not _has_compact_parallel_bars(segment, image)
