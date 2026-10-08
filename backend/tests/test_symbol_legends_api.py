@@ -76,6 +76,7 @@ class SymbolLegendModelTests(unittest.TestCase):
             "estimates",
             "material_prices",
             "processing_jobs",
+            "processing_drawing_selections",
             "processing_job_attempts",
             "processing_job_cancellations",
             "processing_artifacts",
@@ -91,7 +92,7 @@ class SymbolLegendModelTests(unittest.TestCase):
         }
         self.assertEqual(set(Base.metadata.tables), expected)
         self.assertEqual(set(inspect(self.engine).get_table_names()), expected)
-        self.assertEqual(len(Base.metadata.tables), 33)
+        self.assertEqual(len(Base.metadata.tables), 34)
 
 
 class SymbolLegendApiTests(unittest.TestCase):

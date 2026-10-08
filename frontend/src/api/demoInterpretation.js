@@ -53,7 +53,12 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 
 
 export function fetchDemoInterpretation(floorPlanId, options = {}) {
-  return request(`/api/floor-plans/${floorPlanId}/interpretation`, options)
+  const { processingJobId, ...requestOptions } = options
+  if (processingJobId !== undefined && (!Number.isInteger(processingJobId) || processingJobId <= 0)) {
+    return Promise.reject(new DemoInterpretationApiError())
+  }
+  const query = processingJobId === undefined ? '' : `?processing_job_id=${processingJobId}`
+  return request(`/api/floor-plans/${floorPlanId}/interpretation${query}`, requestOptions)
 }
 
 

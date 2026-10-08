@@ -20,6 +20,7 @@ import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, Undo2, Redo2, Save, Trash2 } from 'lucide-react'
 import { ReviewToolRail } from './ReviewToolRail.jsx'
 import { repairDraftWalls } from './repairDraftWalls.js'
+import { DrawingRegionPanel } from './DrawingRegionPanel.jsx'
 import { clampDevicePoint, describeReviewSymbol, reviewGeometryPayload } from './devicePresentation.js'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
@@ -136,12 +137,15 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [staleRoomsWarning, setStaleRoomsWarning] = useState(false)
 
+  const [analysisRegion, setAnalysisRegion] = useState(null)
+  const [frozenAnalysisRegion, setFrozenAnalysisRegion] = useState(null)
+  const [regionSession, setRegionSession] = useState(0)
   useEffect(() => {
     const controller = new AbortController()
     let active = true
     let objectUrl = null
     Promise.all([
-      fetchDemoInterpretation(floorPlanId, { signal: controller.signal }),
+      fetchDemoInterpretation(floorPlanId, { signal: controller.signal, processingJobId }),
       fetchReviewImage(floorPlanId, processingJobId, { signal: controller.signal }),
       fetchSymbolLegends({ signal: controller.signal }),
     ]).then(async ([record, blob, legends]) => {
@@ -157,6 +161,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       setState({ status: 'ready', record, image, legends, error: null })
       setDraft(initial)
       setHistory([initial])
+      setAnalysisRegion(null)
+      setFrozenAnalysisRegion(null)
       setHistoryIndex(0)
       setNotes(record.review?.evidence_notes || '')
       setWallThickness(String(record.review?.wall_thickness_meters ?? ''))
@@ -430,7 +436,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         <p>{activeWallsCount} wall segments · {activeRoomsCount} room proposals</p>
       </header>
       <p role="note">
-        Walls are traced from thick structural boundaries and partitions. Thin grids, wiring, troffers, and dimensions are rejected. Verify or draw walls in 2D before 3D preview.
+        Walls are proposed from structural evidence. Wiring, grids and dimensions can still produce false walls; inspect the blueprint and correct them before approval or routing.
       </p>
       {experimental && <p role="note">Experimental Pull station template proposals only (two Group 7 source templates; page scale selected from 1.0/1.2 using interior matches). The second page was used for tuning, not held-out evaluation. Orange review overlays are unconfirmed; match similarity is not calibrated confidence. Inspect the original image, then accept, correct, reject, or add symbols. Map accepted symbols to an approved VED legend. Other classes remain unresolved.</p>}
       {general && <p role="note">One shared supervised development detector includes all 56 eligible drawing-legend entries. Inclusion is not a guarantee of detection. Scarce examples and conflicting labels limit results; scores are not calibrated and independent accuracy is unverified. Proposals start unresolved. Inspect, accept, correct, reject, or add symbols, then map accepted symbols to the approved drawing legend and save your draft.</p>}
@@ -449,7 +455,11 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         <Button size="sm" disabled={saveState.status === 'saving'} aria-label="Save unfinished draft" onClick={() => saveReview({ draftOnly: true })}><Save aria-hidden="true" />Save draft</Button>
       </div>
       <div className="studio-review-workbench studio-device-workbench">
-      <ReviewToolRail view={view} tool={tool} onToolChange={setTool} onAdd={addEntity} layers={layers} setLayers={setLayers} opacity={blueprintOpacity} onOpacityChange={setBlueprintOpacity}
+      <ReviewToolRail view={view} tool={tool} onToolChange={(nextTool) => {
+        setTool(nextTool)
+        if (nextTool === 'region') setRegionSession((value) => value + 1)
+      }} onAdd={addEntity} layers={layers} setLayers={setLayers} opacity={blueprintOpacity} onOpacityChange={setBlueprintOpacity}
+        canSelectDrawingRegion={!frozenAnalysisRegion && ['demo_cv_baseline', 'development_multiclass56_yolo'].includes(state.record.candidate.provenance?.model_release_id)}
         onConnectWalls={() => {
           const result = repairDraftWalls(draft.walls, plane.width_pixels, plane.height_pixels)
           if (result.joined || result.merged) pushDraft({ ...draft, walls: result.walls }, { wallChange: true })
@@ -494,6 +504,9 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               onDeleteSymbol={removeSymbol}
               presentations={presentations}
               blueprintOpacity={blueprintOpacity}
+              analysisRegion={frozenAnalysisRegion || analysisRegion}
+              regionSession={regionSession}
+              onAnalysisRegionChange={(region) => { if (!frozenAnalysisRegion) setAnalysisRegion(region) }}
             />
           </>
         ) : (
@@ -503,8 +516,14 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           </Suspense>
         )}
         {saveState.message && <p role={saveState.status === 'error' ? 'alert' : 'status'}>{saveState.message}</p>}
-      </section>
+        {['demo_cv_baseline', 'development_multiclass56_yolo'].includes(state.record.candidate.provenance?.model_release_id) &&
+          <DrawingRegionPanel key={state.record.candidate_run_id} record={state.record} region={frozenAnalysisRegion || analysisRegion}
+            onFreezeRegion={(region) => { setFrozenAnalysisRegion(region); if (region) setTool('select') }}
+            onRegionChange={(region) => { if (!frozenAnalysisRegion) setAnalysisRegion(region) }}
+            onSelectRegion={() => { if (frozenAnalysisRegion) return; setRegionSession((value) => value + 1); setTool('region'); setView('2d'); setLayers((current) => ({ ...current, source: true })) }}
+            projectId={projectId} projectFloorId={projectFloorId} floorPlanId={floorPlanId} />}
 
+      </section>
       <section className="demo-review-tools" aria-labelledby="demo-tools-title">
         <h2 id="demo-tools-title">Review and inspect</h2>
 

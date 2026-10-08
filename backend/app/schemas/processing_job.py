@@ -21,7 +21,7 @@ class ProcessingPageOutcomeResponse(BaseModel):
 
 class ProcessingJobStartResponse(BaseModel):
     job_id: PositiveInt
-    status: Literal["queued"]
+    status: Literal["queued", "processing", "completed", "failed", "cancelled"]
 
 
 class ProcessingJobStatusResponse(BaseModel):

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_roles
@@ -117,6 +117,7 @@ def _response(record: DemoInterpretationRecord) -> DemoInterpretationResponse:
 )
 def get_interpretation(
     floor_plan_id: Annotated[int, Path(gt=0)],
+    processing_job_id: Annotated[int | None, Query(gt=0)] = None,
     current_user: User = Depends(require_roles("ADMIN", "DESIGNER")),
     session: Session = Depends(get_db),
 ) -> DemoInterpretationResponse:
@@ -126,6 +127,7 @@ def get_interpretation(
                 session,
                 current_user=current_user,
                 floor_plan_id=floor_plan_id,
+                processing_job_id=processing_job_id,
             )
         )
     except DemoInterpretationError as error:

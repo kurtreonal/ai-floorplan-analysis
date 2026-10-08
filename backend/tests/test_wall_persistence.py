@@ -362,6 +362,7 @@ class WallPersistenceTests(unittest.TestCase):
                 "processing_job_attempts",
                 "processing_job_cancellations",
                 "processing_artifacts",
+                "processing_drawing_selections",
                 "floor_elevation_settings",
                 "page_scale_settings",
                 "walls",

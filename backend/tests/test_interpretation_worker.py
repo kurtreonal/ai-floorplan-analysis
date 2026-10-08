@@ -225,6 +225,7 @@ def test_actual_demo_pixels_produce_honest_validated_provenance(monkeypatch):
     )
     monkeypatch.setattr(service, "list_page_outcomes", lambda *a, **k: [page_outcome])
     monkeypatch.setattr(service, "next_selected_page", lambda *a, **k: page_outcome)
+    monkeypatch.setattr(service, "load_drawing_selection", lambda *a, **k: None)
     monkeypatch.setattr(service, "find_by_processing_job", lambda *a, **k: None)
     monkeypatch.setattr(service, "_context", lambda *a, **k: (
         SimpleNamespace(id=7), SimpleNamespace(id=2),

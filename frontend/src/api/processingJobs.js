@@ -169,6 +169,28 @@ export async function fetchProcessingJob(jobId, { signal } = {}) {
   return normalizeStatusResponse(payload)
 }
 
+export async function startDrawingRegionProcessing(floorPlanId, selection, { signal } = {}) {
+  const region = selection?.region
+  if (!isPositiveInteger(floorPlanId)
+    || selection?.intent !== 'process_drawing_region'
+    || !/^[0-9a-f]{32}$/.test(selection?.candidate_run_id || '')
+    || !/^[0-9a-f]{64}$/.test(selection?.expected_source_artifact_sha256 || '')
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(selection?.request_id || '')
+    || ![region?.x, region?.y].every((value) => Number.isInteger(value) && value >= 0)
+    || ![region?.width, region?.height].every(isPositiveInteger)) {
+    throw new ProcessingJobApiError('Select a valid drawing rectangle on the exact review page.')
+  }
+  const payload = await request(`${API_BASE_URL}/api/floor-plans/${floorPlanId}/process`, {
+    method: 'POST', credentials: 'include', signal,
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(selection),
+  }, GENERIC_PROCESSING_ERROR)
+  if (!isPositiveInteger(payload?.job_id) || !PROCESSING_STATUSES.has(payload?.status)) {
+    throw new ProcessingJobApiError(GENERIC_PROCESSING_ERROR)
+  }
+  return { job_id: payload.job_id, status: payload.status }
+}
+
 export async function listProcessingJobs(floorPlanId, { signal } = {}) {
   const payload = await request(
     `${API_BASE_URL}/api/floor-plans/${encodeURIComponent(floorPlanId)}/processing-jobs?limit=50`,

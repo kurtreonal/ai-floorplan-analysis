@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Circle, Group, Image as KonvaImage, Layer, Line, Stage, Text } from 'react-konva'
+import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva'
 
 import { fitCanvas } from './detectionCanvasGeometry.js'
 import { DeviceGlyph } from './DeviceGlyph.jsx'
 import { clampDevicePoint } from './devicePresentation.js'
+import { drawingRegionFromPoints } from './drawingRegion.js'
 import {
   constrainPoint,
   findSnapPoint,
@@ -35,6 +36,9 @@ export function DemoInterpretationCanvas({
   presentations = {},
   scaleMeters = null,
   blueprintOpacity = 1.0,
+  analysisRegion = null,
+  onAnalysisRegionChange,
+  regionSession = 0,
 }) {
   const containerRef = useRef(null)
   const stageRef = useRef(null)
@@ -52,6 +56,8 @@ export function DemoInterpretationCanvas({
   const [userTransform, setUserTransform] = useState(null)
   const stageTransform = userTransform || defaultFit
   const [drawingStart, setDrawingStart] = useState(null)
+  const [regionStart, setRegionStart] = useState(null)
+  const regionAnchor = regionStart?.session === regionSession ? regionStart.point : null
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const [isShiftHeld, setIsShiftHeld] = useState(false)
   const [isSpaceHeld, setIsSpaceHeld] = useState(false)
@@ -83,12 +89,15 @@ export function DemoInterpretationCanvas({
       if (event.key === 'Shift') setIsShiftHeld(true)
       if (event.code === 'Space') { event.preventDefault(); setIsSpaceHeld(true) }
       if (event.key === 'Escape') {
-        if (drawingStart) {
+        if (regionAnchor) {
+          setRegionStart(null)
+        } else if (drawingStart) {
           setDrawingStart(null)
         } else if (tool !== 'move') {
           onToolChange?.('move')
         }
       } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (tool === 'region') return
         if (selected?.kind === 'wall' && onDeleteWall) {
           event.preventDefault()
           onDeleteWall(selected.id)
@@ -108,7 +117,7 @@ export function DemoInterpretationCanvas({
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [drawingStart, tool, selected, onDeleteWall, onDeleteSymbol, onToolChange])
+  }, [drawingStart, regionAnchor, tool, selected, onDeleteWall, onDeleteSymbol, onToolChange])
 
   // Map pointer to source-image pixels via stage inverse transform
   function getSourcePoint(stage) {
@@ -184,6 +193,18 @@ export function DemoInterpretationCanvas({
 
   // Stage click (for drawing walls or clearing selection)
   function handleStageClick(event) {
+    if (tool === 'region') {
+      if (isSpaceHeld) return
+      const point = getSourcePoint(event.target.getStage())
+      if (!point) return
+      if (!regionAnchor) setRegionStart({ point, session: regionSession })
+      else {
+        const region = drawingRegionFromPoints(regionAnchor, point, width, height)
+        if (region) onAnalysisRegionChange?.(region)
+        setRegionStart(null)
+      }
+      return
+    }
     // If user clicked directly on stage or background image
     const clickedOnEmpty = event.target === stageRef.current || event.target.name() === 'blueprint-image'
 
@@ -212,7 +233,7 @@ export function DemoInterpretationCanvas({
   // Cursor style based on active tool and mode
   const cursorStyle = useMemo(() => {
     if (isSpaceHeld || tool === 'pan') return 'grab'
-    if (tool === 'draw') return 'crosshair'
+    if (tool === 'draw' || tool === 'region') return 'crosshair'
     if (tool === 'delete') return 'pointer'
     return 'default'
   }, [isSpaceHeld, tool])
@@ -242,6 +263,7 @@ export function DemoInterpretationCanvas({
           draggable={isSpaceHeld || tool === 'pan'}
           onWheel={handleWheel}
           onMouseMove={handleMouseMove}
+          onTouchMove={handleMouseMove}
           onClick={handleStageClick}
           onTap={handleStageClick}
           onDragEnd={(e) => {
@@ -601,6 +623,18 @@ export function DemoInterpretationCanvas({
                 />
               )))}
           </Layer>
+          {/* Top hit surface prevents ROI selection from changing review items. */}
+          <Layer>
+            {tool === 'region' && <Rect name="drawing-region-hit" x={0} y={0} width={width} height={height}
+              fill="rgba(0,0,0,0.001)" />}
+            {(analysisRegion || (tool === 'region' && regionAnchor)) && (() => {
+              const region = tool === 'region' && regionAnchor
+                ? drawingRegionFromPoints(regionAnchor, mousePos, width, height) : analysisRegion
+              return region && <Rect name="drawing-region-outline" {...region} listening={false}
+                stroke="#0284c7" strokeWidth={2 / stageTransform.scale}
+                fill="rgba(2,132,199,0.08)" dash={[8 / stageTransform.scale, 5 / stageTransform.scale]} />
+            })()}
+          </Layer>
         </Stage>
 
         {/* Floating pill for drawing mode: "Press the 'Esc' key to stop drawing walls" */}
@@ -609,6 +643,7 @@ export function DemoInterpretationCanvas({
             Press the &quot;Esc&quot; key to stop drawing walls
           </div>
         )}
+        {tool === 'region' && <div className="demo-esc-pill" role="status">Click two opposite corners of the drawing. Outside stays unprocessed. Esc cancels.</div>}
 
         {/* Floating Help icon button */}
         <button

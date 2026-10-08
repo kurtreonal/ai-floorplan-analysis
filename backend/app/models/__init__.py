@@ -20,6 +20,7 @@ from app.models.layout_version import LayoutVersion
 from app.models.layout_save_request import LayoutSaveRequest
 from app.models.manual_symbol import ManualSymbol
 from app.models.processing_job import ProcessingJob
+from app.models.processing_drawing_selection import ProcessingDrawingSelection
 from app.models.processing_job_attempt import ProcessingJobAttempt
 from app.models.processing_job_cancellation import ProcessingJobCancellation
 from app.models.processing_artifact import ProcessingArtifact
@@ -56,6 +57,7 @@ __all__ = (
     "LayoutSaveRequest",
     "ManualSymbol",
     "ProcessingJob",
+    "ProcessingDrawingSelection",
     "ProcessingJobAttempt",
     "ProcessingJobCancellation",
     "ProcessingArtifact",

@@ -33,6 +33,7 @@ from app.ai.floor_plan_interpretation.experimental_symbol_detector import (
     with_trained_symbol_proposals,
 )
 from app.ai.floor_plan_interpretation.preparation import prepare_page_context
+from app.ai.floor_plan_interpretation.drawing_region import interpret_drawing_region, restore_region_predictions
 from app.ai.local_model_gateway import (
     GatewayInferenceRequest,
     LocalGatewayConfig,
@@ -92,6 +93,9 @@ from app.services.interpretation_job_configuration_service import (
 )
 from app.services.interpretation_release_service import MANUAL_REVIEW_PROVIDER
 from app.services.source_identity import resolve_stored_original
+from app.services.drawing_selection_service import (
+    DrawingSelectionError, load_drawing_selection, selection_region, trusted_selection_source,
+)
 
 
 # This path currently executes deterministic OpenCV, not a model gateway.
@@ -156,12 +160,7 @@ def _heartbeat(
         lease_seconds=LEASE_SECONDS,
     )
     if cancellation_requested:
-        finish_processing_attempt(
-            session,
-            attempt_id=attempt_id,
-            worker_identity=worker_identity,
-            outcome="cancelled",
-        )
+        # The failure fence acknowledges cancellation together with page state.
         raise InterpretationProcessingError("PROCESSING_CANCELLED")
 
 
@@ -173,6 +172,7 @@ def _registered_artifact(
     source_manifest: FloorPlanSource,
     settings: Settings,
     page: FloorPlanPage,
+    drawing_selection=None,
 ):
     processed_directory = get_processed_directory(settings)
     try:
@@ -207,6 +207,24 @@ def _registered_artifact(
     # or overwrite unregistered pixels. Every new preparation gets a private
     # namespace; registered artifacts are still reused only after hash checks.
     preparation_directory = processed_directory / "interpretation-runs" / uuid4().hex
+    if drawing_selection is not None:
+        source_artifact = trusted_selection_source(session, selection=drawing_selection,
+            job=job, page=page, settings=settings)
+        # Copy the exact full-page pixels seen by the reviewer, not a newly
+        # rendered/resized PDF or a crop masquerading as the entire page.
+        preparation_directory.mkdir(parents=True, exist_ok=False)
+        selected_path = preparation_directory / "normalized.png"
+        with selected_path.open("xb") as output:
+            output.write(source_artifact.content)
+        register_processing_artifact(session, processing_job=job, floor_plan_id=floor_plan.id,
+            page_number=page.page_number, artifact_kind="normalized_image",
+            processed_directory=processed_directory,
+            relative_path=selected_path.relative_to(processed_directory.resolve()).as_posix(),
+            mime_type="image/png")
+        session.commit()
+        return resolve_trusted_processing_artifact(session, floor_plan_id=floor_plan.id,
+            processing_job_id=job.id, floor_plan_page_id=page.id, artifact_kind="normalized_image",
+            processed_directory=processed_directory)
     if floor_plan.mime_type == "application/pdf":
         try:
             rendered = resolve_trusted_processing_artifact(
@@ -395,6 +413,42 @@ def _persist_fenced_run(session, *, claim, worker_identity, run, page_outcome=No
         raise
 
 
+def _finish_fenced_failure(session, *, claim, worker_identity, page_outcome, failure_code):
+    """Finish only the current lease's page; a late worker cannot change its successor."""
+    try:
+        job = lock_processing_job(session, job_id=claim.job_id)
+        attempt = lock_attempt(session, attempt_id=claim.attempt_id)
+        if (
+            job is None or attempt is None or job.status != "processing"
+            or attempt.processing_job_id != claim.job_id
+            or attempt.worker_identity != worker_identity
+            or attempt.status != "active" or attempt.active_marker is not True
+            or attempt.lease_expires_at <= datetime.now(UTC).replace(tzinfo=None)
+        ):
+            raise InterpretationProcessingError("PROCESSING_ATTEMPT_NOT_ACTIVE")
+        cancelled = find_cancellation(session, job_id=claim.job_id) is not None
+        code = "PROCESSING_CANCELLED" if cancelled else failure_code
+        if page_outcome is not None:
+            page = session.scalar(select(InterpretationPageOutcome)
+                .where(InterpretationPageOutcome.id == page_outcome.id).with_for_update())
+            if (page is None or page.processing_job_id != claim.job_id
+                    or page.selection_state != "selected" or page.status != "processing"):
+                raise InterpretationProcessingError("PROCESSING_PAGE_OUTCOME_NOT_ACTIVE")
+            page.status = page_outcome_failure_status(code)
+            page.progress = 100
+            page.failure_code = code
+            session.flush()
+        remaining = has_open_selected_pages(session, processing_job_id=claim.job_id)
+        # No earlier commit: terminal page and attempt acknowledgment are atomic
+        # under the same job/attempt locks used by the candidate publication fence.
+        finish_processing_attempt(session, attempt_id=claim.attempt_id,
+            worker_identity=worker_identity, outcome="cancelled" if cancelled else "failed",
+            failure_code=None if cancelled else code, complete_job=not remaining)
+    except Exception:
+        # Preserve the original processing error, including stale lease rejection.
+        session.rollback()
+
+
 def process_interpretation_job(
     session: Session,
     *,
@@ -434,6 +488,9 @@ def process_interpretation_job(
         except InterpretationConfigurationError as error:
             raise InterpretationProcessingError(error.code) from None
         requeue_retryable_pages(session, processing_job_id=job.id)
+        # The shared session disables autoflush. Persist recovered page states
+        # before the next-page SQL query, while retaining the claimed lease.
+        session.flush()
         page_outcome = next_selected_page(session, processing_job_id=job.id)
         if page_outcome is None:
             raise InterpretationProcessingError("PROCESSING_PAGE_SELECTION_REQUIRED")
@@ -443,6 +500,20 @@ def process_interpretation_job(
         job, floor_plan, source_manifest, page = _context(
             session, job_id, page_outcome.page_number
         )
+        drawing_selection = load_drawing_selection(session, processing_job_id=job.id)
+        region = None
+        selection_parameters = ()
+        if drawing_selection is not None:
+            if pinned_configuration.provider not in (PROVIDER, multiclass.PROVIDER):
+                raise InterpretationProcessingError("DRAWING_SELECTION_PROVIDER_CONFLICT")
+            trusted_selection_source(session, selection=drawing_selection,
+                job=job, page=page, settings=settings)
+            region = selection_region(drawing_selection)
+            selection_parameters = (
+                InferenceParameter(name="drawing-region", value=region.model_dump_json()),
+                InferenceParameter(name="drawing-selection-sha256", value=drawing_selection.selection_sha256),
+                InferenceParameter(name="source-selection-run-id", value=str(drawing_selection.source_run_id)),
+            )
         existing = find_by_processing_job(session, processing_job_id=job_id,
                                           floor_plan_page_id=page.id)
         if existing is not None:
@@ -464,7 +535,10 @@ def process_interpretation_job(
             source_manifest=source_manifest,
             settings=settings,
             page=page,
+            drawing_selection=drawing_selection,
         )
+        if drawing_selection is not None and artifact.record.sha256 != drawing_selection.source_artifact_sha256:
+            raise InterpretationProcessingError("DRAWING_SELECTION_SOURCE_CONFLICT")
         _heartbeat(
             session,
             attempt_id=claim.attempt_id,
@@ -502,7 +576,8 @@ def process_interpretation_job(
                 # detector when its local gateway is unavailable or fenced.
                 raise InterpretationProcessingError("MODEL_UNAVAILABLE")
             provider = pinned_configuration.provider
-            payload = interpret_floor_plan_demo(rgb)
+            payload = (interpret_drawing_region(rgb, region=region, interpreter=interpret_floor_plan_demo)
+                       if region is not None else interpret_floor_plan_demo(rgb))
             if experimental:
                 try:
                     payload = with_pull_station_proposals(payload, locate(rgb, LOCAL_SOURCE))
@@ -511,7 +586,12 @@ def process_interpretation_job(
             if trained:
                 try:
                     if general:
-                        proposals, truncated = multiclass.locate(rgb)
+                        detector_rgb = (rgb[region.y:region.y + region.height, region.x:region.x + region.width].copy()
+                                        if region is not None else rgb)
+                        proposals, truncated = multiclass.locate(detector_rgb)
+                        if region is not None:
+                            proposals = restore_region_predictions(proposals, region=region,
+                                                                   source_plane=payload.source_plane)
                         payload = multiclass.with_proposals(payload, proposals, truncated)
                     else:
                         proposals, truncated = locate_trained_symbols(rgb, linked=True) if linked else locate_trained_symbols(rgb)
@@ -541,7 +621,7 @@ def process_interpretation_job(
                                     "partial-label-symbol-detector-v1" if trained else
                                     "pull-template-v1" if experimental else "demo-cv-room-v2"),
                     runtime_version=("ultralytics-local-cpu-v1" if trained else f"opencv-{cv2.__version__}"),
-                    inference_parameters=(
+                    inference_parameters=tuple(sorted(selection_parameters + (
                         (
                             InferenceParameter(name="checkpoint-sha256", value=trained_checkpoint),
                             InferenceParameter(name="dataset-sha256", value=trained_dataset),
@@ -557,7 +637,7 @@ def process_interpretation_job(
                                 InferenceParameter(name="template-score-threshold", value=str(EXPERIMENTAL_THRESHOLD)),
                             ) if experimental else ()),
                         )
-                    ),
+                    ), key=lambda parameter: parameter.name)),
                     created_at=datetime.now(UTC),
                 ),
             )
@@ -641,67 +721,13 @@ def process_interpretation_job(
             session, claim=claim, worker_identity=worker_identity, run=run,
             page_outcome=page_outcome, provider=provider,
         )
-    except InterpretationProcessingError as error:
+    except (InterpretationProcessingError, DrawingSelectionError) as error:
         session.rollback()
-        remaining = False
-        if page_outcome is not None:
-            try:
-                page_outcome = session.get(InterpretationPageOutcome, page_outcome.id)
-                if page_outcome is not None:
-                    page_outcome.status = page_outcome_failure_status(error.code)
-                    page_outcome.progress = 100
-                    page_outcome.failure_code = error.code
-                    session.flush()
-                    remaining = has_open_selected_pages(
-                        session, processing_job_id=claim.job_id
-                    )
-                    session.commit()
-            except Exception:
-                session.rollback()
-        try:
-            # A heartbeat may already have acknowledged cancellation. A final
-            # write-fence cancellation still needs acknowledgment, without output.
-            finish_processing_attempt(
-                session,
-                attempt_id=claim.attempt_id,
-                worker_identity=worker_identity,
-                outcome="cancelled" if error.code == "PROCESSING_CANCELLED" else "failed",
-                failure_code=None if error.code == "PROCESSING_CANCELLED" else error.code,
-                complete_job=not remaining,
-            )
-        except ProcessingExecutionError:
-            # Do not obscure the original error when this attempt was replaced
-            # or was already acknowledged by the heartbeat.
-            pass
-        raise
+        _finish_fenced_failure(session, claim=claim, worker_identity=worker_identity,
+            page_outcome=page_outcome, failure_code=error.code)
+        raise InterpretationProcessingError(error.code) from None
     except Exception:
         session.rollback()
-        remaining = False
-        if page_outcome is not None:
-            try:
-                page_outcome = session.get(InterpretationPageOutcome, page_outcome.id)
-                if page_outcome is not None:
-                    page_outcome.status = page_outcome_failure_status(
-                        "INTERPRETATION_PROCESSING_FAILED"
-                    )
-                    page_outcome.progress = 100
-                    page_outcome.failure_code = "INTERPRETATION_PROCESSING_FAILED"
-                    session.flush()
-                    remaining = has_open_selected_pages(
-                        session, processing_job_id=claim.job_id
-                    )
-                    session.commit()
-            except Exception:
-                session.rollback()
-        try:
-            finish_processing_attempt(
-                session,
-                attempt_id=claim.attempt_id,
-                worker_identity=worker_identity,
-                outcome="failed",
-                failure_code="INTERPRETATION_PROCESSING_FAILED",
-                complete_job=not remaining,
-            )
-        except Exception:
-            pass
+        _finish_fenced_failure(session, claim=claim, worker_identity=worker_identity,
+            page_outcome=page_outcome, failure_code="INTERPRETATION_PROCESSING_FAILED")
         raise InterpretationProcessingError("INTERPRETATION_PROCESSING_FAILED") from None

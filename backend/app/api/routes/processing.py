@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,8 @@ from app.services.processing_job_service import (
     start_floor_plan_processing,
 )
 from app.services.interpretation_page_outcome_service import PageSelectionError, list_page_outcomes
+from app.schemas.drawing_selection import DrawingRegionProcessingRequest
+from app.services.drawing_selection_service import DrawingSelectionError, start_drawing_region_processing
 from app.ai.floor_plan_interpretation.experimental_pull_station import ExperimentalLocatorUnavailable
 from app.ai.floor_plan_interpretation.experimental_symbol_detector import ExperimentalDetectorUnavailable
 
@@ -126,6 +128,7 @@ def list_processing_job_history_endpoint(
 def start_floor_plan_processing_endpoint(
     floor_plan_id: Annotated[int, Path(gt=0)],
     request: Request,
+    drawing_selection: Annotated[DrawingRegionProcessingRequest | None, Body()] = None,
     page_numbers: Annotated[list[int] | None, Query(max_length=128)] = None,
     experimental_pull_station: bool = False,
     experimental_symbol_detector: bool = False,
@@ -134,17 +137,30 @@ def start_floor_plan_processing_endpoint(
     database_session: Session = Depends(get_db),
 ) -> ProcessingJobStartResponse:
     try:
-        processing_job = start_floor_plan_processing(
-            database_session,
-            current_user=current_user,
-            floor_plan_id=floor_plan_id,
-            page_numbers=page_numbers,
-            experimental_pull_station=experimental_pull_station,
-            experimental_symbol_detector=experimental_symbol_detector,
-            experimental_linked_legend_detector=experimental_linked_legend_detector,
-            settings=request.app.state.settings,
-        )
+        if drawing_selection is not None:
+            if page_numbers is not None or any((experimental_pull_station, experimental_symbol_detector,
+                                                experimental_linked_legend_detector)):
+                raise DrawingSelectionError("DRAWING_SELECTION_MODE_CONFLICT")
+            processing_job = start_drawing_region_processing(database_session, current_user=current_user,
+                floor_plan_id=floor_plan_id, request=drawing_selection, settings=request.app.state.settings)
+        else:
+            processing_job = start_floor_plan_processing(
+                database_session,
+                current_user=current_user,
+                floor_plan_id=floor_plan_id,
+                page_numbers=page_numbers,
+                experimental_pull_station=experimental_pull_station,
+                experimental_symbol_detector=experimental_symbol_detector,
+                experimental_linked_legend_detector=experimental_linked_legend_detector,
+                settings=request.app.state.settings,
+            )
         database_session.commit()
+    except DrawingSelectionError as error:
+        database_session.rollback()
+        raise _api_error(status_code=(409 if error.code.endswith("CONFLICT") else
+                                     404 if error.code.endswith("NOT_FOUND") else
+                                     403 if error.code.endswith("FORBIDDEN") else 422),
+            code=error.code, message="The drawing selection is invalid or unavailable for development processing.") from None
     except FloorPlanNotFoundError:
         database_session.rollback()
         raise _api_error(

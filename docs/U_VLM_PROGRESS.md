@@ -4,6 +4,94 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### Durable drawing-selection review checkpoint (after 28f51ce)
+
+- PASS: opt-in development drawing selection uses the existing tool rail,
+  canvas, shared detector and processing endpoint. Two-corner selection inverts
+  pan/zoom to source pixels; exact numeric bounds are also editable. Submitted
+  bounds are locked across rail/canvas and ambiguous retries. No page-specific
+  mask, automatic acceptance, new model, download or training run.
+- PASS: one additive processing_drawing_selections table pins requesting user,
+  request UUID, source run, exact normalized artifact hash and strict rectangle.
+  Owner/Designer checks, immutable request fingerprint, payload-conflict checks
+  and actual terminal retry status prevent duplicate/reinterpreted requests.
+  Page identity comes from the hash-checked source run; other pages stay skipped.
+  Existing no-body processing remains supported; forged JSON is now rejected.
+- PASS: worker copies exact full-page normalized pixels to a new job/artifact
+  namespace, interprets only the selected native-resolution crop and restores
+  all geometry/raw model boxes and tile origins to the full source plane.
+  Selection hash/bounds/source run are explicit provenance. Outside is
+  unprocessed, not background; document state stays partial. Only deterministic
+  demo CV or the shared development detector can execute this path. Production,
+  promoted releases and gateway/template-specific processing are not substituted.
+- PASS: candidate publication and failure/cancellation page outcomes use the
+  current lease fence. Retried inference reuses its registered source artifact;
+  stale bytes, selection/candidate tampering and unsupported providers fail
+  before inference. No older review, canonical layout or original is overwritten.
+- PASS: optional job-scoped interpretation reads retain access to historical
+  candidates. Isolated SQL/API proof saves two unfinished review revisions with
+  corrected coordinates, a rejected proposal and a manually added symbol, then
+  reloads the exact latest revision. Original raw candidate, earlier revision,
+  older run/review, current canonical layout and source bytes remain unchanged.
+- PASS: development table initialized using the existing authorized local admin
+  connection after the app account correctly refused CREATE (1142). Only that
+  additive table was created; existing registered row counts were unchanged.
+  Application read access works. No credential/grant changes, Alembic, reset,
+  deletion of project data, dataset changes or stash operations.
+- Verification: focused isolated backend 117 passed / 70 subtests. Fresh full
+  isolated backend 1174 passed, 4 skipped, 597 subtests and 5 existing warnings
+  (73.92s). Initial full run found seven contract/compatibility failures; fixed
+  schema lists/counts, strict-body expectations, the pure worker mock seam and
+  the existing reset utility's dependency allowlist. A subsequent run lost
+  MySQL mid-run and was explicitly stopped, not counted as passing. Normal
+  local server startup restored reachability; exactly nine verified synthetic
+  fixture rows were removed from the restricted verification DB before rerun.
+  Seeded roles and development data were preserved; fixtures are regenerated.
+- PASS: final full frontend 61 files / 500 tests; production build with existing large
+  chunk warning; scoped lint, compilation and diff checks. FAIL: full frontend
+  lint retains six pre-existing DeviceMeshCatalog.jsx errors (unused import,
+  mixed exports and conditional hooks); not hidden or edited by this checkpoint.
+  Worktree OpenAPI remains 36 paths / 44 operations; model tables now 34.
+  Schema-count changes are only the new selection table. The pending trained-
+  legend admin operation and other training/catalog edits remain outside scope.
+  Staged snapshot alone: 35 paths / 43 operations / 34 tables.
+- PASS: staged-only snapshot gates: isolated backend 80 tests / 18 subtests;
+  frontend 7 files / 33 tests, without pending power80/catalog changes or private
+  frontend configuration. Initial index proof exposed an omitted forged-body
+  assertion and misplaced JSX closing tag; corrected scoped staging, added page-
+  to-canvas callback/freeze regression and removed environment-dependent URL
+  assumptions from the new API test. Those initial failures are not passing runs.
+- PASS: browser computer-use became available. Existing Designer session opened
+  project 10218 / plan 9376 / prior job 24193; no login or role bypass. Rectangle
+  (190,440,1060,2610) follows the architectural footprint plus margin, not symbol
+  locations, excluding surrounding title/dimension areas. New job 24196 completed;
+  source artifact remains 1340x3264, SHA256 22f024231b6d..., and prior candidate
+  SHA256 a55cfea9e189... remains intact. No duplicate upload or existing-review save.
+  Assistant-labelled unfinished revision 1 persists troffer center (1079,2707),
+  rejected hold-up-button interpretation of S notation, and an unclassified
+  marker (550,600). Browser reload verified all three; both approval flags false.
+  Shared draft 3D renders. A temporary 3D-inspector edit appears in 2D and Undo
+  restores the saved position; no second save or fabricated canonical approval.
+- NOT VERIFIED: detector readiness and metric canonical 2D/3D. Live page has zero
+  recorded metric scale/elevation settings; mounting heights and wall dimensions
+  require real review. The cropped run still proposes questionable walls/classes;
+  its 39 walls / 59 raw symbols are workflow evidence, not precision or accuracy.
+  Reference site remains untested. Supplied views support ceiling runs/wall drops,
+  not approved underground depth. Frontend/backend normal local previews started
+  on loopback after read-only checks found zero active jobs/attempts.
+- Preserved: original PDF efa570519f08..., prepared page 55ef8e2da6aa...,
+  frozen checkpoint 2800866028ff..., unrelated work and recovery stash@{0}
+  bb78854e87833124a1725b51f0be6099a8ac0cfa. CV/canvas/compatibility runbooks
+  guided pixel identity, reversible additive storage and review preservation.
+  This is a scoped local checkpoint, not detector publication or release.
+  The existing untracked reset utility's one-line compatibility update remains
+  in the workspace; unrelated source/training/catalog work is not committed.
+- Next: diagnose remaining wall-outline/wiring ambiguity and lamp-on-corner /
+  raceway false positives with identical-source overlays; assess unseen pages
+  without tuning before further routing work. Existing circuit save and ceiling
+  service/wall-drop preview are unchanged. Under-floor does not imply approved
+  underground depth. Overall detection and full wiring goal remain active.
+
 ### Whole-sheet drawing-scope diagnostic checkpoint (after 9351e32)
 
 - PASS: reproduced the actual page-7 PDF conversion/normalization path: 150 DPI,

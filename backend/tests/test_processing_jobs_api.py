@@ -354,7 +354,9 @@ class ProcessingJobApiTests(unittest.TestCase):
         path = schema["paths"][PROCESS_PATH]
         self.assertEqual(set(path), {"post"})
         operation = path["post"]
-        self.assertNotIn("requestBody", operation)
+        self.assertFalse(operation["requestBody"].get("required", False))
+        self.assertIn({"$ref": "#/components/schemas/DrawingRegionProcessingRequest"},
+                      operation["requestBody"]["content"]["application/json"]["schema"]["anyOf"])
         response_schema = operation["responses"]["202"]["content"][
             "application/json"
         ]["schema"]
@@ -550,7 +552,8 @@ class ProcessingJobApiTests(unittest.TestCase):
                 "error_message": "forged",
             },
         )
-        self.assertEqual(denied.status_code, 404, denied.text)
+        self.assertEqual(denied.status_code, 422, denied.text)
+        self.assertEqual(self._count_fixture_jobs(), 0)
 
         response = self._post(
             self.floor_plan.id,
@@ -563,8 +566,13 @@ class ProcessingJobApiTests(unittest.TestCase):
                 "error_message": "forged",
             },
         )
-        self.assertEqual(response.status_code, 202, response.text)
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(self._count_fixture_jobs(), 0)
+        # No-body legacy callers are unchanged; forged fields cannot queue or
+        # alter a job through the new strict selection request contract.
+        response = self._post(self.floor_plan.id, user_id=self.user_ids["designer"])
         job = self.database_session.get(ProcessingJob, response.json()["job_id"])
+        self.assertEqual(response.status_code, 202, response.text)
         self.assertEqual(job.floor_plan_id, self.floor_plan.id)
         self.assertEqual(job.job_type, FLOOR_PLAN_ANALYSIS_JOB_TYPE)
         self.assertEqual(job.status, "queued")

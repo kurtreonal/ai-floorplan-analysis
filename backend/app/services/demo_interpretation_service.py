@@ -95,6 +95,7 @@ def _authorized_run(
     current_user: User,
     floor_plan_id: int,
     write: bool,
+    processing_job_id: int | None = None,
 ) -> FloorPlanInterpretationRun:
     role = getattr(getattr(current_user, "role", None), "name", None)
     if role not in ({"DESIGNER"} if write else {"ADMIN", "DESIGNER"}):
@@ -108,6 +109,8 @@ def _authorized_run(
     )
     if role == "DESIGNER":
         statement = statement.where(Project.owner_id == current_user.id)
+    if processing_job_id is not None:
+        statement = statement.where(FloorPlanInterpretationRun.processing_job_id == processing_job_id)
     run = session.scalar(
         statement.order_by(FloorPlanInterpretationRun.id.desc()).limit(1)
     )
@@ -121,6 +124,7 @@ def retrieve_interpretation(
     *,
     current_user: User,
     floor_plan_id: int,
+    processing_job_id: int | None = None,
 ) -> DemoInterpretationRecord:
     try:
         run = _authorized_run(
@@ -128,6 +132,7 @@ def retrieve_interpretation(
             current_user=current_user,
             floor_plan_id=floor_plan_id,
             write=False,
+            processing_job_id=processing_job_id,
         )
         review = find_latest_review(session, interpretation_run_id=run.id)
         return DemoInterpretationRecord(

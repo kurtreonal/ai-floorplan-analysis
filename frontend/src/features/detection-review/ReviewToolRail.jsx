@@ -1,7 +1,7 @@
 import { MousePointer2, Hand, Move, Pencil, Trash2, Plus, ScanLine, Lightbulb, Layers } from 'lucide-react'
 import { Button } from '../../components/ui/button.jsx'
 
-export function ReviewToolRail({ view, tool, onToolChange, onAdd, onConnectWalls, layers, setLayers, opacity, onOpacityChange }) {
+export function ReviewToolRail({ view, tool, onToolChange, onAdd, onConnectWalls, layers, setLayers, opacity, onOpacityChange, canSelectDrawingRegion = false }) {
   return <aside className="studio-review-rail" aria-label="Plan editing tools">
     <span className="mono studio-rail-kicker">{view === '3d' ? '3D NAVIGATION' : 'EDIT PLAN'}</span>
     <div className="studio-rail-tools">
@@ -9,6 +9,8 @@ export function ReviewToolRail({ view, tool, onToolChange, onAdd, onConnectWalls
         <Button key={value} variant="ghost" className="studio-rail-tool" aria-pressed={tool === value}
           onClick={() => onToolChange(value)}><Icon aria-hidden="true" />{label}</Button>)}
       {view === '2d' && <>
+        {canSelectDrawingRegion && <Button variant="ghost" className="studio-rail-tool" aria-pressed={tool === 'region'}
+          onClick={() => onToolChange('region')}><ScanLine aria-hidden="true" />Select drawing region</Button>}
         {[[Move, 'move', 'Move Walls'], [Pencil, 'draw', 'Draw Walls'], [Trash2, 'delete', 'Delete Walls']].map(([Icon, value, label]) =>
           <Button key={value} variant="ghost" className="studio-rail-tool" aria-pressed={tool === value}
             onClick={() => onToolChange(value)}><Icon aria-hidden="true" />{label}</Button>)}

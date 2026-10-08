@@ -63,6 +63,7 @@ TABLES = (
     "materials",
     "page_scale_settings",
     "processing_artifacts",
+    "processing_drawing_selections",
     "processing_job_attempts",
     "processing_job_cancellations",
     "processing_jobs",
