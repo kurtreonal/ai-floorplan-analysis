@@ -530,6 +530,92 @@ def _has_compact_parallel_bars(segment, image: np.ndarray) -> bool:
                 and np.all(companions >= 1) and np.all(companions <= widths[main] / 3))
 
 
+def _has_compact_annotated_outline(segment, image: np.ndarray) -> bool:
+    """Identify a short closed glyph box using its observed interior mark.
+
+    Plain hollow walls and full-width wiring crossings lack a localized partial-
+    width mark. Inspect original pixels after wall fitting so rejecting a glyph
+    cannot change the votes or thickness statistics of surrounding walls.
+    """
+    x1, y1, x2, y2, thickness = segment
+    length = math.hypot(x2-x1, y2-y1)
+    if length <= 0 or length > min(image.shape) * .16:
+        return False
+    widths, centers, _ = _parallel_ink_runs(segment, image)
+    if len(widths) != 2 or not centers[0] < 0 < centers[1]:
+        return False
+    separation = centers[1]-centers[0]
+    if (not 3 <= length/separation <= 12 or max(widths) > separation*.3
+            or max(widths) > min(widths)*2):
+        return False
+    low = centers[0]+widths[0]/2+.5
+    high = centers[1]-widths[1]/2-.5
+    if high-low < 2:
+        return False
+    across = np.linspace(low, high, max(3, math.floor(high-low)+1))
+    padding = max(2, math.ceil(min(thickness*.6,length*.2)))
+    along = np.arange(-padding, math.ceil(length)+padding+1, dtype=float)
+    dx, dy = (x2-x1)/length, (y2-y1)/length
+    xs = np.rint(x1+along[:,None]*dx-across[None,:]*dy).astype(int)
+    ys = np.rint(y1+along[:,None]*dy+across[None,:]*dx).astype(int)
+    if ((xs<0)|(xs>=image.shape[1])|(ys<0)|(ys>=image.shape[0])).any():
+        return False
+    occupied = np.mean(image[ys,xs]==0, axis=1)
+    # A rasterized transverse cap can stagger by a pixel along the axis. Search
+    # that small ORIGINAL-pixel neighborhood at caps only; keep interior marks
+    # undilated so plain wiring crossings do not acquire glyph-like texture.
+    cap_ink = image[ys,xs]==0
+    jitter = max(1, math.floor(max(widths)/2))
+    cap_support = cap_ink.copy()
+    for offset in range(1, jitter+1):
+        cap_support[offset:] |= cap_ink[:-offset]
+        cap_support[:-offset] |= cap_ink[offset:]
+    cap_occupied = np.mean(cap_support, axis=1)
+    first = np.flatnonzero((np.abs(along)<=padding)&(cap_occupied>=.8))
+    last = np.flatnonzero((np.abs(along-length)<=padding)&(cap_occupied>=.8))
+    if first.size == 0 or last.size == 0:
+        return False
+    start_cap = along[first[np.argmin(np.abs(along[first]))]]
+    end_cap = along[last[np.argmin(np.abs(along[last]-length))]]
+    margin = max(2, math.ceil(max(widths)))
+    interior = (along>start_cap+margin)&(along<end_cap-margin)
+    # Isolated raster-edge pixels are insufficient interior glyph evidence.
+    partial = along[interior&(occupied>=.2)&(occupied<.8)]
+    minimum_mark = max(3, math.ceil(max(widths)*2))
+    if len(partial) < minimum_mark:
+        return False
+    # A small number/mark occupies one bounded part of the box. Repeated or
+    # continuous hatching and dispersed crossings are insufficient evidence.
+    clusters = np.split(partial,
+        np.flatnonzero(np.diff(partial)>max(2,math.ceil(max(widths)*1.5)))+1)
+    clusters = [cluster for cluster in clusters if len(cluster)>=max(2,max(widths))]
+    marked_rows = sum(len(cluster) for cluster in clusters)
+    for cluster in clusters:
+        mark_span = cluster[-1]-cluster[0]+1
+        if (len(cluster) >= minimum_mark and len(cluster) >= marked_rows*.65
+                and mark_span <= min(length*.45,separation*2.5)
+                and len(cluster)/mark_span >= .5):
+            # Rasterized wires crossing a hollow wall also leave partial rows.
+            # An interior glyph must include ink beyond those observed straight
+            # crossings. Check both exterior flanks with one-pixel scan jitter.
+            crossing = np.ones(cluster.shape, dtype=bool)
+            for edge, side in ((centers[0],-1),(centers[1],1)):
+                flank = edge + side*np.linspace(separation*.5,separation*2,
+                                               min(64,max(3,math.ceil(separation*1.5))))
+                observed = np.zeros((len(cluster),len(flank)), dtype=bool)
+                for jitter_offset in (-1,0,1):
+                    lx = np.rint(x1+(cluster[:,None]+jitter_offset)*dx-flank[None,:]*dy).astype(int)
+                    ly = np.rint(y1+(cluster[:,None]+jitter_offset)*dy+flank[None,:]*dx).astype(int)
+                    valid = (lx>=0)&(lx<image.shape[1])&(ly>=0)&(ly<image.shape[0])
+                    if not valid.all():
+                        return False
+                    observed |= image[ly,lx]==0
+                crossing &= observed.mean(axis=1)>=.65
+            if not crossing.all():
+                return True
+    return False
+
+
 def _paired_edge_stroke_width(ink, xs, ys, nx, ny, radius):
     """Measure contiguous ink across an edge, not a thick wire's thin rim."""
     offsets = np.arange(-radius, radius + 1)
@@ -756,6 +842,26 @@ def _has_two_observed_wall_junctions(pair, supports, minimum_span, *, minimum_su
     return False
 
 
+def _recover_junction_backed_bands(candidates, supports, minimum_span, minimum_support_span):
+    """Two anchored waves; unsupported bands cannot mutually approve a corner."""
+    remaining = list(dict.fromkeys(candidates))
+    recovered = []
+    if len(remaining) > 512 or len(supports) > 512:
+        return recovered
+    for _ in range(2):
+        established = tuple(supports) + tuple(recovered)
+        accepted = [pair for pair in remaining if _has_two_observed_wall_junctions(
+            pair, established, minimum_span, minimum_support_span=minimum_support_span)]
+        if not accepted:
+            break
+        # Assess the whole wave before adding supports: iteration order cannot
+        # let two initially unsupported hypotheses validate each other.
+        recovered.extend(accepted)
+        accepted_set = set(accepted)
+        remaining = [pair for pair in remaining if pair not in accepted_set]
+    return recovered
+
+
 def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
     """Bounded paired-ink evidence, not the two edges of one filled wire.
 
@@ -872,7 +978,7 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
                 strong_directions.add('horizontal' if abs(tx) > abs(ty) else 'vertical')
     if len(strong_directions) != 2:
         return None
-    # Bound this optional recovery; recovered bands cannot approve each other.
+    # Bound recovery and require an independently established first wave.
     recovered_bands = []
     if len(center_obscured) <= 512:
         supports = tuple(pairs)
@@ -882,9 +988,7 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
         extended = dict.fromkeys(_extend_observed_pair(pair,nearby_ink)
                                  for pair in dict.fromkeys(center_obscured)
                                  if math.dist(*pair[0]) >= long_span)
-        recovered_bands = [pair for pair in extended
-                           if _has_two_observed_wall_junctions(pair,supports,long_span,
-                                                             minimum_support_span=minimum)]
+        recovered_bands = _recover_junction_backed_bands(extended,supports,long_span,minimum)
     qualified = set(_without_detached_enclosing_bands(pairs))
     rejected = [pair for pair in pairs if pair not in qualified]
     mask = np.zeros_like(ink)
@@ -1191,7 +1295,8 @@ def _detect_structural_wall_lines(
         consolidated = _add_verified_outline_bands(consolidated,outlined[4])
     return [segment for segment in consolidated
             if not _is_repeated_grid_member(segment, image)
-            and not _has_compact_parallel_bars(segment, image)]
+            and not _has_compact_parallel_bars(segment, image)
+            and not _has_compact_annotated_outline(segment, image)]
 
 
 def detect_wall_lines(

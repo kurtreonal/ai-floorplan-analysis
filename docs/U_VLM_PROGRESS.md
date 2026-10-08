@@ -4,6 +4,60 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 8 boxed fixtures and anchored corners (after 12b61ee)
+
+- Inspected native school-plan crops: six false wall segments follow closed,
+  narrow fluorescent rectangles containing a printed2 and circuit crossings.
+  Their two sustained side strokes bypassed the existing three/five-bar guard.
+  New bounded original-pixel evidence requires two compatible sides, both closed
+  caps and a localized partial-width interior mark. Original wire crossings,
+  plain hollow/solid partitions, open-ended strokes and long walls are retained.
+  The final check runs after consolidation; it does not change global wall votes.
+- Rotation tests exposed raster cap staggering and partial pixels from ordinary
+  wire crossings. Cap-only one-pixel neighborhood evidence and observed exterior
+  wire flanks resolve those failures. Interior pixels are not dilated. Tests
+  include native/2x,90-degree/6-degree rotation, crossed walls, short partitions,
+  unchanged source arrays, and an end-to-end outlined-wall scene.
+- The selected school page's left band had observed mates through its full
+  length but depended on a top band recovered in the same pass. Two bounded
+  recovery waves now allow a previously anchored band to support the next corner.
+  Whole-wave decisions prevent mutual approval or order dependence. Unsupported
+  cycles and the512-hypothesis/support budget retain conservative behavior.
+  Geometry provenance:`cv-boxed-glyph-anchored-corners-v4`.
+- Development replay against12b61ee, selected(18,45,660,270):17->11 wall proposals;
+  all six inspected fluorescent false walls removed; left(24,146)->(24,246)
+  restored to(24,50)->(24,309); other retained wall coordinates unchanged.
+  Room proposals6->5 remain unreviewed. Native lighting selection remains50
+  walls/4 rooms, source hashes unchanged. Same development project; no independent
+  detection precision/recall measured. Original images and weights unchanged.
+- Final staged proof `boxed-index-proof-20261008-v1`:156 focused tests passed/
+  151 subtests; working focus157 includes an unrelated pending test. Full isolated
+  backend1122 passed,4 skipped,593 subtests,5 dependency warnings,ONE FAIL:
+  existing `test_review_image_api.py:367` expects44 operations; scoped source43.
+  Full suite remains FAIL. No API/schema changes:35 paths/43 operations/34 tables.
+  Compilation and scoped diff checks PASS. Frontend tests/build/lint NOT RERUN
+  for this backend-only change; known unrelated frontend lint work remains.
+  Automatic school replay is unchanged at13 walls/2 rooms; its previously noted
+  diagonal artifacts remain. Selected replay confirms17->11 walls and repaired
+  left boundary. All50 lighting wall coordinates remain identical.
+- Browser job24203 completed with saved selection(18,45,660,270), geometry v4,
+  11 walls/5 rooms/20 unresolved symbol proposals. Persisted wall payload exactly
+  matches the staged replay. Saved unfinished revision1 and its assistant note
+  survive reload; review_complete/approved_for_layout remainFALSE. Earlier
+  job24202/revision1 and its false-wall rejection remain stored. Source/candidate
+  hashes PASS. Browser2D wall overlay and3D draft both rendered and screenshots
+  were saved beside the selected final replay. Device layer was temporarily
+  hidden for the wall-only screenshot, then restored. Measured canonical routing
+  remains BLOCKED by missing approved scale/elevation and legend-mapped reviewed
+  placements; draft40m/3m dimensions are illustrative.
+- Acceptance:inspected fluorescent false walls removed, observed corner recovery,
+  negative controls, source integrity and save/reload PASS. Overall independent
+  detection readiness remains unverified; general symbol errors need the next
+  diagnostic. Unrelated padding/catalog/UI work and recovery stash preserved.
+  Next:inspect raw symbol mistakes and approved legend linkage on the supplied
+  pages, then proceed to shared ceiling/wall/underground routing implementation.
+  Routing development has not started in this checkpoint.
+
 ### October 8 junction-backed cavity recovery (after b0ea5e7)
 
 - Missing school-plan left perimeter traced to original-pixel evidence, not

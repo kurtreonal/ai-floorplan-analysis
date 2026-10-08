@@ -29,6 +29,83 @@ def outlined_ceiling_plan(*, troffer_bars=False, scale=1):
 
 
 class CeilingGridEvidenceTests(unittest.TestCase):
+    def test_second_corner_recovery_wave_requires_an_independent_anchor(self):
+        top = (((40, 40), (460, 40)), 7.)
+        left = (((40, 40), (40, 360)), 7.)
+        right = (((460, 40), (460, 360)), 7.)
+        bottom = (((40, 360), (460, 360)), 7.)
+        stub = (((40, 40), (40, 75)), 7.)
+        for pending in ([top, left], [left, top]):
+            with self.subTest(order=pending[0]):
+                self.assertEqual(detector._recover_junction_backed_bands(
+                    pending, [right, bottom], 80, 24), [],
+                    'Mutually unsupported corner bands cannot approve each other.')
+                self.assertEqual(detector._recover_junction_backed_bands(
+                    pending, [right, bottom, stub], 80, 24), [top, left])
+        self.assertEqual(detector._recover_junction_backed_bands(
+            [top, left], [right, bottom, stub]*172, 80, 24), [])
+
+    def test_annotated_fluorescent_boxes_do_not_seed_walls_in_outline_pipeline(self):
+        for scale in (1, 2):
+            with self.subTest(scale=scale):
+                image = np.full((400, 500), 255, dtype=np.uint8)
+                for inset in (0, 6):
+                    cv2.rectangle(image, (40+inset, 40+inset), (460-inset, 360-inset), 0, 1)
+                for x in (220, 226):
+                    cv2.line(image, (x, 46), (x, 354), 0, 1)
+                for x, y in ((120, 130), (330, 210)):
+                    cv2.rectangle(image, (x-5, y), (x+5, y+48), 0, 1)
+                    cv2.putText(image, '2', (x-4, y+17), cv2.FONT_HERSHEY_SIMPLEX, .28, 0, 1)
+                    cv2.line(image, (x-40, y+16), (x+40, y+16), 0, 1)
+                image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+                before = image.copy()
+                segments = self.detect(image, scale)
+                self.assert_real_structure(segments)
+                self.assertFalse(any(abs(a-x)<8 and abs(c-x)<8 and min(b,d)>y-10
+                    and max(b,d)<y+60 for a,b,c,d in segments for x,y in ((120,130),(330,210))))
+                np.testing.assert_array_equal(image, before)
+
+    def test_compact_annotated_outline_is_not_wall_evidence(self):
+        for scale, angle in ((1, 0), (2, 0), (1, 90), (1, 6), (2, 6)):
+            with self.subTest(scale=scale, angle=angle):
+                image = np.full((400, 500), 255, dtype=np.uint8)
+                cv2.rectangle(image, (245, 160), (255, 208), 0, 1)
+                cv2.putText(image, '2', (246, 177), cv2.FONT_HERSHEY_SIMPLEX, .28, 0, 1)
+                cv2.line(image, (180, 176), (320, 176), 0, 1)
+                rotation = cv2.getRotationMatrix2D((250, 200), angle, 1)
+                image = cv2.warpAffine(image, rotation, (500, 400), flags=cv2.INTER_NEAREST, borderValue=255)
+                image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+                endpoints = [rotation @ np.array([250, y, 1]) * scale for y in (160, 208)]
+                segment = (*endpoints[0], *endpoints[1], 12*scale)
+                before = image.copy()
+                self.assertTrue(detector._has_compact_annotated_outline(segment, image))
+                np.testing.assert_array_equal(image, before)
+
+    def test_boxed_glyph_guard_preserves_unannotated_and_crossed_hollow_walls(self):
+        for scale, angle in ((1, 0), (2, 0), (1, 6), (2, 6)):
+            for kind in ('plain', 'two_wire_crossings', 'open_ends', 'long_partition'):
+                with self.subTest(scale=scale, angle=angle, kind=kind):
+                    image = np.full((400, 500), 255, dtype=np.uint8)
+                    end = 320 if kind == 'long_partition' else 208
+                    if kind == 'open_ends':
+                        for x in (245, 255):
+                            cv2.line(image, (x, 160), (x, end), 0, 1)
+                    else:
+                        cv2.rectangle(image, (245, 160), (255, end), 0, 1)
+                    if kind == 'two_wire_crossings':
+                        for y in (176, 190):
+                            cv2.line(image, (180, y), (320, y), 0, 1)
+                    if kind in ('open_ends', 'long_partition'):
+                        cv2.putText(image, '2', (246, 177), cv2.FONT_HERSHEY_SIMPLEX, .28, 0, 1)
+                    rotation = cv2.getRotationMatrix2D((250, 200), angle, 1)
+                    image = cv2.warpAffine(image, rotation, (500, 400), flags=cv2.INTER_NEAREST, borderValue=255)
+                    image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
+                    endpoints = [rotation @ np.array([250, y, 1])*scale for y in (160, end)]
+                    before = image.copy()
+                    self.assertFalse(detector._has_compact_annotated_outline(
+                        (*endpoints[0], *endpoints[1], 12*scale), image))
+                    np.testing.assert_array_equal(image, before)
+
     def test_late_recovery_preserves_unrelated_segments_and_skips_existing_band(self):
         fragment = (43, 140, 43, 200, 7.)
         parallel = (55, 140, 55, 200, 7.)
