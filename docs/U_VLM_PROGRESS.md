@@ -4,6 +4,62 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 8 parallel-stroke wall evidence checkpoint (after 9598675)
+
+- Diagnosed two reproducible false-wall mechanisms: compact three-bar fixtures
+  bypassed the existing five-bar guard; paired thin wiring could be filled into
+  an outline band, while closing independently manufactured thick solid ink.
+  The new original-pixel profile rejects repeated equally thin pair bundles and
+  compact thin/bold-center three-bar glyphs. Solid-wall seeds on outlined plans
+  now require original, not morphologically manufactured, thickness. No source
+  coordinates, symbol-class prediction, page-specific template or new model is
+  used by these rules. Existing long-wall, hollow-wall, solid-wall, crossing,
+  opening, scan continuity and rotated-plan tests remain passing.
+- PASS: new six-test regression file covers native/2x grids, real perimeter and
+  partitions, thin bundles at 3px/6px pitch, three-bar fixtures and solid/empty
+  outlined short-wall controls. Earlier fixture/bundle reproductions were RED.
+  Focused database-independent wall/coordinate/demo/region/symbol contract suite
+  passed **153 tests / 122 subtests**; diagnostic observer tests **2 passed**.
+  Five initial broader failures were temporary-directory permission errors,
+  not assertion failures; rerun with a workspace-local temporary directory
+  passed. Compilation and scoped diff checks PASS. No frontend implementation
+  changed; full backend/frontend/build/lint were NOT RERUN for this checkpoint.
+  Staged-only source snapshot, independent of pending catalog/preprocessing work:
+  **116 tests / 101 subtests**, plus **2** observer tests PASS; OpenAPI/model
+  metadata stays **35 paths / 43 operations / 34 tables**. No external push.
+- Source-dependent development evidence: supplied normalized lighting page
+  SHA256 `22f024231b6d02b6121dab7b9477d3624284f365619511190582978cea350d28`,
+  1340x3264, frozen architectural region (190,440,1060,2610). Before **39 walls /
+  2 rooms**, after **38 walls / 2 rooms**: removed the apparent horizontal lamp
+  at (435,979)-(516,979), with every other prior segment unchanged. Original hash
+  is identical. Reports/overlays v1-v5 remain ignored and immutable under
+  `storage/training/wall-evidence-20261008-lighting-roi-*`. This source uses the
+  solid/unqualified-outline fallback, so outlined-plan improvements do not prove
+  its broader quality. Assistant visual inspection still finds false ceiling-grid
+  lines, fixture fragments and missing outer perimeter. Detection completeness
+  and general accuracy remain FAIL/unmeasured, not established by lower counts.
+- Existing diagnostic CLI now supports an exact native-pixel region and bounded
+  original-pixel stripe/pair traces. Observer tests prove unchanged results,
+  unchanged input pixels and a 256-segment trace limit. Existing sources,
+  candidate/review revisions, trained weights and recovery stash are unchanged.
+  Pre-existing plan-bounds padding and unrelated detector/catalog work are not
+  included in this checkpoint. The comparison's removal also holds against the
+  pre-patch working-tree diagnostic, not only against historical HEAD.
+- BLOCKED: isolated MySQL preflight could not connect (2003). All local server
+  listeners were stopped; one ordinary existing XAMPP launch aborted because
+  `ibdata1` was not writable under this execution identity. File is not read-only;
+  no database reset, ACL change, credential change or data deletion was attempted.
+  Connected browser exposes the previously loaded Designer review for job24196,
+  but this is cached evidence, not a fresh runtime test of this patch. Fresh
+  persisted worker/review and 2D/3D browser verification remain NOT TESTED until
+  XAMPP and the app servers are running with their normal filesystem access.
+- Next: diagnose the solid-fallback grid admissions and missing observed perimeter
+  before claiming overall wall correctness; then inspect remaining symbol errors
+  on identical native inputs. Routing remains pending that detection work and
+  reviewed canonical inputs. Supplied reference views support ceiling runs and
+  wall drops, not a measured underground depth. No invented measurements,
+  production activation, training run, independent precision or 85% claim.
+
 ### Durable drawing-selection review checkpoint (after 28f51ce)
 
 - PASS: opt-in development drawing selection uses the existing tool rail,

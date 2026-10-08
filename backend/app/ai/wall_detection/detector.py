@@ -446,13 +446,13 @@ def _is_repeated_grid_member(
     return False
 
 
-def _has_compact_parallel_bars(segment, image: np.ndarray) -> bool:
-    """Reject compact bar glyphs, not short solid or double-outline wall strokes."""
+def _parallel_ink_runs(segment, image: np.ndarray):
+    """Bounded original-pixel transverse profile for sustained parallel ink."""
     x1, y1, x2, y2, thickness = segment
     height, width = image.shape
     length = math.hypot(x2 - x1, y2 - y1)
-    if length <= 0 or length > min(width, height) * 0.10:
-        return False
+    if length <= 0:
+        return np.array([]), np.array([]), np.array([])
     radius = max(2, round(thickness * 1.5))
     offsets = np.arange(-radius, radius + 1)
     t = np.linspace(0.2, 0.8, 64)
@@ -465,12 +465,61 @@ def _has_compact_parallel_bars(segment, image: np.ndarray) -> bool:
     starts = np.flatnonzero(active & ~np.r_[False, active[:-1]])
     ends = np.flatnonzero(active & ~np.r_[active[1:], False])
     widths = ends - starts + 1
+    centers = (offsets[starts] + offsets[ends]) / 2
+    gaps = starts[1:] - ends[:-1] - 1
+    return widths, centers, gaps
+
+
+def _regular_thin_parallel_bars(segment, image: np.ndarray) -> bool:
+    widths, centers, gaps = _parallel_ink_runs(segment, image)
+    if len(widths) < 3:
+        return False
+    spacing = np.diff(centers)
+    return bool(max(widths) <= max(2, segment[4] * .3)
+                and max(widths) <= min(widths) * 2
+                and np.all(gaps >= min(widths))
+                and max(spacing) <= min(spacing) * 1.25
+                and centers[0] < 0 < centers[-1])
+
+
+def _has_compact_parallel_bars(segment, image: np.ndarray) -> bool:
+    """Reject compact bar glyphs, not short solid or double-outline wall strokes."""
+    x1, y1, x2, y2, thickness = segment
+    length = math.hypot(x2 - x1, y2 - y1)
+    if length <= 0 or length > min(image.shape) * .16:
+        return False
+    widths, centers, gaps = _parallel_ink_runs(segment, image)
+    # Three equally thin, separated bars are a compact fixture pattern. Closing
+    # can fill their gaps into one apparent wall band; inspect original pixels,
+    # not that manufactured band. A solid stroke or two wall outlines do not
+    # satisfy this evidence, and long parallel partitions remain untouched.
+    if len(widths) == 3:
+        spacing = np.diff(centers)
+        if (abs(centers[1]) <= thickness * .5
+                and max(widths) <= max(2, length * .05)
+                and max(widths) <= min(widths) * 2
+                and np.all(gaps >= min(widths))
+                and max(spacing) <= min(spacing) * 1.25):
+            return True
+        # Scanned fluorescent/troffer glyphs can have one dark filled body and
+        # only one thin outline on each side, rather than two companion bars.
+        # Require a compact, centered, symmetric three-stripe pattern; a plain
+        # solid wall and an empty double-outline wall still lack this evidence.
+        if (abs(centers[1]) <= thickness * .5
+                and widths[1] >= max(8, thickness * .4)
+                and max(widths[0], widths[2]) <= widths[1] / 3
+                and np.all(gaps >= 1)
+                and max(spacing) <= min(spacing) * 1.25
+                and length <= thickness * 6):
+            return True
+    if length > min(image.shape) * .10:
+        return False
     if len(widths) < 5:
         return False
     main = int(np.argmax(widths))
     if main < 2 or main > len(widths) - 3:
         return False
-    center = (offsets[starts[main]] + offsets[ends[main]]) / 2
+    center = centers[main]
     companions = np.r_[widths[main - 2:main], widths[main + 1:main + 3]]
     return bool(abs(center) <= thickness * 0.5 and widths[main] >= 8
                 and np.all(companions >= 2) and np.all(companions <= widths[main] / 3))
@@ -640,6 +689,7 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
     maximum_separation = min(32, max(4, min(width, height) * .03))
     long_span = max(minimum * 2, min(width, height) * .14)
     nearby_ink = cv2.dilate(ink, np.ones((3, 3), dtype=np.uint8))
+    original_binary = cv2.bitwise_not(ink)
     pairs = []
     strong_directions = set()
     for index, (length, x1, y1, x2, y2) in enumerate(lines):
@@ -684,6 +734,11 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
                 continue
             center = (x1 - ty * distance / 2, y1 + tx * distance / 2)
             endpoints = tuple((round(center[0] + t * tx), round(center[1] + t * ty)) for t in (start, end))
+            # A repeated bundle of equally thin strokes is not a two-outline
+            # wall cavity. Do not fill each neighboring pair into a solid wall.
+            if _regular_thin_parallel_bars((*endpoints[0], *endpoints[1], separation + 1),
+                                           original_binary):
+                continue
             pairs.append((endpoints, separation + 1))
             if end - start >= long_span:
                 strong_directions.add('horizontal' if abs(tx) > abs(ty) else 'vertical')
@@ -708,6 +763,7 @@ def _detect_structural_wall_lines(
         return []
 
     ink = np.where(image == 0, 255, 0).astype(np.uint8)
+    original_ink = ink
     if cv2.countNonZero(ink) == 0:
         return []
     outlined = _outlined_wall_evidence(ink, parameters,
@@ -728,7 +784,9 @@ def _detect_structural_wall_lines(
         # Keep broad solid/hatched structure as well. On an outlined plan a
         # thinner single stroke is insufficient wall evidence, even if long.
         solid_radius = max(2.5, outline_width * .5)
-        solid_core = cv2.distanceTransform(ink, cv2.DIST_L2, 5) >= solid_radius
+        # Closing bridges scan gaps but must not manufacture solid-wall evidence
+        # from closely packed circuit/fixture strokes.
+        solid_core = cv2.distanceTransform(original_ink, cv2.DIST_L2, 5) >= solid_radius
         solid_kernel = round(solid_radius) * 2 + 1
         solid_mask = cv2.dilate(solid_core.astype(np.uint8) * 255,
                                cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (solid_kernel, solid_kernel)))
