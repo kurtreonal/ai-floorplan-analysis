@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
+from contextlib import ExitStack
 import hashlib
 import json
 from pathlib import Path
@@ -77,11 +79,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("source", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--baseline-ref", default="HEAD", help="Historical code checkpoint for reproducible comparison")
     parser.add_argument("--contrast-offset", type=int, choices=range(1, 21),
                         help="Diagnostic-only adaptive contrast experiment; never changes defaults")
     parser.add_argument("--region", type=int, nargs=4, metavar=("X", "Y", "WIDTH", "HEIGHT"),
                         help="Explicit drawing bounds; same native pixels for both versions")
     parser.add_argument("--trace", action="store_true", help="Save paired-band evidence without altering inference")
+    parser.add_argument("--minimum-stroke-radius", type=float,
+                        help="Diagnostic-only stroke cutoff; never changes application defaults")
+    parser.add_argument("--thin-outline-votes", action="store_true",
+                        help="Diagnostic-only outline voting on thinned ink; original pixels still qualify pairs")
     args = parser.parse_args()
     if args.output.exists():
         parser.error("Use a new output directory; prior diagnostics are immutable")
@@ -94,14 +101,18 @@ def main():
 
     def interpret(interpreter, source):
         return interpret_drawing_region(source, region=region, interpreter=interpreter) if region else interpreter(source)
+    baseline_commit = subprocess.check_output(
+        ["git", "rev-parse", "--verify", "--end-of-options", args.baseline_ref + "^{commit}"],
+        cwd=ROOT, text=True,
+    ).strip()
     old_source = subprocess.check_output(
-        ["git", "show", "HEAD:backend/app/ai/wall_detection/detector.py"], cwd=ROOT, text=True,
+        ["git", "show", baseline_commit + ":backend/app/ai/wall_detection/detector.py"], cwd=ROOT, text=True,
     )
     baseline = types.ModuleType("wall_diagnostic_baseline")
     sys.modules[baseline.__name__] = baseline
     exec(compile(old_source, "baseline_detector", "exec"), baseline.__dict__)
     old_demo_source = subprocess.check_output(
-        ["git", "show", "HEAD:backend/app/ai/floor_plan_interpretation/demo_cv.py"], cwd=ROOT, text=True,
+        ["git", "show", baseline_commit + ":backend/app/ai/floor_plan_interpretation/demo_cv.py"], cwd=ROOT, text=True,
     )
     baseline_demo = types.ModuleType("wall_diagnostic_baseline_demo")
     sys.modules[baseline_demo.__name__] = baseline_demo
@@ -109,20 +120,48 @@ def main():
     with patch.object(baseline_demo, "detect_wall_lines", baseline.detect_wall_lines):
         old = interpret(baseline_demo.interpret_floor_plan_demo, rgb)
     trace = None
+    current_interpreter = demo_cv.interpret_floor_plan_demo
+    if args.minimum_stroke_radius is not None or args.thin_outline_votes:
+        original_detection = demo_cv.detect_wall_lines
+        def radius_experiment(source):
+            outline_evidence = detector._outlined_wall_evidence
+            hough = cv2.HoughLinesP
+            def thin_outline(ink, parameters, continuity_ink=None):
+                def vote(raster, *arguments, **kwargs):
+                    return hough(detector._thin_connected_strokes(raster), *arguments, **kwargs)
+                with patch.object(cv2, "HoughLinesP", side_effect=vote):
+                    return outline_evidence(ink, parameters, continuity_ink)
+            def detect(image, **kwargs):
+                if args.minimum_stroke_radius is not None:
+                    kwargs["parameters"] = replace(kwargs["parameters"], min_stroke_radius=args.minimum_stroke_radius)
+                return original_detection(image, **kwargs)
+            with ExitStack() as stack:
+                stack.enter_context(patch.object(demo_cv, "detect_wall_lines", side_effect=detect))
+                if args.thin_outline_votes:
+                    stack.enter_context(patch.object(detector, "_outlined_wall_evidence", side_effect=thin_outline))
+                return current_interpreter(source, selected_drawing=region is not None)
+        new_interpreter = radius_experiment
+    else:
+        new_interpreter = current_interpreter
     if args.contrast_offset is None:
         if args.trace:
-            new, trace = trace_wall_evidence(rgb, lambda source: interpret(demo_cv.interpret_floor_plan_demo, source))
+            new, trace = trace_wall_evidence(rgb, lambda source: interpret(new_interpreter, source))
         else:
-            new = interpret(demo_cv.interpret_floor_plan_demo, rgb)
+            new = interpret(new_interpreter, rgb)
     else:
         adaptive = cv2.adaptiveThreshold
         def experiment(source, maximum, method, kind, block, _offset):
             return adaptive(source, maximum, method, kind, block, args.contrast_offset)
         with patch.object(cv2, "adaptiveThreshold", side_effect=experiment):
-            new = interpret(demo_cv.interpret_floor_plan_demo, rgb)
+            new = interpret(new_interpreter, rgb)
     args.output.mkdir(parents=True)
     report = {"source_sha256": before_hash, "note": "Candidate counts, not accuracy or approved geometry"}
+    report["baseline_commit"] = baseline_commit
+    report["detector_code_sha256"] = hashlib.sha256(Path(detector.__file__).read_bytes()).hexdigest()
+    report["demo_cv_code_sha256"] = hashlib.sha256(Path(demo_cv.__file__).read_bytes()).hexdigest()
     report["experimental_contrast_offset"] = args.contrast_offset
+    report["experimental_minimum_stroke_radius"] = args.minimum_stroke_radius
+    report["experimental_thin_outline_votes"] = args.thin_outline_votes
     report["drawing_region"] = region.model_dump() if region else None
     if trace is not None:
         report["evidence_trace"] = trace

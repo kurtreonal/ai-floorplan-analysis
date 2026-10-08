@@ -4,6 +4,90 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 8 explicit drawing borders and dense outline votes (after f08ab9e)
+
+- Verified missing-wall mechanism: selected drawings were cropped again by the
+  automatic page-border heuristic. The native lighting selection had an extra
+  16px interior margin; observed perimeter ink was erased near the selected
+  edge. A RED synthetic border test reproduces this on all four sides.
+  Explicit development selections now use the entire validated crop, restore
+  source coordinates normally and retain the outside-unprocessed warning.
+  Unselected uploads retain their automatic page/content mask; no coordinate
+  rule or page-specific detector was added. The worker forwards this context
+  explicitly. New CV geometry provenance version is separate from symbol weights.
+- The untrimmed scan exposed a second failure: 3,946 raw weighted-stroke votes
+  competed for the 256-line outline pool, causing incomplete/incorrect cavity
+  qualification. Preserve sparse votes unchanged; only dense inputs retry using
+  rising ink boundaries before the same bounded pool. Width, cavity and support
+  still use original pixels. No extra model, download or training run.
+- Failed variants retained privately: untrimmed/default votes produced **14 walls /
+  0 rooms** and lost real partitions; cutoff1.25 did not repair it. Unconditional
+  skeleton voting lost three existing native/2x opening/perimeter subtests.
+  Unconditional boundary voting lost one doorway-partition test. Neither was
+  accepted as a successful replacement. The density-gated version passes all
+  those original controls, plus new unchanged-sparse/bounded-dense observer tests.
+- PASS: working-tree focused wall/coordinate/demo/region/symbol-contract suite
+  **158 tests / 126 subtests**, observer tests **2**; compilation/scoped diff.
+  Includes exact-edge recovery, strict selected-scope Boolean validation,
+  unchanged unselected masking, unchanged originals and sparse votes, and a
+  two-call dense-vote bound. Isolated persisted worker/selection/demo API checks
+  **50 passed**, with two existing dependency deprecation warnings. Private
+  runner verified restricted credentials, empty verification tables and temporary
+  storage. Staged-only focused structural checks **121 tests / 105 subtests**,
+  observer **2**, compilation/diff PASS. Live working-tree full isolated backend
+  **1185 passed / 4 skipped / 617 subtests**, frontend **61 files / 500 tests**,
+  build PASS (existing large-chunk warning). Full frontend lint FAIL: six existing
+  errors in unrelated, untracked `DeviceMeshCatalog.jsx`; it is not imported into
+  the running viewer and is excluded from this checkpoint.
+  Staged-only full backend FAIL: **1109 passed / 1 failed / 4 skipped / 547
+  subtests**. Existing `test_review_image_api.py:367` expects 44 operations even
+  in HEAD; scoped source has **35 paths / 43 operations / 34 tables**. Working
+  tree includes the separate pending admin `/import-trained` endpoint and has
+  **36 / 44 / 34**, explaining the discrepancy. Do not stage unrelated catalog
+  work or change the existing assertion merely to hide that gate failure.
+  Dependency deprecations and one staged pytest-cache permission warning remain.
+  Restricted terminal port checks were misleading: read-only host checks and a
+  fresh computer-use browser tab confirmed all services reachable. Browser job
+  24197 completed with the old **39 walls / 2 rooms**; identified backend had no
+  reload enabled. Verified no queued/processing jobs before restarting only that
+  backend on the same loopback address/port, with access logging disabled.
+  Fresh computer-use job **24198** now persists **52 walls / 5 rooms / 59 symbols**
+  with `cv-native-scope-boundary-v1`, unchanged source/artifact hashes and the
+  same symbol checkpoint. Rejected symbol-0057 remains rejected after draft save
+  revision1 and browser reload; notes distinguish assistant inspection from
+  comprehensive human review. Both approval flags remain false. Prior24196
+  review retained, original upload and all three candidate hashes verified.
+  Actual WebGL draft rendered after reload; this is illustrative geometry, not
+  measured canonical/routing verification. Scale/elevation approvals are absent;
+  no mounting height, underground depth or circuit mapping was invented.
+  No database resets, credentials/grants/ACL changes or approval fabrication.
+- Native source/region remain frozen: SHA256
+  `22f024231b6d02b6121dab7b9477d3624284f365619511190582978cea350d28`,
+  1340x3264, rectangle(190,440,1060,2610). Final comparison against f08ab9e:
+  **38 walls / 2 rooms -> 52 walls / 5 rooms**. Assistant inspection sees
+  recovered right/bottom architectural strokes alongside remaining grid-like,
+  column/fixture and incomplete-perimeter proposals. Candidate coverage within
+  inspected source bands: right x1218..1245/y490..3000 **1067 -> 1960px**;
+  bottom y3010..3042/x220..1235 **276 -> 579px**, overlapping intervals unioned.
+  These are source-dependent candidate-span checks, NOT precision, label recall,
+  independent human review, complete geometry or general accuracy. Originals
+  hash-identical; no earlier candidates/reviews/layouts were overwritten.
+- Reports/overlays and failed variants remain ignored under
+  `storage/training/wall-evidence-20261008-lighting-region-*`; final-v2 records
+  exact historical commit and both implementation-file hashes. Diagnostic CLI
+  supports explicit historical refs and opt-in cutoff/skeleton experiments;
+  experimental flags never alter application defaults. Pre-existing bounds
+  padding, catalog/detector work and recovery stash remain separate/preserved.
+  The staged-only native replay independently reproduces **38/2 -> 52/5**, with
+  code hashes recorded in `wall-evidence-20261008-lighting-region-staged-v1`.
+  Local source checkpoint only; no remote publication or production release,
+  with scoped full-suite count mismatch and whole-tree lint explicitly pending.
+- Next: scope-aware source review of remaining ambiguous grid/column proposals
+  and observed perimeter continuity, then symbol errors. Do not suppress a
+  genuine partition merely because it lies among a ceiling grid. Wiring remains
+  pending improved detection and reviewed canonical inputs; no invented scale,
+  ceiling/underground depth, live activation, independent accuracy or release.
+
 ### October 8 parallel-stroke wall evidence checkpoint (after 9598675)
 
 - Diagnosed two reproducible false-wall mechanisms: compact three-bar fixtures

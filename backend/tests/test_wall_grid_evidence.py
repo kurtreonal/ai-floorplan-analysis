@@ -1,11 +1,13 @@
 """Database-independent ceiling evidence regressions; no source-specific rules."""
 import unittest
+from unittest.mock import patch
 
 import cv2
 import numpy as np
 
 from app.ai.wall_detection.config import WallDetectionParameters
 from app.ai.wall_detection.detector import detect_wall_lines, _has_compact_parallel_bars
+from app.ai.wall_detection import detector
 
 
 def outlined_ceiling_plan(*, troffer_bars=False, scale=1):
@@ -27,6 +29,37 @@ def outlined_ceiling_plan(*, troffer_bars=False, scale=1):
 
 
 class CeilingGridEvidenceTests(unittest.TestCase):
+    def test_sparse_outline_votes_are_unchanged(self):
+        ink = cv2.bitwise_not(outlined_ceiling_plan())
+        before = ink.copy()
+        with patch.object(cv2, 'HoughLinesP', wraps=cv2.HoughLinesP) as vote:
+            evidence = detector._outlined_wall_evidence(ink, WallDetectionParameters(
+                structural_mode=True,minimum_line_length=24,maximum_line_gap=6))
+        self.assertIsNotNone(evidence)
+        self.assertEqual(vote.call_count, 1)
+        np.testing.assert_array_equal(vote.call_args.args[0], before)
+        np.testing.assert_array_equal(ink, before)
+
+    def test_dense_outline_retry_uses_boundaries_but_original_pixel_evidence(self):
+        ink = cv2.bitwise_not(outlined_ceiling_plan())
+        before = ink.copy()
+        hough = cv2.HoughLinesP
+        calls = []
+        def dense_votes(raster, *args, **kwargs):
+            calls.append(raster.copy())
+            if len(calls) == 1:
+                return np.array([[[40+i%10,40+i//10,460-i//10,40+i//10]]
+                                 for i in range(260)],dtype=np.int32)
+            return hough(raster,*args,**kwargs)
+        with patch.object(cv2, 'HoughLinesP', side_effect=dense_votes):
+            evidence = detector._outlined_wall_evidence(ink, WallDetectionParameters(
+                structural_mode=True,minimum_line_length=24,maximum_line_gap=6))
+        self.assertIsNotNone(evidence)
+        self.assertEqual(len(calls), 2)
+        np.testing.assert_array_equal(calls[0], before)
+        self.assertLess(np.count_nonzero(calls[1]), np.count_nonzero(before))
+        np.testing.assert_array_equal(ink, before)
+
     def detect(self,image,scale):
         result = detect_wall_lines(image,parameters=WallDetectionParameters(
             structural_mode=True,minimum_line_length=24*scale,maximum_line_gap=6*scale))

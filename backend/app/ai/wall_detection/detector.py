@@ -680,8 +680,25 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None):
         raise _error("HOUGH_DETECTION_FAILED") from None
     if raw is None:
         return None
+    canonical = _canonical_segments(raw, width=width, height=height)
+    if len(canonical) > 256:
+        # On dense weighted scans many pixels of the same stroke crowd other
+        # edges out of the 256-line pool. Retry voting on rising ink boundaries
+        # only when that pool is exceeded. Sparse drawings keep their exact
+        # existing votes; all width/cavity checks still use ORIGINAL ink.
+        vote_ink = ink.copy()
+        duplicate = ((ink[1:, 1:] > 0) & (ink[:-1, 1:] > 0) & (ink[1:, :-1] > 0))
+        vote_ink[1:, 1:][duplicate] = 0
+        try:
+            raw = cv2.HoughLinesP(vote_ink, 1, math.pi / 180, max(12, minimum // 2),
+                                  minLineLength=minimum, maxLineGap=round(parameters.maximum_line_gap))
+        except Exception:
+            raise _error("HOUGH_DETECTION_FAILED") from None
+        if raw is None:
+            return None
+        canonical = _canonical_segments(raw, width=width, height=height)
     lines = []
-    for x1, y1, x2, y2 in _canonical_segments(raw, width=width, height=height):
+    for x1, y1, x2, y2 in canonical:
         length = math.hypot(x2 - x1, y2 - y1)
         if length >= minimum:
             lines.append((length, x1, y1, x2, y2))

@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import cv2
 import numpy as np
@@ -6,12 +7,46 @@ from pydantic import ValidationError
 
 from app.ai.floor_plan_interpretation.candidate import FloorPlanInterpretationPayload, SourcePlane
 from app.ai.floor_plan_interpretation.demo_cv import interpret_floor_plan_demo
+from app.ai.floor_plan_interpretation import demo_cv
 from app.ai.floor_plan_interpretation.drawing_region import (
     DrawingRegion, interpret_drawing_region, restore_region_payload, restore_region_predictions,
 )
 
 
 class DrawingRegionTests(unittest.TestCase):
+    def test_selected_scope_does_not_run_automatic_border_mask(self):
+        with patch.object(demo_cv, '_plan_bounds', wraps=demo_cv._plan_bounds) as bounds:
+            automatic = interpret_floor_plan_demo(self.crop)
+            self.assertEqual(bounds.call_count, 1)
+            selected = interpret_floor_plan_demo(self.crop, selected_drawing=True)
+            self.assertEqual(bounds.call_count, 1)
+        self.assertNotEqual(automatic.regions[0].bounds.model_dump(),
+                            selected.regions[0].bounds.model_dump())
+        self.assertEqual(selected.regions[0].bounds.model_dump(),
+                         {'x':0,'y':0,'width':400,'height':300})
+
+    def test_selected_scope_flag_rejects_non_boolean_values(self):
+        for flag in (None, 1, 'true', np.bool_(True)):
+            with self.subTest(flag=flag), self.assertRaises(demo_cv.DemoCVError) as caught:
+                interpret_floor_plan_demo(self.crop, selected_drawing=flag)
+            self.assertEqual(caught.exception.code, 'INVALID_CONFIGURATION')
+
+    def test_explicit_region_keeps_perimeter_ink_at_all_four_crop_edges(self):
+        source = np.full((500, 600, 3), 255, dtype=np.uint8)
+        region = DrawingRegion(x=150, y=120, width=200, height=200)
+        cv2.rectangle(source, (151,121), (348,318), (0,0,0), 2)
+        before = source.copy()
+        result = interpret_drawing_region(source, region=region)
+        self.assertEqual(result.regions[0].bounds.model_dump(), region.model_dump())
+        for x in (151,348):
+            self.assertTrue(any(abs(w.start.x-x)<3 and abs(w.end.x-x)<3
+                                and abs(w.end.y-w.start.y)>180 for w in result.walls.items))
+        for y in (121,318):
+            self.assertTrue(any(abs(w.start.y-y)<3 and abs(w.end.y-y)<3
+                                and abs(w.end.x-w.start.x)>180 for w in result.walls.items))
+        self.assertEqual(result.document_state, 'partial')
+        np.testing.assert_array_equal(source,before)
+
     def setUp(self):
         self.crop = np.full((300, 400, 3), 255, dtype=np.uint8)
         cv2.rectangle(self.crop, (40, 40), (360, 260), (0, 0, 0), 5)

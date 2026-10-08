@@ -145,5 +145,7 @@ def interpret_drawing_region(source_rgb, *, region: DrawingRegion, interpreter=N
     region.validate_plane(plane)
     view = _validate_image(source[region.y:region.y + region.height, region.x:region.x + region.width])
     crop = np.array(view, copy=True)
-    payload = (interpreter or interpret_floor_plan_demo)(crop)
+    selected = interpreter or interpret_floor_plan_demo
+    payload = (selected(crop, selected_drawing=True) if selected is interpret_floor_plan_demo
+               else selected(crop))
     return restore_region_payload(payload, region=region, source_plane=plane)

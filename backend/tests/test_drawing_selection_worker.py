@@ -116,10 +116,11 @@ def test_selected_demo_worker_uses_crop_with_full_source_plane(drawing_context,m
     original = service.interpret_floor_plan_demo
     observed = []
 
-    def interpret(rgb):
+    def interpret(rgb, **kwargs):
         observed.append(rgb.copy())
         np.testing.assert_array_equal(rgb,expected)
-        return original(rgb)
+        assert kwargs == {'selected_drawing': True}
+        return original(rgb, **kwargs)
 
     monkeypatch.setattr(service,'interpret_floor_plan_demo',interpret)
     monkeypatch.setattr(detector,'locate',lambda *_:pytest.fail('Demo selection must not invoke model inference.'))
@@ -127,6 +128,8 @@ def test_selected_demo_worker_uses_crop_with_full_source_plane(drawing_context,m
     assert len(observed) == 1
     candidate = assert_persisted_source_identity(c,job_id,run)
     assert run.provider == 'demo_cv_baseline'
+    assert {p.name:p.value for p in candidate.provenance.inference_parameters}[
+        'geometry-evidence-version'] == service.CV_EVIDENCE_VERSION
     for wall in candidate.payload.walls.items:
         assert 50<=wall.start.x<=350 and 40<=wall.start.y<=260
         assert 50<=wall.end.x<=350 and 40<=wall.end.y<=260

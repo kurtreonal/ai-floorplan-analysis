@@ -30,6 +30,8 @@ from app.ai.wall_detection.detector import detect_wall_lines
 MAXIMUM_IMAGE_EDGE = 4096
 MAXIMUM_IMAGE_PIXELS = 60_000_000
 SAFE_ERROR_MESSAGE = "The local demo floor-plan interpretation failed."
+# Bump when preprocessing/structural evidence changes; independent of symbol weights.
+EVIDENCE_VERSION = "cv-native-scope-boundary-v1"
 
 
 class DemoCVError(RuntimeError):
@@ -270,10 +272,11 @@ def interpret_floor_plan_demo(
     source_rgb: np.ndarray,
     *,
     parameters: DemoCVParameters | None = None,
+    selected_drawing: bool = False,
 ) -> FloorPlanInterpretationPayload:
     """Produce review-only source-pixel proposals using local deterministic CV."""
     selected = parameters or DemoCVParameters()
-    if not isinstance(selected, DemoCVParameters):
+    if not isinstance(selected, DemoCVParameters) or type(selected_drawing) is not bool:
         raise DemoCVError("INVALID_CONFIGURATION")
     source = _validate_image(source_rgb)
     height, width = source.shape[:2]
@@ -288,7 +291,10 @@ def interpret_floor_plan_demo(
             grayscale, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY_INV, block_size, 12,
         )
-        plan_bounds = _plan_bounds(ink)
+        # Explicit drawing selection already excludes unrelated page content.
+        # Applying the automatic page-border heuristic again can erase valid
+        # perimeter strokes at its edges. Never trim that explicit selection.
+        plan_bounds = (0, 0, width, height) if selected_drawing else _plan_bounds(ink)
         symbol_circles, symbols_truncated = _symbol_circles(
             grayscale,
             plan_bounds,
