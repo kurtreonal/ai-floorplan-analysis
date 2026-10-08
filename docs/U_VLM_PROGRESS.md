@@ -4,6 +4,43 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 8 mezzanine native-context diagnosis (after 1d25c21)
+
+- Fresh shared power80 replay on supplied sheet-08, source SHA256
+  `6ad0b03b0fede2142fabd88114af086184e8fa97d1acaa70fbdb506e87b34128`:
+  20 proposals at score0.50, 6.853s, no candidate truncation. Frozen output:
+  `storage/training/mezzanine-symbol-review-20261008-v1/report.json`.
+- Exact-class one-to-one IoU>=0.50 matches all8 existing source-bound training
+  labels (five recessed downlights, three homeruns). This is training-source
+  recall on eligible positives, NOT complete-page or independent accuracy.
+- Assistant visual inspection identifies seven false proposals: two elongated
+  solid columns called troffers, two grid bubbles called homeruns, OPEN BELOW
+  text and a dimension number called switches, and a solid column called smoke
+  detector. Five other proposals remain unresolved, including competing classes
+  on real glyphs; those areas are not negative training truth. No human-review
+  claim, full-page precision, or new approval is inferred.
+- Existing negatives include overlapping grid/dimension/column crops, but not
+  the two elongated columns or OPEN text. Native-context mismatch is a testable
+  training hypothesis, not a proven explanation for every error. Merely raising
+  a threshold or masking this page's perimeter would not solve internal errors.
+- Added `scripts/prepare_native_symbol_context.py`: source/hash/legend-checked,
+  immutable diagnostics reuse the actual native256 serving lattice, preserve
+  all80 head identities, and supervise only complete existing positives plus
+  explicit inspected negative rectangles. Unknown pixels and clipped positives
+  remain ignored; overlapping positive/negative evidence is rejected.
+- Prepared43 native windows with8 unique positives and7 negative regions under
+  `storage/training/mezzanine-native-context-20261008-v1`. Original source and
+  historical manifests preserved. The output is a diagnostic bundle, not a
+  full-page training dataset or automatically consumed production dataset.
+- Focused preparation/frozen-tail/partial-label tests:37passed,122subtests.
+  Initial sandbox temporary-file denial resolved by host test execution; no
+  database access. Browser/full-backend/frontend gates NOT rerun for this
+  preparation-only change. Earlier full-backend OpenAPI-count failure remains.
+- Next checkpoint: consume these masked native windows in a bounded candidate
+  repair with real positive controls for affected classes; replay original
+  sources before any activation. No checkpoint/threshold/live service changed.
+  Detection improvement and ceiling/wall/underground routing goal remain open.
+
 ### October 8 boxed fixtures and anchored corners (after 12b61ee)
 
 - Inspected native school-plan crops: six false wall segments follow closed,
