@@ -29,6 +29,33 @@ def outlined_ceiling_plan(*, troffer_bars=False, scale=1):
 
 
 class CeilingGridEvidenceTests(unittest.TestCase):
+    def test_compact_five_bar_fixture_keeps_one_pixel_scan_companions(self):
+        for scale in (1, 2):
+            with self.subTest(scale=scale):
+                image = np.full((1000, 1000), 255, dtype=np.uint8)
+                for y, width in ((170,3),(182,1),(194,16),(210,2),(220,3)):
+                    cv2.line(image, (100,y), (198,y), 0, width)
+                image = cv2.resize(image,None,fx=scale,fy=scale,interpolation=cv2.INTER_NEAREST)
+                before = image.copy()
+                self.assertTrue(_has_compact_parallel_bars(
+                    tuple(value*scale for value in (100,200,198,200,34)), image))
+                np.testing.assert_array_equal(image,before)
+
+    def test_compact_five_bar_fixture_does_not_depend_on_ten_percent_page_cutoff(self):
+        for scale in (1, 2):
+            with self.subTest(scale=scale):
+                image = np.full((1000, 1000), 255, dtype=np.uint8)
+                for y, width in ((177,3),(188,2),(200,17),(212,2),(223,3)):
+                    cv2.line(image, (100,y), (240,y), 0, width)
+                image = cv2.resize(image,None,fx=scale,fy=scale,interpolation=cv2.INTER_NEAREST)
+                before = image.copy()
+                self.assertTrue(_has_compact_parallel_bars(
+                    tuple(value*scale for value in (100,200,240,200,42)), image))
+                self.assertFalse(_has_compact_parallel_bars(
+                    tuple(value*scale for value in (100,200,240,200,12)), image),
+                    'A long narrow partition is not a compact fixture body.')
+                np.testing.assert_array_equal(image,before)
+
     def test_sparse_outline_votes_are_unchanged(self):
         ink = cv2.bitwise_not(outlined_ceiling_plan())
         before = ink.copy()

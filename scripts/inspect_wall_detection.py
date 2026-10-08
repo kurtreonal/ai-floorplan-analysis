@@ -5,6 +5,7 @@ import argparse
 from dataclasses import replace
 from contextlib import ExitStack
 import hashlib
+import inspect
 import json
 from pathlib import Path
 import subprocess
@@ -20,6 +21,13 @@ import numpy as np
 from app.ai.floor_plan_interpretation import demo_cv
 from app.ai.floor_plan_interpretation.drawing_region import DrawingRegion, interpret_drawing_region
 from app.ai.wall_detection import detector
+
+
+def interpret_historical(interpreter, source, *, selected_drawing):
+    """Match historical selection semantics without changing pre-scope versions."""
+    if 'selected_drawing' in inspect.signature(interpreter).parameters:
+        return interpreter(source, selected_drawing=selected_drawing)
+    return interpreter(source)
 
 
 def band_record(pair):
@@ -118,7 +126,8 @@ def main():
     sys.modules[baseline_demo.__name__] = baseline_demo
     exec(compile(old_demo_source, "baseline_demo", "exec"), baseline_demo.__dict__)
     with patch.object(baseline_demo, "detect_wall_lines", baseline.detect_wall_lines):
-        old = interpret(baseline_demo.interpret_floor_plan_demo, rgb)
+        old = interpret(lambda source: interpret_historical(
+            baseline_demo.interpret_floor_plan_demo, source, selected_drawing=region is not None), rgb)
     trace = None
     current_interpreter = demo_cv.interpret_floor_plan_demo
     if args.minimum_stroke_radius is not None or args.thin_outline_votes:

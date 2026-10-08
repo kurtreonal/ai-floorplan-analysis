@@ -512,7 +512,10 @@ def _has_compact_parallel_bars(segment, image: np.ndarray) -> bool:
                 and max(spacing) <= min(spacing) * 1.25
                 and length <= thickness * 6):
             return True
-    if length > min(image.shape) * .10:
+    # A fixture does not change identity when the surrounding drawing is cropped
+    # more tightly. Beyond the old page-relative limit, require a compact body
+    # aspect ratio as well as the full two-companion-on-each-side evidence.
+    if length > min(image.shape) * .10 and length > thickness * 6:
         return False
     if len(widths) < 5:
         return False
@@ -521,8 +524,10 @@ def _has_compact_parallel_bars(segment, image: np.ndarray) -> bool:
         return False
     center = centers[main]
     companions = np.r_[widths[main - 2:main], widths[main + 1:main + 3]]
+    # One-pixel outer strokes survive native scan thresholding; requiring two
+    # made the same visible glyph pass at 2x but fail at its original resolution.
     return bool(abs(center) <= thickness * 0.5 and widths[main] >= 8
-                and np.all(companions >= 2) and np.all(companions <= widths[main] / 3))
+                and np.all(companions >= 1) and np.all(companions <= widths[main] / 3))
 
 
 def _paired_edge_stroke_width(ink, xs, ys, nx, ny, radius):

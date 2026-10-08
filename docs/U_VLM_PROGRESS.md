@@ -4,6 +4,73 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 8 native compact-fixture evidence (after 8a8e177)
+
+- Source inspection identified two remaining troffer-body wall proposals:
+  (372,1302)->(376,1401), (1071,1303)->(1069,1422). Original transverse profiles
+  contain a bold body with two thin companion strokes on each side. One native
+  companion is only1px; the old2px condition passed at2x but failed at native size.
+  The other glyph exceeded the old10%-of-page-length guard despite compact
+  length/thickness. RED tests reproduced three failing native/2x subcases.
+- Retain the full four-companion evidence, centered bold body and existing16%
+  outer size bound. Accept1px observed companions; above10% require a compact
+  body aspect ratio as well. Preserve long narrow partitions, plain solid walls,
+  empty double-outline walls, openings and existing grid controls. No drawing
+  coordinates, model classes, templates, learned weights or inferred approval
+  enter these guards. Geometry evidence version `cv-native-compact-fixture-v2`.
+- Corrected native replay **52 walls / 5 rooms -> 50 walls / 4 rooms**. Removed
+  exactly those two fixture segments; every other wall coordinate is identical.
+  The eliminated room proposal depended on false fixture structure; this is not
+  independently approved room geometry. No precision/recall or accuracy measured.
+  Frozen source SHA256 remains
+  `22f024231b6d02b6121dab7b9477d3624284f365619511190582978cea350d28`;
+  selection(190,440,1060,2610). Private evidence:
+  `storage/training/wall-evidence-20261008-fixture-v2-corrected`.
+- A comparison-tool defect was found before accepting the result: dynamically
+  loaded post8a8e177 code supports explicit drawing scope but function-identity
+  dispatch omitted the flag, producing an invalid2-wall baseline. Historical
+  execution now forwards scope only when that signature supports it; pre-scope
+  code retains its original behavior. Invalid first replay is preserved privately,
+  not reported as improvement. Observer tests cover both historical signatures.
+- Fresh focused structural checks **124 passed / 109 subtests**; isolated worker,
+  selection, review/save and wall persistence **71 passed / 34 subtests**; observer
+  **4 passed**. Private isolation preflight passed; two dependency warnings remain.
+  Staged-only replay verified the identical52/5->50/4 result; source unchanged.
+  The exact staged snapshot excludes unrelated tests: structural **123 passed /
+  109 subtests**, isolated persistence/workflow **67 passed / 34 subtests**,
+  observers **4 passed**, compilation and scoped diff checks passed. An initial
+  direct staged invocation mistakenly included database worker tests and hit ten
+  sandbox temporary-directory setup errors before their execution; the corrected
+  restricted-database runner passed all67 checks. No failed setup is counted PASS.
+  Full regressions,
+  frontend tests/build/lint not rerun after this change; prior8a8e177 evidence and
+  its scoped OpenAPI-count mismatch / unrelated whole-tree lint remain historical.
+- Frozen second-page control: normalized plan9377/job24189 sourceSHA256
+  `cfb10f5329c82300fbae43933374078514c4d0c7be82d20ba0d1ec52ef8cac72`.
+  Full automatic drawing scope, no threshold tuning, staged1% padding preserved:
+  **12 walls / 1 room -> 12 walls / 1 room**, zero wall-coordinate differences.
+  Same development project10218/floor6323, not independent held-out performance.
+  Overlay still has missing left boundary and interior artifacts; unchanged counts
+  do not establish correctness. Private `wall-evidence-20261008-fixture-control-v1`.
+- Computer-use browser verified job24200: **50 walls / 4 rooms / 59 symbols**,
+  persisted `cv-native-compact-fixture-v2`, exact frozen selection and sourceSHA.
+  Soft rejection of wrong symbol0057 switch subtype plus explicit assistant-only
+  notes survives draft save/reload. Reviewrevision1, complete=false, approved=false.
+  Prior job24198/reviewrevision1 remains stored. Both candidate/artifact hashes
+  match. Actual WebGL perspective/top draft renders; illustrative40m/3m dimensions
+  remain preview-only. Canonical measured2D/3D and electrical routing NOT VERIFIED:
+  recorded scale/elevation approvals and circuit/device mapping are absent here.
+  No originals, model weights, authorization or production release changed.
+  Screenshot: private staged evidence directory `browser-draft-3d.jpg`.
+- Scoped source still **35 OpenAPI paths / 43 operations / 34 model tables**.
+  Existing44-operation assertion depends on unrelated pending catalog endpoint;
+  it is not made green by including that work. Recovery stash unchanged.
+- Next: investigate missing outer-wall spans with source evidence, then wrong
+  symbol interpretations before wiring. Missing outer-wall spans, ambiguous
+  grid/column strokes and wrong symbol interpretations still require work. Wiring
+  remains downstream of corrected canonical data; no invented scale/elevation,
+  underground depth, circuit mapping or production activation.
+
 ### October 8 explicit drawing borders and dense outline votes (after f08ab9e)
 
 - Verified missing-wall mechanism: selected drawings were cropped again by the

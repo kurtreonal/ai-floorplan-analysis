@@ -4,10 +4,30 @@ import unittest
 import cv2
 import numpy as np
 
-from inspect_wall_detection import demo_cv, detector, trace_wall_evidence
+from inspect_wall_detection import demo_cv, detector, trace_wall_evidence, interpret_historical
 
 
 class WallEvidenceTraceTests(unittest.TestCase):
+    def test_historical_scope_support_is_forwarded_explicitly(self):
+        source = np.full((40, 50, 3), 255, dtype=np.uint8)
+        calls = []
+        def scoped(image, *, selected_drawing=False):
+            self.assertIs(image,source)
+            calls.append(selected_drawing)
+            return selected_drawing
+        self.assertTrue(interpret_historical(scoped,source,selected_drawing=True))
+        self.assertFalse(interpret_historical(scoped,source,selected_drawing=False))
+        self.assertEqual(calls,[True,False])
+
+    def test_pre_scope_historical_version_retains_original_signature(self):
+        source = np.full((40, 50, 3), 255, dtype=np.uint8)
+        before = source.copy()
+        def legacy(image):
+            self.assertIs(image,source)
+            return 'legacy'
+        self.assertEqual(interpret_historical(legacy,source,selected_drawing=True),'legacy')
+        np.testing.assert_array_equal(source,before)
+
     def test_trace_preserves_exact_result_and_source(self):
         source = np.full((400, 500, 3), 255, dtype=np.uint8)
         for inset in (0, 6):
