@@ -9,6 +9,16 @@ import { normalizeCanonicalGeometry } from '../../geometry/canonicalGeometry.js'
 import { LayoutEditorPage } from './LayoutEditorPage.jsx'
 import fixtureData from '../../../../fixtures/canonical_geometry_v1.json'
 
+const routing = vi.hoisted(() => ({ record: null, setRoute: vi.fn() }))
+vi.mock('../routing/useSavedRoute.js', () => ({ useSavedRoute: () => [routing.record, routing.setRoute] }))
+vi.mock('../routing/CircuitPlanningPanel.jsx', () => ({
+  CircuitPlanningPanel: ({ layout, onPreview, onSaved }) => <section aria-label="Shared circuit planning preview">
+    <button onClick={() => onPreview({ configuration: { floors: [{ floor_id: layout.project_floor_id, offset_x: 0, offset_y: 0 }] },
+      layout_versions: { [layout.project_floor_id]: layout.id }, result: { segments: [{ kind: 'ceiling_service', start: { floor_id: layout.project_floor_id, x: 1, y: 1 }, end: { floor_id: layout.project_floor_id, x: 2, y: 1 } }] } })}>Test wiring preview</button>
+    <button onClick={() => onSaved({ project_id: layout.project_id, version_number: 1 })}>Test wiring save</button>
+  </section>,
+}))
+
 vi.mock('../../api/layouts.js', async () => ({
   ...(await vi.importActual('../../api/layouts.js')),
   fetchCurrentLayout: vi.fn(), saveCurrentLayout: vi.fn(),
@@ -17,10 +27,11 @@ vi.mock('../../api/reviewImages.js', async () => ({
   ...(await vi.importActual('../../api/reviewImages.js')), fetchReviewImage: vi.fn(),
 }))
 vi.mock('./CanonicalLayoutCanvas.jsx', () => ({
-  CanonicalLayoutCanvas: ({ geometry, blueprintImage, visibility, selectedSymbolId, canEdit, editDisabled, onSelectSymbol, onMoveSymbol }) => (
+  CanonicalLayoutCanvas: ({ geometry, routeSegments = [], blueprintImage, visibility, selectedSymbolId, canEdit, editDisabled, onSelectSymbol, onMoveSymbol }) => (
     <div data-testid="canonical-canvas">
       {geometry.walls.length}/{geometry.rooms.length}/{geometry.symbols.length}/{geometry.routes.length}
       <span>{blueprintImage ? 'blueprint loaded' : 'neutral blueprint'}</span>
+      <span data-testid="generated-wiring-count">{routeSegments.length}</span>
       <span>{Object.entries(visibility).map(([key, value]) => `${key}:${value}`).join(',')}</span>
       <span>selected:{selectedSymbolId ?? 'none'},editable:{String(canEdit)},disabled:{String(editDisabled)}</span>
       {geometry.symbols.map((symbol) => (
@@ -50,6 +61,8 @@ class LoadedImage {
 }
 
 beforeEach(() => {
+  routing.record = null
+  routing.setRoute.mockReset()
   fetchCurrentLayout.mockReset().mockResolvedValue(layout())
   saveCurrentLayout.mockReset().mockImplementation(async (projectId, floorId, geometry) => layout(geometry, 4, 10))
   fetchReviewImage.mockReset().mockResolvedValue(new Blob(['png'], { type: 'image/png' }))
@@ -64,6 +77,27 @@ afterEach(() => {
 })
 
 describe('layout editor page', () => {
+  it('previews wiring on saved 2D, saves through the shared route store, and clears it on device moves', async () => {
+    render(<LayoutEditorPage projectId={15} projectFloorId={2} session={{ user: { role: 'DESIGNER' } }} />)
+    await screen.findByTestId('canonical-canvas')
+    fireEvent.click(screen.getByRole('button', { name: 'Test wiring preview' }))
+    expect(screen.getByTestId('generated-wiring-count').textContent).toBe('1')
+    fireEvent.click(screen.getByRole('button', { name: 'Test wiring save' }))
+    expect(routing.setRoute).toHaveBeenCalledWith({ project_id: 15, version_number: 1 })
+    expect(screen.getByTestId('generated-wiring-count').textContent).toBe('0')
+    fireEvent.click(screen.getByRole('button', { name: 'Test wiring preview' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Canvas move detected:501' }))
+    expect(screen.queryByRole('region', { name: 'Shared circuit planning preview' })).toBeNull()
+    expect(screen.getByTestId('generated-wiring-count').textContent).toBe('0')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel changes' }))
+    expect(screen.getByTestId('generated-wiring-count').textContent).toBe('0')
+  })
+
+  it('keeps circuit generation unavailable to an admin viewing saved 2D', async () => {
+    render(<LayoutEditorPage projectId={15} projectFloorId={2} session={{ user: { role: 'ADMIN' } }} />)
+    await screen.findByTestId('canonical-canvas')
+    expect(screen.queryByRole('button', { name: 'Test wiring preview' })).toBeNull()
+  })
   it('keeps extended snapshots read-only so a base-only save cannot lose reviewed extension data', async () => {
     fetchCurrentLayout.mockResolvedValueOnce({ ...layout(), hasExtension: true })
     render(<LayoutEditorPage projectId={15} projectFloorId={2} session={{ user: { role: 'DESIGNER' } }} />)

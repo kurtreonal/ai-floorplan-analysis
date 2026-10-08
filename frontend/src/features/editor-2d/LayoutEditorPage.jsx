@@ -12,6 +12,7 @@ import { LAYOUT_LAYER_LABELS } from './layoutLayers.js'
 import './layoutEditor.css'
 import { useSavedRoute } from '../routing/useSavedRoute.js'
 import { projectRoute } from '../routing/routeProjection.js'
+import { CircuitPlanningPanel } from '../routing/CircuitPlanningPanel.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, Save } from 'lucide-react'
 
@@ -66,7 +67,8 @@ export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyCh
     image: null, blueprintWarning: null, error: null,
   })
   const [visibility, setVisibility] = useState({ ...INITIAL_VISIBILITY })
-  const [route] = useSavedRoute(projectId, state.serverLayout?.id)
+  const [route, setRoute] = useSavedRoute(projectId, state.serverLayout?.id)
+  const [circuitPreview, setCircuitPreview] = useState(null)
   const [selectedSymbolId, setSelectedSymbolId] = useState(null)
   const [saveState, setSaveState] = useState(INITIAL_SAVE_STATE)
   const [announcement, setAnnouncement] = useState('All canonical layout layers are visible.')
@@ -143,6 +145,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyCh
   }
 
   function retryLoad() {
+    setCircuitPreview(null)
     setSelectedSymbolId(null)
     setSaveState(INITIAL_SAVE_STATE)
     setAttempt((value) => value + 1)
@@ -154,6 +157,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyCh
   }
 
   function replaceDraft(nextGeometry) {
+    setCircuitPreview(null)
     setState((current) => current.status === 'ready' ? { ...current, draft: nextGeometry } : current)
     setSaveState(INITIAL_SAVE_STATE)
     setAnnouncement('Symbol position updated in the unsaved canonical layout.')
@@ -169,6 +173,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyCh
   }
 
   function adoptSavedLayout(serverLayout, message) {
+    setCircuitPreview(null)
     setState((current) => ({ ...current, serverLayout, draft: serverLayout.geometry }))
     if (!serverLayout.geometry.symbols.some((symbol) => symbol.id === selectedSymbolId)) setSelectedSymbolId(null)
     setSaveState(INITIAL_SAVE_STATE)
@@ -314,7 +319,7 @@ export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyCh
       <div className="studio-editor-workbench">
       <aside className="studio-editor-layers"><span className="project-kicker mono">DISPLAY LAYERS</span><LayoutLayerControls visibility={visibility} onChange={toggleLayer} /><p>Display switches do not delete saved data. Use the inspector for exact coordinates.</p></aside>
       <CanonicalLayoutCanvas
-        routeSegments={dirty ? [] : projectRoute(route, serverLayout)}
+        routeSegments={dirty ? [] : projectRoute(circuitPreview ?? route, serverLayout)}
         geometry={geometry}
         blueprintImage={state.image}
         visibility={visibility}
@@ -334,6 +339,12 @@ export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyCh
         onGeometryChange={replaceDraft}
       />
       </div>
+
+      {roleAllowsEditing && !dirty && !busy && saveState.status === 'idle' && (
+        <CircuitPlanningPanel key={`circuit:${serverLayout.id}`} layout={serverLayout} record={route}
+          onPreview={setCircuitPreview} onSaved={(saved) => { setCircuitPreview(null); setRoute(saved) }} />
+      )}
+      {roleAllowsEditing && dirty && <p role="note">Save or discard device moves before planning wiring. Routes use the saved positions.</p>}
 
       <section className="layout-accessible-summary" aria-labelledby="layout-summary-title">
         <h2 id="layout-summary-title">Layout summary</h2>

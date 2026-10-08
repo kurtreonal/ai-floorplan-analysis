@@ -28,7 +28,12 @@ def structural_boxes(document, elevation):
     for wall in document.walls:
         if wall.status != "verified" or wall.height_meters is None or wall.thickness_meters is None:
             raise RoutingError("WALL_REVIEW_REQUIRED")
-        if document.floor.elevation_meters <= elevation <= document.floor.elevation_meters + wall.height_meters:
+        top = document.floor.elevation_meters + wall.height_meters
+        # A service path on the ceiling boundary is above the wall interior.
+        # Keep all lower planes blocked, including exact endpoint anchors, and
+        # retain closed explicit obstacle bounds. The tolerance covers only
+        # floating-point arithmetic at the entered wall-top elevation.
+        if document.floor.elevation_meters <= elevation < top and not math.isclose(elevation, top, rel_tol=0, abs_tol=1e-9):
             half = wall.thickness_meters / 2
             # Conservative bounds: diagonal walls may exclude extra space, never
             # allow a path through a structure based on a missed intersection.

@@ -80,3 +80,79 @@ it('saves a preview and retries an uncertain response with the identical request
   expect(saveCircuit.mock.calls[1][1]).toEqual(payload)
   expect(onPreview).toHaveBeenLastCalledWith(null)
 })
+
+function savedCircuit(overrides = {}) {
+  return { ...record, id: 9, version_number: 2,
+    configuration: { circuit_id: 'C-SAVED', installation_method: 'ceiling_service',
+      floors: [{ floor_id: 2, expected_layout_version: 3, service_elevation_meters: 3.2, offset_x: 0, offset_y: 0 }],
+      panel: { floor_id: 2, x: 0.8, y: 1.1, elevation_meters: 1.4, wall_id: 7 },
+      targets: [{ floor_id: 2, symbol_id: 'detected:1', x: 2, y: 1, elevation_meters: 2.8, wall_id: 7 }],
+      connectors: [], obstacles: [], grid_step_meters: 0.4, alignment_confirmed: true, purpose: 'planning' },
+    result: { ...record.result, status: 'saved_planning', circuit_id: 'C-SAVED' }, ...overrides }
+}
+const wallLayout = { ...layout, geometry: { ...layout.geometry, walls: [{ id: 7, status: 'verified' }] } }
+
+it('restores saved membership and entered values after reload without reconfirming or resetting edited values', async () => {
+  const saved = savedCircuit(), onPreview = vi.fn(), onSaved = vi.fn()
+  const rendered = render(<CircuitPlanningPanel layout={wallLayout} onPreview={onPreview} onSaved={onSaved} />)
+  rendered.rerender(<CircuitPlanningPanel layout={wallLayout} record={saved} onPreview={onPreview} onSaved={onSaved} />)
+  expect(screen.getByLabelText('Include Troffer light · detected:1').checked).toBe(true)
+  for (const [label, value] of [['Circuit identifier', 'C-SAVED'], ['Installation method', 'ceiling_service'],
+    ['Circuit panel x (m)', '0.8'], ['Circuit panel y (m)', '1.1'], ['Circuit panel elevation (m)', '1.4'],
+    ['Circuit service elevation (m)', '3.2'], ['Elevation for detected:1 (m)', '2.8'],
+    ['Circuit panel wall', '7'], ['Wall for detected:1', '7'], ['Circuit graph spacing (m)', '0.4']]) {
+    expect(screen.getByLabelText(label).value).toBe(value)
+  }
+  expect(screen.getByLabelText(/I confirm this circuit membership/).checked).toBe(false)
+  fireEvent.change(screen.getByLabelText('Circuit service elevation (m)'), { target: { value: '3.5' } })
+  rendered.rerender(<CircuitPlanningPanel layout={{ ...wallLayout }} record={{ ...saved }} onPreview={onPreview} onSaved={onSaved} />)
+  expect(screen.getByLabelText('Circuit service elevation (m)').value).toBe('3.5')
+  previewCircuit.mockResolvedValue(record)
+  fireEvent.click(screen.getByLabelText(/I confirm this circuit membership/))
+  fireEvent.submit(screen.getByRole('button', { name: 'Preview shared circuit' }).closest('form'))
+  await waitFor(() => expect(previewCircuit).toHaveBeenCalled())
+  expect(previewCircuit.mock.calls[0][1]).toMatchObject({ circuit_id: 'C-SAVED',
+    floors: [{ service_elevation_meters: 3.5 }], panel: saved.configuration.panel,
+    targets: saved.configuration.targets, grid_step_meters: 0.4 })
+})
+
+it.each([
+  ['stale', { stale: true }],
+  ['another layout', { layout_versions: { 2: 6 } }],
+  ['another project', { project_id: 99 }],
+  ['changed device coordinates', { configuration: { ...savedCircuit().configuration,
+    targets: [{ ...savedCircuit().configuration.targets[0], x: 3 }] } }],
+  ['uneditable obstacle configuration', { configuration: { ...savedCircuit().configuration, obstacles: [{}] } }],
+])('leaves fields empty for a saved circuit with %s', (_reason, overrides) => {
+  render(<CircuitPlanningPanel layout={wallLayout} record={savedCircuit(overrides)} onPreview={vi.fn()} />)
+  expect(screen.getByLabelText('Circuit identifier').value).toBe('')
+  expect(screen.getByLabelText('Circuit service elevation (m)').value).toBe('')
+  expect(screen.getByLabelText('Include Troffer light · detected:1').checked).toBe(false)
+  expect(screen.getByText(/Saved circuit inputs do not match/)).toBeTruthy()
+})
+
+it('aborts work when the layout changes and fences its late preview response', async () => {
+  let finish
+  previewCircuit.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+  const onPreview = vi.fn()
+  const rendered = render(<CircuitPlanningPanel layout={layout} onPreview={onPreview} />)
+  fill()
+  await waitFor(() => expect(previewCircuit).toHaveBeenCalled())
+  const signal = previewCircuit.mock.calls[0][2].signal
+  rendered.rerender(<CircuitPlanningPanel layout={{ ...layout, id: 6, version_number: 4 }} onPreview={onPreview} />)
+  expect(signal.aborted).toBe(true)
+  expect(screen.getByLabelText('Circuit identifier').value).toBe('')
+  finish(record)
+  await Promise.resolve()
+  expect(onPreview).not.toHaveBeenCalled()
+})
+
+it('clears a published preview when its layout changes', async () => {
+  previewCircuit.mockResolvedValue(record)
+  const onPreview = vi.fn()
+  const rendered = render(<CircuitPlanningPanel layout={layout} onPreview={onPreview} />)
+  fill()
+  await waitFor(() => expect(onPreview).toHaveBeenCalledWith(record))
+  rendered.rerender(<CircuitPlanningPanel layout={{ ...layout, id: 6, version_number: 4 }} onPreview={onPreview} />)
+  expect(onPreview).toHaveBeenLastCalledWith(null)
+})

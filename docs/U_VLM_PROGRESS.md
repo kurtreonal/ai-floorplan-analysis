@@ -4,6 +4,41 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 9 saved 2D circuit workflow and ceiling boundary (after 056c2bb)
+
+- Saved canonical 2D now uses the existing shared circuit preview/save workflow,
+  the same route projection and immutable backend route versions as 3D. Moving
+  devices clears the preview and suspends routing until layout save/discard.
+  Designer-only controls remain enforced by the existing backend authorization.
+- Compatible saved circuits restore explicit membership, panel position/wall,
+  device/service elevations, installation method and grid spacing. Ordinary
+  rerenders preserve edits; changed snapshots abort outstanding requests and
+  clear previews. Stale, mismatched or unsupported configurations stay blank.
+  No dimensions, circuit assignments or confirmation are inferred.
+- Fixed a general routing defect at the exact verified wall-top service plane:
+  structural occupancy excludes its upper boundary (1e-9 arithmetic tolerance).
+  Lower service planes, taller walls and closed explicit obstacles remain
+  blocking. New tests reproduce committed behavior in memory (4 failed/5 passed)
+  and verify current ceiling drops, shifted floor elevations and explicit risers.
+- PASS: restricted isolated MySQL routing/persistence regression 47 tests, two
+  existing dependency warnings; focused frontend 5 files/39 tests; full frontend
+  61 files/510 tests; scoped lint; build; routing compilation. Build retains the
+  existing >500 kB chunk warning. Full lint FAIL: six errors in unrelated untracked
+  DeviceMeshCatalog.jsx. Full backend NOT rerun here; earlier OpenAPI-count
+  failure remains unresolved and is not represented as passing.
+- Computer use inspected the actual authenticated Designer's current project
+  10218/floor6323: saved 2D reports no current layout. No approval, scale, elevation
+  or canonical geometry was fabricated to exercise wiring. Live circuit
+  generation/save/2D-to-3D reload remains NOT TESTED for this floor; isolated API
+  save/reload and UI integration above are distinct evidence.
+- No schema/API-count change or model activation. Only the latest saved project
+  circuit is displayed; historical versions remain stored. Underground routing
+  and explicit below-floor geometry remain unimplemented. Next: general wall
+  recovery/source replay, then multiple saved circuits and underfloor inputs.
+  Original uploads, training artifacts, unrelated edits and recovery stash
+  bb78854e87833124a1725b51f0be6099a8ac0cfa are preserved. Scoped local checkpoint;
+  production, independent accuracy and electrical release approval remain pending.
+
 ### October 8 mezzanine native-context diagnosis (after 1d25c21)
 
 - Fresh shared power80 replay on supplied sheet-08, source SHA256
