@@ -3,6 +3,8 @@ import { previewCircuit, saveCircuit } from '../../api/routing.js'
 import { Button } from '../../components/ui/button.jsx'
 import { CanonicalLayoutCanvas } from '../editor-2d/CanonicalLayoutCanvas.jsx'
 import { projectRoute } from './routeProjection.js'
+import { RoutingObstacles } from './RoutingObstacles.jsx'
+import { normalizeRouteObstacles, obstacleRows, routingObstaclesFromRows } from './routeObstacles.js'
 
 export function CircuitPlanningPanel({ layout, record = null, onPreview, onSaved }) {
   const configuration = savedConfiguration(record, layout)
@@ -20,7 +22,9 @@ function savedConfiguration(record, layout) {
   const configuration = record.configuration
   if (!['ceiling_service', 'underground'].includes(configuration?.installation_method) || configuration.floors?.length !== 1
     || !configuration.targets?.length || configuration.targets.length > 32
-    || configuration.connectors?.length || configuration.obstacles?.length) return null
+    || configuration.connectors?.length) return null
+  try { normalizeRouteObstacles(configuration.obstacles, layout.project_floor_id) }
+  catch { return null }
   if (configuration.installation_method === 'underground' && configuration.floor_passages_confirmed !== true) return null
   const floor = configuration.floors[0], panel = configuration.panel
   if (floor.floor_id !== layout.project_floor_id || floor.expected_layout_version !== layout.version_number
@@ -43,6 +47,7 @@ function savedConfiguration(record, layout) {
 function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved }) {
   const [selected, setSelected] = useState(() => initialConfiguration?.targets.map((target) => target.symbol_id) ?? [])
   const [installation, setInstallation] = useState(initialConfiguration?.installation_method ?? '')
+  const [obstacles, setObstacles] = useState(() => obstacleRows(initialConfiguration?.obstacles, layout.project_floor_id))
   const [preview, setPreview] = useState(null)
   const [show2D, setShow2D] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -60,10 +65,13 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
   useEffect(() => { if (error) errorRef.current?.focus() }, [error])
 
   function clearPreview() {
+    const hadPreview = previewRef.current
     retryRef.current = null
     previewRef.current = null
-    if (preview) { setPreview(null); onPreview(null) }
+    if (hadPreview) { setPreview(null); onPreview(null) }
   }
+
+  function changeObstacles(rows) { setObstacles(rows); clearPreview() }
 
   async function save() {
     if (!preview || busy) return
@@ -114,7 +122,8 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
           floor_id: layout.project_floor_id, symbol_id: symbol.id, ...symbol.position,
           elevation_meters: number(`height:${symbol.id}`), wall_id: wall(`wall:${symbol.id}`),
         })),
-        connectors: [], obstacles: [], grid_step_meters: number('step'), alignment_confirmed: true, purpose: 'planning',
+        connectors: [], obstacles: routingObstaclesFromRows(obstacles, layout.project_floor_id),
+        grid_step_meters: number('step'), alignment_confirmed: true, purpose: 'planning',
       }
     } catch (failure) { setError(failure.message); return }
     requestRef.current?.abort()
@@ -167,6 +176,7 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
             <label className="studio-field">Wall for {symbol.id}<select name={`wall:${symbol.id}`} disabled={!selected.includes(symbol.id)} defaultValue={savedTargets.get(symbol.id)?.wall_id ?? ''}>{wallOptions}</select></label>
           </fieldset>)}</div>
           <p>{selected.length}/32 devices selected. Coordinates come from the saved canonical layout; membership and elevations are not inferred.</p>
+          <RoutingObstacles rows={obstacles} onChange={changeObstacles} disabled={busy} scope="Circuit" />
           <label><input type="checkbox" required />I confirm this circuit membership, panel position and installation inputs for planning.</label>
           <Button type="submit" disabled={!selected.length || selected.length > 32}>Preview shared circuit</Button>
         </fieldset>

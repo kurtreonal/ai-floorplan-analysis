@@ -71,7 +71,7 @@ it('rejects a changed pinned snapshot and focuses the error without publishing p
   fill()
   const alert = await screen.findByRole('alert')
   expect(alert.textContent).toContain('Layout changed')
-  expect(document.activeElement).toBe(alert)
+  await waitFor(() => expect(document.activeElement).toBe(alert))
   expect(onPreview).not.toHaveBeenCalled()
 })
 it('aborts unmounted requests and fences a late response', async () => {
@@ -182,4 +182,53 @@ it('clears a published preview when its layout changes', async () => {
   await waitFor(() => expect(onPreview).toHaveBeenCalledWith(record))
   rendered.rerender(<CircuitPlanningPanel layout={{ ...layout, id: 6, version_number: 4 }} onPreview={onPreview} />)
   expect(onPreview).toHaveBeenLastCalledWith(null)
+})
+
+const reviewedObstacle = { floor_id: 2, min_x: 1, min_y: 2, max_x: 3, max_y: 4, bottom: -1, top: 1 }
+
+it('restores explicit obstacle bounds and preserves them through preview and save', async () => {
+  const saved = savedCircuit()
+  saved.configuration.obstacles = [reviewedObstacle]
+  previewCircuit.mockImplementation(async (_projectId, configuration) => ({ ...record, configuration }))
+  saveCircuit.mockResolvedValue(saved)
+  const onPreview = vi.fn(), onSaved = vi.fn()
+  const rendered = render(<CircuitPlanningPanel layout={wallLayout} record={saved} onPreview={onPreview} onSaved={onSaved} />)
+  expect(screen.getByLabelText('Circuit obstacle 1 minimum x (m)').value).toBe('1')
+  expect(screen.getByLabelText('Circuit obstacle 1 bottom elevation (m)').value).toBe('-1')
+  fireEvent.change(screen.getByLabelText('Circuit obstacle 1 top elevation (m)'), { target: { value: '2' } })
+  rendered.rerender(<CircuitPlanningPanel layout={{ ...wallLayout }} record={{ ...saved }} onPreview={onPreview} onSaved={onSaved} />)
+  expect(screen.getByLabelText('Circuit obstacle 1 top elevation (m)').value).toBe('2')
+  fireEvent.click(screen.getByLabelText(/I confirm this circuit membership/))
+  fireEvent.submit(screen.getByRole('button', { name: 'Preview shared circuit' }).closest('form'))
+  await waitFor(() => expect(previewCircuit).toHaveBeenCalled())
+  expect(previewCircuit.mock.calls[0][1].obstacles).toEqual([{ ...reviewedObstacle, top: 2 }])
+  fireEvent.click(await screen.findByRole('button', { name: 'Save planning circuit' }))
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith(saved))
+  expect(saveCircuit.mock.calls[0][1].obstacles).toEqual([{ ...reviewedObstacle, top: 2 }])
+})
+
+it.each(['add', 'remove'])('invalidates published circuit preview when obstacles %s', async (action) => {
+  const saved = savedCircuit()
+  saved.configuration.obstacles = [reviewedObstacle]
+  previewCircuit.mockResolvedValue(record)
+  const onPreview = vi.fn()
+  render(<CircuitPlanningPanel layout={wallLayout} record={saved} onPreview={onPreview} />)
+  fireEvent.click(screen.getByLabelText(/I confirm this circuit membership/))
+  fireEvent.submit(screen.getByRole('button', { name: 'Preview shared circuit' }).closest('form'))
+  await waitFor(() => expect(onPreview).toHaveBeenCalledWith(record))
+  fireEvent.click(screen.getByRole('button', { name: action === 'add' ? 'Add circuit obstacle' : 'Remove circuit obstacle 1' }))
+  expect(onPreview).toHaveBeenLastCalledWith(null)
+  expect(screen.queryByRole('button', { name: 'Save planning circuit' })).toBeNull()
+})
+
+it('rejects reversed obstacle bounds without dropping the obstacle or calling inference', async () => {
+  const saved = savedCircuit()
+  saved.configuration.obstacles = [reviewedObstacle]
+  render(<CircuitPlanningPanel layout={wallLayout} record={saved} onPreview={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText('Circuit obstacle 1 minimum x (m)'), { target: { value: '5' } })
+  fireEvent.click(screen.getByLabelText(/I confirm this circuit membership/))
+  fireEvent.submit(screen.getByRole('button', { name: 'Preview shared circuit' }).closest('form'))
+  expect(await screen.findByRole('alert')).toBeTruthy()
+  expect(previewCircuit).not.toHaveBeenCalled()
+  expect(screen.getByLabelText('Circuit obstacle 1 minimum x (m)').value).toBe('5')
 })

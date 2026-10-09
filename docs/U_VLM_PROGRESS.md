@@ -4,6 +4,63 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 9 explicit obstacle workflow and wall learning diagnosis (after ccd859f)
+
+- Added single-floor rectangular barrier entry to circuit and single-route forms
+  through the existing Obstacle contract. All six bounds are explicitly entered
+  in saved metric coordinates/absolute elevations; no automatic depth, wall
+  attachment or measurement. Strict finite/ordered/exact-key/floor validation,
+  128-item cap, accessible inline errors and focused submit failures. Empty input
+  remains no additional entered barriers, not evidence of an unobstructed floor.
+- Circuit obstacle values survive compatible save/reload and stable refresh;
+  add/remove/edit invalidates preview and uncertain-save retry identity. Review
+  caught a single-route reload loss: now matching saved ceiling-route barriers
+  restore; stale/foreign/underground/malformed barriers block recalculation
+  rather than silently disappearing. Endpoint/elevation inputs in that older
+  form still require explicit re-entry. No route/schema/auth/API changes.
+- PASS: root56 focused routing frontend tests; full frontend63 files/545 tests;
+  focused restricted isolated backend82 routing/underground/API/material tests,
+  two existing dependency warnings; build, scoped lint and diff checks. Independent
+  review46 tests/four files PASS after its reload finding was fixed. Full backend
+  NOT RERUN for this frontend-only change; prior1265/4 skips/1396 subtests belongs
+  to ccd859f. Full lint FAIL: six pre-existing errors in untracked
+  DeviceMeshCatalog.jsx. Large bundle warning remains. Initial test invocation
+  named nonexistent circuit files and ran zero tests; corrected five-file run
+  above passed. OpenAPI36 paths/44 operations/ORM34 freshly unchanged.
+- Computer-use browser checked the actual shared obstacle component in an
+  explicitly labeled ignored local fixture: restored bounds, reversed-bound
+  rejection retaining edits, new blank required row, removal retaining original
+  values. Screenshot browser-obstacle-controls.jpg under the existing runtime
+  evidence directory. This is component evidence, NOT live route generation or
+  database persistence. Existing browser review remains job24213's unfinished
+  draft. Read-only live inventory: zero canonical layouts/route versions; all
+  three floors6323/6324/6325 lack approved scale and elevation. Live measured
+  routing/2D-3D circuit validation remains BLOCKED by those specific inputs.
+- Actual bounded local wall learning completed: OpenCV RTrees, one tree, eight
+  unique reviewed sheet24 strips (four standard walls/four explicit openings),
+  four exact repetitions each. Eight/eight TRAINING matches versus constant-class
+  four/eight; fit0.005245s. Root reconstructed every crop/feature from original
+  coordinates and reproduced checkpoint predictions. Checkpoint SHA256
+  2cd64ce3a3dbed12d768acf2437414ce7d0c638059e38df2e1d9d5531235b8ed.
+  Artifacts: wall-strip-learning-check-20261009-sheet-24-v1/run-001-trees.
+  Four inspected ambiguous strips excluded; remaining332 audit records unused,
+  not rejected. No unlabeled background supervision, full-page localization,
+  generalization score, larger training run or runtime activation. Existing
+  user attestation applies; no new human approval fabricated. Originals intact.
+- General wall diagnosis continues: independent-original-mate/two-existing-junction
+  local seeding adds no new geometry on24/35/11/school controls; retained as
+  ineffective, not activated. Expanding original Hough pool256->768 adds pairs
+  on35/43/11 but no supported long architectural seed for poor pages. No thinning
+  rerun in that pool probe;43's prior failure remains unscored. Reports preserved
+  in wall-local-pair-seeding-20261009-v2 and wall-original-pool-20261009-v1;
+  pool report SHA25675dc2dee73e51b63f58ba370191c093725945af8147921dc70bdf52f8398686b.
+  Next: repair original architectural stroke/mate extraction with positive and
+  wiring/hatch controls, not arbitrary global cutoff or per-page coordinates.
+- Scoped checkpoint on codex/vlm-localization-experiment only; general wall
+  quality, live measured wiring and release acceptance remain incomplete.
+  No push, model promotion, dataset/original deletion or stash mutation. Existing
+  unrelated1479 ledger lines and other edits preserved; no new Markdown files.
+
 ### October 9 exact thinning performance (after d60dd6c)
 
 - Replaced repeated Zhang-Suen predicates with two immutable256-entry lookup
