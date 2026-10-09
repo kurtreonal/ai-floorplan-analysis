@@ -4,6 +4,49 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 9 exact thinning performance (after d60dd6c)
+
+- Replaced repeated Zhang-Suen predicates with two immutable256-entry lookup
+  tables and a bounded deletion-region search. Same region for both synchronous
+  phases; deletion union plus TWO-pixel halo for the next round. Input bytes,
+  output raster, border/disconnected strokes and exact128-round success/error
+  boundary preserved. No threshold, model, dependency or inference budget change.
+  Native coordinate and 2D/3D/canonical contracts unchanged.
+- PASS: root72 existing wall/gap tests/64 subtests;21 equivalence/demo tests/738
+  subtests;5 standalone replay tests; independent21 equivalence/gap tests/733
+  subtests and lookup review. Final isolated full backend1265 tests/4 skipped/
+  1396 subtests,5 dependency warnings,92.54s. Compilation/scoped diff PASS.
+  Frontend unchanged; its previously recorded514 tests/build/scoped lint belong
+  to the earlier checkpoint, not a fresh run here. Six unrelated full-lint
+  errors and bundle warning remain. Endpoint/table contracts not modified.
+- Exact production adaptive-mask comparisons: source03 thinning12.466s->2.028s
+  (same raster,38 rounds); source43 60.638s->6.932s (same diagnostic intermediate
+  raster and THINNING_BUDGET_EXCEEDED at128 rounds). These timings measure ONLY
+  thinning, not upload/job/model latency or improved detection quality. Additional
+  3560 bounded diagnostic comparisons match rasters/round outcomes. Worst-case
+  O(128N) time/O(N) memory retained. Tracemalloc tracked allocation17.77MiB for
+  one sparse3200x2868 fixture and5.73MiB for a dense million-pixel fixture;
+  these are not total resident/native-memory measurements.
+- Local backend verified idle then restarted with the tested thinning code.
+  Browser reload retains job24213's54 walls/5 rooms/70 unresolved symbols and
+  non-approval notes. This reload is persistence evidence, not a fresh inference
+  or live measured-routing check. OpenAPI36 paths/44 operations/ORM34 unchanged.
+- Wider failure diagnosis: closing11px inflates source24 sustained radius p90
+  4.0->27.58px, raising cutoff1.6->11.03px. Using original statistics alone
+  produces84 candidates vs4, and lighting54->185, including furniture/wires.
+  Manufactured-core guardA lets43 complete but reaches only5.31%12px trace
+  agreement;24 reaches81.46% but adds furniture/CCTV wiring;35 reaches14.65%
+  with outside/noise strokes. These development trials are REJECTED for runtime
+  activation; no disguised page-specific removal or increased thinning budget.
+- Training feasibility:255 physical traces are source-positive development
+  evidence, not fully labeled segmentation masks. Explicit85 openings retained.
+  The non-wall geometry inventory is mostly rooms, symbols or deleted/unresolved
+  records, not an adequate reviewed wiring/hatch-negative set. Do not label
+  unannotated areas as background or call these CV trials model training.
+  General wall quality and live measured routing remain incomplete; reviewed
+  scale/elevation/canonical inputs are still absent on the current floor.
+  Originals, unrelated edits, historical results and recovery stash preserved.
+
 ### October 9 wall-label reconciliation and replay compatibility (after bd85594)
 
 - The earlier313-polyline feasibility total was lexical, not a physical-wall

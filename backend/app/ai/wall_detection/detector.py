@@ -371,29 +371,59 @@ def _consolidate_wall_segments(
     return merged
 
 
+def _thinning_removal_tables():
+    """Encode the unchanged Zhang-Suen predicates for all eight neighbors."""
+    codes = np.arange(256, dtype=np.uint16)
+    n = tuple(((codes >> bit) & 1).astype(np.uint8) for bit in range(8))
+    neighbors = sum(n)
+    transitions = sum(((n[i] == 0) & (n[(i + 1) % 8] == 1)).astype(np.uint8)
+                      for i in range(8))
+    common = (neighbors >= 2) & (neighbors <= 6) & (transitions == 1)
+    tables = (common & (n[0] * n[2] * n[4] == 0) & (n[2] * n[4] * n[6] == 0),
+              common & (n[0] * n[2] * n[6] == 0) & (n[0] * n[4] * n[6] == 0))
+    for table in tables:
+        table.setflags(write=False)
+    return tables
+
+
+_THINNING_REMOVAL_TABLES = _thinning_removal_tables()
+
+
 def _thin_connected_strokes(mask: np.ndarray) -> np.ndarray:
-    """Zhang-Suen thinning preserves connected strokes without a contrib dependency."""
+    """Same synchronous thinning and 128-round bound; avoid inactive pixels."""
     work = np.pad((mask > 0).astype(np.uint8), 1)
+    height, width = mask.shape
+    x, y, box_width, box_height = cv2.boundingRect(work[1:-1, 1:-1])
+    if not box_width:
+        return np.zeros_like(mask, dtype=np.uint8)
+    x0, x1, y0, y1 = x+1, x+box_width+1, y+1, y+box_height+1
     for _ in range(128):
         changed = False
+        bx0, by0, bx1, by1 = width+1, height+1, 1, 1
         for phase in (0, 1):
-            center = work[1:-1, 1:-1]
-            n = (work[:-2, 1:-1], work[:-2, 2:], work[1:-1, 2:],
-                 work[2:, 2:], work[2:, 1:-1], work[2:, :-2],
-                 work[1:-1, :-2], work[:-2, :-2])
-            neighbors = sum(n)
-            transitions = sum(((n[i] == 0) & (n[(i + 1) % 8] == 1)).astype(np.uint8)
-                              for i in range(8))
-            if phase == 0:
-                preserve = (n[0] * n[2] * n[4] == 0) & (n[2] * n[4] * n[6] == 0)
-            else:
-                preserve = (n[0] * n[2] * n[6] == 0) & (n[0] * n[4] * n[6] == 0)
-            remove = (center == 1) & (neighbors >= 2) & (neighbors <= 6) & (transitions == 1) & preserve
+            center = work[y0:y1, x0:x1]
+            n = (work[y0-1:y1-1, x0:x1], work[y0-1:y1-1, x0+1:x1+1],
+                 work[y0:y1, x0+1:x1+1], work[y0+1:y1+1, x0+1:x1+1],
+                 work[y0+1:y1+1, x0:x1], work[y0+1:y1+1, x0-1:x1-1],
+                 work[y0:y1, x0-1:x1-1], work[y0-1:y1-1, x0-1:x1-1])
+            code = n[0].copy()
+            for bit in range(1, 8):
+                code |= n[bit] << bit
+            remove = _THINNING_REMOVAL_TABLES[phase][code] & (center == 1)
             if np.any(remove):
                 center[remove] = 0
                 changed = True
+                rows, cols = np.any(remove, axis=1), np.any(remove, axis=0)
+                by0 = min(by0, y0+int(np.argmax(rows)))
+                by1 = max(by1, y1-int(np.argmax(rows[::-1])))
+                bx0 = min(bx0, x0+int(np.argmax(cols)))
+                bx1 = max(bx1, x1-int(np.argmax(cols[::-1])))
         if not changed:
             return work[1:-1, 1:-1] * 255
+        # Only neighbors of deletions can change eligibility. Two phase steps
+        # can propagate two pixels; keep that halo and synchronous deletion.
+        x0, x1 = max(1, bx0-2), min(width+1, bx1+2)
+        y0, y1 = max(1, by0-2), min(height+1, by1+2)
     raise _error("THINNING_BUDGET_EXCEEDED")
 
 
