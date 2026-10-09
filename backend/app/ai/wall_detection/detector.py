@@ -14,6 +14,7 @@ from app.ai.wall_detection.config import (
     WallDetectionError,
     WallDetectionParameters,
 )
+from app.ai.wall_detection.junctions import snap_observed_junctions
 
 if TYPE_CHECKING:
     from app.ai.preprocessing.pipeline import PreprocessedImage
@@ -1497,7 +1498,9 @@ def _detect_structural_wall_lines(
         retained = _recover_bracketed_paired_gaps(retained, partial_pairs,
                                                   original_ink, min_wall_length,
                                                   accept_merge=passes_final_guards)
-    return retained
+    snapped = snap_observed_junctions(retained, original_ink, max_gap)
+    return [after if passes_final_guards(after) else before
+            for before, after in zip(retained, snapped)]
 
 
 def detect_wall_lines(
