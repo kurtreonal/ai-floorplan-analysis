@@ -43,10 +43,12 @@ export function ObservedWiringPanel({ wires, width, height, onChange, visible, o
     } catch (failure) { setError(failure.message) }
   }
   return <section className="demo-wiring-panel" aria-labelledby="observed-wiring-title">
-    <h2 id="observed-wiring-title">Visible wiring review</h2>
-    <p>Trace only wiring visible on the blueprint. Purple dashed overlays are observations, not generated ceiling routes or calculated wire quantities. Draft saving needs no scale or height approval.</p>
+    <h2 id="observed-wiring-title">Wiring · {wires.filter((wire) => wire.disposition !== 'rejected').length} proposals</h2>
+    <p>Detected traces appear on the plan. Review or edit any incorrect proposal.</p>
     <label><input type="checkbox" checked={visible} disabled={view !== '2d'} onChange={(event) => onVisibilityChange(event.target.checked)} />Show observed wiring (2D only)</label>
     {view !== '2d' && <p role="note">Unmeasured observed traces are not projected into 3D. Use the measured canonical routing workspace for ceiling, wall and underground routes.</p>}
+    <details><summary>Review / edit wiring</summary>
+    <p>Observed traces are not approved circuits or measured routes. New proposals start unresolved.</p>
     {wires.map((wire) => <details key={wire.id}>
       <summary>{wire.id} · {wire.disposition === 'rejected' ? 'removed' : wire.disposition} · {wire.completeness}</summary>
       <WireEditor key={JSON.stringify(wire)} wire={wire} width={width} height={height}
@@ -58,5 +60,6 @@ export function ObservedWiringPanel({ wires, width, height, onChange, visible, o
     {error && <p role="alert">{error}</p>}
     {adding && <WireEditor wire={{ id: '', points: [], disposition: 'unresolved', completeness: 'partial', elevation_meters: null }}
       width={width} height={height} disabled={disabled} onApply={add} onCancel={() => setAdding(false)} />}
+    </details>
   </section>
 }

@@ -11,6 +11,24 @@ import { DemoInterpretationCanvas } from './DemoInterpretationCanvas.jsx'
 afterEach(cleanup)
 
 describe('drawing selection in a panned and zoomed canvas', () => {
+  it('draws manual wiring from fresh click positions in source coordinates without changing walls', () => {
+    const onAddWire = vi.fn(), onAddWall = vi.fn()
+    const { container } = render(<DemoInterpretationCanvas width={400} height={300}
+      draft={{ walls: [], rooms: [], symbols: [] }} tool="wire" onAddWire={onAddWire} onAddWall={onAddWall} />)
+    let pointer = { x: 160, y: 140 }
+    const transform = { copy: () => transform, invert: () => transform,
+      point: ({ x, y }) => ({ x: (x - 60) / 2, y: (y - 60) / 2 }) }
+    const stage = { getPointerPosition: () => pointer, getAbsoluteTransform: () => transform }
+    const click = () => act(() => container.querySelector('[data-konva="Stage"]').konvaProps.onClick({ target: { getStage: () => stage } }))
+    click(); pointer = { x: 360, y: 180 }; click()
+    expect(onAddWire).toHaveBeenCalledWith([{ x: 50, y: 40 }, { x: 150, y: 60 }])
+    expect(onAddWall).not.toHaveBeenCalled()
+    click(); fireEvent.keyDown(window, { key: 'Escape' }); pointer = { x: 400, y: 200 }; click()
+    expect(onAddWire).toHaveBeenCalledTimes(1)
+    fireEvent.keyDown(window, { key: 'Shift' }); pointer = { x: 560, y: 220 }; click()
+    fireEvent.keyUp(window, { key: 'Shift' })
+    expect(onAddWire).toHaveBeenLastCalledWith([{ x: 170, y: 70 }, { x: 250, y: 70 }])
+  })
   it('inverts the current viewport, uses click position, and does not modify reviewed geometry', () => {
     const onAnalysisRegionChange = vi.fn()
     const onSelect = vi.fn()

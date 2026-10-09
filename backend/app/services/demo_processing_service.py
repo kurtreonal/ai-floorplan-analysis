@@ -23,6 +23,9 @@ from app.core.config import (
     get_processed_directory,
     get_upload_directory,
 )
+from app.ai.floor_plan_interpretation.automatic_wiring import (
+    EVIDENCE_VERSION as WIRING_EVIDENCE_VERSION, with_automatic_wiring,
+)
 from app.models import (
     FloorPlan,
     FloorPlanInterpretationRun,
@@ -265,7 +268,7 @@ def process_demo_job(
             worker_identity=worker_identity,
             stage="geometry_evidence",
         )
-        payload = interpret_floor_plan_demo(rgb)
+        payload = with_automatic_wiring(interpret_floor_plan_demo(rgb), rgb)
         _heartbeat(
             session,
             attempt_id=claim.attempt_id,
@@ -294,6 +297,7 @@ def process_demo_job(
                 inference_parameters=(
                     InferenceParameter(name="provider", value=PROVIDER),
                     InferenceParameter(name="review-required", value="true"),
+                    InferenceParameter(name="wiring-evidence-version", value=WIRING_EVIDENCE_VERSION),
                 ),
                 created_at=datetime.now(UTC),
             ),

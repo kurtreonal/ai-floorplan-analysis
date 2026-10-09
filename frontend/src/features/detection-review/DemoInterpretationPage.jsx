@@ -16,13 +16,11 @@ import {
 } from '../../routes/projectRoutes.js'
 import { DemoInterpretationCanvas } from './DemoInterpretationCanvas.jsx'
 import { ObservedWiringPanel } from './ObservedWiringPanel.jsx'
-import { initialWiringDraft } from './observedWiringDraft.js'
+import { initialWiringDraft, nextWiringId } from './observedWiringDraft.js'
 import './detectionReview.css'
 import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, Undo2, Redo2, Save, Trash2 } from 'lucide-react'
 import { ReviewToolRail } from './ReviewToolRail.jsx'
-import { repairDraftWalls } from './repairDraftWalls.js'
-import { DrawingRegionPanel } from './DrawingRegionPanel.jsx'
 import { clampDevicePoint, describeReviewSymbol, reviewGeometryPayload } from './devicePresentation.js'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
@@ -134,16 +132,14 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const [savedLayout, setSavedLayout] = useState(null)
   const [view, setView] = useState('2d')
   // Default to wall-focused view with rooms hidden
-  const [layers, setLayers] = useState({ walls: true, rooms: false, symbols: true, names: true, source: true })
+  const [layers, setLayers] = useState({ walls: true, rooms: false, symbols: true, names: false, dimensions: false, wirings: true, source: true })
   const [tool, setTool] = useState('select')
+  const [editingSession, setEditingSession] = useState(0)
   const [blueprintOpacity, setBlueprintOpacity] = useState(1.0)
   const [history, setHistory] = useState([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [staleRoomsWarning, setStaleRoomsWarning] = useState(false)
 
-  const [analysisRegion, setAnalysisRegion] = useState(null)
-  const [frozenAnalysisRegion, setFrozenAnalysisRegion] = useState(null)
-  const [regionSession, setRegionSession] = useState(0)
   useEffect(() => {
     const controller = new AbortController()
     let active = true
@@ -165,8 +161,6 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       setState({ status: 'ready', record, image, legends, error: null })
       setDraft(initial)
       setHistory([initial])
-      setAnalysisRegion(null)
-      setFrozenAnalysisRegion(null)
       setHistoryIndex(0)
       setNotes(record.review?.evidence_notes || '')
       setWallThickness(String(record.review?.wall_thickness_meters ?? ''))
@@ -440,12 +434,15 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         </div>
         <p>{activeWallsCount} wall segments · {activeRoomsCount} room proposals</p>
       </header>
+      <p>Review the plan, correct proposals, then save your draft.</p>
+      <details className="demo-detection-details"><summary>Detection details and limitations</summary>
       <p role="note">
         Walls are proposed from structural evidence. Wiring, grids and dimensions can still produce false walls; inspect the blueprint and correct them before approval or routing.
       </p>
       {experimental && <p role="note">Experimental Pull station template proposals only (two Group 7 source templates; page scale selected from 1.0/1.2 using interior matches). The second page was used for tuning, not held-out evaluation. Orange review overlays are unconfirmed; match similarity is not calibrated confidence. Inspect the original image, then accept, correct, reject, or add symbols. Map accepted symbols to an approved VED legend. Other classes remain unresolved.</p>}
       {general && <p role="note">One shared supervised development detector includes all 56 eligible drawing-legend entries. Inclusion is not a guarantee of detection. Scarce examples and conflicting labels limit results; scores are not calibrated and independent accuracy is unverified. Proposals start unresolved. Inspect, accept, correct, reject, or add symbols, then map accepted symbols to the approved drawing legend and save your draft.</p>}
       {(trained || linked) && <p role="note">Experimental trained symbol proposals are unresolved until you inspect, correct, and map them to the drawing's approved VED legend. {linked ? 'This five-class linked-legend model has uneven same-source recall and text/grid mistakes.' : 'This narrower model covers troffer, smoke detector, and Pull station only.'} Detector scores are not calibrated confidence; no independent-project accuracy or production approval is claimed.</p>}
+      </details>
       {truncated.length > 0 && <p className="detection-limit-warning" role="alert">Bounded proposal cap reached for: {truncated.join(', ')}. Add missing geometry manually where needed.</p>}
       {state.legends.length === 0 && <details><summary>Do I need a symbol legend?</summary><p>Not for wall review or 3D preview. Electrical-symbol approval requires an approved VED legend.</p></details>}
 
@@ -461,15 +458,9 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       </div>
       <div className="studio-review-workbench studio-device-workbench">
       <ReviewToolRail view={view} tool={tool} onToolChange={(nextTool) => {
-        setTool(nextTool)
-        if (nextTool === 'region') setRegionSession((value) => value + 1)
-      }} onAdd={addEntity} layers={layers} setLayers={setLayers} opacity={blueprintOpacity} onOpacityChange={setBlueprintOpacity}
-        canSelectDrawingRegion={!frozenAnalysisRegion && ['demo_cv_baseline', 'development_multiclass56_yolo'].includes(state.record.candidate.provenance?.model_release_id)}
-        onConnectWalls={() => {
-          const result = repairDraftWalls(draft.walls, plane.width_pixels, plane.height_pixels)
-          if (result.joined || result.merged) pushDraft({ ...draft, walls: result.walls }, { wallChange: true })
-          setSaveState({ status: 'idle', message: `Wall repair: ${result.joined} endpoints connected, ${result.merged} overlapping segments merged. Gaps up to ${Math.round(result.maxGap)} px checked; doorway gaps preserved. Review the blueprint, then save draft. Undo is available.` })
-        }} />
+        setTool(nextTool); setEditingSession((value) => value + 1)
+      }} onAdd={addEntity}
+        layers={layers} setLayers={setLayers} opacity={blueprintOpacity} onOpacityChange={setBlueprintOpacity} />
       <section className="demo-preview-workspace" aria-label="Wall-first workspace">
 
         {staleRoomsWarning && (
@@ -481,7 +472,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
 
         <p className="demo-next-step">
           {view === '2d'
-            ? 'Walls are shown as centerlines with estimated thickness. Drag wall endpoints to resize, drag wall bodies to move, or switch to Draw Walls to add new walls. Hold Shift for 90° constraint.'
+            ? tool === 'wire' ? 'Click two points to draw a wire. Hold Shift for a straight horizontal or vertical run; Escape cancels.' : 'Select and move proposals, or draw missing walls and wiring. Save when ready.'
             : 'Select or drag a device in 3D. Classify and remove it in the inspector. Walls use the same 2D draft; no real mounting heights are assumed.'}
         </p>
 
@@ -500,6 +491,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               onSelect={setSelected}
               layers={layers}
               tool={tool}
+              editingSession={editingSession}
               onToolChange={setTool}
               onAddWall={handleAddWall}
               onUpdateWall={handleUpdateWall}
@@ -509,9 +501,12 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               onDeleteSymbol={removeSymbol}
               presentations={presentations}
               blueprintOpacity={blueprintOpacity}
-              analysisRegion={frozenAnalysisRegion || analysisRegion}
-              regionSession={regionSession}
-              onAnalysisRegionChange={(region) => { if (!frozenAnalysisRegion) setAnalysisRegion(region) }}
+              onAddWire={(points) => {
+                if (saveState.status === 'saving' || draft.wirings.length >= 2048) return
+                pushDraft({ ...draft, wirings: [...draft.wirings, { id: nextWiringId(draft.wirings), points,
+                  disposition: 'added', completeness: 'partial', elevation_meters: null }] })
+                setLayers((current) => ({ ...current, wirings: true }))
+              }}
             />
           </>
         ) : (
@@ -521,14 +516,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           </Suspense>
         )}
         {saveState.message && <p role={saveState.status === 'error' ? 'alert' : 'status'}>{saveState.message}</p>}
-        {['demo_cv_baseline', 'development_multiclass56_yolo'].includes(state.record.candidate.provenance?.model_release_id) &&
-          <DrawingRegionPanel key={state.record.candidate_run_id} record={state.record} region={frozenAnalysisRegion || analysisRegion}
-            onFreezeRegion={(region) => { setFrozenAnalysisRegion(region); if (region) setTool('select') }}
-            onRegionChange={(region) => { if (!frozenAnalysisRegion) setAnalysisRegion(region) }}
-            onSelectRegion={() => { if (frozenAnalysisRegion) return; setRegionSession((value) => value + 1); setTool('region'); setView('2d'); setLayers((current) => ({ ...current, source: true })) }}
-            projectId={projectId} projectFloorId={projectFloorId} floorPlanId={floorPlanId} />}
-
       </section>
+
       <section className="demo-review-tools" aria-labelledby="demo-tools-title">
         <h2 id="demo-tools-title">Review and inspect</h2>
 

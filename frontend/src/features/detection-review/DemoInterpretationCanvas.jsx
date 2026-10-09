@@ -28,6 +28,8 @@ export function DemoInterpretationCanvas({
   tool = 'move',
   onToolChange,
   onAddWall,
+  onAddWire,
+  editingSession = 0,
   onUpdateWall,
   onDeleteWall,
   onUpdateRoom,
@@ -55,7 +57,8 @@ export function DemoInterpretationCanvas({
 
   const [userTransform, setUserTransform] = useState(null)
   const stageTransform = userTransform || defaultFit
-  const [drawingStart, setDrawingStart] = useState(null)
+  const [drawingAnchor, setDrawingAnchor] = useState(null)
+  const drawingStart = drawingAnchor?.tool === tool && drawingAnchor.session === editingSession ? drawingAnchor.point : null
   const [regionStart, setRegionStart] = useState(null)
   const regionAnchor = regionStart?.session === regionSession ? regionStart.point : null
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
@@ -92,7 +95,7 @@ export function DemoInterpretationCanvas({
         if (regionAnchor) {
           setRegionStart(null)
         } else if (drawingStart) {
-          setDrawingStart(null)
+          setDrawingAnchor(null)
         } else if (tool !== 'move') {
           onToolChange?.('move')
         }
@@ -205,27 +208,34 @@ export function DemoInterpretationCanvas({
       }
       return
     }
-    // If user clicked directly on stage or background image
-    const clickedOnEmpty = event.target === stageRef.current || event.target.name() === 'blueprint-image'
-
-    if (tool === 'draw') {
+    if (tool === 'draw' || tool === 'wire') {
+      if (isSpaceHeld) return
+      const clicked = getSourcePoint(event.target.getStage())
+      if (!clicked) return
+      const clickedSnap = tool === 'draw' ? findSnapPoint(clicked, draft.walls, {
+        threshold: snapThreshold, excludeWallId: selected?.kind === 'wall' ? selected.id : null,
+      }) : null
+      const endpoint = clickedSnap?.snapped ? { x: clickedSnap.x, y: clickedSnap.y }
+        : isShiftHeld && drawingStart ? constrainPoint(drawingStart, clicked, true) : clicked
       if (!drawingStart) {
-        setDrawingStart(effectivePoint)
+        setDrawingAnchor({ tool, session: editingSession, point: endpoint })
       } else {
-        const length = Math.hypot(effectivePoint.x - drawingStart.x, effectivePoint.y - drawingStart.y)
-        if (length >= 5 && onAddWall) {
+        const length = Math.hypot(endpoint.x - drawingStart.x, endpoint.y - drawingStart.y)
+        if (length >= 5 && tool === 'wire') {
+          onAddWire?.([drawingStart, endpoint])
+        } else if (length >= 5 && onAddWall) {
           onAddWall({
             start: drawingStart,
-            end: effectivePoint,
+            end: endpoint,
             estimated_thickness_pixels: 12,
           })
         }
-        setDrawingStart(null)
+        setDrawingAnchor(null)
       }
       return
     }
 
-    if (clickedOnEmpty) {
+    if (event.target === stageRef.current || event.target.name() === 'blueprint-image') {
       onSelect?.(null)
     }
   }
@@ -233,7 +243,7 @@ export function DemoInterpretationCanvas({
   // Cursor style based on active tool and mode
   const cursorStyle = useMemo(() => {
     if (isSpaceHeld || tool === 'pan') return 'grab'
-    if (tool === 'draw' || tool === 'region') return 'crosshair'
+    if (tool === 'draw' || tool === 'wire' || tool === 'region') return 'crosshair'
     if (tool === 'delete') return 'pointer'
     return 'default'
   }, [isSpaceHeld, tool])
@@ -395,7 +405,7 @@ export function DemoInterpretationCanvas({
                   />
 
                   {/* Dimension Text along Wall */}
-                  {!isRejected && length > 25 && (
+                  {!isRejected && length > 25 && (layers.dimensions || isSelected) && (
                     <Text
                       x={mid.x}
                       y={mid.y}
@@ -632,6 +642,12 @@ export function DemoInterpretationCanvas({
           </Layer>
           {/* Top hit surface prevents ROI selection from changing review items. */}
           <Layer>
+            {tool === 'wire' && <Rect name="wiring-draw-hit" x={0} y={0} width={width} height={height}
+              fill="rgba(0,0,0,0.001)" />}
+            {tool === 'wire' && drawingStart && <Line name="wiring-draw-preview"
+              points={[drawingStart.x, drawingStart.y, effectivePoint.x, effectivePoint.y]}
+              listening={false} stroke="#7c3aed" strokeWidth={2 / stageTransform.scale}
+              dash={[6 / stageTransform.scale, 4 / stageTransform.scale]} />}
             {tool === 'region' && <Rect name="drawing-region-hit" x={0} y={0} width={width} height={height}
               fill="rgba(0,0,0,0.001)" />}
             {(analysisRegion || (tool === 'region' && regionAnchor)) && (() => {
@@ -651,6 +667,7 @@ export function DemoInterpretationCanvas({
           </div>
         )}
         {tool === 'region' && <div className="demo-esc-pill" role="status">Click two opposite corners of the drawing. Outside stays unprocessed. Esc cancels.</div>}
+        {tool === 'wire' && <div className="demo-esc-pill" role="status">Click two points to draw wiring · Esc cancels</div>}
 
         {/* Floating Help icon button */}
         <button

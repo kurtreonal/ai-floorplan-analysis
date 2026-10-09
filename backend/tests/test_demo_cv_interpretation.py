@@ -21,6 +21,39 @@ def synthetic_plan(width=400, height=300):
 
 
 class DemoCVInterpretationTests(unittest.TestCase):
+    def test_automatic_scope_does_not_pull_in_detached_nearby_annotations(self):
+        from app.ai.floor_plan_interpretation.demo_cv import _plan_bounds
+        ink = np.zeros((500, 700), np.uint8)
+        cv2.rectangle(ink, (70, 70), (630, 430), 255, 3)
+        # This detached stroke is inside the regressed 3% scope, not the plan.
+        cv2.line(ink, (80, 56), (620, 56), 255, 1)
+        x, y, width, height = _plan_bounds(ink)
+        self.assertGreater(y, 56)
+        self.assertLessEqual(y, 68)
+        self.assertGreaterEqual(x + width, 632)
+        self.assertGreaterEqual(y + height, 432)
+
+    def test_outlined_lighting_plan_circuits_do_not_become_walls_or_rooms(self):
+        image = np.full((400, 500, 3), 255, dtype=np.uint8)
+        cv2.rectangle(image, (40, 40), (460, 360), (0, 0, 0), 1)
+        cv2.rectangle(image, (46, 46), (454, 354), (0, 0, 0), 1)
+        for x in (244, 250):
+            cv2.line(image, (x, 46), (x, 354), (0, 0, 0), 1)
+        for y in (120, 200, 280):
+            cv2.line(image, (280, y), (425, y), (0, 0, 0), 3)
+            for x in (280, 355, 425):
+                cv2.rectangle(image, (x - 4, y - 12), (x + 4, y + 12), (0, 0, 0), 1)
+        original = image.copy()
+        result = interpret_floor_plan_demo(image)
+        self.assertEqual(len(result.rooms.items), 2)
+        self.assertGreaterEqual(len(result.walls.items), 5)
+        self.assertFalse(any(abs(w.start.y - y) < 5 and abs(w.end.y - y) < 5
+                             and abs(w.end.x - w.start.x) > 80
+                             for w in result.walls.items for y in (120, 200, 280)))
+        self.assertEqual(result.observed_routes.state, 'unavailable')
+        self.assertTrue(all(w.ambiguity == 'ambiguous' for w in result.walls.items))
+        np.testing.assert_array_equal(image, original)
+
     def test_faint_walls_survive_uneven_scan_illumination(self):
         background = np.tile(np.linspace(150, 255, 600), (500, 1))
         wall_mask = np.zeros((500, 600), dtype=np.uint8)

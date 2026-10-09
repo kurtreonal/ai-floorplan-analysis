@@ -31,7 +31,7 @@ MAXIMUM_IMAGE_EDGE = 4096
 MAXIMUM_IMAGE_PIXELS = 60_000_000
 SAFE_ERROR_MESSAGE = "The local demo floor-plan interpretation failed."
 # Bump when preprocessing/structural evidence changes; independent of symbol weights.
-EVIDENCE_VERSION = "cv-source-supported-junctions-v7"
+EVIDENCE_VERSION = "cv-stable-drawing-scope-v8"
 
 
 class DemoCVError(RuntimeError):
@@ -112,7 +112,9 @@ def _plan_bounds(ink: np.ndarray) -> tuple[int, int, int, int]:
         candidates,
         key=lambda item: (item[0], item[3] * item[4], -item[2], -item[1]),
     )
-    padding = max(4, round(min(width, height) * 0.01))
+    # Keep scope expansion small. Extra border/annotation strokes change the
+    # bounded outline vote pool and can erase otherwise continuous walls.
+    padding = max(6, round(min(width, height) * 0.01))
     left = max(margin, x - padding)
     top = max(margin, y - padding)
     right = min(width - margin, x + component_width + padding)

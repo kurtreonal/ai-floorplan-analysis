@@ -16,6 +16,9 @@ from sqlalchemy.orm import Session
 from app.ai.floor_plan_interpretation.candidate import CandidateHostProvenance, InferenceParameter, build_candidate_envelope
 from app.ai.floor_plan_interpretation import interpret_floor_plan_demo
 from app.ai.floor_plan_interpretation.demo_cv import EVIDENCE_VERSION as CV_EVIDENCE_VERSION
+from app.ai.floor_plan_interpretation.automatic_wiring import (
+    EVIDENCE_VERSION as WIRING_EVIDENCE_VERSION, with_automatic_wiring,
+)
 from app.ai.floor_plan_interpretation import multiclass_symbol_detector as multiclass
 from app.ai.floor_plan_interpretation.experimental_pull_station import (
     ExperimentalLocatorUnavailable, LOCAL_SOURCE,
@@ -600,6 +603,7 @@ def process_interpretation_job(
                         payload = with_trained_symbol_proposals(payload, proposals, truncated, linked=True) if linked else with_trained_symbol_proposals(payload, proposals, truncated)
                 except ExperimentalDetectorUnavailable as error:
                     raise InterpretationProcessingError(str(error)) from None
+            payload = with_automatic_wiring(payload, rgb)
             candidate = build_candidate_envelope(
                 payload,
                 CandidateHostProvenance(
@@ -625,6 +629,7 @@ def process_interpretation_job(
                     runtime_version=("ultralytics-local-cpu-v1" if trained else f"opencv-{cv2.__version__}"),
                     inference_parameters=tuple(sorted(selection_parameters + (
                         InferenceParameter(name="geometry-evidence-version", value=CV_EVIDENCE_VERSION),
+                        InferenceParameter(name="wiring-evidence-version", value=WIRING_EVIDENCE_VERSION),
                     ) + (
                         (
                             InferenceParameter(name="checkpoint-sha256", value=trained_checkpoint),

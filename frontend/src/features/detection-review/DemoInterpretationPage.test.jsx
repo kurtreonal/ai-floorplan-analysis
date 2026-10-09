@@ -24,10 +24,11 @@ vi.mock('../../api/symbolLegends.js', async () => ({
   ...(await vi.importActual('../../api/symbolLegends.js')), fetchSymbolLegends: vi.fn(),
 }))
 vi.mock('./DemoInterpretationCanvas.jsx', () => ({
-  DemoInterpretationCanvas: ({ draft, onSelect, onUpdateSymbol }) => <div data-testid="demo-canvas">
+  DemoInterpretationCanvas: ({ draft, onSelect, onUpdateSymbol, onAddWire, tool }) => <div data-testid="demo-canvas">
     {draft.walls.length}/{draft.rooms.length}/{draft.symbols.length}
     <button type="button" onClick={() => onSelect({ kind: 'symbol', id: 'symbol-0001' })}>Select first symbol</button>
     <button type="button" onClick={() => onUpdateSymbol({ ...draft.symbols[0], center: { x: 85, y: 65 } })}>Drag first symbol</button>
+    {tool === 'wire' && <button onClick={() => onAddWire([{ x: 20, y: 30 }, { x: 80, y: 30 }])}>Finish drawn wire</button>}
   </div>,
 }))
 vi.mock('./DraftRoomPreview.jsx', () => ({ DraftRoomPreview: ({ draft, onSelect, onUpdateSymbol }) => <div data-testid="draft-3d">{draft.rooms.length} draft rooms
@@ -86,7 +87,8 @@ describe('unified demo interpretation review', () => {
     source.candidate.payload.observed_routes = { state: 'partial', segments: [{ id: 'segment-0001', points: [{ x: 10, y: 20 }, { x: 30, y: 20 }] }] }
     fetchDemoInterpretation.mockResolvedValue(source)
     const view = render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
-    await screen.findByText('Visible wiring review')
+    await screen.findByText('Wiring · 1 proposals')
+    fireEvent.click(screen.getByText('Review / edit wiring'))
     expect(screen.getByLabelText('Wiring decision segment-0001').value).toBe('unresolved')
     fireEvent.change(screen.getByLabelText('Source-pixel points segment-0001'), { target: { value: '10,20\n50,20' } })
     fireEvent.change(screen.getByLabelText('Wiring decision segment-0001'), { target: { value: 'corrected' } })
@@ -105,12 +107,13 @@ describe('unified demo interpretation review', () => {
     fetchDemoInterpretation.mockResolvedValue(saved)
     view.unmount()
     render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
-    await screen.findByText('Visible wiring review')
+    await screen.findByText('Wiring · 0 proposals')
+    fireEvent.click(screen.getByText('Review / edit wiring'))
     expect(screen.getByLabelText('Wiring decision segment-0001').value).toBe('rejected')
     expect(source.candidate.payload.observed_routes.segments[0].points[1].x).toBe(30)
     expect(saveDemoLayout).not.toHaveBeenCalled()
   })
-  it('repairs walls in the shared draft, supports undo, and saves/reloads duplicate tombstones', async () => {
+  it('draws wiring into the shared draft, saves/reloads and supports undo without extra scan controls', async () => {
     const source = structuredClone(record)
     source.candidate.payload.walls.items.push(
       { id: 'wall-0002', start: { x: 50, y: 10 }, end: { x: 100, y: 10 } },
@@ -120,27 +123,33 @@ describe('unified demo interpretation review', () => {
     fetchDemoInterpretation.mockResolvedValue(source)
     const view = render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
     await screen.findByRole('heading', { name: 'Correct floor-plan proposals' })
-    fireEvent.click(screen.getByRole('button', { name: 'Connect walls' }))
-    expect(screen.getByText(/1 endpoints connected, 1 overlapping segments merged/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Connect walls' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Select drawing region' })).toBeNull()
+    expect(screen.queryByText('Reprocess a drawing region (optional)')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Draw wiring' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish drawn wire' }))
+    expect(screen.getByText('Wiring · 1 proposals')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(screen.getByText('Wiring · 0 proposals')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Save unfinished draft' }))
     await screen.findByText('Review revision 1 saved.')
     expect(saveDemoReview.mock.calls[0][1].walls[1].disposition).toBe('accepted')
-    fireEvent.click(screen.getByRole('button', { name: 'Connect walls' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finish drawn wire' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save unfinished draft' }))
     await waitFor(() => expect(saveDemoReview).toHaveBeenCalledTimes(2))
     const body = saveDemoReview.mock.calls[1][1]
-    expect(body.walls[1].disposition).toBe('rejected')
-    expect(body.walls[2].start).toEqual({ x: 50, y: 10 })
+    expect(body.walls[1].disposition).toBe('accepted')
+    expect(body.walls[2].start).toEqual({ x: 50, y: 15 })
     expect(body.walls).toHaveLength(3)
     expect(body.review_complete).toBe(false)
+    expect(body.observed_wiring).toEqual([{ id: 'manual-wiring-0001', points: [{ x: 20, y: 30 }, { x: 80, y: 30 }],
+      disposition: 'added', completeness: 'partial', elevation_meters: null }])
     const saved = await saveDemoReview.mock.results[1].value
     fetchDemoInterpretation.mockResolvedValue(saved)
     view.unmount()
     render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
     await screen.findByRole('heading', { name: 'Correct floor-plan proposals' })
-    fireEvent.click(screen.getByRole('button', { name: 'Connect walls' }))
-    expect(screen.getByText(/0 endpoints connected, 0 overlapping segments merged/)).toBeTruthy()
+    expect(screen.getByText('Wiring · 1 proposals')).toBeTruthy()
     expect(source).toEqual(original)
     expect(saveDemoLayout).not.toHaveBeenCalled()
   })
