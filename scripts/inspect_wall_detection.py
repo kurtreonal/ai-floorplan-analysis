@@ -135,11 +135,11 @@ def main():
         def radius_experiment(source):
             outline_evidence = detector._outlined_wall_evidence
             hough = cv2.HoughLinesP
-            def thin_outline(ink, parameters, continuity_ink=None):
+            def thin_outline(ink, parameters, continuity_ink=None, **evidence_options):
                 def vote(raster, *arguments, **kwargs):
                     return hough(detector._thin_connected_strokes(raster), *arguments, **kwargs)
                 with patch.object(cv2, "HoughLinesP", side_effect=vote):
-                    return outline_evidence(ink, parameters, continuity_ink)
+                    return outline_evidence(ink, parameters, continuity_ink, **evidence_options)
             def detect(image, **kwargs):
                 if args.minimum_stroke_radius is not None:
                     kwargs["parameters"] = replace(kwargs["parameters"], min_stroke_radius=args.minimum_stroke_radius)

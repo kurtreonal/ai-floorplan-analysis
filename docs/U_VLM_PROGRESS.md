@@ -4,6 +4,53 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 9 wall-label reconciliation and replay compatibility (after bd85594)
+
+- The earlier313-polyline feasibility total was lexical, not a physical-wall
+  training total. Fresh exact-export/source audit identifies85 explicit
+  opening/doorway polylines; preserve them as openings and exclude them from
+  positive-wall labels. Remaining228 candidates:214 standard,3 glass,11 untyped.
+  No duplicate IDs, exact reversed polylines or source hashes found. Later source
+  lookup reconciles27 previously unmatched traces to exact additional reference
+  PNG hashes/dimensions:14 pages/340 wall-named polylines,255 physical traces
+  (214 standard,3 glass,38 untyped),85 openings. Keep untyped traces separate;
+  visual interpretation can cross openings and is not wall-width truth. Groups1-6
+  remain related development evidence, not independent project evaluation.
+  Existing user attestation is retained; no separate approval is invented.
+- Dimension/wiring investigation: outside-dimension source crop contains paired
+  baselines, ticks and numeric labels. Current preparation emits SYM_n text-region
+  placeholders, not recognized numbers; no local Tesseract runtime was found.
+  Position-only rejection would endanger detached structural walls. No such
+  guard or page-specific deletion was activated. A later safe dimension filter
+  needs actual text plus geometry evidence and structural-wall preservation.
+- Narrow diagnostic fix forwards new partial_pairs/evidence options through the
+  existing --thin-outline-votes wrapper. New CLI regression failed with
+  INFERENCE_FAILED before the fix; all5 standalone diagnostic tests pass after
+  it, compilation/diff PASS. Initial test tempfile location was sandbox-denied;
+  fixture now uses a disposable directory inside repository storage. Production
+  inference defaults and bd85594 detector are unchanged. Full backend/frontend
+  results recorded for bd85594 belong to that checkpoint; no new full run
+  claimed here.
+- Additional browser proof: job24213's saved draft rendered in WebGL3D after
+  reload with the same wall proposal set. Screenshot browser-job-24213-3d.jpg
+  retained beside 2D evidence. Preview dimensions are illustrative, not saved
+  measurements; no scale/elevation/canonical approval or metric route invented.
+- Frozen c30967b vs bd85594 replay finished the original12-page manifest:
+  11 successful pages; both versions fail page43 with THINNING_BUDGET_EXCEEDED
+  after about69 seconds. Its34 standard traces are unscored, not zero accuracy.
+  On successful pages'180 standard traces, length-weighted agreement within12
+  source pixels/15-degree tangent improves45.357%->46.231%; page11 improves
+  82.967%->89.279%. Page24 remains7.793%,25=12.697%,27=12.194%,35=0%,38=0.752%.
+  Three glass traces remain0%. This is partial reviewed-positive trace coverage,
+  NOT wall accuracy, precision or independent recall; centerline interpretation
+  and false-positive coverage are incomplete. All12 source hashes unchanged;
+  exact detector/demo Git hashes, outcomes, records and overlays frozen in
+  wall-positive-coverage-20261009-v1/report.json. The recovered two PNG pages
+  are not silently included in this original benchmark. General detection is
+  demonstrably incomplete; next: hatch/style failures and bounded thinning.
+  Precision, independent accuracy, training and production release unverified.
+  Originals, historical manifests, unrelated edits and stash@{0} preserved.
+
 ### October 9 bracketed wall-gap recovery (after 84eda30)
 
 - Diagnosed actual missing edges: original grayscale AND primary binary retain

@@ -1,13 +1,32 @@
 """Diagnostics must observe inference, not alter it or its source pixels."""
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 import cv2
 import numpy as np
 
-from inspect_wall_detection import demo_cv, detector, trace_wall_evidence, interpret_historical
+from inspect_wall_detection import demo_cv, detector, trace_wall_evidence, interpret_historical, main
 
 
 class WallEvidenceTraceTests(unittest.TestCase):
+    def test_thin_vote_replay_forwards_new_paired_evidence_arguments(self):
+        source = np.full((400, 500, 3), 255, dtype=np.uint8)
+        for inset in (0, 6):
+            cv2.rectangle(source, (40+inset, 40+inset), (460-inset, 360-inset), (0,0,0), 1)
+        with TemporaryDirectory(dir=Path(__file__).resolve().parents[1] / 'storage') as directory:
+            source_path = Path(directory) / 'source.png'
+            output = Path(directory) / 'replay'
+            cv2.imwrite(str(source_path), source)
+            original = source_path.read_bytes()
+            with patch('sys.argv', ['inspect_wall_detection', str(source_path), str(output), '--thin-outline-votes']), redirect_stdout(StringIO()):
+                main()
+            self.assertTrue((output / 'report.json').exists())
+            self.assertEqual(source_path.read_bytes(), original)
+
     def test_historical_scope_support_is_forwarded_explicitly(self):
         source = np.full((40, 50, 3), 255, dtype=np.uint8)
         calls = []
