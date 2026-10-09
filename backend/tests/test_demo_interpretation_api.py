@@ -523,6 +523,40 @@ class DemoInterpretationApiTests(unittest.TestCase):
         with Session(self.engine) as session:
             self.assertEqual(session.scalar(select(func.count()).select_from(ManualSymbol).where(ManualSymbol.floor_plan_id == self.ids['floor_plan'])), 0)
 
+    def test_unfinished_visible_wiring_draft_preserves_uncertainty_and_removed_history(self):
+        self._login()
+        review_path = f"/api/floor-plans/{self.ids['floor_plan']}/interpretation/reviews"
+        payload = self._review_payload()
+        payload.update(review_complete=False, approved_for_layout=False,
+                       wall_thickness_meters=None, wall_height_meters=None)
+        wire = {"id": "manual-wiring-0001", "disposition": "unresolved",
+                "points": [{"x": 20.0, "y": 30.0}, {"x": 80.0, "y": 90.0}],
+                "completeness": "partial", "elevation_meters": None}
+        payload["observed_wiring"] = [wire]
+        first = self.client.post(review_path, json=payload)
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(first.json()["review"]["observed_wiring"], [wire])
+        payload["expected_revision_number"] = 1
+        payload["observed_wiring"][0] = {**wire, "disposition": "rejected"}
+        second = self.client.post(review_path, json=payload)
+        self.assertEqual(second.status_code, 201)
+        self.assertEqual(second.json()["review"]["observed_wiring"][0]["disposition"], "rejected")
+        self.assertEqual(second.json()["review"]["observed_wiring"][0]["points"], wire["points"])
+        self.assertFalse(second.json()["review"]["approved_for_layout"])
+        self.assertEqual(first.json()["review"]["observed_wiring"][0]["disposition"], "unresolved")
+        loaded = self.client.get(f"/api/floor-plans/{self.ids['floor_plan']}/interpretation")
+        self.assertEqual(loaded.status_code, 200)
+        self.assertEqual(loaded.json()["review"]["observed_wiring"], payload["observed_wiring"])
+        layout = self.client.get(f"/api/projects/{self.ids['project']}/floors/{self.ids['floor']}/layouts")
+        self.assertEqual(layout.status_code, 404)
+        with Session(self.engine) as session:
+            revisions = session.scalars(select(FloorPlanInterpretationReview).where(
+                FloorPlanInterpretationReview.interpretation_run_id == self.ids["run"]
+            ).order_by(FloorPlanInterpretationReview.revision_number)).all()
+            self.assertEqual(len(revisions), 2)
+            self.assertNotEqual(revisions[0].review_json, revisions[1].review_json)
+
+
     def test_observed_wiring_revision_save_reload_and_elevation_gate(self):
         self._login()
         review_path = f"/api/floor-plans/{self.ids['floor_plan']}/interpretation/reviews"

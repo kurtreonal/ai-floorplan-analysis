@@ -286,6 +286,13 @@ export function DemoInterpretationCanvas({
           </Layer>
 
           {/* Rooms Layer */}
+          <Layer listening={false}>
+            {layers.wirings && (draft.wirings || []).filter((wire) => wire.disposition !== 'rejected').map((wire) => (
+              <Line key={wire.id} name={`observed-wiring-${wire.id}`} points={roomPoints(wire.points)}
+                stroke="#7c3aed" strokeWidth={2 / stageTransform.scale}
+                dash={[6 / stageTransform.scale, 4 / stageTransform.scale]} />
+            ))}
+          </Layer>
           <Layer>
             {layers.rooms && draft.rooms.map((room) => (
               <Line

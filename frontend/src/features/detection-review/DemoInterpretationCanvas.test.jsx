@@ -68,6 +68,21 @@ describe('DemoInterpretationCanvas', () => {
     ],
   }
 
+  it('renders observed wiring in an independent source-pixel layer, hides removals, and obeys visibility', () => {
+    const wires = [
+      { id: 'manual-wiring-0001', disposition: 'unresolved', points: [{ x: 10, y: 20 }, { x: 50, y: 30 }] },
+      { id: 'manual-wiring-0002', disposition: 'rejected', points: [{ x: 20, y: 20 }, { x: 30, y: 30 }] },
+    ]
+    const { container, rerender } = render(<DemoInterpretationCanvas width={400} height={300}
+      draft={{ ...mockDraft, wirings: wires }} layers={{ wirings: true }} />)
+    const line = container.querySelector('[name="observed-wiring-manual-wiring-0001"]')
+    expect(line.getAttribute('points')).toBe('10,20,50,30')
+    expect(line.getAttribute('stroke')).toBe('#7c3aed')
+    expect(container.querySelector('[name="observed-wiring-manual-wiring-0002"]')).toBeNull()
+    rerender(<DemoInterpretationCanvas width={400} height={300} draft={{ ...mockDraft, wirings: wires }} layers={{ wirings: false }} />)
+    expect(container.querySelector('[name="observed-wiring-manual-wiring-0001"]')).toBeNull()
+  })
+
   it('moves named devices in source coordinates, clamps bounds and hides rejected devices', () => {
     const onUpdateSymbol = vi.fn()
     const draft = { ...mockDraft, symbols: [...mockDraft.symbols, { id: 'sym-0002', disposition: 'rejected', center: { x: 10, y: 10 } }] }

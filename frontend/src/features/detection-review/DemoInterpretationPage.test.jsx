@@ -81,6 +81,35 @@ afterEach(() => {
 
 
 describe('unified demo interpretation review', () => {
+  it('saves visible wiring edits and tombstones, restores them on reload, and supports undo without canonical approval', async () => {
+    const source = structuredClone(record)
+    source.candidate.payload.observed_routes = { state: 'partial', segments: [{ id: 'segment-0001', points: [{ x: 10, y: 20 }, { x: 30, y: 20 }] }] }
+    fetchDemoInterpretation.mockResolvedValue(source)
+    const view = render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
+    await screen.findByText('Visible wiring review')
+    expect(screen.getByLabelText('Wiring decision segment-0001').value).toBe('unresolved')
+    fireEvent.change(screen.getByLabelText('Source-pixel points segment-0001'), { target: { value: '10,20\n50,20' } })
+    fireEvent.change(screen.getByLabelText('Wiring decision segment-0001'), { target: { value: 'corrected' } })
+    fireEvent.click(screen.getByText('Apply wiring changes'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save unfinished draft' }))
+    await screen.findByText('Review revision 1 saved.')
+    expect(saveDemoReview.mock.calls[0][1]).toMatchObject({ review_complete: false, approved_for_layout: false, observed_wiring: [{ id: 'segment-0001', points: [{ x: 10, y: 20 }, { x: 50, y: 20 }], disposition: 'corrected', completeness: 'partial', elevation_meters: null }] })
+    fireEvent.click(screen.getByText('Remove wiring trace'))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(screen.getByLabelText('Wiring decision segment-0001').value).toBe('corrected')
+    fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save unfinished draft' }))
+    await waitFor(() => expect(saveDemoReview).toHaveBeenCalledTimes(2))
+    const saved = await saveDemoReview.mock.results[1].value
+    expect(saved.review.observed_wiring[0]).toMatchObject({ disposition: 'rejected', points: [{ x: 10, y: 20 }, { x: 50, y: 20 }] })
+    fetchDemoInterpretation.mockResolvedValue(saved)
+    view.unmount()
+    render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
+    await screen.findByText('Visible wiring review')
+    expect(screen.getByLabelText('Wiring decision segment-0001').value).toBe('rejected')
+    expect(source.candidate.payload.observed_routes.segments[0].points[1].x).toBe(30)
+    expect(saveDemoLayout).not.toHaveBeenCalled()
+  })
   it('repairs walls in the shared draft, supports undo, and saves/reloads duplicate tombstones', async () => {
     const source = structuredClone(record)
     source.candidate.payload.walls.items.push(

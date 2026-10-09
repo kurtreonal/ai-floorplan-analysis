@@ -48,6 +48,14 @@
 .demo-point-fields { display: flex; flex-wrap: wrap; gap: .75rem; margin: .75rem 0; border: 1px solid #c9d3dc; }
 .demo-point-fields label { margin: 0; }
 .demo-point-fields input { width: 9rem; }
+.demo-wiring-panel { padding: 1rem; margin: 1rem 0; border: 1px solid var(--paper-line); border-radius: 12px; background: var(--white); }
+.demo-wiring-panel details { margin: .75rem 0; }
+.demo-wiring-panel summary { cursor: pointer; overflow-wrap: anywhere; }
+.demo-wiring-editor { display: grid; gap: .75rem; min-width: 0; margin: .75rem 0; padding: 1rem; border: 1px solid var(--paper-line); }
+.demo-wiring-editor label { display: grid; gap: .35rem; min-width: 0; font-weight: 600; }
+.demo-wiring-editor textarea, .demo-wiring-editor select { width: 100%; min-width: 0; padding: .55rem; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--white); color: var(--ink); font: inherit; }
+.demo-wiring-editor textarea { font-family: monospace; resize: vertical; }
+.demo-wiring-editor p { margin: 0; }
 .demo-room-points { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .5rem; }
 .demo-steps { display: flex; flex-wrap: wrap; gap: .8rem 1.4rem; padding: 1rem; margin-bottom: 1.4rem; border-radius: 12px; background: #e8eef0; font-size: .9rem; }
 .demo-steps a { color: #405564; }

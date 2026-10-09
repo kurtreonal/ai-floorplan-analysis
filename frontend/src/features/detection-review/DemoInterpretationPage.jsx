@@ -15,6 +15,8 @@ import {
   getViewer3dHref,
 } from '../../routes/projectRoutes.js'
 import { DemoInterpretationCanvas } from './DemoInterpretationCanvas.jsx'
+import { ObservedWiringPanel } from './ObservedWiringPanel.jsx'
+import { initialWiringDraft } from './observedWiringDraft.js'
 import './detectionReview.css'
 import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, Undo2, Redo2, Save, Trash2 } from 'lucide-react'
@@ -48,6 +50,7 @@ function initialDraft(record) {
     return {
       walls: record.review.walls,
       rooms: record.review.rooms,
+      wirings: initialWiringDraft(record),
       symbols: record.review.symbols.map((symbol) => ({
         id: symbol.id,
         disposition: symbol.disposition,
@@ -58,6 +61,7 @@ function initialDraft(record) {
   }
   const payload = record.candidate.payload
   return {
+    wirings: initialWiringDraft(record),
     walls: payload.walls.items.map((item) => ({
       id: item.id,
       disposition: 'accepted',
@@ -365,6 +369,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         ...Object.fromEntries(['openings', 'panels', 'scale_evidence', 'observed_wiring', 'checklist']
           .filter((key) => state.record.review?.[key] != null).map((key) => [key, state.record.review[key]])),
         ...reviewGeometryPayload(draft),
+        observed_wiring: draft.wirings,
       })
       setState((current) => ({ ...current, record }))
       const savedDraft = initialDraft(record)
@@ -569,6 +574,10 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       </section>
 
       </div>
+      <ObservedWiringPanel wires={draft.wirings} width={plane.width_pixels} height={plane.height_pixels}
+        disabled={saveState.status === 'saving'}
+        view={view} visible={Boolean(layers.wirings)} onVisibilityChange={(visible) => setLayers((current) => ({ ...current, wirings: visible }))}
+        onChange={(wirings) => { if (saveState.status !== 'saving') pushDraft({ ...draft, wirings }) }} />
       <section className="demo-approval-panel" aria-labelledby="demo-approval-title">
         <h2 id="demo-approval-title">Optional: approve a measured, saved layout</h2>
         <p>You do not need this step for the draft 2D / 3D preview above. Use it only after reviewing geometry and real dimensions. Saving an unfinished draft does not approve it.</p>

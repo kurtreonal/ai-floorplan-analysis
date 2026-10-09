@@ -4,6 +4,62 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 9 visible wiring review and general wall falsification (after 3dd748b)
+
+- Added source-pixel observed-wiring draft review through the existing strict
+  review contract: explicit polyline entry, bounded finite coordinates, per-trace
+  disposition/completeness, edit, soft removal, Undo/Redo, save and reload. Purple
+  dashed 2D observations are distinct from generated orange ceiling/wall routes;
+  no circuit, class, height, depth, connectivity or quantity is inferred. Explicit
+  previously stored elevations survive editing; unknown heights remain null.
+- Independent review found and fixed two seams: historical partial reviews must
+  restore omitted candidate traces unresolved while preserving tombstones; applied
+  wiring edits must be disabled during in-flight save. No remaining review blocker.
+  Responsive card uses existing theme tokens; no new dependency or geometry model.
+- PASS focused frontend42 tests/four files; restricted isolated interpretation
+  API13 tests (draft reload, removal history, no unintended canonical layout).
+  Full frontend65 files/568 tests; full isolated backend1267 passed/4 skipped,
+  1396 subtests, five existing warnings,102.91s. Full runs preceded the final
+  responsive markup/CSS correction; focused42 and build passed again afterward.
+  Scoped staged-only snapshot independently passed40 focused frontend tests,
+  build and lint; it excludes unrelated worktree changes. Initial snapshot build/
+  lint used an incorrect relative runtime path (0 checks); absolute-path retry
+  passed. Snapshot archived under ignored training storage, outside test discovery.
+  Scoped lint, build, compilation and diff checks PASS. Full lint FAIL: six existing
+  unrelated errors in untracked DeviceMeshCatalog.jsx; large build chunks warned.
+  Initial sandbox frontend rename failure ran0 tests; host rerun succeeded. Initial
+  new backend test insertion accidentally absorbed prior test assertions; corrected
+  insertion and rerun13 PASS, then full regression above. Failures not hidden.
+- Actual connected DESIGNER browser: plan9376/job24213 original manifest matches
+  source915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9.
+  One sheet-11-user-mu8o2vah polyline copied as an assistant import proposal, partial
+  and unresolved. Blank entry rejected; revision2 saved/reloaded, revision3 retained
+  removal tombstone, Undo restored unresolved revision4. No human approval claimed.
+  Source overlay visually aligned; unmeasured traces intentionally absent from 3D.
+  Browser evidence: ignored wall-routing-runtime-20261009-v1/browser-visible-wiring-
+  review.jpg and browser-visible-wiring-overlay.jpg. No duplicated upload or layout
+  publication. Required approved scale, elevation, wall dimensions and canonical
+  geometry remain absent for live measured wiring; this does not block draft review.
+- General wall diagnosis, not per-page patch:48 immutable synthetic cases repeated
+  exactly; all12 hatch cases erase real walls before Hough by inflating page cutoff;
+  all24 doorway cases preserve openings. Original-stroke statistics plus local
+  radius checks recover walls but also accept wiring/furniture and reduce lighting
+  trace agreement. Dense overflow retry discards useful original votes, but keeping
+  those votes introduces text/parking/fixture bands. Existing tolerant junction
+  checks also pair dimension lines with exterior walls. These trials are REJECTED;
+  detector defaults/weights unchanged, broad wall quality still NOT COMPLETE.
+- Evidence: ignored wall-synthetic-diagnostic-20261009-v1,
+  wall-original-line-guard-20261009-v1, wall-original-vote-preservation-20261009-v1.
+  Reviewed wiring inventory62 records:7 deleted,2 needs_review,9 unresolved excluded;
+  44 explicit reviewed traces source-verified,30 clear crop windows/14 ambiguous
+  windows separately excluded by assistant crop review. No new training or approval.
+  Existing8/8 wall/opening memorization remains only earlier pipeline evidence.
+- OpenAPI36 paths/44 operations; ORM34 tables, unchanged. Original export, source
+  files, annotations/history, unrelated work and recovery stash retained. Scoped
+  checkpoint only; unpushed, not a release. Overall wall/wiring objective ACTIVE.
+  Next: actual mate-to-transverse-wall corner support and rotation-robust thickness
+  qualification, tested against wiring negatives before any detector activation.
+
 ### October 9 explicit obstacle workflow and wall learning diagnosis (after ccd859f)
 
 - Added single-floor rectangular barrier entry to circuit and single-route forms
