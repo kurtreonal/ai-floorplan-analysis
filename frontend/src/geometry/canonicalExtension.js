@@ -1,4 +1,3 @@
-const EXTENSION_SCHEMA_VERSION = 2
 const BASE_SCHEMA_VERSION = 1
 const MAX_IMAGE_EDGE = 10000
 const MAX_NAME_LENGTH = 255
@@ -122,8 +121,9 @@ function panel(value, cs) {
   }
 }
 
-function symbolDetail(value, validSymbolIds) {
-  const data = exactObject(value, ['symbol_id', 'orientation_degrees', 'bounds', 'provenance'])
+function symbolDetail(value, validSymbolIds, version = 2, validWallIds = null) {
+  const hasInstallation = version === 3 && value !== null && typeof value === 'object' && Object.hasOwn(value, 'installation')
+  const data = exactObject(value, ['symbol_id', 'orientation_degrees', 'bounds', 'provenance', ...(hasInstallation ? ['installation'] : [])])
   const symbolId = name(data.symbol_id, { maximum: 128 })
   if (validSymbolIds && !validSymbolIds.has(symbolId)) fail()
   let orientation = null
@@ -140,11 +140,20 @@ function symbolDetail(value, validSymbolIds) {
     bounds = { width_meters: w, height_meters: h }
   }
   const provenance = name(data.provenance, { nullable: true, maximum: 255 })
+  let installation
+  if (hasInstallation) {
+    const mount = exactObject(data.installation, ['elevation_meters', 'wall_id'])
+    const level = finiteNumber(mount.elevation_meters)
+    const wallId = mount.wall_id === null ? null : identifier(mount.wall_id)
+    if (wallId !== null && validWallIds && !validWallIds.has(wallId)) fail()
+    installation = {elevation_meters: level, wall_id: wallId}
+  }
   return {
     symbol_id: symbolId,
     orientation_degrees: orientation,
     bounds,
     provenance,
+    ...(installation ? {installation} : {}),
   }
 }
 
@@ -178,7 +187,7 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
     'symbol_details',
     'route_details',
   ])
-  if (data.extension_schema_version !== EXTENSION_SCHEMA_VERSION || !Number.isSafeInteger(data.extension_schema_version)) {
+  if (![2, 3].includes(data.extension_schema_version) || !Number.isSafeInteger(data.extension_schema_version)) {
     fail()
   }
   if (data.base_schema_version !== BASE_SCHEMA_VERSION || !Number.isSafeInteger(data.base_schema_version)) {
@@ -216,7 +225,7 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
   const panelIds = new Set(normalizedPanels.map((p) => p.id))
   if (panelIds.size !== normalizedPanels.length) fail()
 
-  const normalizedSymbolDetails = data.symbol_details.map((item) => symbolDetail(item, validSymbolIds))
+  const normalizedSymbolDetails = data.symbol_details.map((item) => symbolDetail(item, validSymbolIds, data.extension_schema_version, validWallIds))
   const symbolDetailIds = new Set(normalizedSymbolDetails.map((s) => s.symbol_id))
   if (symbolDetailIds.size !== normalizedSymbolDetails.length) fail()
 
@@ -225,7 +234,7 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
   if (routeDetailIds.size !== normalizedRouteDetails.length) fail()
 
   return deepFreeze({
-    extension_schema_version: EXTENSION_SCHEMA_VERSION,
+    extension_schema_version: data.extension_schema_version,
     base_schema_version: BASE_SCHEMA_VERSION,
     source_plane_reference: sourcePlane,
     openings: normalizedOpenings,

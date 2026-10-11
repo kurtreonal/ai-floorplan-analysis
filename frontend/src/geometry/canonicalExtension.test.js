@@ -29,6 +29,16 @@ const unsupportedFixture = JSON.parse(
 describe('normalizeCanonicalExtension', () => {
   const base = normalizeCanonicalGeometry(baseFixture)
 
+  it('round-trips explicit version-three installation without changing version two', () => {
+    const value=structuredClone(extV2Fixture)
+    value.symbol_details[0].installation={elevation_meters:1.2,wall_id:base.walls[0].id}
+    expect(()=>normalizeCanonicalExtension(value,base)).toThrow()
+    value.extension_schema_version=3
+    expect(normalizeCanonicalExtension(value,base)).toEqual(value)
+    value.symbol_details[0].installation.wall_id=999999
+    expect(()=>normalizeCanonicalExtension(value,base)).toThrow()
+  })
+
   it('accepts the representative canonical extension v2 fixture matching base', () => {
     const normalized = normalizeCanonicalExtension(extV2Fixture, base)
     expect(normalized.extension_schema_version).toBe(2)

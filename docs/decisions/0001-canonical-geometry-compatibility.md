@@ -3,8 +3,29 @@
 - Status: Accepted
 - Decision date: 2026-09-06
 - Owning ticket: PRE11
-- Current implemented contract: K1 schema version 1
-- Reserved next contract: canonical extension schema version 2, not implemented
+- Current implemented contracts: K1 schema version 1; separate extension versions 2 and 3
+- Original PRE11 decision is retained below; see the implementation addendum.
+
+## October 11 implementation addendum
+
+U11 has since implemented extension version 2 in the separate immutable
+`layout_extensions` record. K1 remains version 1. Extension version 3 now adds
+optional explicit symbol `installation` data (`elevation_meters`, nullable
+canonical `wall_id`) in `symbol_details`. Python and JavaScript dispatch by
+integer extension version; version 2 still rejects the new field and unknown
+versions still fail closed. Existing snapshots are neither upgraded nor
+rewritten. New saves use version 3 only when mounting data was supplied.
+
+Installation elevations come from stored floor elevation plus a supplied
+mounting height. The same canonical route points contain any derived vertical
+drop; rendering must not infer another connection from nearby pixels. The
+original observed source path and explicit attachment remain in the append-only
+review. Missing measurements do not prevent saving an unfinished 2D review.
+
+Rollback: existing version-1/version-2 snapshots remain readable by the prior
+application. Do not downgrade or discard a version-3 installation; an older
+extension reader must reject it explicitly. No schema/table migration or
+destructive contraction is introduced by this change.
 
 ## Context
 

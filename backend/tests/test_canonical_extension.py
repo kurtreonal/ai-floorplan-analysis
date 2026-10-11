@@ -75,6 +75,19 @@ UNSUPPORTED_PATH = FIXTURES_DIR / "canonical_extension_v2_unsupported.json"
 
 
 class CanonicalExtensionTests(unittest.TestCase):
+    def test_explicit_installation_requires_version_three_and_valid_wall_identity(self):
+        base=json.loads(BASE_FIXTURE_PATH.read_text(encoding='utf-8'))
+        document=canonical_geometry_from_dict(base)
+        value=json.loads(EXT_V2_PATH.read_text(encoding='utf-8'))
+        value['symbol_details'][0]['installation']={'elevation_meters':1.2,'wall_id':base['walls'][0]['id']}
+        with self.assertRaises(CanonicalGeometryError):
+            canonical_extension_from_dict(value,document)
+        value['extension_schema_version']=3
+        self.assertEqual(canonical_extension_from_dict(value,document).to_dict(),value)
+        value['symbol_details'][0]['installation']['wall_id']=999999
+        with self.assertRaises(CanonicalGeometryError):
+            canonical_extension_from_dict(value,document)
+
     def setUp(self):
         self.base_payload = json.loads(BASE_FIXTURE_PATH.read_text(encoding="utf-8"))
         self.base_doc = canonical_geometry_from_dict(self.base_payload)

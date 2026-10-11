@@ -123,14 +123,24 @@ class CanonicalSymbolBounds:
 
 
 @dataclass(frozen=True)
+class CanonicalDeviceInstallation:
+    elevation_meters: float
+    wall_id: int | None = None
+
+    def to_dict(self):
+        return {'elevation_meters': self.elevation_meters, 'wall_id': self.wall_id}
+
+
+@dataclass(frozen=True)
 class CanonicalSymbolDetail:
     symbol_id: str
     orientation_degrees: float | None = None
     bounds: CanonicalSymbolBounds | None = None
     provenance: str | None = None
+    installation: CanonicalDeviceInstallation | None = None
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        result = {
             "symbol_id": self.symbol_id,
             "orientation_degrees": (
                 None if self.orientation_degrees is None else rounded_metric(self.orientation_degrees)
@@ -138,6 +148,9 @@ class CanonicalSymbolDetail:
             "bounds": None if self.bounds is None else self.bounds.to_dict(),
             "provenance": self.provenance,
         }
+        if self.installation is not None:
+            result['installation'] = self.installation.to_dict()
+        return result
 
 
 @dataclass(frozen=True)
@@ -282,10 +295,12 @@ def _panel(
 def _symbol_detail(
     value: object,
     valid_symbol_ids: set[str] | None = None,
+    *, version=2, valid_wall_ids=None,
 ) -> CanonicalSymbolDetail:
     data = _exact_keys(
         value,
-        {"symbol_id", "orientation_degrees", "bounds", "provenance"},
+        {"symbol_id", "orientation_degrees", "bounds", "provenance"} |
+        ({'installation'} if version == 3 and isinstance(value, dict) and 'installation' in value else set()),
         "INVALID_SYMBOL_DETAIL",
     )
     symbol_id = _name(data["symbol_id"], "INVALID_SYMBOL_DETAIL", maximum=128)
@@ -305,11 +320,22 @@ def _symbol_detail(
         height_m = _number(b_data["height_meters"], "INVALID_SYMBOL_DETAIL", positive=True)
         bounds = CanonicalSymbolBounds(width_m, height_m)
     provenance = _name(data["provenance"], "INVALID_SYMBOL_DETAIL", nullable=True, maximum=255)
+    installation = None
+    if 'installation' in data:
+        mount = _exact_keys(data['installation'], {'elevation_meters', 'wall_id'}, 'INVALID_SYMBOL_DETAIL')
+        level = _number(mount['elevation_meters'], 'INVALID_SYMBOL_DETAIL')
+        wall_id = mount['wall_id']
+        if wall_id is not None:
+            wall_id = _identifier(wall_id, 'INVALID_SYMBOL_DETAIL')
+            if valid_wall_ids is not None and wall_id not in valid_wall_ids:
+                _fail('EXTENSION_CROSS_REFERENCE_FAILED')
+        installation = CanonicalDeviceInstallation(level, wall_id)
     return CanonicalSymbolDetail(
         symbol_id=symbol_id,
         orientation_degrees=orientation,
         bounds=bounds,
         provenance=provenance,
+        installation=installation,
     )
 
 
@@ -353,7 +379,8 @@ def canonical_extension_from_dict(
         },
         "INVALID_EXTENSION_DOCUMENT",
     )
-    if type(data["extension_schema_version"]) is not int or data["extension_schema_version"] != EXTENSION_SCHEMA_VERSION:
+    version = data['extension_schema_version']
+    if type(version) is not int or version not in (2, 3):
         _fail("UNSUPPORTED_EXTENSION_VERSION")
     if type(data["base_schema_version"]) is not int or data["base_schema_version"] != BASE_SCHEMA_VERSION:
         _fail("INVALID_EXTENSION_DOCUMENT")
@@ -398,7 +425,7 @@ def canonical_extension_from_dict(
     if type(data["symbol_details"]) is not list:
         _fail("INVALID_EXTENSION_DOCUMENT")
     symbol_details = tuple(
-        _symbol_detail(item, valid_symbol_ids)
+        _symbol_detail(item, valid_symbol_ids, version=version, valid_wall_ids=valid_wall_ids)
         for item in data["symbol_details"]
     )
     detail_ids = [d.symbol_id for d in symbol_details]
@@ -416,7 +443,7 @@ def canonical_extension_from_dict(
         _fail("INVALID_ROUTE_DETAIL")
 
     return CanonicalExtensionV2(
-        extension_schema_version=EXTENSION_SCHEMA_VERSION,
+        extension_schema_version=version,
         base_schema_version=BASE_SCHEMA_VERSION,
         source_plane_reference=source_plane,
         openings=openings,

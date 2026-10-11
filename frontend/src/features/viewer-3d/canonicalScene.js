@@ -13,7 +13,10 @@ export function canonicalRoomShapePoints(boundary) {
 
 export function buildCanonicalScene(document, extension = null) {
   const geometry = normalizeCanonicalGeometry(document)
-  const details = extension ? normalizeCanonicalExtension(extension, geometry).route_details : []
+  const normalizedExtension = extension ? normalizeCanonicalExtension(extension, geometry) : null
+  const details = normalizedExtension?.route_details ?? []
+  const installations = new Map((normalizedExtension?.symbol_details ?? []).filter(d => d.installation)
+    .map(d => [d.symbol_id, {...d.installation, provenance:'designer_supplied_planning'}]))
   const routeDetails = new Map(details.map((detail) => [detail.route_id, detail]))
   const elevation = geometry.floor.elevation_meters
   const width = geometry.coordinate_system.width_meters
@@ -54,6 +57,7 @@ export function buildCanonicalScene(document, extension = null) {
     symbols: geometry.symbols.map((symbol) => ({
       id: symbol.id, classification: symbol.class, status: symbol.status,
       position: canonicalPointToWorld(symbol.position, elevation),
+      ...(installations.has(symbol.id) ? {installation:installations.get(symbol.id)} : {}),
     })),
   }
 }
