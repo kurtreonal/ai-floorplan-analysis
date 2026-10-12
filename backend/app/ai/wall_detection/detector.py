@@ -14,7 +14,8 @@ from app.ai.wall_detection.config import (
     WallDetectionError,
     WallDetectionParameters,
 )
-from app.ai.wall_detection.junctions import snap_observed_junctions
+from app.ai.wall_detection.junctions import snap_observed_junctions,unique_wall_spans
+from app.ai.wall_detection.band_geometry import refine_filled_bands
 
 if TYPE_CHECKING:
     from app.ai.preprocessing.pipeline import PreprocessedImage
@@ -301,7 +302,8 @@ def _consolidate_wall_segments(
             x1j, y1j, x2j, y2j, _, _ = canon[j]
             d1 = abs(a1 * x1j + b1 * y1j + c1)
             d2 = abs(a1 * x2j + b1 * y2j + c1)
-            if max(d1, d2) > max(6.0, canon[i][4] * 0.4):
+            distance_limit=max(6.0,canon[i][4]*.4) if evidence_mask is None else max(1.0,max(canon[i][4],canon[j][4])*.6)
+            if max(d1, d2) > distance_limit:
                 continue
 
             p2_start = x1j * tx + y1j * ty
@@ -310,6 +312,27 @@ def _consolidate_wall_segments(
                 p2_start, p2_end = p2_end, p2_start
 
             gap = max(0.0, max(p1_start, p2_start) - min(p1_end, p2_end))
+
+            if evidence_mask is not None:
+                # Spatial tolerance is not proof of a common wall band. Prevent
+                # averaging separate parallel walls or closing white openings.
+                low,high=max(p1_start,p2_start),min(p1_end,p2_end)
+                if high>=low:
+                    projections=np.linspace(low,high,max(3,min(128,round(high-low)+1)))
+                    anchor_projection=canon[i][0]*tx+canon[i][1]*ty
+                    left=np.array(canon[i][:2])+((projections-anchor_projection)[:,None]*np.array([tx,ty]))
+                    normal=np.array([a1,b1])
+                    offset=np.mean([a1*x1j+b1*y1j+c1,a1*x2j+b1*y2j+c1])
+                    corridor=np.array([left+normal*offset*t for t in np.linspace(0,1,5)])
+                    xy=np.rint(corridor).astype(int)
+                    if ((xy<0).any() or (xy[...,0]>=width).any() or (xy[...,1]>=height).any()
+                            or np.mean(evidence_mask[xy[...,1],xy[...,0]]>0)<.95):continue
+                elif gap>.5:
+                    sample=np.linspace(p1_end,p2_start,max(3,math.ceil(gap)+1)) if p2_start>p1_end else np.linspace(p2_end,p1_start,max(3,math.ceil(gap)+1))
+                    anchor_projection=canon[i][0]*tx+canon[i][1]*ty
+                    xy=np.rint(np.array(canon[i][:2])+(sample-anchor_projection)[:,None]*np.array([tx,ty])).astype(int)
+                    if ((xy<0).any() or (xy[:,0]>=width).any() or (xy[:,1]>=height).any()
+                            or np.mean(evidence_mask[xy[:,1],xy[:,0]]>0)<.95):continue
 
             can_merge = False
             if gap <= max_gap:
@@ -1498,9 +1521,14 @@ def _detect_structural_wall_lines(
         retained = _recover_bracketed_paired_gaps(retained, partial_pairs,
                                                   original_ink, min_wall_length,
                                                   accept_merge=passes_final_guards)
+    if outlined is None:
+        # Previously qualified faint continuation must not be trimmed against
+        # the stronger seed mask alone. No new segment is seeded here.
+        refinement_mask=cv2.bitwise_not(continuity_image) if continuity_dist is not None else clean_structural
+        retained=refine_filled_bands(retained,refinement_mask)
     snapped = snap_observed_junctions(retained, original_ink, max_gap)
-    return [after if passes_final_guards(after) else before
-            for before, after in zip(retained, snapped)]
+    return unique_wall_spans([after if passes_final_guards(after) else before
+            for before, after in zip(retained, snapped)])
 
 
 def detect_wall_lines(

@@ -3,10 +3,23 @@ import unittest
 import cv2
 import numpy as np
 
-from app.ai.wall_detection.junctions import snap_observed_junctions
+from app.ai.wall_detection.junctions import snap_observed_junctions,unique_wall_spans
 
 
 class ObservedWallJunctionTests(unittest.TestCase):
+    def test_post_junction_exact_duplicate_removed_without_merging_touching_or_parallel_spans(self):
+        rows=[(10,20,100,20,8.),(100,20,10,20,8.),(100,20,140,20,8.),(10,21,100,21,8.)]
+        self.assertEqual(unique_wall_spans(rows),[rows[0],rows[2],rows[3]])
+    def test_supported_endpoint_overshoot_is_trimmed_but_a_real_continuing_wall_is_not(self):
+        ink=np.zeros((240,320),np.uint8)
+        cv2.line(ink,(30,100),(104,100),255,8)
+        cv2.line(ink,(100,30),(100,180),255,8)
+        rows=[(30,100,104,100,8.),(100,30,100,180,8.)]
+        self.assertEqual(snap_observed_junctions(rows,ink,6)[0],(30,100,100,100,8.))
+        cv2.line(ink,(30,100),(145,100),255,8)
+        rows[0]=(30,100,145,100,8.)
+        self.assertEqual(snap_observed_junctions(rows,ink,6)[0],rows[0])
+
     def test_solid_t_junction_connects_existing_wall_without_new_geometry(self):
         ink = np.zeros((240, 320), np.uint8)
         cv2.line(ink, (30, 100), (100, 100), 255, 8)

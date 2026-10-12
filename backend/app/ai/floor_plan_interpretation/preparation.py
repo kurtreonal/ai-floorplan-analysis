@@ -1042,7 +1042,26 @@ def fuse_detected_walls(
         )
         wall_id += 1
 
-    return tuple(walls)
+    # Only exact source-collinear OVERLAP is duplicate evidence. Keep merely
+    # touching wall identities and all separated/parallel spans (possible doors).
+    # A broad coordinate tolerance cannot prove that two tile strokes are one wall.
+    fused=[]
+    for wall in walls:
+        merged=False
+        for i,existing in enumerate(fused):
+            a=np.array([existing.start.x,existing.start.y]);b=np.array([existing.end.x,existing.end.y])
+            c=np.array([wall.start.x,wall.start.y]);d=np.array([wall.end.x,wall.end.y])
+            axis=(b-a)/np.linalg.norm(b-a);normal=np.array([-axis[1],axis[0]])
+            if max(abs(float((p-a)@normal)) for p in (c,d))>1e-6:continue
+            lo,hi=sorted(float((p-a)@axis) for p in (c,d));length=np.linalg.norm(b-a)
+            if min(hi,length)-max(lo,0)<=1e-6:continue
+            start=a+axis*min(0,lo);end=a+axis*max(length,hi)
+            refs=tuple(sorted(set(existing.evidence_refs+wall.evidence_refs)))
+            fused[i]=existing.model_copy(update={'start':PixelPoint(x=float(start[0]),y=float(start[1])),
+                'end':PixelPoint(x=float(end[0]),y=float(end[1])),'evidence_refs':refs})
+            merged=True;break
+        if not merged:fused.append(wall)
+    return tuple(fused)
 
 
 # ---------------------------------------------------------------------------

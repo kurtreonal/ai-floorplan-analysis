@@ -5,7 +5,17 @@ import cv2
 import numpy as np
 
 
-def snap_observed_junctions(segments, original_ink, maximum_gap):
+def unique_wall_spans(rows):
+    """Junction fitting can make two hypotheses exactly coincident."""
+    kept={}
+    for row in rows:
+        a,b=tuple(round(float(x),6) for x in row[:2]),tuple(round(float(x),6) for x in row[2:4])
+        key=tuple(sorted((a,b)))
+        if key not in kept:kept[key]=row
+    return list(kept.values())
+
+
+def snap_observed_junctions(segments, original_ink, maximum_gap, *, round_coordinates=True):
     if not segments or len(segments) > 512:
         return list(segments)
     height, width = original_ink.shape
@@ -58,7 +68,10 @@ def snap_observed_junctions(segments, original_ink, maximum_gap):
                 delta = c - origin
                 travel = cross(delta, other_axis) / denominator
                 projection = cross(delta, axis) / denominator
-                if not .5 < direction * travel <= limit:
+                along=direction*travel
+                # Trim an endpoint overshoot only inside the other observed
+                # wall footprint. Never shorten a continuing branch across air.
+                if not (.5<along<=limit or (-other[4]/2<=along<-.5 and abs(travel)<=length*.25)):
                     continue
                 if not 0 <= projection <= other_length:
                     # Both ends can stop short of a real L corner. Allow only
@@ -81,6 +94,7 @@ def snap_observed_junctions(segments, original_ink, maximum_gap):
                     if not all(other_interval_supported(p) for p in other_points):
                         continue
                 target = origin + axis * travel
+                if not (0<=target[0]<width and 0<=target[1]<height):continue
                 if not supported(target, other_axis, other[4]):
                     continue
                 points = origin + np.linspace(0, travel, math.ceil(abs(travel)) + 1)[:, None] * axis
@@ -97,6 +111,6 @@ def snap_observed_junctions(segments, original_ink, maximum_gap):
                     proposals.append((abs(travel), tuple(target)))
             if proposals:
                 new_points[end_index] = np.asarray(min(proposals)[1])
-        result[index] = (*map(lambda v: int(round(v)), new_points[0]),
-                         *map(lambda v: int(round(v)), new_points[1]), row[4])
+        convert=(lambda v:int(round(v))) if round_coordinates else float
+        result[index] = (*map(convert,new_points[0]),*map(convert,new_points[1]),row[4])
     return result

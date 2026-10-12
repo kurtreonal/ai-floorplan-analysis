@@ -11,8 +11,10 @@ from app.ai.wall_detection.detector import (
     _consolidate_wall_segments, _has_compact_annotated_outline,
     _has_compact_parallel_bars, _is_repeated_grid_member, _thin_connected_strokes,
 )
+from app.ai.wall_detection.band_geometry import refine_filled_bands
+from app.ai.wall_detection.junctions import snap_observed_junctions,unique_wall_spans
 
-CONFIGURATION = dict(version='chromatic-structural-bands-v1', strong_saturation=30,
+CONFIGURATION = dict(version='chromatic-structural-bands-v2', strong_saturation=30,
                      strong_value=180, seed_saturation=12, seed_value=235,
                      hue_tolerance=25, minimum_thickness_ratio=.0067,
                      maximum_hough_lines=2048, maximum_segments=300)
@@ -142,6 +144,8 @@ def chromatic_wall_segments(image_rgb, regions, symbols):
         segments.append((*a, *b, thickness, math.dist(a, b)))
     segments = _consolidate_wall_segments(segments, w, h, 3, evidence_mask=mask)
     segments = _suppress_same_band_duplicates(segments, mask)
+    segments = refine_filled_bands(segments, mask)
+    segments = _consolidate_wall_segments([(*s,math.dist(s[:2],s[2:4])) for s in segments],w,h,3,evidence_mask=mask)
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                    cv2.THRESH_BINARY, max(31, round(edge * .09)) | 1, 12)
@@ -154,7 +158,7 @@ def chromatic_wall_segments(image_rgb, regions, symbols):
     vertical = sum(abs(s[2] - s[0]) < abs(s[3] - s[1]) * .1 for s in long)
     if horizontal < 2 or vertical < 2 or len(segments) > CONFIGURATION['maximum_segments']:
         return None
-    return sorted(segments)
+    return sorted(unique_wall_spans(snap_observed_junctions(segments,mask,3,round_coordinates=False)))
 
 
 def with_chromatic_wall_evidence(payload, image_rgb):
@@ -171,13 +175,14 @@ def with_chromatic_wall_evidence(payload, image_rgb):
     if segments is None or len(payload.warnings) >= 256:
         return payload
     walls = []
-    for i, (x1, y1, x2, y2, _) in enumerate(segments, 1):
+    for i, (x1, y1, x2, y2, thickness) in enumerate(segments, 1):
         refs = tuple(f'region:{r.id}' for r in regions if all(
             r.bounds.x <= x <= r.bounds.x + r.bounds.width
             and r.bounds.y <= y <= r.bounds.y + r.bounds.height for x, y in ((x1, y1), (x2, y2))))
         if refs:
             walls.append(WallCandidate(id=f'wall-{i:04d}', start=PixelPoint(x=x1, y=y1),
-                                       end=PixelPoint(x=x2, y=y2), evidence_refs=refs, ambiguity='ambiguous'))
+                                       end=PixelPoint(x=x2, y=y2), estimated_thickness_pixels=thickness,
+                                       evidence_refs=refs, ambiguity='ambiguous'))
     # Rooms derived from superseded wall hypotheses cannot remain authoritative.
     value = payload.model_copy(update={
         'walls': CandidateCollection(state='partial', items=tuple(walls), truncated=False),

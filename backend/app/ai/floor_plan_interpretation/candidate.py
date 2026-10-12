@@ -172,6 +172,7 @@ class WallCandidate(EvidenceRefMixin):
     id: EntityId
     start: PixelPoint
     end: PixelPoint
+    estimated_thickness_pixels: Annotated[float, Field(gt=0, le=1000, allow_inf_nan=False)] | None = None
 
     @model_validator(mode="after")
     def nonzero(self):
