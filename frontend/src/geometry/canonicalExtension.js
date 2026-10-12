@@ -122,7 +122,7 @@ function panel(value, cs) {
 }
 
 function symbolDetail(value, validSymbolIds, version = 2, validWallIds = null) {
-  const hasInstallation = version === 3 && value !== null && typeof value === 'object' && Object.hasOwn(value, 'installation')
+  const hasInstallation = version >= 3 && value !== null && typeof value === 'object' && Object.hasOwn(value, 'installation')
   const data = exactObject(value, ['symbol_id', 'orientation_degrees', 'bounds', 'provenance', ...(hasInstallation ? ['installation'] : [])])
   const symbolId = name(data.symbol_id, { maximum: 128 })
   if (validSymbolIds && !validSymbolIds.has(symbolId)) fail()
@@ -157,16 +157,37 @@ function symbolDetail(value, validSymbolIds, version = 2, validWallIds = null) {
   }
 }
 
-function routeDetail(value, validRouteIds) {
-  const data = exactObject(value, ['route_id', 'route_kind', 'provenance_ref'])
+function routeDetail(value, validRouteIds, version=2, baseGeometry=null) {
+  const data = exactObject(value, ['route_id', 'route_kind', 'provenance_ref',...(version===4 ? ['device_connections'] : [])])
   const routeId = identifier(data.route_id)
   if (validRouteIds && !validRouteIds.has(routeId)) fail()
   if (!['observed', 'generated'].includes(data.route_kind)) fail()
   const provenanceRef = name(data.provenance_ref, { nullable: true, maximum: 255 })
+  let connections
+  if (version===4) {
+    if (!Array.isArray(data.device_connections) || data.device_connections.length>512) fail()
+    const indices=new Set()
+    connections=data.device_connections.map(raw => {
+      const contact=exactObject(raw,['symbol_id','point_index','anchor'])
+      const symbolId=name(contact.symbol_id,{maximum:128}), index=integer(contact.point_index)
+      if (index<0 || index>2047 || indices.has(index)) fail()
+      indices.add(index)
+      const anchor=exactObject(contact.anchor,['x','y','elevation_meters'])
+      const normalized={...point({x:anchor.x,y:anchor.y},baseGeometry?.coordinate_system),elevation_meters:finiteNumber(anchor.elevation_meters)}
+      if (baseGeometry) {
+        const symbol=baseGeometry.symbols.find(s => s.id===symbolId), route=baseGeometry.routes.find(r => r.id===routeId)
+        const p=route?.points[index]
+        if (!symbol || !p || !close(p.x,normalized.x) || !close(p.y,normalized.y)
+          || !close(symbol.position.x,normalized.x) || !close(symbol.position.y,normalized.y)) fail()
+      }
+      return {symbol_id:symbolId,point_index:index,anchor:normalized}
+    })
+  }
   return {
     route_id: routeId,
     route_kind: data.route_kind,
     provenance_ref: provenanceRef,
+    ...(connections ? {device_connections:connections} : {}),
   }
 }
 
@@ -187,7 +208,7 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
     'symbol_details',
     'route_details',
   ])
-  if (![2, 3].includes(data.extension_schema_version) || !Number.isSafeInteger(data.extension_schema_version)) {
+  if (![2, 3, 4].includes(data.extension_schema_version) || !Number.isSafeInteger(data.extension_schema_version)) {
     fail()
   }
   if (data.base_schema_version !== BASE_SCHEMA_VERSION || !Number.isSafeInteger(data.base_schema_version)) {
@@ -229,9 +250,15 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
   const symbolDetailIds = new Set(normalizedSymbolDetails.map((s) => s.symbol_id))
   if (symbolDetailIds.size !== normalizedSymbolDetails.length) fail()
 
-  const normalizedRouteDetails = data.route_details.map((item) => routeDetail(item, validRouteIds))
+  const normalizedRouteDetails = data.route_details.map((item) => routeDetail(item, validRouteIds,data.extension_schema_version,baseGeometry))
   const routeDetailIds = new Set(normalizedRouteDetails.map((r) => r.route_id))
   if (routeDetailIds.size !== normalizedRouteDetails.length) fail()
+  if (data.extension_schema_version===4) {
+    const mounts=new Map(normalizedSymbolDetails.filter(s => s.installation).map(s => [s.symbol_id,s.installation]))
+    for (const route of normalizedRouteDetails) for (const connection of route.device_connections) {
+      if (!mounts.has(connection.symbol_id) || !close(connection.anchor.elevation_meters,mounts.get(connection.symbol_id).elevation_meters)) fail()
+    }
+  }
 
   return deepFreeze({
     extension_schema_version: data.extension_schema_version,

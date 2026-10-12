@@ -154,17 +154,31 @@ class CanonicalSymbolDetail:
 
 
 @dataclass(frozen=True)
+class CanonicalDeviceConnection:
+    symbol_id: str
+    point_index: int
+    anchor: dict
+
+    def to_dict(self):
+        return dict(symbol_id=self.symbol_id,point_index=self.point_index,anchor=dict(self.anchor))
+
+
+@dataclass(frozen=True)
 class CanonicalRouteDetail:
     route_id: int
     route_kind: str
     provenance_ref: str | None = None
+    device_connections: tuple[CanonicalDeviceConnection, ...] | None = None
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        result = {
             "route_id": self.route_id,
             "route_kind": self.route_kind,
             "provenance_ref": self.provenance_ref,
         }
+        if self.device_connections is not None:
+            result['device_connections'] = [c.to_dict() for c in self.device_connections]
+        return result
 
 
 @dataclass(frozen=True)
@@ -300,7 +314,7 @@ def _symbol_detail(
     data = _exact_keys(
         value,
         {"symbol_id", "orientation_degrees", "bounds", "provenance"} |
-        ({'installation'} if version == 3 and isinstance(value, dict) and 'installation' in value else set()),
+        ({'installation'} if version >= 3 and isinstance(value, dict) and 'installation' in value else set()),
         "INVALID_SYMBOL_DETAIL",
     )
     symbol_id = _name(data["symbol_id"], "INVALID_SYMBOL_DETAIL", maximum=128)
@@ -341,11 +355,11 @@ def _symbol_detail(
 
 def _route_detail(
     value: object,
-    valid_route_ids: set[int] | None = None,
+    valid_route_ids: set[int] | None = None, *, version=2, base_document=None,
 ) -> CanonicalRouteDetail:
     data = _exact_keys(
         value,
-        {"route_id", "route_kind", "provenance_ref"},
+        {"route_id", "route_kind", "provenance_ref"} | ({'device_connections'} if version==4 else set()),
         "INVALID_ROUTE_DETAIL",
     )
     route_id = _identifier(data["route_id"], "INVALID_ROUTE_DETAIL")
@@ -355,10 +369,33 @@ def _route_detail(
     if route_kind not in {"observed", "generated"}:
         _fail("INVALID_ROUTE_DETAIL")
     provenance_ref = _name(data["provenance_ref"], "INVALID_ROUTE_DETAIL", nullable=True, maximum=255)
+    connections = None
+    if version == 4:
+        if type(data['device_connections']) is not list or len(data['device_connections'])>512:
+            _fail('INVALID_ROUTE_DETAIL')
+        connections=[];indices=set()
+        for raw in data['device_connections']:
+            contact=_exact_keys(raw,{'symbol_id','point_index','anchor'},'INVALID_ROUTE_DETAIL')
+            identity=_name(contact['symbol_id'],'INVALID_ROUTE_DETAIL',maximum=128)
+            index=_integer(contact['point_index'],'INVALID_ROUTE_DETAIL')
+            anchor=_exact_keys(contact['anchor'],{'x','y','elevation_meters'},'INVALID_ROUTE_DETAIL')
+            anchor={k:_number(v,'INVALID_ROUTE_DETAIL',nonnegative=k!='elevation_meters') for k,v in anchor.items()}
+            if index<0 or index>2047 or index in indices:_fail('INVALID_ROUTE_DETAIL')
+            indices.add(index)
+            if base_document is not None:
+                route=next(r for r in base_document.routes if r.id==route_id)
+                symbol=next((s for s in base_document.symbols if s.id==identity),None)
+                if (symbol is None or index>=len(route.points)
+                    or not _close(route.points[index].x,anchor['x']) or not _close(route.points[index].y,anchor['y'])
+                    or not _close(symbol.position.x,anchor['x']) or not _close(symbol.position.y,anchor['y'])):
+                    _fail('EXTENSION_CROSS_REFERENCE_FAILED')
+            connections.append(CanonicalDeviceConnection(identity,index,anchor))
+        connections=tuple(connections)
     return CanonicalRouteDetail(
         route_id=route_id,
         route_kind=route_kind,
         provenance_ref=provenance_ref,
+        device_connections=connections,
     )
 
 
@@ -380,7 +417,7 @@ def canonical_extension_from_dict(
         "INVALID_EXTENSION_DOCUMENT",
     )
     version = data['extension_schema_version']
-    if type(version) is not int or version not in (2, 3):
+    if type(version) is not int or version not in (2, 3, 4):
         _fail("UNSUPPORTED_EXTENSION_VERSION")
     if type(data["base_schema_version"]) is not int or data["base_schema_version"] != BASE_SCHEMA_VERSION:
         _fail("INVALID_EXTENSION_DOCUMENT")
@@ -435,12 +472,18 @@ def canonical_extension_from_dict(
     if type(data["route_details"]) is not list:
         _fail("INVALID_EXTENSION_DOCUMENT")
     route_details = tuple(
-        _route_detail(item, valid_route_ids)
+        _route_detail(item, valid_route_ids, version=version, base_document=base_document)
         for item in data["route_details"]
     )
     detail_route_ids = [d.route_id for d in route_details]
     if len(detail_route_ids) != len(set(detail_route_ids)):
         _fail("INVALID_ROUTE_DETAIL")
+    if version==4:
+        mounts={s.symbol_id:s.installation for s in symbol_details if s.installation is not None}
+        for detail in route_details:
+            for contact in detail.device_connections:
+                if contact.symbol_id not in mounts or not _close(contact.anchor['elevation_meters'],mounts[contact.symbol_id].elevation_meters):
+                    _fail('INVALID_ROUTE_DETAIL')
 
     return CanonicalExtensionV2(
         extension_schema_version=version,
