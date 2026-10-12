@@ -1,0 +1,22 @@
+/*! Blueprint3D Modern — MIT License
+Copyright (c) 2026 blueprint3d-modern contributors
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+// Values from src/floorplanner/floorplanner_view.ts at
+// blueprint3d-modern f56f0b2a4a6e177181aefbf535d2945b937b5c02 (MIT).
+// These are SCREEN pixels, never physical dimensions.
+export const WALL_APPEARANCE=Object.freeze({normal:'#dddddd',active:'#008cba',edge:'#888888',delete:'#ff0000',
+  corner:'#cccccc',width:5,activeWidth:7,edgeWidth:1,cornerRadius:7,fontSize:12,fontFamily:'Arial'})
