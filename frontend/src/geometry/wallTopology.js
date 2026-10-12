@@ -91,9 +91,21 @@ export function buildWallTopology(input) {
   return {walls:models,junctions}
 }
 
-export function moveJoinedWall(input,updated) {
+export function moveJoinedWall(input,updated,{detach=false}={}) {
   const old=input.find(w=>w.id===updated.id)
   if(!old)return input
+  if(detach)return input.map(w=>w.id===updated.id?updated:w)
+  updated={...updated}
+  // A T branch cannot bend the body of a straight supporting wall. Keep its
+  // joined end on that body's existing axis; no nearby wall can acquire it.
+  for(const other of input)if(other.id!==old.id&&other.disposition!=='rejected') {
+    for(const c of wallContacts(old,other))for(const [end,t] of [['start',0],['end',1]]) {
+      if(Math.abs(c.t-t)>EPS||c.s<=EPS||c.s>=1-EPS)continue
+      const axis=sub(other.end,other.start),p=updated[end],length=axis.x*axis.x+axis.y*axis.y
+      const projection=((p.x-other.start.x)*axis.x+(p.y-other.start.y)*axis.y)/length
+      updated[end]=projection>=0&&projection<=1?lerp(other.start,other.end,projection):c.point
+    }
+  }
   return input.map(w=>{
     if(w.id===updated.id)return updated
     if(w.disposition==='rejected')return w

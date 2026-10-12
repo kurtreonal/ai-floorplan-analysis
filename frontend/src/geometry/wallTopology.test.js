@@ -48,3 +48,11 @@ it('uses identical source footprints when projected to scene units',()=>{
   const a=buildWallTopology(rows).walls,b=sceneWallTopology(scene).walls
   for(let i=0;i<a.length;i++)expect(b[i].footprints).toEqual(a[i].footprints)
 })
+it('keeps a moved T branch attached to its existing support unless explicitly detached',()=>{
+  const rows=[wall('a',[0,0],[20,0]),wall('b',[10,0],[10,10])]
+  const updated={...rows[1],start:{x:12,y:3},end:{x:12,y:13}}
+  const moved=moveJoinedWall(rows,updated)
+  expect(moved[0]).toEqual(rows[0]);expect(moved[1].start).toEqual({x:12,y:0})
+  expect(buildWallTopology(moved).junctions).toHaveLength(1)
+  expect(moveJoinedWall(rows,updated,{detach:true})[1].start).toEqual(updated.start)
+})
