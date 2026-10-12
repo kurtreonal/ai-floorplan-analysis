@@ -17,6 +17,7 @@ from pydantic import (
     StringConstraints,
     field_validator,
     model_validator,
+    model_serializer,
 )
 
 
@@ -203,16 +204,29 @@ class OpeningCandidate(EvidenceRefMixin):
         return self
 
 
+class SwitchGangProposal(StrictCandidateModel):
+    count: Annotated[StrictInt, Field(ge=1, le=3)]
+    basis: Literal['model_prediction', 'source_text', 'user_requested_default']
+    provisional: Literal[True] = True
+
+
 class SymbolCandidate(EvidenceRefMixin):
     id: EntityId
     mapping_state: Literal["matched", "unknown", "ambiguous"]
     catalog_class_id: PositiveId | None
     observed_label: SafeText | None
+    gang_count_proposal: SwitchGangProposal | None = None
     center: PixelPoint
     bounds: PixelBounds | None
     orientation_degrees: Annotated[StrictInt | StrictFloat, Field(ge=0, lt=360, allow_inf_nan=False)] | None
 
     _safe_label = field_validator("observed_label")(classmethod(lambda cls, value: None if value is None else _validate_text(value)))
+
+    @model_serializer(mode='wrap')
+    def omit_absent_gang_proposal(self, handler):
+        value=handler(self)
+        if self.gang_count_proposal is None:value.pop('gang_count_proposal',None)
+        return value
 
     @model_validator(mode="after")
     def class_mapping(self):

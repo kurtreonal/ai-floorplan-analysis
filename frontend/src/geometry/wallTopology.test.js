@@ -23,6 +23,14 @@ it('removes internal T caps without hiding exterior edges',()=>{
   expect(result.walls[1].boundary.some(edge=>edge.every(p=>Math.abs(p.y+1)<1e-6))).toBe(false)
   expect(result.walls[1].boundary.some(edge=>edge.every(p=>Math.abs(p.y-10)<1e-6))).toBe(true)
 })
+
+it('does not protrude a wide T branch beyond its thinner support',()=>{
+  const rows=[wall('a',[0,0],[20,0],2),wall('b',[10,0],[10,10],8)]
+  const result=buildWallTopology(rows)
+  expect(Math.min(...result.walls.flatMap(w=>w.footprints.flatMap(p=>p.map(v=>v.y))))).toBe(-1)
+  expect(result.walls[1].boundary.some(edge=>edge.every(p=>p.y<0))).toBe(false)
+  expect(rows[1].thickness).toBe(8)
+})
 it('preserves door gaps and nearby separate parallel walls',()=>{
   const rows=[wall('a',[0,0],[10,0]),wall('b',[10.2,0],[20,0]),wall('c',[0,1.5],[10,1.5])]
   const result=buildWallTopology(rows)

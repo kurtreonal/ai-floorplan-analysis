@@ -1,5 +1,6 @@
 """Guarded structural colour evidence; monochrome drawings retain the CV path."""
 import math
+import re
 
 import cv2
 import numpy as np
@@ -13,8 +14,9 @@ from app.ai.wall_detection.detector import (
 )
 from app.ai.wall_detection.band_geometry import refine_filled_bands
 from app.ai.wall_detection.junctions import snap_observed_junctions,unique_wall_spans
+from app.ai.wall_detection.paired_boundaries import recover_paired_boundaries
 
-CONFIGURATION = dict(version='chromatic-structural-bands-v2', strong_saturation=30,
+CONFIGURATION = dict(version='chromatic-structural-bands-v3', strong_saturation=30,
                      strong_value=180, seed_saturation=12, seed_value=235,
                      hue_tolerance=25, minimum_thickness_ratio=.0067,
                      maximum_hough_lines=2048, maximum_segments=300)
@@ -86,7 +88,11 @@ def chromatic_wall_segments(image_rgb, regions, symbols):
             & (scope > 0)).astype(np.uint8) * 255
     for symbol in symbols:
         b = symbol.bounds
-        if b:
+        training=getattr(symbol,'training_legend',None)
+        name=training.name if training else symbol.observed_label or ''
+        # Wall-mounted devices and broad annotation boxes must not cut away
+        # structural evidence. Only ceiling-fixture interiors are exclusions.
+        if b and re.search(r'troffer|fluorescent|downlight|ceiling light',name,re.I):
             seed[max(0, math.floor(b.y) - 3):min(h, math.ceil(b.y + b.height) + 4),
                  max(0, math.floor(b.x) - 3):min(w, math.ceil(b.x + b.width) + 4)] = 0
     seed = cv2.morphologyEx(seed, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
@@ -158,7 +164,14 @@ def chromatic_wall_segments(image_rgb, regions, symbols):
     vertical = sum(abs(s[2] - s[0]) < abs(s[3] - s[1]) * .1 for s in long)
     if horizontal < 2 or vertical < 2 or len(segments) > CONFIGURATION['maximum_segments']:
         return None
-    return sorted(unique_wall_spans(snap_observed_junctions(segments,mask,3,round_coordinates=False)))
+    segments=unique_wall_spans(snap_observed_junctions(segments,mask,3,round_coordinates=False))
+    recovered=recover_paired_boundaries(image_rgb,segments,scope,symbols)
+    if recovered and len(segments)+len(recovered)<=CONFIGURATION['maximum_segments']:
+        # Original paired boundaries support the new contacts; filled-band
+        # masks alone cannot describe an outlined wall's blank interior.
+        source_ink=cv2.bitwise_not(binary);source_ink[scope==0]=0
+        segments=unique_wall_spans(snap_observed_junctions(segments+recovered,source_ink,3,round_coordinates=False))
+    return sorted(segments)
 
 
 def with_chromatic_wall_evidence(payload, image_rgb):

@@ -41,23 +41,32 @@ function subtract(poly,clip) {
 function rectangle(wall,ends) {
   const u=sub(wall.end,wall.start),length=Math.hypot(u.x,u.y),axis={x:u.x/length,y:u.y/length}
   const half=wall.thickness/2,n={x:-axis.y*half,y:axis.x*half}
-  const a=lerp(wall.start,wall.end,ends[0]?-half/length:0),b=lerp(wall.start,wall.end,ends[1]?1+half/length:1)
+  const a=lerp(wall.start,wall.end,-ends[0]/length),b=lerp(wall.start,wall.end,1+ends[1]/length)
   return [{x:a.x-n.x,y:a.y-n.y},{x:b.x-n.x,y:b.y-n.y},{x:b.x+n.x,y:b.y+n.y},{x:a.x+n.x,y:a.y+n.y}]
 }
 
 export function buildWallTopology(input) {
   const walls=input.filter(w=>w.disposition!=='rejected'&&w.thickness>0&&Math.hypot(w.end.x-w.start.x,w.end.y-w.start.y)>EPS)
-  const linked=walls.map(()=>new Set()),ends=walls.map(()=>[false,false]),junctions=[]
+  const linked=walls.map(()=>new Set()),ends=walls.map(()=>[0,0]),junctions=[]
   if(walls.length>512)throw new Error('Wall topology exceeds the bounded 512-wall budget.')
   for(let i=0;i<walls.length;i++)for(let j=i+1;j<walls.length;j++) {
     for(const contact of wallContacts(walls[i],walls[j])) {
       // Different heights remain distinct surfaces, not a hidden terrace edge.
       if(walls[i].height!==walls[j].height||walls[i].elevation!==walls[j].elevation)continue
       linked[i].add(j);linked[j].add(i)
-      if(Math.abs(contact.t)<EPS)ends[i][0]=true
-      if(Math.abs(contact.t-1)<EPS)ends[i][1]=true
-      if(Math.abs(contact.s)<EPS)ends[j][0]=true
-      if(Math.abs(contact.s-1)<EPS)ends[j][1]=true
+      // A T branch already terminates inside its support: extending its cap
+      // can protrude beyond a thinner supporting wall. Only end/end corners
+      // need a bounded join, sized from the other wall, not their own width.
+      const atEnd=t=>Math.abs(t)<EPS||Math.abs(t-1)<EPS
+      if(atEnd(contact.t)&&atEnd(contact.s)) {
+        const u=sub(walls[i].end,walls[i].start),v=sub(walls[j].end,walls[j].start)
+        const sine=Math.abs(cross(u,v))/(Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y))
+        if(sine>EPS) {
+          const ei=Math.abs(contact.t)<EPS?0:1,ej=Math.abs(contact.s)<EPS?0:1
+          ends[i][ei]=Math.max(ends[i][ei],Math.min(walls[i].thickness, walls[j].thickness/2/sine))
+          ends[j][ej]=Math.max(ends[j][ej],Math.min(walls[j].thickness, walls[i].thickness/2/sine))
+        }
+      }
       junctions.push({...contact,wallIds:[walls[i].id,walls[j].id]})
     }
   }
