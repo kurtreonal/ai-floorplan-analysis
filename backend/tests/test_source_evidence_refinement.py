@@ -30,7 +30,8 @@ def test_adjacent_fixture_ink_stays_observed_and_does_not_connect_crossings():
     before = image.copy(), payload.model_dump_json()
     result = with_automatic_wiring(payload, image)
     assert len(result.observed_routes.segments) == 3
-    assert result.observed_routes.connections == ()
+    assert all(c.from_ref.startswith('segment:') and c.to_ref.startswith('symbol:')
+               for c in result.observed_routes.connections) # contacts, not crossing junctions
     assert all(s.route_kind == 'observed' and s.ambiguity == 'ambiguous'
                for s in result.observed_routes.segments)
     assert max(abs(p.y - 100) for s in result.observed_routes.segments
@@ -56,7 +57,7 @@ def test_erased_wire_span_remains_unresolved_not_a_generated_shortcut():
     result = with_automatic_wiring(payload, image)
     assert len(result.observed_routes.segments) == 1
     assert min(p.x for p in result.observed_routes.segments[0].points) >= 280
-    assert result.observed_routes.connections == ()
+    assert all(c.to_ref!='symbol:symbol-0001' for c in result.observed_routes.connections)
 
 
 def test_rich_fixture_scene_still_keeps_regular_dashed_evidence():
@@ -111,6 +112,17 @@ def test_monochrome_and_coloured_glyphs_retain_existing_walls():
     assert with_chromatic_wall_evidence(payload, plain) == payload
 
 
+def test_large_circuit_annotation_box_does_not_erase_a_structural_wall():
+    image,payload=wall_scene()
+    value=payload.model_dump();value['document_state']='partial'
+    value['symbols']=dict(state='partial',truncated=False,items=[dict(id='symbol-0001',mapping_state='unknown',
+        catalog_class_id=None,observed_label='Circuit homerun',center=dict(x=60,y=250),
+        bounds=dict(x=25,y=200,width=80,height=100),orientation_degrees=None,
+        evidence_refs=('region:region-0001',),ambiguity='ambiguous')])
+    annotated=FloorPlanInterpretationPayload.model_validate(value)
+    assert with_chromatic_wall_evidence(payload,image).walls==with_chromatic_wall_evidence(annotated,image).walls
+
+
 def test_colour_refinement_never_breaks_known_opening_references():
     image, payload = wall_scene()
     value = payload.model_dump()
@@ -128,7 +140,9 @@ def test_colour_refinement_never_breaks_known_opening_references():
 
 def test_refinement_configuration_is_pinned_in_run_provenance():
     config = preprocessing_configuration(1340, 3264)
-    assert config['chromatic_walls']['version'] == 'chromatic-structural-bands-v1'
+    assert config['chromatic_walls']['version'] == 'chromatic-structural-bands-v3'
+    assert config['paired_wall_boundaries']['version']=='anchored-paired-boundaries-v1'
+    assert config['switch_gang_policy']=='provisional-switch-gang-count-v1'
     assert config['fixture_wiring']['minimum_support'] == .95
     assert config == preprocessing_configuration(1340, 3264)
 

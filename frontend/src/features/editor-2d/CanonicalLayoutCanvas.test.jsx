@@ -79,7 +79,8 @@ describe('canonical layout canvas', () => {
     expect(layers[2].querySelectorAll('[data-konva="Line"]')).toHaveLength(1)
     expect(layers[3].querySelectorAll('[name^="canonical-symbol-"]')).toHaveLength(2)
     expect(screen.getByText('Power outlet · reviewed')).toBeTruthy()
-    expect([...layers[3].querySelectorAll('[data-konva="Circle"]')].map(
+    // Status markers are direct children, not the socket details inside a glyph.
+    expect([...layers[3].querySelectorAll('[name^="canonical-symbol-"] > [data-konva="Circle"]')].map(
       (node) => node.getAttribute('data-fill'),
     )).toEqual(['#d9480f', '#7c3aed'])
     expect(layers[4].querySelectorAll('[data-konva="Line"]')).toHaveLength(1)

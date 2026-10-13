@@ -204,6 +204,16 @@ class OpeningCandidate(EvidenceRefMixin):
         return self
 
 
+class TrainingLegendPrediction(StrictCandidateModel):
+    """A detector's original class identity, not a reviewed catalog assignment."""
+    model_class_id: Annotated[StrictInt, Field(ge=0, le=2_147_483_647)]
+    legend_entry: Annotated[str, StringConstraints(pattern=r"^(?:[a-z0-9_-]+:[A-Za-z0-9_-]+|pdf-[0-9a-f]{12}:p[1-9][0-9]*:[A-Za-z0-9_-]+)$")]
+    name: Annotated[str, StringConstraints(min_length=1, max_length=255)]
+    dataset_sha256: Hash256
+
+    _safe_name = field_validator("name")(classmethod(lambda cls, value: _validate_text(value)))
+
+
 class SwitchGangProposal(StrictCandidateModel):
     count: Annotated[StrictInt, Field(ge=1, le=3)]
     basis: Literal['model_prediction', 'source_text', 'user_requested_default']
@@ -215,6 +225,7 @@ class SymbolCandidate(EvidenceRefMixin):
     mapping_state: Literal["matched", "unknown", "ambiguous"]
     catalog_class_id: PositiveId | None
     observed_label: SafeText | None
+    training_legend: TrainingLegendPrediction | None = None
     gang_count_proposal: SwitchGangProposal | None = None
     center: PixelPoint
     bounds: PixelBounds | None
@@ -248,6 +259,7 @@ class PanelCandidate(EvidenceRefMixin):
 class ObservedRouteSegment(EvidenceRefMixin):
     id: EntityId
     route_kind: Literal["observed"] = "observed"
+    line_style: Literal["solid", "dashed", "unknown"] = "unknown"
     points: Annotated[tuple[PixelPoint, ...], Field(min_length=2, max_length=512)]
 
     @model_validator(mode="after")
@@ -261,6 +273,12 @@ class ObservedRouteConnection(StrictCandidateModel):
     id: EntityId
     from_ref: str
     to_ref: str
+    source_edge_index: Annotated[StrictInt, Field(ge=0, le=510)] | None = None
+    path_anchor: PixelPoint | None = None
+    device_anchor: PixelPoint | None = None
+    evidence_kind: Literal['boundary_contact', 'symbol_occlusion', 'inline_device'] | None = None
+    evidence_refs: Annotated[tuple[str, ...], Field(max_length=32)] = ()
+    ambiguity: Literal['unambiguous', 'ambiguous'] = 'ambiguous'
 
     @field_validator("from_ref", "to_ref")
     @classmethod
@@ -515,6 +533,22 @@ def _validate_candidate_document(document: FloorPlanInterpretationPayload) -> No
             raise ValueError("Observed route has a dangling graph reference.")
         if connection.from_ref == connection.to_ref:
             raise ValueError("Observed route connection must join distinct references.")
+        if connection.evidence_kind is not None:
+            if not connection.from_ref.startswith('segment:') or not connection.to_ref.startswith('symbol:'):
+                raise ValueError('Device contact requires source route and symbol references.')
+            route = next(r for r in document.observed_routes.segments if f'segment:{r.id}' == connection.from_ref)
+            symbol = next(s for s in document.symbols.items if f'symbol:{s.id}' == connection.to_ref)
+            if (connection.source_edge_index is None or connection.source_edge_index >= len(route.points)-1
+                or connection.path_anchor is None or connection.device_anchor != symbol.center
+                or not connection.evidence_refs or any(ref not in evidence_refs for ref in connection.evidence_refs)
+                or not _inside(connection.path_anchor, document.source_plane)):
+                raise ValueError('Device contact has invalid anchors or source evidence.')
+            a,b=route.points[connection.source_edge_index:connection.source_edge_index+2]
+            dx,dy=b.x-a.x,b.y-a.y;length2=dx*dx+dy*dy
+            px,py=connection.path_anchor.x-a.x,connection.path_anchor.y-a.y
+            along=(px*dx+py*dy)/length2
+            if not -1e-8<=along<=1+1e-8 or abs(px*dy-py*dx)/math.sqrt(length2)>1e-6:
+                raise ValueError('Device contact anchor must belong to its observed source edge.')
     for warning in document.warnings:
         if any(reference not in entity_refs for reference in warning.entity_refs):
             raise ValueError("Warning has a dangling entity reference.")

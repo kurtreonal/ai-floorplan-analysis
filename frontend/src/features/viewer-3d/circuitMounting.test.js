@@ -30,3 +30,9 @@ it('ignores mismatched XY, unresolved walls and other-floor targets', () => {
     expect(bound.symbols[0]).toBe(scene.symbols[0])
   }
 })
+
+it('also binds a saved single-target A* route to its explicit installation', () => {
+  const single = { ...record, configuration: { purpose: 'planning',target: record.configuration.targets[0] },result: { segments: [] } }
+  expect(bindCircuitMounting(scene,single,layout).symbols[0].installation).toMatchObject({ elevation_meters: 2.7,state: 'saved_planning' })
+  expect(bindCircuitMounting(scene,{ ...single,result: { segments: [],algorithm: 'unknown' } },layout)).toBe(scene)
+})

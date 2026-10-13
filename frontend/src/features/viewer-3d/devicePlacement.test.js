@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { devicePlacement, sceneCeiling } from './devicePlacement.js'
+import { devicePlacement, deviceConnector, sceneCeiling } from './devicePlacement.js'
 import { buildDraftRoomScene } from '../detection-review/draftRoomScene.js'
 import { roofPreview } from './roofPreview.js'
 import { deviceDragPosition, startDeviceDrag } from './deviceDrag.js'
@@ -9,6 +9,36 @@ const wall = { id: 'w', position: [5, 1.35, 0], size: [10, 2.7, 0.18], rotation:
 const scene = { width: 10, depth: 20, elevation: 0, extent: 20, walls: [wall], rooms: [] }
 const symbol = { id: 's', position: [3, 0, 4] }
 describe('physical preview device placement', () => {
+  it('places terminals inside the back housing on either side of rotated walls, with ceiling entry above lights', () => {
+    for (const angle of [0, Math.PI/2, Math.PI/4]) for (const side of [-1,1]) {
+      const mounted = devicePlacement({...symbol,position:[5+side*Math.sin(angle)*.1,0,side*Math.cos(angle)*.1]},
+        {...scene,walls:[{...wall,rotation:[0,angle,0]}]},'outlet')
+      const before=structuredClone(mounted), rear=deviceConnector(mounted)
+      const normal=[Math.sin(mounted.rotation),Math.cos(mounted.rotation)]
+      expect((rear[0]-mounted.position[0])*normal[0]+(rear[2]-mounted.position[2])*normal[1]).toBeCloseTo(-mounted.size[2]*.35)
+      expect(rear[1]).toBe(mounted.position[1])
+      expect(mounted).toEqual(before)
+    }
+    const light=devicePlacement(symbol,scene,'troffer')
+    expect(deviceConnector(light)).toEqual([3,2.7,4])
+  })
+  it('uses a horizontal outlet plate on every wall orientation without moving the saved anchor', () => {
+    for (const angle of [0, Math.PI / 2, Math.PI / 4]) {
+      const source = { ...symbol, position: [5, 0, 0] }, before = structuredClone(source)
+      const placed = devicePlacement(source, { ...scene, walls: [{ ...wall, rotation: [0, angle, 0] }] }, 'outlet')
+      expect(placed.size).toEqual([.12, .075, .018])
+      expect(placed.size[0]).toBeGreaterThan(placed.size[1])
+      expect(placed.mountedWallId).toBe('w')
+      expect(source).toEqual(before)
+    }
+  })
+  it('gives single fluorescent tubes a narrower housing, keeping their ceiling mount and length', () => {
+    const single = devicePlacement({ ...symbol, presentation: { label: '1x40 watts fluorescent lamp' } }, scene, 'linear-light')
+    const twin = devicePlacement({ ...symbol, presentation: { label: '2x40 watts fluorescent lamp' } }, scene, 'linear-light')
+    expect(single.size[0]).toBeLessThan(twin.size[0])
+    expect(single.size[2]).toBe(twin.size[2])
+    expect(single.position[1] + single.size[1] / 2).toBeCloseTo(2.7)
+  })
   it('mounts a 600 x 1200 mm troffer under the actual wall top, independent of page extent', () => {
     const before = structuredClone(symbol)
     const a = devicePlacement(symbol, scene, 'troffer')

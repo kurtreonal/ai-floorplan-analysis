@@ -406,9 +406,15 @@ class ProcessingJobApiTests(unittest.TestCase):
                 ("get", "/api/projects/{project_id}/estimates"),
                 ("post", "/api/projects/{project_id}/estimates"),
                 ("get", "/api/projects/{project_id}/estimates/{estimate_id}"),
+                ("get", "/api/projects/{project_id}/bom"),
+                ("get", "/api/projects/{project_id}/bom.csv"),
+                ("get", "/api/projects/{project_id}/estimates/{estimate_id}/bom.csv"),
+                ("post", "/api/admin/materials/import/preview"),
+                ("post", "/api/admin/materials/import/apply"),
+                ("post", "/api/admin/symbol-legends/import-trained"),
             },
         )
-        self.assertEqual(len(operations), 43)
+        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
 
     def test_owning_designer_creates_durable_queued_job(self) -> None:
         response = self._post(
@@ -571,8 +577,8 @@ class ProcessingJobApiTests(unittest.TestCase):
         # No-body legacy callers are unchanged; forged fields cannot queue or
         # alter a job through the new strict selection request contract.
         response = self._post(self.floor_plan.id, user_id=self.user_ids["designer"])
-        job = self.database_session.get(ProcessingJob, response.json()["job_id"])
         self.assertEqual(response.status_code, 202, response.text)
+        job = self.database_session.get(ProcessingJob, response.json()["job_id"])
         self.assertEqual(job.floor_plan_id, self.floor_plan.id)
         self.assertEqual(job.job_type, FLOOR_PLAN_ANALYSIS_JOB_TYPE)
         self.assertEqual(job.status, "queued")

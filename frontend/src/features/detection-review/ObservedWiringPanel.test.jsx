@@ -14,7 +14,7 @@ describe('visible wiring review', () => {
     expect(onChange).not.toHaveBeenCalled()
     fireEvent.change(screen.getByLabelText('Source-pixel points'), { target: { value: '10,20\n30,20\n30,40' } })
     fireEvent.click(screen.getByText('Apply wiring changes'))
-    expect(onChange).toHaveBeenCalledWith([{ id: 'manual-wiring-0001', points: [{ x: 10, y: 20 }, { x: 30, y: 20 }, { x: 30, y: 40 }], disposition: 'unresolved', completeness: 'partial', elevation_meters: null }])
+    expect(onChange).toHaveBeenCalledWith([{ id: 'manual-wiring-0001', points: [{ x: 10, y: 20 }, { x: 30, y: 20 }, { x: 30, y: 40 }], disposition: 'added', completeness: 'partial', elevation_meters: null }])
     expect(onVisibilityChange).toHaveBeenCalledWith(true)
   })
   it('preserves explicit elevation on edits and records removal as a tombstone', () => {
@@ -22,17 +22,17 @@ describe('visible wiring review', () => {
     const onChange = vi.fn()
     render(<ObservedWiringPanel wires={[wire]} width={400} height={300} onChange={onChange} visible onVisibilityChange={vi.fn()} view="2d" />)
     fireEvent.change(screen.getByLabelText('Source-pixel points segment-0001'), { target: { value: '10,20\n50,20' } })
-    fireEvent.change(screen.getByLabelText('Wiring decision segment-0001'), { target: { value: 'corrected' } })
+    expect(screen.queryByLabelText('Wiring decision segment-0001')).toBeNull()
     fireEvent.click(screen.getByText('Apply wiring changes'))
     expect(onChange.mock.calls[0][0][0]).toMatchObject({ disposition: 'corrected', elevation_meters: 2.8, points: [{ x: 10, y: 20 }, { x: 50, y: 20 }] })
     fireEvent.click(screen.getByText('Remove wiring trace'))
     expect(onChange.mock.calls[1][0]).toEqual([{ ...wire, disposition: 'rejected' }])
     expect(wire.disposition).toBe('unresolved')
   })
-  it('does not project unmeasured traces into 3D or bypass height approval', () => {
+  it('allows illustrative draft wires in 3D without granting circuit approval', () => {
     render(<ObservedWiringPanel wires={[]} width={400} height={300} onChange={vi.fn()} visible onVisibilityChange={vi.fn()} view="3d" />)
-    expect(screen.getByLabelText('Show observed wiring (2D only)').disabled).toBe(true)
-    expect(screen.getByText(/Unmeasured observed traces are not projected/)).toBeTruthy()
+    expect(screen.getByLabelText('Show wiring').disabled).toBe(false)
+    expect(screen.getByText(/Draft heights are illustrative unless set/)).toBeTruthy()
   })
   it('locks applied edits while a revision save is in flight', () => {
     const wire = { id: 'manual-wiring-0001', points: [{ x: 10, y: 20 }, { x: 30, y: 20 }], disposition: 'unresolved', completeness: 'partial', elevation_meters: null }

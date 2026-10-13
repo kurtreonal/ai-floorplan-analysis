@@ -365,7 +365,8 @@ class SymbolLegendApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 43)
+        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
+        self.assertIn(("post", "/api/admin/symbol-legends/import-trained"), operations)
 
 
 if __name__ == "__main__":

@@ -298,6 +298,20 @@ class ManualSymbolApiTests(unittest.TestCase):
             json=body,
         )
 
+    def test_wiring_reference_cannot_be_added_as_point_device(self):
+        original = self.active.name
+        with Session(self.engine) as session:
+            session.get(SymbolLegend, self.active.id).name = "Raceway conduit concealed in ceiling [pdf-76f411c60b6d:p1:L10]"
+            session.commit()
+        try:
+            response = self._post()
+            self.assertEqual(response.status_code, 409, response.text)
+            self.assertEqual(response.json()["detail"]["error"]["code"], "SYMBOL_LEGEND_UNAVAILABLE")
+        finally:
+            with Session(self.engine) as session:
+                session.get(SymbolLegend, self.active.id).name = original
+                session.commit()
+
     def test_owner_creation_idempotency_snapshot_and_fresh_j1_get(self) -> None:
         request_id = str(uuid.uuid4())
         before = (self.job.status, self.job.progress, self.floor_plan.processing_status)
@@ -467,7 +481,7 @@ class ManualSymbolApiTests(unittest.TestCase):
         path = "/api/floor-plans/{floor_plan_id}/manual-symbols"
         self.assertEqual(set(schema["paths"][path]), {"post"})
         operations = {(method, route) for route, definitions in schema["paths"].items() for method in definitions if method in {"get", "post", "put", "patch", "delete"}}
-        self.assertEqual(len(operations), 43)
+        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
 
 
 if __name__ == "__main__":

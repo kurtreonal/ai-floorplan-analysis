@@ -2,6 +2,10 @@ import { API_BASE_URL } from './auth.js'
 
 const GENERIC_ERROR = 'The approved symbol classes could not be loaded.'
 
+export function isWiringLegend(legend) {
+  return /^Raceway conduit concealed (in ceiling|under floor) \[pdf-/.test(legend?.name || '')
+}
+
 export class SymbolLegendApiError extends Error {
   constructor(message = GENERIC_ERROR, status = 0, code = null) {
     super(message)

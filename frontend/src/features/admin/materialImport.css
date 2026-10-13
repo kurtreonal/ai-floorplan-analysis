@@ -1,0 +1,7 @@
+.material-import { margin-bottom: 1.5rem; }
+.material-import .studio-field { max-width: 36rem; }
+.material-import-table { max-height: 26rem; overflow: auto; margin: 1rem 0; border: 1px solid var(--border, #d9d2c4); border-radius: .5rem; }
+.material-import table { width: 100%; border-collapse: collapse; text-align: left; font-size: .875rem; }
+.material-import th { position: sticky; top: 0; background: var(--background, #faf8f2); }
+.material-import th, .material-import td { padding: .65rem; border-bottom: 1px solid #ded8cc; }
+.material-import small { display: block; color: #64748b; overflow-wrap: anywhere; }

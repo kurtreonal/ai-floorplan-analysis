@@ -588,9 +588,15 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
                 ("get", "/api/projects/{project_id}/estimates"),
                 ("post", "/api/projects/{project_id}/estimates"),
                 ("get", "/api/projects/{project_id}/estimates/{estimate_id}"),
+                ("get", "/api/projects/{project_id}/bom"),
+                ("get", "/api/projects/{project_id}/bom.csv"),
+                ("get", "/api/projects/{project_id}/estimates/{estimate_id}/bom.csv"),
+                ("post", "/api/admin/materials/import/preview"),
+                ("post", "/api/admin/materials/import/apply"),
+                ("post", "/api/admin/symbol-legends/import-trained"),
             },
         )
-        self.assertEqual(len(operations), 43)
+        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
 
 
 if __name__ == "__main__":

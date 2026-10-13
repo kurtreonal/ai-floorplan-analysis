@@ -4,6 +4,764 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 12 automatic endpoint contacts and draft vertical takeoff
+
+- Cause: endpoint attachments previously required an explicit magnet commit; the
+  draft 3D adapter also omitted stored mounting metadata and gated connections
+  behind `metricRouting`, which the draft scene never supplied. Draft BOM counted
+  only planar edges. No detector, model, upload or canonical-layout mutation.
+- PASS: actual device-port contacts now normalize through the shared draft on
+  load, edits and normal save. Backend validates/persists the same attachments.
+  Interior crossings, ambiguous targets and known circuit conflicts do not join.
+  Disconnect opt-outs survive reload; older clients removing an attachment also
+  preserve disconnect intent. Approved historical documents are not rewritten.
+- PASS: 3D preserves mounting metadata, reaches rear terminals, and deduplicates
+  shared device drops. Unmeasured preview heights remain illustrative. Draft BOM
+  measures `abs(service_elevation - (floor_elevation + mounting_height))`,
+  counting one shared device drop at a given service level. Missing drop
+  inputs are flagged; known planar draft lengths stay priceable without approval.
+- PASS live: job 24260 normal browser save created review revision 3, then reload
+  retained 69 endpoint attachments across 45 devices / 35 existing paths. 3D shows
+  45 connected devices; disconnect/undo and live missing-drop BOM notices checked.
+  Original SHA256 remains 915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9;
+  prior revision 2 integrity, walls, device centers and interior wire points preserved.
+- PASS verification: 85 isolated backend tests; 83 frontend files / 688 tests;
+  production build and scoped ESLint. Numeric regression: 7 m planar + 1.6 m drop
+  at nonzero floor elevation = 8.6 m; PHP 10/m yields PHP 86 for each conduit and
+  selected draft wire row. No guessed conductor multiplication or allowance.
+- NOT TESTED: measured vertical pricing on this live plan (saved measurements
+  missing), native 3D drag commit, universal connectivity/detection accuracy.
+  Build retains existing large-chunk warnings; no dependency, table or route added.
+- Files: backend endpoint_connections, demo interpretation schema/service/API,
+  draft_bom_service and tests; frontend deviceConnections, shared draft page,
+  draftRoomScene/draftWiringScene/DraftRoomPreview, connection inspector, BOMPanel
+  and tests. Scoped helper/test checkpoint `a44a3ca` on
+  `codex/vlm-localization-experiment`; mixed pre-existing integration edits
+  remain uncommitted. Original uploads, saved canonical data and stash@{0} kept.
+  Screenshot/diagnostics are private and ignored under lighting-inspection-20261010.
+
+### October 12 explicit wire-endpoint magnets
+
+- Cause: the existing draw-wire tool had geometric magnets, but existing 2D
+  and 3D wire handles only moved vertices and deliberately discarded endpoint
+  attachments. Clicking an existing trace therefore could not magnetically
+  connect it to a device. No detector/model changes in this ticket.
+- Added a shared endpoint-to-device eligibility/commit path in
+  `frontend/src/features/detection-review/deviceConnections.js`. A preview does
+  not create connectivity; release stores exact (including fractional) source
+  coordinates and `device_attachments`, without moving devices, changing
+  circuit/provenance metadata, or creating another route. Interior points,
+  annotations, rejected devices, collapsed segments, equidistant targets and
+  devices already attached to an unrelated run are excluded. Commit revalidates
+  against current state; drag-away or explicit Disconnect detaches intentionally.
+- Integrated into DemoInterpretationCanvas / DemoInterpretationPage,
+  DraftRoomPreview / Viewer3DCanvas / DraftWiring3D. 2D uses a constant
+  screen-space acquisition radius under pan/zoom; 3D projects the existing
+  device connector through the active camera before comparing screen distance.
+  Green target feedback and Escape/pointer-cancel prevent accidental commits.
+  Selected 3D handles and target markers retain useful CSS-pixel sizing as the
+  camera moves. `wireHandleProjection.js` affects editing controls only, not
+  physical tubing, canonical geometry or takeoff quantities.
+- UI/canvas/3D skills kept geometry in the shared draft. The focused UI guidance
+  added a keyboard/click alternative: WireDeviceConnections in the existing
+  inspector, with alphabetically ordered device choices and explicit Disconnect.
+  No added approval gate or automatic proximity-based circuit merging.
+- PASS full frontend tests: 83 files / 684 tests; focused event
+  tests cover Konva endpoint drag/preview/cancel, R3F captured pointer drag and
+  camera-projected targets, perspective/orthographic handle sizing, both-view
+  save/reload, undo/redo, exact anchors and detachment. PASS 24 isolated backend
+  attachment API tests, including existing single measured canonical drop.
+  PASS Vite build and scoped ESLint on all files changed in this ticket. Existing
+  large-chunk build warning and backend Starlette/HTTPX deprecations remain.
+  Full lint was not rerun; the preceding checkpoint recorded six unrelated
+  DeviceMeshCatalog errors. Full backend suite NOT TESTED for this UI ticket.
+- PASS live browser save/reload: plan 9384 / job 24260 revision 1 stored an
+  explicit start attachment to symbol-0037. Reload and the 3D inspector restored
+  it. A temporary 3D-side end connection was undone. Revision 2 disconnected
+  the diagnostic attachment and restored the exact raw wire points. Read-only
+  database verification found all 35 original paths and all 58 device centres
+  unchanged, zero new generated paths, and no layout approval. Original runs
+  and uploads were not edited or reanalyzed; these are appended review revisions.
+- NOT TESTED/conclusive: native live drag automation selected an overlapping
+  device in one 2D attempt (immediately undone), and did not conclusively acquire
+  the 3D handle. Do not count those attempts as a browser drag pass. Automated
+  component event tests and the live keyboard/click save path are separate proof.
+  Missing measurements still prevent measured wall drops; no heights inferred.
+- Files: the shared helper plus the six integration components above,
+  WireDeviceConnections.jsx, wireHandleProjection.js and related tests,
+  including new WireHandle.test.jsx / wireHandleProjection.test.js. This is an
+  uncommitted feature diff on codex/vlm-localization-experiment; existing dirty
+  files and stash@{0} remain untouched. No dependency, API or schema changes.
+  No next roadmap or training ticket started.
+
+### October 11 source-evidence refinement checkpoint
+
+- Evidence-backed cause: fresh upload 9384 / job 24258 exactly matched the
+  earlier raw result, so this reproduction was not random reanalysis drift.
+  Global Hough voting/masked fixture endpoints favoured repeated ceiling grids;
+  dashed-corner grouping retained interrupted grid/text fragments. Grayscale
+  wall seeding missed faint chromatic structural bands. Old manually corrected
+  geometry was cleaner than raw inference and must not be counted as detector
+  accuracy. This diagnosis does not exclude every historical failure mode.
+- Implemented bounded fixture-axis source-ink extraction, including real
+  repeated dashes, with glyph interiors excluded from evidence. Alignment
+  bounds the search but creates no electrical attachments/junctions. Ambiguous
+  connections remain unresolved. Fixture-rich scans no longer use global
+  Hough corner grouping to promote interrupted grid/text strokes. Other drawing
+  styles retain the previous path; existing gateway observations are untouched.
+- Implemented guarded chromatic wall-band refinement after symbol detection:
+  sustained broad evidence in both axes, glyph exclusion, grid/outline guards,
+  source-backed endpoints and same-filled-band duplicate suppression. White
+  openings and distinct parallel partitions remain separate. Monochrome and
+  insufficient-colour evidence fall back unchanged. Opening references are
+  protected; rooms derived from superseded wall hypotheses are invalidated.
+  No filename/hash-specific coordinates or annotation overlay in production.
+- PASS exact-source private replay: original SHA256 remains
+  `915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9`.
+  Against the **partial** 34-segment wall reference, length-weighted coverage
+  at 12 pixels improved 22.8% -> 84.1%, distance precision 40.8% -> 80.2%.
+  Against eight annotated wiring polylines, coverage at 16 pixels improved
+  24.1% -> 82.6%, distance precision 31.6% -> 92.0%. These are geometric
+  partial-reference comparisons, not electrical/topology correctness or
+  independent detection accuracy. FAIL/unproven 85% overall wall target.
+  Private evidence: `refinement-metrics.json`, `refinement-before.png` and
+  `refinement-after.png` under the ignored lighting-inspection directory.
+- PASS browser reanalysis: new jobs 24259 and 24260 on fresh plan 9384 contain
+  identical raw payloads and pinned source/model/runtime/configuration. Each
+  has 43 walls, 58 unchanged symbols, 35 observed paths, no invented electrical
+  connections and zero review revisions. Reload preserved the result. Raw
+  evidence versions are CV v11 / wiring v6; parameters are stored in provenance.
+  Actual browser screenshot: `refinement-live-24259.png`. No new manual
+  annotation was used to produce these runs.
+- PASS preservation: old plan 9376 / job 24256 still has exactly 34 corrected
+  walls and eight ceiling annotations; historical candidate/review hashes and
+  original pixels unchanged. `power-layout.png` separately retains its 13-wall
+  monochrome fallback; this is a compatibility check, not power-layout accuracy.
+- PASS final focused backend gate: 97 tests + 13 subtests (9 new evidence
+  regressions included). PASS 44 frontend editor/connection tests and Vite build.
+  PASS final full frontend run: 81 files / 670 tests.
+  FAIL full frontend lint: same six pre-existing DeviceMeshCatalog errors;
+  not changed in this ticket. Build warns about large chunks; backend reports
+  existing Starlette/HTTPX deprecations. OpenAPI 41 paths / metadata 34 tables,
+  no DDL or dependency changes. Full backend suite NOT TESTED in this checkpoint.
+  Additional candidate/concurrency/source-coordinate gate: 68 tests + 8
+  subtests PASS, including immutable/stale-safe review saves.
+- Remaining: curved/elbow switch branches and missing symbols are not all
+  recovered; fixture-rich extraction deliberately leaves unsupported branches
+  unresolved rather than inventing topology. General coloured drawing styles
+  need a larger independently annotated regression set. Candidate wall-band
+  width is used as evidence but the existing candidate contract still does not
+  persist that width as a measured wall thickness. Measured 3D drops require
+  stored scale/elevations; no new 3D guarantee or model-training claim.
+- Git scope: `f605974` on `codex/vlm-localization-experiment` checkpoints only
+  the new evidence helpers and isolated regression
+  file. Integration edits in automatic_wiring, demo_cv and the worker, this
+  ledger, and prior unrelated dirty work remain in the working tree rather than
+  being silently swept into the component checkpoint. Original uploads,
+  corrections and stash@{0} remain preserved. No next roadmap/VLM ticket started.
+
+### October 11 manual fresh-upload comparison
+
+- PASS requested computer-use workflow: selected Downloads
+  `4-lightinglayout.jpg` through the normal file chooser, clicked Upload floor
+  plan, then Start processing and Open plan editor. Separate plan 9384 / job
+  24258 completed; original plan 9376 and its corrections were not edited.
+- PASS read-only source comparison: the new stored upload matches the original
+  SHA256 `915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9`.
+  Its raw payload exactly equals job 24256; there are no review revisions on
+  the new run. The UI shows 11 walls and 37 wiring paths; the payload has 58
+  symbols. This comparison does not inherit the 34 manually corrected walls
+  or eight manually annotated paths from the old plan.
+- FAIL detection-quality result: fresh overlays remain fragmented/messy versus
+  the user's first supplied screenshot. Prior annotation-preservation success
+  was not automatic detector improvement. No production algorithm change or
+  accuracy claim in this upload-only verification. Evidence screenshot:
+  `storage/training/lighting-inspection-20261010/manual-upload-fresh-24258.png`.
+  Computer-use and CV guidance kept the fresh case separate from human review.
+
+### October 11 exact-source reanalysis and explicit connections checkpoint
+
+This is a **partial implementation checkpoint, not completion of the raw
+wall/wiring quality ticket**. No model training, promotion, download or
+page-specific detector overlay was introduced.
+
+- PASS exact comparison: Downloads `4-lightinglayout.jpg` is byte-identical to
+  stored plan 9376/page 2975: SHA256
+  `915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9`,
+  1340 x 3264. Jobs 24249 and fresh 24256 have exactly equal raw payloads:
+  11 walls, 58 symbols, 37 observed trace segments and zero rooms. Tested
+  tolerance: exact payload/coordinate equality, not a universal runtime claim.
+  Earlier runs used different checkpoints/configurations and are not equivalent
+  repeated-inference comparisons. The supplied screenshots lack run IDs, so
+  they cannot establish a particular historical raw candidate association.
+- PASS preservation: fresh job 24256 inherited the exact 34 corrected wall
+  segments and eight source-bound ceiling paths, with no generated branches.
+  Saved unfinished review revision 1 through the browser and reloaded it;
+  private read-only verification matched every vector and verified prior
+  candidate/review hashes and original-file integrity. No layout or dataset
+  approval was inherited. Job 24255 failed during this verification due to a
+  missing provenance-serialization import; it remains in history. The import
+  was fixed and retry 24256 completed successfully.
+- Cause/owners: only full manual replacements previously carried forward;
+  partial corrections could disappear. `reviewed_reference.py` now rebases
+  corrections by exact source/evidence identity, preserves unmatched human
+  geometry as manual drafts and remaps explicit attachments. Original
+  candidates/history remain separate. Repository/service latest-run queries now
+  use submitted processing-job order, not completion/insertion order. An
+  isolated regression completes an older job last and confirms the newer run
+  stays current and saved canonical geometry is unchanged.
+- Cause/owners: ordinary review loads/saves previously added nearest-anchor
+  A* branches, geometrically joined independent runs and pruned paths;
+  draft 3D also inferred nearby-device drops independently. `draft_wiring.py`
+  now preserves saved paths without that completion policy. The old algorithm
+  remains an explicit legacy benchmark opt-in, not a load/save API behavior.
+  `draftWiringScene.js` no longer manufactures proximity connections or measured
+  drops in relative previews. Observed/user-edited/generated data stay distinct.
+- PASS placement/attachments: `DemoInterpretationCanvas.jsx`,
+  `DemoInterpretationPage.jsx`, `deviceConnections.js`, schemas and review
+  service implement pointer-follow placement, inverse-transform coordinates,
+  one-click placement then exit, Escape cancellation including focused chooser,
+  select-mode-only dragging, explicit endpoint snap feedback/commit, immutable
+  connected movement, detach and undo/redo/save integration. Ambiguous/occupied
+  endpoints are not guessed; detach before choosing an independent run. Interior
+  junction splitting is deliberately unsupported. Browser: selected a switch,
+  cancelled without adding it, placed one temporary device (58 -> 59), then
+  undid it (59 -> 58) with all eight paths unchanged and reloaded the saved
+  result. Live pointer-hover and live drag-to-snap were NOT TESTED; unit/API
+  tests cover these interactions and persisted attachment validation.
+- PASS measured model contract: `canonical_extension.py`,
+  `canonicalExtension.js`, `canonicalScene.js` and compatibility tests add
+  version-3 explicit mounting data without changing K1 or version-2 snapshots.
+  Canonical save uses supplied mounting height, approved floor elevation/scale,
+  explicit service-level route and an optional validated wall reference to put
+  the vertical segment in the same canonical route. There is no second inferred
+  connection. Configured wall placement outside its measured wall band fails
+  measured save, not unfinished 2D save. Actual measured 3D for plan 9376 remains
+  NOT TESTED: its saved paths have no measured elevation/mounting configuration;
+  the relative preview is not a measurement source.
+- FAIL raw wall target: production wall evidence remains v10 and the detector
+  still emits 11 walls on the lighting source. Pair/grid contamination and a
+  page-wide outlined-width cutoff remain unresolved. Private color/width
+  experiments recovered more reference length but also accepted fixtures and
+  unrelated strokes (one guarded variant: 73.04% reference-length coverage,
+  78.42% distance precision at 12px). They were NOT activated. These are
+  annotation-distance diagnostics, not independent detector accuracy. The
+  automatic detector has not met an 85% wall-quality gate. No permanent or
+  universal detection guarantee is claimed.
+- Separate regression drawing: read-only `power-layout.png` replay, 1765 x 1084,
+  SHA256 `2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94`,
+  gives 13 raw walls; original unchanged. No independent complete wall reference
+  is available for an accuracy claim. General observed-path extraction/junction
+  quality still needs additional work; disabling unsafe completion is not proof
+  that dashed/grid/fixture separation is solved.
+- PASS gates: full frontend 81 files/670 tests; final focused placement/snap
+  suite 39 tests; production build and scoped ESLint. Backend isolated broad
+  geometry/wall/grid/gap/coordinate/observed-wire gate: 207 tests + 901 subtests;
+  separate CV/routing/worker set: 104 tests + 13 subtests; worker/execution set:
+  32 tests. Final attachment API retest: 24 tests. These overlap; do not sum them
+  as unique coverage. Full backend suite NOT RUN. Full frontend lint FAILS on
+  six pre-existing `DeviceMeshCatalog.jsx` errors outside this patch. Existing
+  >500 kB build and Starlette/anyio deprecation warnings remain.
+- Preservation/cleanup: 41 OpenAPI paths/34 metadata tables, no DDL/dependency
+  changes. Original files, historical reviews, unrelated dirty edits and
+  stash@{0} (`bb78854e87833124a1725b51f0be6099a8ac0cfa`) retained. Diagnostic
+  images/logs remain private ignored artifacts, not training labels or uploads.
+  Scoped checkpoint covers nine isolated mounting/connection contract files;
+  integrations overlapping pre-existing dirty files remain unstaged rather than
+  sweeping unrelated work into a commit. Next priority remains the raw wall and
+  observed-wire quality ticket: investigation started, production fix not yet
+  validated or activated.
+
+### October 11 consistent UI list ordering
+
+- Scope: one shared, non-mutating display-order helper. Named lists use English
+  case-insensitive A-Z with natural embedded numbers and stable identity ties;
+  blank labels come last. Floor lists retain explicit saved sort_order (then
+  name), source pages use plan/page numbers, and wiring lists use natural IDs.
+  Projects default to name order; the existing newest-update option remains.
+  Fixed workflows, coordinate/boundary points, user-added form row indices,
+  estimate version history and captured estimate line order retain their
+  meaningful existing sequence. No global DOM sorter or geometry reordering.
+- PASS implementation owners: utils/listOrder.js, shared legendChoices,
+  AdminMaterialImport, BOMPanel, EstimatePage, DemoInterpretationPage,
+  ObservedWiringPanel, DetectionInspector, LayoutSymbolEditor, Viewer3DPage,
+  RoutingPanel, CircuitPlanningPanel, ProjectDashboardPage,
+  ProjectFloorUploadPanel and AnalysisSettingsPanel. Catalog aliases retain
+  selected IDs and identity grouping; imports/prices, canonical geometry,
+  routing, quantity calculations and persistence contracts are unchanged.
+- PASS verification: all 80 frontend files /663 tests, scoped ESLint and Vite
+  production build. Existing greater-than-500-kB bundle warning remains.
+  Tests cover frozen/non-mutated input arrays, natural numbers, explicit floor
+  and page order, selected catalog aliases, alphabetized material choices,
+  unchanged prices and project name/newest-update switching. Two old default
+  order assertions were updated to match this requested behavior. Backend
+  tests NOT RUN: no backend/API/database changes; full-repository lint NOT RUN.
+- PASS live browser: job24246 device picker, class catalog, conduit options and
+  material table show sorted descriptions. Selecting the first downlight retains
+  its catalog ID1779 and saved coordinates; Undo stays disabled. No console
+  errors, save, reanalysis, price change or role switch. Proof screenshot:
+  storage/training/alphabetical-catalog-lists-20261011.jpg.
+- Safety/state: presentation-only, no new dependency/table/endpoint, original,
+  annotation, detector or training change. Focused-change skill kept sorting at
+  existing display boundaries. Work remains uncommitted on
+  codex/vlm-localization-experiment at5789c6b; unrelated dirty edits and stash
+  retained. No commit/push and no next roadmap phase started.
+
+### October 11 bottom estimation table and left wiring toolbar
+
+- Scope: presentation-only work in the shared plan editor. Estimation is the
+  last full-width section below the workbench and optional measured-layout
+  controls. Conduit, wire/cable and plan-scale inputs are grouped above a
+  bordered, alternating-row material table; priced subtotals live in its footer.
+  Numeric columns remain aligned, missing prices remain explicit, and the
+  labelled keyboard-focusable table region scrolls locally on narrow screens.
+- PASS wiring controls: Show wiring, point editing, trace add/restore/remove
+  controls and new-wire ceiling/under-floor selection live in the left tool
+  rail, before layer controls. Selected device/wall/wire properties stay in
+  the inspector. Existing shared wiring state, undo/save behavior and saving
+  locks are preserved. Side-panel scrolling prevents a long inspector from
+  extending the blueprint column into excess blank space.
+- PASS verification: all 79 frontend files /659 tests, scoped ESLint and Vite
+  production build. Existing greater-than-500-kB bundle warning remains.
+  Focused 34 tests cover sidebar containment, visibility across 2D/3D, placement
+  persistence, last-section estimation, pricing controls and table subtotals.
+  Backend tests NOT RUN this turn: no calculation/API/database changes.
+- PASS live browser: Designer job24246, wiring toggle and ceiling option
+  confirmed in the left rail; last-section estimation and 1073-pixel table
+  confirmed at 1440-pixel desktop test width. At 375 pixels, the 560-pixel table
+  scrolls inside a 286-pixel local region without page-width overflow. Temporary
+  viewport override reset; wiring visibility restored; no live save or prices
+  changed. No browser console errors. Proof screenshots:
+  `storage/training/bom-left-wiring-controls-20261011.jpg` and
+  `storage/training/bom-bottom-table-20261011.jpg`.
+- Owners: DemoInterpretationPage, ReviewToolRail, BOMPanel, workspace.css and
+  focused UI tests. UI/canvas skills kept canonical geometry untouched; styling
+  guidance retained existing tokens and semantic controls. No new dependency,
+  table, endpoint, model/training/original/annotation change or next roadmap
+  phase. Work remains uncommitted on codex/vlm-localization-experiment at
+  5789c6b; unrelated dirty edits and stash preserved; no commit/push.
+
+### October 11 wire price controls and matching-device batch edits
+
+- Scope: replace the misleading wire allowance label with draft cable route
+  length, without an extra allowance charge. Wire and conduit remain separate
+  products/cost lines. Optional custom PHP/metre wire pricing overrides the
+  calculator price, including zero; roll pricing divides the database purchase
+  price by explicit metres per purchase unit. Only a unique explicit product
+  length such as `(305M)` supplies a suggested conversion. No inferred gauge,
+  conductor multiplier, waste or installation specification. Missing saved
+  circuit specifications remain flagged; this is not conductor purchase takeoff.
+- PASS device identity: unique exact active catalog class IDs or complete
+  approved drawing-legend identities automatically populate the class control.
+  Model indices are not database IDs; ambiguous/unknown matches stay editable.
+  Raw detector identity, confidence, originals and approval state are preserved.
+- PASS matching-device edits: class/price changes apply together to active
+  matching devices in the current plan. Unknown identities stay isolated and
+  deleted items are excluded. Positions remain individual. Changing class
+  clears old custom prices; an explicit group PHP price overrides catalog
+  pricing for the draft only. Existing append-only save, concurrency and
+  ownership controls persist changes without creating approval or changing
+  Admin prices or historical estimate snapshots.
+- PASS backend verification: 106 tests and 15 subtests passed using the isolated
+  restricted verification database; two existing deprecation warnings remain.
+  Coverage includes custom/zero pricing, roll conversion, source scale,
+  historical price snapshots, persistence and authorization. Full backend suite
+  NOT RUN. PASS frontend: all 79 files /658 tests, scoped ESLint and production
+  build. Existing greater-than-500-kB chunk warning remains; full-repository
+  lint NOT RUN. Batch-edit tests prove unchanged positions and rejected items.
+- PASS live computer-use: job24246 automatically selected catalog class159 for
+  troffers. A temporary PHP123.45 edit appeared on a second matching device in
+  the 43-device group; Undo restored it. Temporary wire PHP20/metre priced all
+  eight source paths, subtotal PHP2046.51 using approximate A3 sheet scaling,
+  without an allowance surcharge. Explicit 100-metres-per-roll conversion of
+  the PHP13594.50 test SKU also priced the eight paths (PHP13910.61 subtotal);
+  that fire-alarm SKU was a transient unit-conversion test, not a lighting cable
+  specification. Test prices restored and no live draft saved;
+  persistence is verified in isolated tests. Proof screenshot:
+  `storage/training/bom-wire-group-pricing-20261011.jpg`.
+- Safety/state: no training, detection, original/annotation/model edits, role
+  changes, pricing import or scale approval. No added tables/dependencies/API
+  paths; previous 41 paths /49 operations /34 tables not recounted. Query inputs
+  extend existing BOM/CSV endpoints. Changes remain uncommitted on
+  `codex/vlm-localization-experiment` at `5789c6b`; unrelated dirty changes and
+  stash retained. No push and no next roadmap ticket started. Routing/CV skills
+  kept costs server-owned and detector evidence separate; focused-change and
+  UI guidance kept this inside existing draft controls.
+
+### October 11 separate wire/tube pricing, custom sheets and device-price fallback
+
+- Scope: user explicitly accepted approximate paper-size pricing rather than
+  aspect-ratio blocking. A4/A3/A2/A1/A0 and optional custom width/height in mm
+  fit the long image edge to the long sheet edge at 1:100. A3 is the new-plan
+  default. Cropped/mismatched images now produce an advisory approximation,
+  not a measured calibration; stored exact-page scale still wins. No scale
+  record, source drawing or detection is modified by the calculator.
+- PASS: separate conduit and wire/cable dropdowns, independent database SKU
+  prices and separate BOM lines. Explicit draft cable choice is labelled an
+  assumed one-priced-metre-per-route-metre allowance, NOT aggregate conductor
+  purchase quantity. No inferred gauge, count, waste or vertical drops. Roll
+  conversion remains flagged for that item without blocking conduit costs.
+  Cable managers/accessories are excluded; data/fibre cable is not silently
+  assigned to power circuits. Saved current circuit specifications retain
+  their existing measured quantity/conductor/conversion rules.
+- PASS: selected-device right sidebar accepts optional bounded PHP unit price.
+  Saved through existing immutable draft review JSON and concurrency/ownership
+  controls, survives reload, and prices that individual device only when
+  catalog costing cannot resolve it. Different custom prices remain separate
+  quantity groups. Catalog prices and saved historical estimates are unchanged.
+  Saving a draft creates no layout/dataset approval. No new table/dependency.
+- PASS verification: restricted empty verification database, 104 tests and 15
+  subtests passed (two existing deprecation warnings); all 79 frontend files /
+  653 tests passed; scoped ESLint and Vite production build passed. Existing
+  >500 kB build warning remains. Tests cover every standard/custom size,
+  invalid dimensions, measured-scale precedence, read-only scale fallback,
+  separate wire/conduit known answers, roll-unit refusal, device-price grouping,
+  zero-price handling, save/reload/authorization and historical price snapshots.
+  Full backend suite and full-repository lint NOT RUN.
+- PASS computer-use: live Designer job24246 calculates on all standard sizes.
+  With temporary EMT half-inch product at PHP360 per stated one-metre length:
+  A4 subtotal26049.10, A3 36837.11, A2 52098.08, A1 73761.77, A0 104284.01;
+  custom300x600mm subtotal52624.37. These are priced conduit subtotals, not
+  engineering-approved measurements or complete project totals. Temporary
+  fire-alarm roll selection flags eight purchase-unit conversions. Temporary
+  PHP123.45 selected-device input was tested and undone, NOT saved to the live
+  project; persistence is verified by isolated API/UI tests instead. Temporary
+  conduit/cable overrides and custom dimensions restored; A3 fallback retained.
+- Safety/state: no live project save, pricing import, scale approval, reanalysis,
+  training, original/annotation/model modification or role change. Only verified
+  owned local backend processes refreshed. No new API paths/tables (prior
+  41 paths /49 operations /34 tables not recounted); query/review schema fields
+  extended compatibly. Work remains uncommitted on
+  codex/vlm-localization-experiment at5789c6b; unrelated edits/stash preserved.
+  Proof screenshots under ignored storage/training/bom-*-20261011.jpg.
+  No commit/push and no next roadmap ticket started.
+
+### October 11 read-only draft conduit calculator and paper-scale fallback
+
+- Scope: make the stated one-metre conduit price basis usable in the BOM without
+  approving symbols, changing training data or rewriting saved estimates.
+  Routing, surgical-patch and lean-build guidance kept calculation server-owned,
+  reused the existing BOM/CSV services, and excluded inferred conductor/waste
+  rules. UI guidance kept two labelled calculator inputs inside the BOM.
+- PASS implementation: explicit active priced conduit SKU choice maps measured
+  drawing conduit rows to metre/length units at one metre per listed length,
+  as supplied by the user. Installation labels stay distinct. Device quantities,
+  cable conductor semantics and saved route specifications are not overwritten.
+  Product category plus pipe/tube/conduit identity excludes accessories such as
+  threaded rods even if the workbook groups them under conduit. Missing scale,
+  ambiguous identity and missing prices never become zero-valued costs.
+- PASS planning fallback: optional A4/A3/A2/A1/A0 full-sheet sizes at 1:100,
+  orientation independent; page aspect mismatch beyond 5% refuses calibration.
+  Stored measured scale always wins. Assumed scale is labelled in item basis,
+  source metadata, warnings and CSV, never persisted as a reviewed scale.
+  The selected draft SKU and requested paper assumption are also recorded in
+  CSV metadata. Existing saved estimate downloads remain unchanged.
+- PASS tests: 79 frontend files / 650 tests, focused two files / six tests,
+  scoped ESLint and Vite build. Restricted empty verification database gate:
+  63 passed, 15 subtests passed, two existing deprecation warnings. Includes
+  7-metre × 360 = 2520 known answer, separate ceiling/under-floor traces,
+  source immutability, invalid SKU/scope refusal and price-history preservation.
+  The accessory filter first exposed a generic test fixture name; fixture now
+  uses an actual pipe identity and the final affected gate passes. Full backend
+  suite/full-repository lint NOT RUN. Existing >500 kB chunk warning remains.
+- PASS computer-use: Designer job24246 now has priced database conduit options
+  (catalog was populated independently since the prior empty-catalog check).
+  Temporary EMT half-inch choice280 and A3 assumption trigger the explicit
+  cropped-page rejection. All eight traces remain source pixels, not invented
+  metres. CSV downloaded and verified with the rejection reason; UI selection
+  controls restored to no overrides. Undo disabled; no captured console errors.
+  Screenshot: storage/training/bom-calculator-20261011.jpg. Downloaded test CSV:
+  C:/Users/kupal/Downloads/ved-draft-bom-10218 (1).csv. Final CSV choice metadata
+  is covered by the isolated API gate, not another live download.
+- BLOCKED actual plan total: current tall cropped source does not match a full
+  standard sheet and has no exact-page scale. A known dimension or reliable
+  uncropped source remains necessary. Device SKU mappings and reusable saved
+  conductor specifications also remain explicit inputs, not engineering guesses.
+- Safety/state: no live import, account switch, project save, scale approval,
+  reanalysis, training or original/annotation/model writes. Only verified owned
+  local backend processes refreshed to load code. Existing 41 paths / 49
+  operations / 34 tables unchanged (not recounted), no dependency/schema changes.
+  Local uncommitted work remains on codex/vlm-localization-experiment at5789c6b;
+  unrelated edits/stash preserved. No commit/push or next ticket started.
+
+### October 11 rear device terminals, selection glow and proportional wiring
+
+- Scope: shared 3D presentation only. Routing/asset/visualizer and surgical-patch
+  guidance kept display geometry out of canonical measurements; spreadsheet
+  guidance kept the supplied price workbook read-only. No backend pricing,
+  detection, circuit specification or training change in this slice.
+- PASS implementation: devicePlacement exposes a shared rear terminal for wall
+  devices and top terminal for ceiling fixtures. Draft wiring and trusted saved
+  route connectors consume it without moving stored source anchors. Display
+  tubes use a 0.006 illustrative radius scaled with draft scene units, removing
+  the absolute radius floor that dwarfed switches in whole-plan previews.
+  DeviceMesh passes selection into DeviceBody: warm emissive plates, housings
+  and light surfaces remain visible from front/rear/top. Contacts stay dark.
+  Selection is not an energized-circuit simulation or engineered conduit size.
+- PASS tests: 79 frontend files / 648 tests; seven focused files / 37 tests;
+  scoped ESLint and Vite production build. Rear terminals cover rotated walls,
+  immutable inputs, ceiling tops, draft and saved attachments. Tube/device ratio
+  covers four preview scales. Selection covers faceplates, housings and lenses.
+  Existing >500 kB chunk warning remains. Full lint and backend suite NOT RUN
+  for this frontend-only slice; no dependencies, endpoints or tables added.
+- PASS computer-use: direct 3D fixture click selects symbol-0026 (Troffer
+  lights), with warm housing glow visible in the connected Designer preview.
+  Slender ceiling tubes render at close zoom. Undo remains disabled and no
+  captured console errors. Screenshot: storage/training/device-rear-selection-
+  20261011.jpg. Rear wall-terminal geometry is test-proven, not a separate live
+  close-up visual gate. No browser save, reanalysis, import or account change.
+- Pricing evidence: the supplied workbook contains conduit priced per length
+  (e.g. PANASONIC row65, EMT half-inch, selling price360), without specifying
+  meters per length in that description. No accepted row explicitly names
+  THHN/THWN; fibre/data cable prices must not substitute for power conductors.
+  Ceiling vs under-floor labels identify installation, not a product SKU or
+  engineering diameter. Reuse saved conductor counts and meter/unit mappings;
+  missing inputs remain unpriced. Live catalog is still empty and exact-page
+  scale absent: actual total BLOCKED by inputs, not silently zero-valued.
+- Safety/state: workbook/originals, annotations, stored routes, historical
+  estimates, database and model weights untouched. Local uncommitted work on
+  codex/vlm-localization-experiment at5789c6b; unrelated edits/recovery stash
+  preserved. No commit/push, process restart or next roadmap ticket started.
+
+### October 11 automatic draft BOM and Excel-price calculation basis
+
+- Scope: read-only draft takeoff from the open saved plan/job and project data,
+  without confirming individual detections or approving a canonical layout.
+  Routing/estimation guidance kept prices database-authoritative and reused only
+  saved, explicit circuit specifications for the same current measured route.
+  Spreadsheet guidance kept the supplied workbook read-only; UI guidance kept
+  the BOM compact, outside the optional measured-layout approval section.
+- PASS implementation: new draft_bom_service.py, BOM API/CSV service and route,
+  frontend BOM API and BOMPanel, and plan-editor integration. Active device
+  counts include unresolved drafts but exclude rejected symbols and circuit
+  notations. Canonical geometry takes precedence where available. Stored source
+  polylines are measured without taking display-only 3D lane offsets as length.
+  Exact-page scale is required for meters. Complete approved training/catalog
+  identities name predictions without creating a saved review mapping.
+- PASS pricing: unique exact-description matches or explicit saved purchase
+  mappings use current database prices, with separate currency subtotals.
+  Ratings/brands are preserved. Missing/ambiguous material matches, missing
+  prices, scale and unit conversions remain unpriced, not zero. Saved conductor
+  counts and roll conversions are reused only for the same current route;
+  stale specifications do not propagate. No invented gauge, conductor count,
+  waste allowance or vertical drop. Historical estimate CSV prices stay fixed.
+- PASS verification: all 79 frontend files / 645 tests; scoped ESLint; Vite
+  build. Affected isolated backend gate: 274 passed, one skipped, 183 subtests
+  passed, five existing deprecation warnings. The gate covers current-price
+  draft vs historical snapshots, saved conductor/roll known answers, stale
+  route refusal, naming ambiguity, ownership and read-only database counts.
+  Full backend suite/full-repository lint NOT RUN. Existing >500 kB build chunk
+  warning remains. OpenAPI: 41 paths / 49 operations; 34 tables unchanged. No
+  dependency, schema migration or table additions.
+- PASS computer-use: Designer lighting job24246 shows 43 troffers, four
+  downlights, two switches and two outlets; seven circuit notations excluded.
+  Eight exact ceiling paths remain. Draft CSV downloaded successfully without
+  approving or saving a layout. Undo disabled and no captured console errors.
+  Current live catalog has zero active materials, and no exact-page scale or
+  reusable project circuit purchase configuration is available: actual monetary
+  totals remain unavailable, clearly flagged. Admin must import Excel prices;
+  no role bypass, account switch or live import was performed.
+- PASS safety: read-only integrity check on latest job24249 still reports 34
+  exact walls, eight exact ceiling paths, zero generated extras; historical
+  records and original source unchanged; no layout/training approval inherited.
+  No live database writes, inference/reanalysis, training or model mutation.
+  Only the verified local backend was refreshed. Screenshot proof:
+  storage/training/bom-runtime-20261011.jpg; downloaded draft:
+  C:/Users/kupal/Downloads/ved-draft-bom-10218.csv.
+- State: local uncommitted work on codex/vlm-localization-experiment at 5789c6b;
+  unrelated dirty work and recovery stash preserved. No commit/push or next
+  roadmap ticket started. Pending real-input costing is not a passing final
+  estimate or a professionally approved electrical plan.
+
+### October 11 shared 3D wiring presentation refinement
+
+- Scope: apply the reference's cleaner parallel-tube presentation through one
+  shared renderer for draft, saved canonical and generated routes. Routing,
+  asset/visualizer, UI and surgical-patch guidance kept this a display-only
+  change, with no inferred circuits, installation methods or engineering sizes.
+- PASS implementation: continuous 12-sided tubes, restrained material shading,
+  local rounded elbows and terminal caps replace per-edge cylinders. Known
+  ceiling runs with coincident/near-parallel spans get deterministic, tapered
+  vertical display lanes. Source endpoints, branch contacts and device drops
+  stay pinned; unknown installation methods and underground depths stay exact.
+  Original canonical coordinates, 2D wiring and takeoff inputs are unchanged.
+- PASS tests: all 78 frontend test files / 643 tests; scoped ESLint and Vite
+  production build. Coverage includes parallel collisions, source immutability,
+  branch/drop anchors, bounded dense-page fallback, local bend containment,
+  renderer integration, picking/disposal and a three-point underground trace
+  retaining cumulative distances rather than shortcutting its bend. Existing
+  >500 kB build chunk warning remains. Full lint/backend suites NOT RUN for this
+  frontend-only slice; no new dependencies or schema/API changes.
+- PASS computer-use: lighting job24246 and power job24232 render WebGL without
+  captured console errors. Direct tube selection selects manual-wiring-0006;
+  original edit handles remain. Camera/selection checks did not dirty lighting
+  (Undo disabled), and power's pre-existing unsaved edits remain (Undo enabled).
+  No browser save/reanalysis/reload or account change performed. Screenshot:
+  storage/training/lighting-inspection-20261010/lighting-refined-wiring-20261011.jpg.
+- PASS read-only integrity: latest independently created job24249 still contains
+  34 exact annotated wall segments, eight exact ceiling paths, zero generated
+  extras; historical records/original bytes unchanged and no inherited layout
+  or training approval. No database writes, detector/training/model changes,
+  process restarts, commit or push performed. Branch remains
+  codex/vlm-localization-experiment at5789c6b; unrelated changes/stash preserved.
+  Existing 40 paths / 48 operations / 34 tables unchanged, not recounted.
+- Limits: lane offsets and visual bends MUST NOT feed BOM measurements or become
+  stored elevations. Very dense scenes (>512 runs or >1024 edges) fall back to
+  exact source geometry, and crowded groups cap total spread; this is not a
+  promise of collision-free routing. Bundle separation is regression-tested;
+  the live annotated lighting view proves presentation and selection, not a
+  synthetic dense-bundle visual gate. No new approval gate or spacing option.
+  The earlier general wall-quality release gate remains unachieved below.
+
+### October 11 wall-evidence investigation; release gate not achieved
+
+- Scope: continue general wall-quality work on 4-lightinglayout, comparing the
+  existing power-layout source without overriding the user's reference wiring.
+  CV/investigation/surgical-patch guidance kept experiments image-only and
+  rejected settings that inflate coverage by admitting fixtures or ceiling grids.
+- Reproduced baseline on the unchanged 1340x3264 source: 11 wall candidates,
+  22.82% length-weighted reference coverage and 40.81% reference-distance
+  precision within 12 source pixels. These are private comparisons against
+  the 34 user-drawn segments, NOT calibrated accuracy, IoU, a frozen test-set
+  result or proof of the requested 85% detection target.
+- Cause evidence: outlined evidence accepts 112 bands (median width 24 px),
+  including ceiling-grid pairs. That median raises the solid-ink cutoff to a
+  12-pixel radius, suppressing thinner actual walls. Native-axis reservation
+  already activates on this scan; forcing it changes nothing. Rejecting
+  repeated-grid pair edges reduces coverage to 19.67%; excluding through-grid
+  ties alone leaves the final 11-wall result effectively unchanged.
+- Private chromatic-ink falsification: 12-channel-level chroma evidence with
+  bounded original-ink extension and original-image fixture guards reaches
+  70.18% coverage / 85.37% reference-distance precision, but still misses walls
+  and retains false fixture/line fragments. Lowering the stroke radius reaches
+  89.50% coverage / 57.78% precision (105 walls), visibly admitting ceiling
+  grids. Intermediate radius gives 79.51% / 78.87%. Component-only filtering
+  loses fragmented walls. NONE activated, added as a setting, or incorporated
+  into production. Color alone does not establish architectural semantics.
+- Power comparison: unchanged monochrome power-layout.png yields 13 raw wall
+  candidates. Native preview shows perimeter/partition evidence distinct from
+  dashed wiring, but there is no independently annotated power-wall metric in
+  this checkpoint; NOT TESTED 85% accuracy on that plan. Its zero-chroma source
+  also disproves treating the color experiment as a universal replacement.
+- PASS focused existing regression gate using the isolated backend runner:
+  wall detection/gap recovery/native resolution/grid/junction/thinning and
+  demo CV interpretation: 131 tests plus 898 subtests, 16.72 seconds. Synthetic
+  gates passing does not override the failed real-scan gate. No frontend build
+  or full-suite rerun because product source/dependencies were not changed.
+- PASS preservation: computer-use observes lighting job24246 with 34 active
+  wall segments/eight wiring paths and disabled Undo. Read-only integrity also
+  verifies latest job24247 still has 34 exact annotated wall segments/eight
+  exact ceiling paths/zero generated extras, historical hashes and original
+  bytes unchanged, and no inherited layout/training approval. Power original
+  SHA256 remains 2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94;
+  lighting remains 915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9.
+- FAIL / NOT ACHIEVED: general wall-quality fix and independent 85% wall gate.
+  No product CV/router/UI edit, browser save/reanalysis, process restart,
+  database mutation, API/table/schema change, retraining, weight change, commit
+  or push. Existing 40 paths / 48 operations / 34 tables unchanged (not
+  recounted). Only this existing ledger and Git-ignored local replay artifacts
+  changed this checkpoint. Branch codex/vlm-localization-experiment at5789c6b;
+  unrelated dirty work and recovery stash preserved. Lighting tab retained;
+  power tab's pre-existing unsaved edits not reloaded or saved. Next bounded
+  implementation must distinguish crossing-grid cavities from wall bands and
+  verify monochrome/colored positives plus fixture/wiring negatives; not started
+  as a production change. No VLM roadmap phase started.
+
+### October 10 shared wiring design across detected plans
+
+- Cause: draft styling keyed color to observed/generated origin rather than
+  installation. The 3D draft adapter also discarded source line style; saved
+  canonical paths used a separate thin-line renderer. Power and lighting
+  therefore did not share a consistent wiring presentation.
+- Added shared display palette in routing/wiringDesign.js, used by draft 2D,
+  draft 3D, saved canonical 3D and generated routing. Explicit ceiling runs are
+  orange, wall attachments muted, underground runs blue, and unresolved types
+  amber. Origin remains in inspector/provenance, not an installation guess.
+  Preserved solid/dashed source conventions and original source vertices;
+  drawing preview reflects the selected ceiling/underground placement.
+- Continuous 3D tubes and rounded end caps now cover saved canonical paths as
+  well as draft paths. Shared minimum display radius is 0.018 scene units;
+  this is visual thickness only, never conduit sizing or BOM input. Draft
+  wall-device attachments use the same muted wall styling. Existing device
+  attachment geometry, A* routes and editing callbacks are unchanged.
+- PASS: 80 focused frontend tests/12 suites, scoped lint, production build
+  (2123 modules), scoped diff checks. Three old canonical-render assertions
+  initially expected line primitives; replaced them with tube-transform,
+  exact elevation and provenance assertions, then reran successfully.
+  Full frontend/backend suites NOT RUN this frontend-only checkpoint.
+- Live computer-use PASS on lighting9376/job24246 and power9382/job24232:
+  both 2D/3D views render shared installation colors; lighting wire selection
+  and spectator movement work. No captured lighting console errors. Private
+  native PNG proofs: lighting-shared-wiring-design.png and
+  power-shared-wiring-design.png under ignored lighting-inspection-20261010.
+- Read-only integrity PASS: latest lighting job24247 (unsaved review) retains
+  34 exact source wall segments/eight ceiling paths/zero generated extras;
+  prior candidate/review hashes, original bytes and power snapshot unchanged.
+  No review saves, training, weights, auth, prices, schema or API changes.
+  Unknown heights remain illustrative; general detection accuracy is unchanged.
+- Uncommitted on codex/vlm-localization-experiment at5789c6b. Existing dirty
+  work retained; no push, process restart, new controls or dependencies. Existing
+  large-chunk and CRLF warnings remain. Next detector-quality work NOT STARTED.
+
+### October 10 reanalysis preserves source-specific annotation replacements
+
+- Reproduced lighting9376/job24245 in the connected Designer browser: 11 raw
+  wall hypotheses and 100 automatic wiring paths replaced the eight reference
+  paths saved in job24240. Read-only DB comparison confirmed identical page2975,
+  source SHA915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9,
+  and source plane1340x3264; no source-file drift caused this reset.
+- Narrow fix: the nearest earlier saved review may seed a new unfinished draft
+  with its manual wiring/wall replacements only when floor-plan/page identity,
+  source SHA, source plane and drawing-region bounds match. Require explicit
+  rejection of all automatic alternatives, not a mere added wire. Rejected
+  manual vectors remain rejected. Detector IDs are never recycled across runs;
+  new raw hypotheses stay recoverably rejected. Existing current reviews win.
+  No approvals, symbol anchors, circuits, heights, dataset authority or raw
+  candidate JSON are copied. No training, model activation or weights changed.
+- Exact manual reference paths suppress automatic A* additions on load and save;
+  separate authored branches are not silently joined. Optional `draft_walls`
+  response field exposes inherited geometry without inventing a saved review ID.
+  Updated the hidden drawing-region safeguard copy to describe this limited
+  carry-forward behavior. No new public controls, routes, tables or dependencies.
+- Source annotation exportSHA
+  df8cbb83a3935d32a4cb3786c6f6e8f9ecf2f192a914fb93650ce7c3b85296f3 contains22
+  user-reviewed Standard-wall polylines on sheet11 (34 ordered segments). Applied
+  them through normal UI drawing/coordinate controls to job24245/revision1;
+  retained all eight exact ceiling wiring polylines. Earlier auto walls remain
+  recoverable. Excluded deleted coarse walls and opening/doorway annotations;
+  no guessed closure across those intentional gaps. Source workspace unchanged.
+- Live reanalysis through the project button produced job24246. PASS: before
+  saving any new revision, its draft retained34 exact wall segments, eight exact
+  ceiling paths, zero generated paths. Normal save/reload passed; revision2
+  records source/reference provenance, with review/layout approval false. Exact
+  read-only vector comparisons PASS, all captured prior candidate/review hashes
+  PASS, original SHA PASS, prior power-plan24232 hash/history PASS. Symbol count
+  and coordinates remain unchanged. 3D uses the same edited draft and rendered
+  in the connected browser with no captured console errors; heights illustrative.
+- Fixed a related drawing interaction: a top draw-only hit surface prevents
+  existing wall/device hit targets from intercepting A-B-C wall clicks. Stage
+  handles each click once. Regression test PASS; live continuous drawing created
+  the34 editable wall segments before exact source-coordinate entry.
+- PASS focused isolated backend71 tests (reference/routing/review API), frontend
+ 64 tests/six suites, scoped frontend lint, production build2122 modules, scoped
+  diff checks. New optional response is backwards compatible; actual OpenAPI40
+  paths/48 operations/34 tables unchanged. Full backend/frontend suites NOT RUN
+  at this checkpoint. Existing deprecation, CRLF and large-chunk warnings remain.
+- General automatic wall quality NOT FIXED: raw replay still yields11 incomplete
+  hypotheses. Wide paired ceiling/fixture evidence sets outline median24px and
+  suppresses thinner real structure. Private low-radius/solid-only falsification
+  probes increased noise, so no threshold/CV patch was activated. The current
+  plan is corrected using its source-specific annotation, not an85% detector
+  claim. Partial manual corrections and changed source/region are not full
+  replacement carry-forward; wiring inheritance currently requires at least one
+  new observed trace. Unannotated future-plan accuracy remains a separate gate.
+- Uncommitted on codex/vlm-localization-experiment at5789c6b; no push. Existing
+  dirty edits and recovery stash retained. Diagnostic/reference/proof files stay
+  private and ignored under lighting-inspection-20261010. Restarted only verified
+  idle backend14108/33612 to load the fix; replacement launcher28640 stays active
+  on loopback8000. Frontend/other services untouched. Existing UI annotations and
+  originals preserved. Next independent wall-evidence ticket NOT STARTED.
+
 ### October 9 visible wiring review and general wall falsification (after 3dd748b)
 
 - Added source-pixel observed-wiring draft review through the existing strict
@@ -1049,6 +1807,1465 @@ to a trained or released model.
   elevations and circuit associations; explicit installation-method metadata;
   multi-target/shared-segment routing and underfloor/underground planning.
   No general detection accuracy, optimal circuit network or release claim.
+
+### October 7 native-context refinement and development integration
+
+- Cropped negative examples did not reproduce the native-tile column error
+  (<.166 outlet score versus .916 in context). Frozen native-context v9 removed
+  it but lost one outlet; v10 and ridge64 v11 retained the outlet but kept the
+  false column. All failed artifacts are retained and inactive.
+- Ridge16 v12 changes only the class58 output row: 81 scalars changed within
+  the 243-scalar allowance; backbone, BN, box heads and other 79 class rows
+  are byte-exact before save and after serialized reload. 29 dependent native
+  windows / 54,810,000 cache bytes; 93 positive and eight inspected negative
+  anchors; unknown pixels ignored. No new architecture, model download or
+  inference-threshold change. Checkpoint SHA
+  `2800866028ff65f5828b1e592542a3b09a08c15ad4ac7e657f4ade849b856aaa`;
+  refinement manifest `b409bef77ca1...`, training manifest `286ebf9ec56f...`.
+- PASS development source checks at native and .375 scale: **12/12 outlets,
+  1/1 panelboard, 3/3 real LP homeruns**, zero proposals in all **15** inspected
+  non-device patches (including the hatched column). The real homeruns must not
+  be blanket-suppressed. Original 23-page retention **806/830**, 1,473 proposals,
+  no caps, unchanged from run4; switches **3/4, 9/9, 9/9**, PDF lamps **20/20**.
+  Matching remains class-aware one-to-one IoU >=.50, score threshold .50.
+  These tuned/source-dependent checks do not establish full-page precision or
+  independent accuracy; both remain unscored. No 85% or production claim.
+- `power80` v12 is the experimental development default; configured gateway
+  and production release selection remain unchanged. Old `lamps80`/`original56`
+  rollback artifacts and fingerprints are retained. Compact serving manifest
+  `7182de3a9b86...` decodes exactly to the training manifest; an older differing
+  compact file was preserved and not used. All four artifact pins verified;
+  independent read-only agent found no integration blocker. New provenance
+  records refinement identity in the strict ordered inference-parameter tuple;
+  raw candidates and old review revisions are unchanged.
+- PASS: focused isolated worker/candidate/review/refinement **58 tests / 48
+  subtests**, recovery/configuration **63 tests / 38 subtests**, and dedicated
+  current/stale-worker cases **10 tests**. Final full isolated backend after
+  recovery and failure-fence fixes **1,113 tests / 585 subtests**, four
+  skips, five existing warnings; script diagnostic/preparation/probe **57 tests**;
+  full frontend **52 files / 450 tests**, Vite build, compilation and diff checks.
+  Full lint remains FAIL on the unrelated existing `DeviceMeshCatalog.jsx`.
+- Browser job 24188 on existing upload 9377 was interrupted by backend hot
+  reload. Natural lease recovery exposed a missing ORM flush between requeue
+  and page selection (autoflush is disabled); recovery exhausted retries with
+  `PROCESSING_PAGE_SELECTION_REQUIRED`. Added RED reproduction and explicit
+  flush; fresh job **24189** recovered its expired first lease automatically
+  and completed on attempt 2. It actually loaded **power80 / 80 classes / v12**
+  with the pinned refinement, persisted 29 named proposals and valid candidate
+  hash. Not a mock inference or uploaded power-panel browser accuracy claim.
+- Independent review additionally identified stale failure writes bypassing
+  the page-state fence. RED generic-error/timeout tests reproduced overwriting
+  the successor's completed page. Failure handling now locks job, attempt and
+  page, requires the active unexpired owned lease, and atomically commits page
+  outcome with attempt acknowledgment. Stale generic/timeout/cancel paths
+  preserve successor page, candidate and attempts; live failure/timeout retries
+  and cooperative cancellation pass. Read-only reviewer found no remaining
+  boundary blocker. No lease stealing, role bypass or database reset.
+- Designer computer-use PASS: exact L02 trained legend mapping stays unresolved
+  until a separate correction decision; symbol-0004 corrected to (620,268),
+  catalog class161 / legend1782. Unfinished revision1 saved and reload retains
+  name, mapping, state, position and explicitly assistant-authored note.
+  Remove -> Reject -> Undo and Add -> unresolved -> Undo verified without
+  saving temporary edits. Read-only database confirms revision1 hash and
+  completeness/approval false, original SHA `e9f091252f66...` unchanged;
+  old job24187 revision1 remains intact. Browser proof:
+  `storage/previews/browser-verification-20261007/designer-power80-job24189-reloaded.png`.
+- **Not all verification finished:** exact supplied power-panel browser upload
+  was declined, with no bypass. Requested manual upload of the existing prepared
+  `pdf-source-20261004-efa570519f08-v3/power-layout.png` to project10218/basement;
+  then verify its 12 outlets, panelboard, three real LPs and removal of both
+  false outside frame walls through the actual browser review/save flow.
+  3D remains BLOCKED by preview WebGL and missing reviewed scale/elevation/
+  geometry; draft saving needs none of those approvals. Wall-model research
+  and deterministic frame regression are complete below; no trained wall-model
+  or general precision claim. Branch HEAD `85448ef`, task edits uncommitted;
+  unrelated changes and recovery stash remain preserved. No new epic started.
+
+### October 7 resumed Designer verification and bounded column experiment
+
+- Connected computer-use preview confirms the user-selected **DESIGNER** session.
+  Keyboard activation works in the preview; the prior click-only failure is not
+  an application authorization bypass. Reused upload 9377 in project 10218 /
+  floor 6323; job **24187** completed using the unchanged `lamps80` default.
+  Named lamp/switch proposals are visible. Unfinished revision **1** saved a
+  lamp legend link, rounded source position (620,104), and corrected state with
+  an explicit assistant diagnostic note; browser reload preserved all three and
+  the note. Remove -> Reject -> Undo and Add -> unresolved -> Undo worked;
+  temporary edits were discarded, leaving saved revision 1 only. Browser proof:
+  `storage/previews/browser-verification-20261007/designer-draft-reloaded.png`.
+  No completeness, scale/elevation, canonical or production approval recorded.
+  Read-only database verification confirms exactly revision 1 with completeness
+  and approval false; original upload SHA `e9f091252f66...` matches its frozen
+  training derivative. Fresh OpenAPI **44** operations / ORM metadata **33**
+  tables, not a live database row-count claim.
+  Draft 3D reached the viewer but this connected preview cannot create WebGL;
+  rendered 3D is BLOCKED here. Reviewed scale/elevation/geometry are also missing
+  for canonical approval. Neither limitation blocks proposal/draft review.
+- Run4 terminal success and guarded seam/box fusion checks: native and .375
+  power views **16/16** class-and-location matches, **0** proposals in the 14
+  previously inspected negative patches. Native still has one false outlet on
+  a hatched column; it is not a passing full-page precision result. Switch
+  checks **3/4, 9/9, 9/9**; both lamp checks **20/20**. Original 23-page replay
+  **806/830**, 1,473 proposals, no capped pages versus a fresh unchanged default
+  **800/830**, 2,787 proposals, one cap. All are dependent development evidence;
+  partial-page precision and independent accuracy remain unscored.
+- `power80` remains opt-in, pinned to run4 SHA
+  `d68595066681238fa3cfaf612a1e3f30a9b5232b1ed343bf93ced9da43b49477`;
+  compact serving manifest SHA
+  `1a328b6fa391ea2cb22d8ebe32d9f96ab4b071e4fd490985b16a4f1b69432ab1`
+  decodes identically to training manifest `cbea19db...`. Legacy rollback
+  fingerprints/alias formatting remain unchanged. Power-only score warnings
+  retain raw localization/alias evidence within strict candidate bounds.
+- Small same-class clipped fragments are suppressed only with complete seam
+  evidence and fragment/complete area >= .25; distinct classes and tiny adjacent
+  observations are retained. Same-class indexing reduces comparison work, not
+  measured model inference time. PIL success/failure cleanup and bounded cache
+  confirmed by the memory reviewer; no demonstrated accumulating leak.
+- Append-only column inspection v2 adds one wholly inspected non-device patch,
+  no positive relabeling, no human-review claim. `column-v5` manifest SHA
+  `286ebf9ec56ffda32d39f73d04f65058c2bad9e99544de6fcc26c4005ffc5470`:
+  all **11,075** parent files byte-identical, **80** mappings, **16** prior power
+  positives and **2,044** positive windows retained. **27** translated/resized
+  negative views use inspected pixels plus known-white padding only. Totals:
+  **547** negative windows / **15** inspected power negative regions. Before
+  training, the column check reproduces **1 native / 0 small** false proposals.
+  One CPU epoch `power-quality-20261007-run5` completed (exit 0), checkpoint SHA
+  `9ef7f41096ec560fcccd96490ed13a9d23547ccad18ffe7011829a38dc595962`.
+  **FAIL quality / inactive:** 16/16 power matches at both scales, but column
+  false outlet remains (1 native / 0 small), and two small-scale grid bubbles
+  become false homeruns in the old inspected negatives. Switch checks 3/4,
+  9/9, 9/9 and PDF lamps 20/20 do not override those failures. Run4 stays pinned;
+  unchanged `lamps80` remains default. No larger run/model/download/promotion.
+- Fresh focused PASS: detector/profile/account selection **39 tests / 21
+  subtests**; preparation/probe **40 tests**, plus source/sampling/hash validators.
+  Fresh full isolated backend **1,097 passed / 558 subtests / 4 skipped / 5
+  existing warnings**; full frontend **52 files / 450 tests**; Vite build,
+  compilation and diff checks PASS. Full lint FAIL: six pre-existing errors in
+  unrelated untracked `DeviceMeshCatalog.jsx` (unused React, mixed exports and
+  conditional hooks), not changed to hide failures. Existing large-bundle warning
+  remains. Explicit `power80` isolated worker/candidate/review/save integration
+  **46 passed / 11 subtests**, with restricted empty verification database and
+  temporary storage. Branch/HEAD and recovery stash unchanged;
+  task changes are uncommitted, unrelated work preserved.
+
+### October 7 frozen classifier/context diagnostic (not activated)
+
+- Designer preview reconfirmed; existing job 24187 revision 1 reloads the named
+  DepED L02 lamp, corrected decision and (620,104) position. New power-panel
+  browser upload was declined by the browser's permission control; no alternate
+  upload/session bypass attempted. Existing upload and draft remain usable.
+- Preparation ancestry defect fixed: immediate parent manifest is archived by
+  exact hash before extending history. Added missing `cbea19db...` archive to
+  column-v5 after run5; manifest `286ebf9e...`, labels and original bytes unchanged.
+  Fresh preparation/frozen-probe proof: **41 tests PASS**.
+- Independent agent evidence: run5 changed 415/499 state entries, 162 BN
+  buffers, 155 box-head entries and every class row. The 27 new column crops
+  were only 0.486% of 5,556 shuffled training images. Dilution is a hypothesis,
+  not proof of the entire failure mechanism; no reliable shape-only guard found.
+- Narrow offline tool `repair_symbol_class_tail.py`: only 243 class58 output
+  scalars train; backbone, BN, boxes and the other 79 rows remain exact. Checks
+  all 499 state entries before save and after serialized reload. No optimizer
+  resume, profile edits, production approval or unknown-region background labels.
+  New optional loss masks rank at most 32 anchors inside explicit inspected
+  rectangles; dimensions, finite values, class and image bounds fail closed.
+- Cropped-negative v8: 100 steps, 59 dependent windows, 111,510,000 cache bytes;
+  checkpoint `0f3fee40...`. **FAIL:** column remains. Exact training crops gave
+  maximum raw outlet scores <0.166 whereas native tile (896,704) gave 0.916.
+  Cropping/white-padding context therefore failed to reproduce the actual error.
+- Native-context v9: nine exact source tiles + 32 old positive controls, 100
+  steps, 77,490,000 cache bytes; checkpoint `51c91633...`. **FAIL / inactive:**
+  column removed, but native matches fall to 15/16 (11/12 outlets); small 16/16.
+  Original annotation coordinates and source images are never altered.
+- Native-control v10: 29 source tiles, geometry-selected best-two contained
+  views of each of 12 reviewed outlets plus inspected negative intersections;
+  100 steps, 54,810,000 cache bytes. Teacher-logit preservation applies only to
+  known positives with baseline class score >=.5 and source-box IoU >=.5.
+  All other pixels remain ignored. Exact crop/PDF identities exclude foreign
+  records. Checkpoint `176b51128bdd122c529a9934d7778a7add0cc46aaf47e86f2720da1094af3388`;
+  original power check 16/16 both scales, old 14 negative regions zero. Separate
+  column check found one native false outlet; v10 remains inactive. No
+  independent-accuracy claim; successful later v12 is recorded above.
+- Fresh **19 repair/native-context tests PASS** and full isolated backend
+  **1,097 passed / 558 subtests / 4 skipped / 5 existing warnings** after loss-mask
+  changes. Earlier frontend 450 tests/build remain recorded above (no new
+  frontend edits). Full lint still FAIL on unrelated DeviceMeshCatalog.jsx.
+  All scoped work remains uncommitted; unrelated edits and stash unchanged.
+
+### October 7 account-selection fix
+
+- During account switching, OAuth login now explicitly
+  requests `prompt=select_account`; the sign-in page offers **Switch account**
+  through the existing local logout. Valid session restoration, OAuth
+  state/nonce validation, role checks, account records and datasets are unchanged.
+- PASS: isolated authorization/account-selection checks 15 tests / 2 subtests;
+  focused sign-in/sidebar/route tests 14; scoped ESLint, Vite build and diff check.
+  Existing large-chunk/build-plugin and test-library deprecation warnings remain.
+  Full regressions were not rerun for this narrow change.
+- Restarted only the verified local backend, with reload and access logs off
+  (avoid recording OAuth callback codes). Live redirect requests account selection.
+  Computer-use preview shows Google's **Choose an account**; left open for the
+  user to choose **Use another account**. Direct supported login navigation was
+  verified; the preview's Sign in click did not navigate and is not claimed PASS.
+  Designer sign-in is now confirmed; subsequent draft checks are recorded above. Recovery stash
+  and unrelated changes preserved; this fix is uncommitted.
+
+### October 6 detection-quality cluster checkpoint (in progress)
+
+- User-prioritized detection repair, not global VS Code settings. Three
+  GPT-6.1 Sol/medium agents handled unit tests, read-only memory review and
+  wall-detector implementation; root reconciles training and integration.
+  Branch `codex/vlm-localization-experiment`, original HEAD `85448ef`; unrelated
+  edits and recovery stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` preserved.
+- Exact screenshot source: authorized `MULTI-PURPOSE_DepED.pdf`, SHA
+  `efa570519f08bc3596d443fcc63c96ddd6bf73039bcba7ed3e52881d0943d9af`, page 7,
+  prepared power-panel SHA
+  `2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94`.
+  Source inspection proposes 12 duplex outlets, one panelboard and three actual
+  LP-3/LP-4/LP-5 homeruns; grid letters/numbers are not homeruns. Sixteen
+  assistant-inspected targets and 14 wholly non-device patches retain source
+  legend aliases, delegated development provenance and no human-review claim.
+  Original files, previous annotations and frozen before-results are unchanged.
+- First bounded full-80-class replay (`power-quality-20261006-v1`, manifest
+  `5245bca2f82ec6c2d84cbaf2ac28c23f88ae55c53a69ad9763882bf09b441924`): 576
+  dependent positive views, 42 dependent negative views, all original mappings
+  and prior replay retained. Two CPU epochs finished successfully; last weight
+  SHA `a8888c27e4ff4231f11a22ccb5fde33b685cc63f3b1dd08fa2526ba42101b03e`.
+  Frozen full-panel checks at score .50 / one-to-one class-aware IoU .50:
+  native 7/16 -> 16/16, upload-like .375 scale 0/16 -> 13/16; outlets 7/12 ->
+  12/12 and 0/12 -> 12/12 respectively. Inspected-negative proposals 6 -> 5
+  and 2 -> 1: false grid/wire interpretations still exist. These are same-source
+  development measurements, not independent accuracy or full-page precision.
+  Switch retention checks: 3/4 on the other PDF, 9/9 related PDF, 8/9 derivative.
+  First candidate remains inactive pending the bounded follow-up and retention.
+- Follow-up completed: `power-quality-20261006-negative-v2` adds 336
+  dependent phase-shift views of the same inspected negatives, with known-white
+  padding only. This addresses centered training patches versus shifted
+  inference tiles; it does not add independent data or label unknown space as
+  background. `power-quality-20261006-run2`: two bounded CPU epochs finished;
+  last SHA `4629d89fd250eb499254d27c4d6dce97d10206b6462cba828168270b412808ce`.
+  Native 16/16 and .375 scale 15/16, both 12/12 outlets, but inspected-negative
+  proposals 3 native / 4 small. Small-scale false matches worsened: candidate
+  fails that gate and is not activated. Same architecture/head/threshold; no
+  download/cloud. Original-23-page retention probe is preserved separately.
+- Diagnosis: uniform background weights divide a fixed 32-anchor loss budget
+  across 2,100 anchors at 320 input pixels, diluting the strongest four wrong
+  anchors to about .061 total weight. Optional `top_score_anchors` now focuses
+  the same budget on detached highest class logits only on explicitly wholly
+  inspected negative images. Unknown/positive-region masks and legacy uniform
+  fallback unchanged; no new architecture. Independent reviewer and gradient
+  regressions pass. `power-quality-20261006-hard-v3` opts in; run3 is one bounded
+  epoch from the exact run1 base SHA with a fresh optimizer, not a bypass of the
+  same-dataset warm-start guard. Native/small-scale and retention gates pending.
+- October 7 continuation: run3 finished, last SHA
+  `4b4939c679ad0c54e0e882cc7176443987c4fc821410be6c08b112d4be71d70d`.
+  Frozen native and .375 checks both 16/16 (12 outlets, one panel, three actual
+  homeruns); proposals inside the 14 inspected negative patches both zero.
+  Visual review still finds one extra native outlet on a hatched column outside
+  those patches. Full-page precision remains unscored. Original pre-fusion
+  retention 807/830, no capped pages; lamps 20/20 in both related views.
+  Switch retention failed: other PDF 3/4 -> 2/4, derivative 8/9 -> 7/9 (related
+  PDF remains 9/9). A correct high-score box shrank below IoU .50; another small
+  switch disappeared at the frozen threshold. Do not call run3 a passing
+  replacement. Default remains `lamps80`; `power80` is experimental opt-in.
+  Compact serving manifest is decoded-identical to the original training
+  manifest; serving SHA `b32a8d1c54412de717578f28454705dce2befd31bc51ac09baf05e8ff67f6d15`,
+  training SHA `384ffd6a4c1b7f375cd543c1fc2c90d4be3a3349e39c199a8a50e77da09d2f06`.
+  Both are pinned separately; no dataset or image/memory bound increase.
+- Bounded switch repair: `power-quality-20261006-retained-v4b`, SHA
+  `cbea19db3e4941a3d3222c7e5378b3f09aaa10bc0c91912714aff8c1f8f715bb`,
+  copies 594 exact existing switch train windows; original labels, source
+  aliases, previous restorative metadata and all 80 head identities remain.
+  Copies are dependent, not new independent data. Partial unknown masks and
+  inspected negative sampling unchanged. Initial `retained-v4` failed the
+  source-artifact validator and is preserved, never trained; the corrected v4b
+  passed preparation. One bounded CPU epoch `power-quality-20261007-run4`
+  completed; fresh guarded-fusion power/switch/lamp/original checks are recorded
+  above. One native column false positive remains, so the default is unchanged.
+- Post-mining full isolated backend: 1,080 passed / 545 subtests, four skips.
+  Post-profile regression exposed an unordered provenance-parameter failure
+  (1 failed, 1,083 passed); fixed at the worker construction boundary, preserving
+  strict ordering validation. Fresh isolated `power80` worker/detector check:
+  23 passed / 11 subtests. Replay/probe scripts now 22 + 10 tests passed,
+  including copied positive bytes and bounded hash-addressed multi-hop ancestry.
+  Unit and memory agents reached service usage limits during the final follow-up;
+  earlier completed contributions are retained, remaining checks done by root.
+- Wall fix uses opposing detached outline bands surrounding a wall network
+  with perpendicular junction evidence, not page-specific coordinates. Exactly
+  two false outer-frame walls removed: native 15 -> 13, .375 scale 12 -> 10;
+  remaining coordinates/order unchanged. Isolated walls, connected perimeters,
+  scale/rotation and doorway regressions pass. This is deterministic CV, not a
+  trained wall model; truly detached enclosing walls can remain ambiguous.
+- Replay/probe tooling now preserves append-only structured revisions and
+  hash-addressed inspection artifacts, rejects changed source/PDF/permission,
+  validates exact frozen comparison lineage and preserves distinct adjacent
+  outlets. Unknown partial-page regions remain ignored; precision unscored.
+  Memory review found no demonstrated accumulating leak; explicit PIL cleanup
+  now runs on success and inference failure (native PIL context alone was
+  insufficient). Model cache remains one; batches eight; existing bounds intact.
+- Fresh PASS: isolated focused backend 163 tests / 115 subtests; isolated full
+  backend 1,074 tests / 531 subtests (four skips, five existing deprecation
+  warnings; before the optional mining change); replay/probe scripts 27 tests;
+  mining/cleanup focused 18 tests / 16 subtests and isolated inference/review
+  integration 49 tests / 22 subtests; full frontend 51 files / 444 tests;
+  build (existing large-chunk warning). FAIL: frontend lint in unrelated,
+  pre-existing untracked `DeviceMeshCatalog.jsx` (unused React, mixed exports,
+  conditional hooks); not changed to hide failures. Computer-use verification
+  previously reached protected sign-in only. The later authenticated Designer
+  workflow checks are recorded above; canonical 2D/3D remains unverified without
+  actual reviewed scale/elevation and geometry.
+  OpenAPI 44 operations / ORM metadata 33 tables; no API/schema mutation.
+- Trainable walls are feasible with explicit wall polygons/centerlines,
+  openings and wire/drafting negatives, preserving ignored unknown regions and
+  project-separated evaluation. Existing combined export contains 476 geometry
+  records (including 268 standard-wall and 85 opening labels), not proof of
+  complete wall masks. [CubiCasa5k](https://github.com/CubiCasa/CubiCasa5k) offers
+  multitask polygon/junction training, but its
+  [CC BY-NC 4.0 license](https://raw.githubusercontent.com/CubiCasa/CubiCasa5k/master/LICENSE)
+  cannot be assumed suitable for commercial VED use.
+  [GLSP](https://arxiv.org/abs/2303.03851) combines junction/semantic-line
+  prediction, not evidence of Philippine wiring-layout accuracy. No wall model
+  downloaded or trained; independent data, production training/approval and
+  release gates remain separate.
+
+### October 6 main synchronization checkpoint
+
+- Selected source: `codex/verified-progress-20261006` at `24d1f1f`, integrating
+  only verified PDF intake/public-source inspection, hollow-wall/wiring evidence
+  and their tests/progress records. Non-fast-forward merge into `main` from
+  `fae4a7c`; no unrelated implementation work included.
+- PASS fresh merged-tree verification: 16 intake, 54 wall, 30 coordinate,
+  12 demo-CV and 37 preprocessing tests (148 passed, one existing Windows
+  symlink capability skip), compilation and scoped diff checks. Expected
+  malformed-image OpenCV diagnostics only. Full database/backend/frontend/
+  browser and independent real-drawing accuracy/release checks NOT RUN.
+- Original implementation worktree/branch and pending training, detector,
+  catalog, UI, database tools and planning edits retained locally. Recovery stash
+  `bb78854e87833124a1725b51f0be6099a8ac0cfa` untouched. No data reset, deletion,
+  credential change, private-artifact upload, model activation or deployment.
+  API/schema/dependencies unchanged; OpenAPI/table counts not re-run.
+
+
+### October 6 Git publication and retention checkpoint
+
+- PASS remote publication: intake `acf661f`, hollow-wall fix `ba70005` pushed
+  to `origin/codex/verified-progress-20261006`; remote branch hash verified.
+  Built/tested from clean `origin/main` baseline `fae4a7c`, not from pending
+  detector/UI/database edits. Main remains `fae4a7c`; no merge or deployment.
+- Retention audit: 94 original changed/untracked/deleted path entries checked;
+  92 byte/status-identical, two intentional changes (this ledger and the existing
+  PDF preparation test module's standalone intake coverage/import correction).
+  No unrelated edit, deletion, original drawing or training artifact discarded.
+  Recovery stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` unchanged.
+- Verification: 148 passed / one existing Windows symlink skip; focused only.
+  Clean publication worktree, compilation/diff checks PASS; full database,
+  frontend/browser and independent quality/release checks NOT RUN.
+- Next: reconcile/verify pending runtime, legend/catalog, UI and PEC-training
+  changes before any further publication. Original implementation branch
+  `codex/vlm-localization-experiment` remains at `85448ef` with its WIP retained.
+  Private source PDFs, annotations, datasets/results, weights and secrets remain
+  local/Git-ignored. Publication does not activate the experimental 129-ID model.
+
+
+### October 6 selected publication — hollow-wall evidence
+
+- Scope: structural wall detection recognizes persistent paired outlines with
+  a white cavity and evidence in both principal directions, rather than
+  mistaking one filled circuit stroke for two wall edges. Broad solid/hatched
+  structure retained; endpoint recovery and deduplication follow qualified
+  observed wall ink and do not bridge white door openings. No page-specific
+  coordinates, new class mappings or canonical geometry contract changes.
+- PASS in the clean publication worktree: 54 wall detection tests (including
+  scaled/rotated hollow walls, bolder connected circuits, neighboring circuits,
+  door openings, solid structure and sanitized OpenCV failures), 30 coordinate
+  tests, 12 unchanged demo-CV tests, 37 preprocessing tests with one existing
+  Windows file-symlink capability skip. Thus 132 passed / one skipped for this
+  checkpoint; combined with intake: 148 passed / one skipped. Compilation and
+  scoped diff checks PASS. Malformed-image OpenCV messages are expected tests;
+  LF/CRLF Git warnings remain. No failed required focused check remains.
+- NOT RUN: full database-backed regression, frontend/browser workflow or
+  independent real-drawing wall accuracy. These focused checks do not prove
+  general detection or release readiness. API/database schema unchanged here;
+  OpenAPI/table totals not re-counted. No model activation/training/download.
+- Prior intake commit: `acf661f`. Pending runtime/catalog/UI/account-reset/PEC-
+  training changes
+  remain in the original workspace; no blind stash application or deletion.
+
+
+### October 6 selected publication — electrical PDF intake
+
+- Scope: bounded official-Philippine PDF discovery, explicit electrical-page
+  inspection/legend-panel proposals, source-authorized PDF preparation and
+  standalone regression coverage. Exact source hashes, one-based page identity,
+  reversible rendered-page coordinates and immutable revisions preserved.
+  Public accessibility/PEC notes do NOT establish training rights or certification;
+  reference proposals do NOT become reviewed labels or training-ready pages.
+- PASS: 16 focused intake tests against a separate worktree based on
+  `origin/main` (`fae4a7c`), not the dirty implementation workspace; compilation
+  and scoped diff checks. Decoupled discovery/selection tests from pending PEC
+  learning helpers by including them in the existing PDF preparation test module.
+  Initial extracted tests missed a TemporaryDirectory import; fixed and rerun
+  all 16 successfully. No application/route/database/dependency changes.
+- Publication branch: `codex/verified-progress-20261006`. Private PDFs, images,
+  authorization records, training manifests/results, weights and credentials
+  remain local and Git-ignored. Recovery stash remains untouched.
+- Retained, NOT included in this checkpoint: pending detector/class/catalog/UI
+  integration, database-repair/account-reset tools, unrelated planning changes
+  and documentation deletion, and PEC training/diagnostic tooling. The local
+  129-ID replay retains all 56 original mappings and reports 800/830 reviewed
+  training-source matches, 29/29 dependent upload targets and 59/62 native
+  reference glyphs; these are not independent accuracy or activation approval.
+  Full application/database/frontend/browser/release acceptance NOT established
+  by this intake checkpoint.
+
+
+### October 6 bounded original-page retention replay
+
+- **PASS preparation:** new immutable `pec-replay-20261005-v3`, manifest SHA256
+  `44ccde85ff0470c462b2d2080bc5240817a49d53bac61aa82309dee290457099`.
+  Source-family filenames retain the October 5 lineage; this checkpoint is
+  October 6. **1,052 windows**: 117 additional native original-page views cover
+  all **71** prior-correct/context-run1-missed targets; 69 hash-selected reference
+  views preserve at least two complete views for each of 62 reference variants.
+  The 179 omitted repeated reference views remain intact in frozen parent v2;
+  no original/source/annotation or prior dataset file deleted or rewritten.
+  All original 80 numeric IDs and 54 requested device meanings preserved in
+  the 129-ID head, minimum four supervised windows/class. Original reviewed
+  targets/neighbor labels unchanged; clipped/unknown regions ignored, no new
+  independent examples or complete-page/production approval claimed.
+- **PASS source/coordinate safeguards:** only exact user-attested original page
+  hashes, existing source boxes and native inference-grid positions admitted.
+  Explicit one-based image-page identity, reversible source/local transforms,
+  full neighbor provenance and inherited authorization. At most two native
+  views per focus target, 200 additional windows/1,200 total, unchanged 60 MP /
+  10,000-pixel source bounds. All 71 focus targets covered; no box was resized
+  to fit or relabeled. Groups 1-6 remain related training data; no new scored
+  project-separated split. Public-agency sources remain training-excluded.
+- **PASS byte-integrity fix:** all-class replay training now refuses altered
+  image/label bytes, missing/extra files, symlinks and incorrect per-class counts
+  before model loading/output creation. Scope restricted to the frozen 129-ID
+  development replay; legacy namespace guard unchanged. Actual v3 inventory
+  verified. This run began before that new trainer preflight was added; its
+  inputs were verified during preparation and independently checked again,
+  not falsely reported as having executed the new preflight inside training.
+- **PASS bounded local execution:** initialized from context run1 (735/830 old
+  retention), not context run2 (714/830), with explicit new-dataset initialization
+  and optimizer reset. Existing CPU architecture/batch 8/input 320; four epochs,
+  AdamW 0.0001, classification loss 0.53095 -> 0.40603, CSV elapsed 301.908 s.
+  Terminal exit 0; checkpoint SHA256
+  `9db51821e97b9c2100f7efc6ab24dd2ac668935092647334cac30eedb23720cd`.
+  Trainer validation still uses training images; its mAP is NOT independent
+  accuracy or permission to activate.
+- **PASS bounded execution / NOT accepted quality:** both serial probes exited
+  0. Frozen score 0.50, maximum one-to-one IoU >= 0.50/shared tiler unchanged:
+  **800/830** class+location, **806/830** location, **1,448** proposals, zero
+  truncated pages across 23 original training-source pages. Context run1 was
+  735/830; current 80-ID parent is 802/830 and 806/830 location. Aggregate
+  retention recovered substantially but remains two matches below the parent;
+  no invented tolerance, held-out accuracy or release PASS. Dependent upload:
+  **29/29**, including **20/20 lamps and 9/9 switches**, 29 proposals, no cap.
+  Requested-reference synthetic checks **246/248**, native reference tables
+  **59/62**. Original-source report SHA256
+  `77e882bad3cf2e2811df185d5dcffa1dec3aa21ca7e3298164d2e5ae3f84c658`;
+  reference/upload report
+  `9542124e6144fac6004b0a183af26287bda66533ef9fc3d9ab4255a6278e1363`.
+- **PASS per-entry evidence:** immutable
+  `pec-replay-20261005-retention-entry-report-v1.json`, SHA256
+  `0191a25da848e367faab3347e934d52772a2e838af0c7381604f1579324486b3`,
+  reports all original 56 mappings, all 129 model IDs, 54 device references and
+  12 wiring references individually. Window counts are dependent supervision,
+  not independent examples; proposal counts are not confirmed devices. Report
+  generation initially rejected class 53 (19 class-aware versus 17 location
+  matches). Fixed the report's incorrect per-class nesting assumption: separate
+  maximum matchings allocate overlapping targets differently. No frozen probe
+  rewritten or metric changed; source outcomes, global totals and identities
+  now independently verified, with a known-answer overlapping-target test.
+- **PASS bounded miss diagnosis / remaining limitations:** all three native
+  reference misses inspected against source pixels and training composites.
+  Special-purpose outlet 1.20.15: native correct score 0.0264 vs composite
+  0.9998; antenna 1.20.17: 0.4381 vs 0.9337; automatic-door switch 1.21.8:
+  0.1902 vs 0.7892, isolated glyph confused with key-operated switch (0.4981).
+  Raw threshold 0.01 is observational only; scored/live threshold stays 0.50.
+  Diagnosis saved in `...-retention-reference-diagnostic-v1/report.json` with
+  nine paired inputs and overlays; this is source/context dependence, not
+  evidence that definitions generalize to new drawings. Synthetic misses are
+  one single-pole and one duplex-switch example. Visually inspected both table
+  overlays, upload overlay and two original floor-plan overlays. Text/furniture
+  also attract proposals; precision remains unscored on partial annotations.
+  Assistant inspection is NOT independent human approval. Live 80-ID detector
+  and fallback unchanged; new reference IDs have no real-layout positives or
+  approved project mapping. No claim of 85% independent detection accuracy.
+- **PASS focused:** 15 native-context/sampling/hash/retention tests,
+  11 replay/recovery/report, 15 catalog/reference and two matching tests (43),
+  compilation and diff check (existing LF/CRLF warnings only).
+  Full backend/frontend/database/browser NOT RUN (offline tooling only).
+  Branch `codex/vlm-localization-experiment`, HEAD `85448ef`, changes uncommitted;
+  unrelated edits and stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` preserved.
+  No new dependency, download, model family, hosted inference or release change.
+- **PASS integrity / exact resume:** supplied PDF, portable workspace approved
+  references/session, parent v2, new v3 and live weights rehashed unchanged.
+  No live training/inference job remains. Goal status `usageLimited` observed;
+  no further training started. Next smallest experiment: pair native shared-grid
+  reference views against the current target-centered context views for those
+  three misses; preserve v3 and every frozen report, unknown-region masking,
+  original 80 IDs and all requested references. Any new revision is development
+  tuning, followed by bounded training and the same reference/upload/23-page
+  probes; require evidence before changing the active provider. Reconcile
+  untracked helper/runtime dependencies before a self-contained scoped Git
+  publication; do not stage unrelated UI/API changes. Public Philippine rights,
+  new-layout annotations, independent metrics and production approval pending.
+
+### October 5 native source-context replay checkpoint
+
+- **PASS immutable preparation:** `pec-replay-20261005-v2`, manifest SHA256
+  `586a80b94a67b02911d99c9ec3ea0aaef27c021d737353a4c82ffe5cddc2fe24`.
+  **1,114 windows** = frozen 727-window replay + 248 native supplied-reference
+  views + 99 original-upload switch-retention views + 40 byte-verified historical
+  crop backfills. All original 80 IDs and all 54 requested device meanings remain
+  supervised in the same 129-ID head; requested 12 wiring patterns remain typed
+  references, not point devices. Reference views are definitions, NOT real-layout
+  positives. Original coordinates, exact source hashes, isotropic scale, tile
+  origin and supervised neighbor identities preserved; no flips/rotation.
+  Existing source-bound development authorization reused, no invented human or
+  dataset-approver signature. Historical manifests/annotation files unchanged.
+- **PASS loss/resource safeguards:** only construction-known composites receive
+  full-background supervision. Native reference/retention views ignore unknown
+  anchors; actual loss/provenance regression proves zero unknown-background
+  gradient across 129 classes. Enlarged source allocations now fail before resize
+  above the existing 60 MP/10,000-pixel bounds. No new dependency, architecture,
+  hardware, download, hosted inference or application model selection.
+- **PASS first bounded execution, FAIL old-class retention gate:** new-dataset
+  initialization from prior replay run2, explicitly optimizer-reset, not a false
+  same-dataset resume. CPU batch 8/input 320, AdamW 0.0002, four epochs;
+  classification loss 0.95791 -> 0.54739, CSV elapsed 315.619 s. Context run1
+  checkpoint SHA256 `cedd27914e7c7e95e4896852703d6ffbede4e082cedc4fc890efac6c78f91e00`.
+  Frozen score 0.50/class-aware one-to-one IoU >= 0.50: reference synthetic
+  **234/248**, every requested meaning nonzero; native reference tables
+  **60/62** (39/40 + 21/22), up from 4/62. Misses: Special Purpose `1.20.15`
+  not localized; Flame Detector `1.36.4` localized with wrong class. Original
+  upload **28/29** (20/20 lamps, 8/9 switches). All same-source development,
+  not independent accuracy; reference overlays still show text/unrequested-glyph
+  proposals, not automatically accepted devices. Precision remains unscored.
+- **PASS broader measurement, not quality acceptance:** 23 original pages/830
+  positives, identical shared tiler/threshold/matching. Context candidate
+  **735/830** class+location, **745/830** location, **1,272 proposals**, no cap;
+  current 80-ID detector **802/830**, **806/830**, 2,886 proposals, three caps.
+  Largest losses include new-smoke class 20 (37 -> 26), datacom homerun class
+  33 (17 -> 10), panel-specific homerun class 53 (18 -> 12). No count reduction
+  treated as precision improvement. Initial probe command incorrectly paired
+  the candidate with the 80-ID manifest: namespace preflight correctly refused
+  before result creation; rerun used exact 129-ID dataset, not a relaxed check.
+  Reports/overlays: `pec-replay-20261005-context-probe-v1` and
+  `pec-replay-20261005-context-original-pages-probe-v1`.
+- **PASS bounded continuation execution, FAIL activation suitability:**
+  `pec-replay-20261005-context-run2`, same
+  frozen dataset, four epochs/input 320/batch 8/CPU/AdamW 0.0002, run1 warm-start
+  with optimizer reset recorded. Classification loss 0.50793 -> 0.40668,
+  CSV elapsed 455.276 s; terminal exit 0. Checkpoint SHA256
+  `dee80d502baeec533269bfe8ce0827412ba859fe059da6edba126256bbbf07e1`.
+  Terminal frozen probes: **244/248** reference synthetic, every requested meaning
+  nonzero; **61/62** reference-table matches (40/40 + 21/22), 92 proposals, no cap;
+  original upload unchanged **28/29**. Flame `1.36.4` is localized but predicted
+  Ionization class 128 at raw score 0.546, NOT silently merged with class 127.
+  Four synthetic switch misses: `1.21.1`, `.4`, `.9`, `.10`, each 3/4.
+  Older 23-page retention worsened to **714/830** class+location, **726/830**
+  location, **1,194 proposals**, no cap. Additional epochs did NOT fix forgetting;
+  do not lower the scored threshold or use training mAP to override this failure.
+  Both serial probes terminal exit 0: immutable `...context-probe-v2` and
+  `...context-original-pages-probe-v2`. Keep live 80-ID detector/fallback unchanged;
+  diagnostic 129-ID checkpoint not activated.
+- **PASS targeted retention diagnosis:** deterministic four prior-correct/current-
+  missed examples (classes 20/33/53/55), exact original target/source hashes,
+  native 256-pixel tile versus isolated original glyph, both checkpoints/input 320,
+  serial CPU. Native correct-overlap raw scores, parent -> candidate: new-smoke
+  **0.987 -> 0.357**, datacom homerun **1.000 -> absent** (wrong class 34 at
+  0.089), panel-specific homerun **0.999 -> 0.121**, troffer **0.965 -> 0.457**.
+  Visually inspected all four native crops: source targets present; scores/class
+  identity changed on the same pixels, not a missing image/checkpoint or only a
+  coordinate conversion bug. Parent smoke/datacom performance itself depends
+  strongly on surrounding source context when isolated. This supports a retention/
+  context-overfitting diagnosis, not a proven generalization claim. Raw 0.01 is
+  observation only; application/scored threshold remains 0.50. All 16 paired
+  model/input observations, raw proposals and overlays preserved in
+  `pec-replay-20261005-context-retention-diagnostic-v1`, report SHA256
+  `c1fe77440f6915bc7d811c2145aa4e43542d1fe8a44cd77787b617b8ea30e976`.
+- **PASS focused:** ten native-context/retention tests, nine replay/recovery/report,
+  15 catalog/reference-probe, 19 source discovery/preparation, seven actual
+  loss/masking tests (**60**), compilation. Supplied original, portable catalog
+  and saved-session hashes unchanged; stash preserved. Full backend/frontend,
+  database, browser and upload/correction/save/2D/3D **NOT RUN**: this checkpoint
+  changes offline tooling only. API/table counts not remeasured, no schema/route
+  edits. Branch `codex/vlm-localization-experiment`, HEAD `85448ef`; task changes
+  uncommitted, unrelated work preserved. Public-source rights/real-layout labels,
+  independent data, drawing-specific mapping and release approval remain pending.
+- **Exact next checkpoint:** no more epochs on this imbalanced frozen revision.
+  Prepare a separate bounded retention-context revision using existing reviewed
+  original page targets/neighbor labels, deterministic class-aware sampling and
+  immutable source/hash provenance; preserve all 129 numeric IDs and reference
+  meanings, unknown-region masking and existing allocation/window bounds.
+  Diagnose FD/ID text/context confusion without merging their meanings. Repeat
+  identical broad retention/reference probes before any development activation.
+  No new source rights, human approvals, independent examples or production
+  readiness invented. Preparation of that revision has NOT started.
+
+### October 5 all-class reference replay and context diagnosis
+
+- **PASS preparation:** immutable `pec-replay-20261005-v1`, SHA256
+  `cc73bd2d58c3f1bd9411aab7ff35c2f2596bce9ceac62e80eca6049bf7a4a7af`.
+  **727 windows: 310 original real windows + 41 delegated PDF windows + 344
+  construction-known composites + 32 previously inspected negative windows**.
+  Every original 80 numeric class and all 54 requested device-reference meanings
+  have supervision (129 head IDs, minimum four windows/class). All original 56
+  drawing-specific entries retained; no new source-reference meaning presented
+  as approved project mapping. Exact inherited image/label bytes retained;
+  deterministic bounded sampling and authored text/table distractors are not
+  independent examples. Existing reviewed-box/background loss ignores unknown
+  real-page anchors; only construction-known composites supervise full background.
+  Public-agency sources remain outside training; wiring remains separately typed.
+- **PASS historical diagnosis, no silent repairs:** preparation initially refused
+  40 recovered records lacking byte hashes, not proven corrupt. Preserved and
+  excluded them in frozen v1, while retaining all classes. Located exact original
+  recovery manifest (`402433b8b2a969f89ac695426d300e239b48f8b3ef5f569d5c34a41580645c3d`),
+  then verified **all 40** stored crops against original RGB pixels, source hashes,
+  groups 1-22/train identities and historical neighbor-label coordinates.
+  Separate `pec-replay-20261005-recovered-audit-v1.json` SHA256
+  `cdb74f91cc1cb6a732b40c21b6120cd70a9f48b4e82702e333c94ecb5e20793f`.
+  No original/source/annotation file rewritten; this is technical reconstruction,
+  not a fabricated human review. Backfill belongs in a new dataset revision,
+  never the dataset used by completed runs.
+- **PASS bounded local execution, FAIL candidate suitability:** unchanged local
+  architecture/weights family; CPU batch 8/input 320, partial-label loss,
+  AdamW 0.0003, four epochs then eight same-dataset epochs in new run/optimizer
+  reset. Run1 classification loss 5.14854 -> 1.36524; run2 1.1428 -> 0.4685;
+  CSV elapsed 191.283 s + 360.894 s. Trainer end-validation reuses training
+  images; its mAP/precision are NOT independent real-page measurements.
+  Score 0.50, class-aware one-to-one IoU >= 0.50 unchanged. Reference learning
+  **46/248 -> 232/248**, now every requested meaning has a nonzero synthetic
+  match. Full reference-page context **3/62 -> 4/62**, still failed. Original
+  upload **20/29 -> 22/29** matches (20/20 lamps, 2/9 switches), versus the
+  unchanged detector's 28/29. Candidate run2 `last.pt` SHA256
+  `3943a088310b3d926b797293af56effb8af87ae9b3833b09688eff248a788911`.
+- **PASS broader measurement, not a quality pass:** identical shared tiler,
+  23 original development-source pages/830 prior positive boxes. Parent:
+  **802/830** class+location, **806/830** location, **2,886 proposals**, three
+  pages hit proposal cap. Replay candidate: **720/830**, **731/830**, **1,173
+  proposals**, no capped pages. Reduction in proposal count is NOT measured
+  precision improvement. All source-dependent/partial-label, no held-out project
+  or 85% claim. Reports and overlays `pec-replay-20261005-original-pages-probe-v1`
+  and `...-original-pages-parent-probe-v1`; both completed successfully.
+- **PASS targeted diagnosis:** frozen class IDs, same weights/320 preprocessing,
+  six paired inputs for Single Convenience `1.20.10` and Single Pole `1.21.1`.
+  Native source tile versus exact same source glyph on white versus native-scale
+  training composite. Correct overlapping raw scores: outlet absent / 0.278 /
+  0.949; switch absent / 0.504 / 0.824. Native tiles instead favored old classes
+  10/63 at 0.048/0.160; paired overlays visually inspected and source glyphs are
+  present/readable. Evidence points to context/placement and class-confusion
+  sensitivity, not a missing checkpoint or coordinate-only integration failure.
+  Raw 0.01 threshold is diagnostic observation only; scored/live threshold stays
+  0.50. `pec-replay-20261005-context-diagnostic-v1` preserves all raw proposals.
+- Per-entry reports `pec-replay-20261005-probe-v1` and `...-probe-v2` enumerate
+  **all 129 head identities and all 54 reference meanings**, included counts,
+  synthetic outcomes, reference-context outcomes, applicable upload retention and
+  limitations. Precision, independent accuracy, human review and production
+  approval remain unscored/not claimed. Diagnostic 129 head remains blocked by
+  the unchanged application artifact gate; live detector/fallback not changed.
+- **PASS focused:** nine replay/recovery/report tests, 15 catalog/reference-probe
+  tests, 19 existing preparation/matching tests, eight authored-extension tests,
+  seven actual loss/masking tests (**58**), compilation and scoped whitespace/hash
+  checks. Loss tests run through unittest without database fixtures. Initial
+  preparation failure investigated and corrected with explicit exclusions/audit,
+  not suppressed. Full backend/frontend/browser **NOT RUN** (offline tooling,
+  no route/schema/UI edits); no model download, hosted inference or production
+  activation. Branch `codex/vlm-localization-experiment`, HEAD `85448ef`, changes
+  uncommitted; unrelated work and recovery stash preserved.
+- **Exact next checkpoint:** new revision from frozen replay v1, backfill the
+  40 technically verified hashes while keeping originals/audit, then add actual
+  native reference-page context windows using the existing partial-label mask
+  (unrequested glyphs/text never declared empty background). Strengthen retained
+  real switch contexts using existing source/legend evidence. Start from run2
+  only with explicit new-dataset initialization provenance, not a false
+  same-dataset optimizer resume. Repeat frozen 54-reference/full-page/old-class
+  probes before any development model switch. Public-source rights, independent
+  data, drawing-specific mapping and release gates remain pending.
+
+### October 5 complete requested-reference diagnostic and retention gate
+
+- **PASS immutable preparation/mapping:** all **54 device-reference meanings**
+  included, **62 glyph variants / 248 construction-known synthetic examples**;
+  **12 wiring patterns** remain separately typed references, not installed point
+  devices. `pec-reference-20261005-full-head-v1` retains all original 80 numeric
+  IDs and appends 49 explicitly source-reference-only classes (129 head IDs).
+  These additions are user-requested development labels, NOT drawing-specific
+  catalog approval, gang/wattage guesses, independent PEC certification or live
+  model coverage. Five existing exact-meaning links and nine catalog-meaning
+  links preserve original identities/qualifications. Unresolved reference-only
+  source pixels remain excluded; public-agency pixels were not used in training.
+- **PASS catalog reconciliation, no workspace mutation:** 287 catalog entries
+  inspected against current session/source hashes; 286 have current reviewed
+  evidence. Preserved 16 deleted examples and one corrected-but-not-reviewed
+  example as excluded. Reconciled 26 stale export boxes only where annotation
+  ID, source hash, meaning and current `user_reviewed` identity agree; retained
+  both exported/current boxes. The frozen dataset contains the earlier strict
+  260-entry/43-exclusion audit; a separate immutable
+  `catalog-reconciliation-v2.json` records the corrected 286/17 audit. No source,
+  portable annotation, original manifest or history rewritten.
+- **PASS bounded learning, NOT generalization:** same frozen dataset, CPU,
+  batch 8, input 320, 8 epochs plus 12 further epochs in separate runs with
+  optimizer reset. At score **0.50**, one-to-one **IoU >= 0.50**: initialized
+  head **0/248** class+location, **23/248** location; run1 **134/248** and
+  **135/248**; run2 **247/248** for both, 247 proposals. Every requested device
+  meaning has a nonzero synthetic match. Sole remaining miss: Key Operated
+  `1.21.9`, 0.65-scale variant. Initially missed native glyphs mostly had the
+  right overlapping raw class below 0.50; junction box additionally confused
+  with riser-up. Threshold was not lowered to improve reported scores.
+  Run2 classification loss 1.21719 -> 0.46766, elapsed trainer CSV 181.827 s.
+  Training-image validation and memorization metrics are NOT independent mAP.
+- **FAIL full-page context suitability:** unchanged shared upload tiler on both
+  complete supplied reference pages: page1 **16/40** class+location, **17/40**
+  location, **35 proposals**, 5.229 s; page2 **10/22** for both,
+  **25 proposals**, 5.081 s. Neither truncated. Expected/predicted overlays
+  visually inspected: small switches missed, wall/ceiling variants inconsistent,
+  and text/table content produces apparent false proposals. All unmatched
+  proposals remain unresolved; precision and independent accuracy unscored.
+  Reused reference pages are development evidence, not held-out floor plans.
+- **FAIL existing-class retention:** identical complete DepED derivative upload,
+  unchanged 0.50 threshold/shared tiling/first-80 meanings and source hash.
+  Original pinned detector: 30 proposals, **28/29** class+location (20/20 lamps,
+  8/9 switches), **29/29** location, 1.973 s. Reference-only candidate: zero
+  proposals and **0/29** matches, 1.990 s. Targets are prior assistant-inspected
+  development labels under user authorization, not independent human review.
+  **75 original classes had no positive supervision in this reference run**;
+  results are consistent with forgetting/context mismatch, not usable expansion.
+  Live detector remains `switch-real-20261004-run3`; diagnostic cannot pass the
+  unchanged application artifact gate. No production promotion or UI activation.
+- Private evidence: dataset SHA256
+  `efbf156f928ed5d3c9a80fe629b65edb10f751edd3d8f5ca77a34214f1c96881`;
+  candidate run2 `last.pt`
+  `604f68dad11e5e6cd63d798f4349f1ba2bb9728c3acd688f4a1703de9869627d`.
+  Per-entry `reference-coverage-v1.json` (54 devices + 12 wiring, samples,
+  aliases, prediction counts, misses and unsupported metrics):
+  `9e643cd8ffc5cee7b5684d91ddaf744373d1de81ec862d76b9fa4d0ac899e7b9`.
+  Full-page overlays/reports: `pec-reference-20261005-table-page1-v1`,
+  `...-table-page2-v1`; retention reports `...-old-upload-regression-v1` and
+  `...-old-upload-parent-probe-v1`. Catalog audit-v2 SHA256
+  `88d6ba035b00859ba06e71089b51f6edbe985de30e2a8a3e31a16fd8b130c52d`.
+- **PASS focused verification:** 15 catalog/probe tests + 19 source/reference
+  tests + seven PDF-source tests + eight delegated-PDF tests + eight authored
+  extension tests (**57**); scoped compilation/diff and original/parent hash
+  checks. Coverage rejects mixed checkpoint/dataset hashes, incomplete/duplicate
+  summaries, inconsistent measurements, altered labels and invalid coordinates;
+  preserves deleted/rights-excluded items, immutable history and unscored metrics.
+  Full backend/frontend/browser **NOT RUN**: offline source/training tools only,
+  no schema/API/UI edits in this checkpoint. Recovery stash retained; unrelated
+  work preserved. Branch `codex/vlm-localization-experiment`, HEAD `85448ef`,
+  task changes uncommitted/unpublished. No claim of 85% or detection readiness.
+- **Next bounded checkpoint:** retain these failed/positive diagnostics; prepare
+  an old+new replay candidate with all existing class supervision, source-backed
+  layout positives/ignore regions and construction-known varied context. Verify
+  original-class retention and full-page context before any development switch.
+  Four public Philippine source archives remain prepared but training-excluded
+  pending intended-use rights evidence and source-specific label/split evidence;
+  DPWH downloads remain unavailable. Dataset authorization for existing VED
+  sources is unchanged; no routine/per-class reapproval requested.
+
+### October 5 supplied-reference cleanup and bounded learning checkpoint
+
+- **PASS reference preparation:** immutable `pec-reference-20261005-clean-v3`
+  contains **62 device glyph variants + 12 unchanged wiring references** from
+  all 66 requested logical entries. Ceiling/wall glyphs split at their authored
+  divider; table rules removed by source-coordinate cropping, not destructive
+  pixel edits. Switch subscripts/mount stubs retained. Failed cleanup v1/v2 and
+  original preparations preserved as inspection-only history. Assistant visual
+  QA is not a separate human approval or independent PEC certification.
+- **PASS conservative mapping:** five reference entries match existing meanings:
+  `1.23` Pull box -> 23; `1.26` Circuit home-run notation -> 0 (aliases 1/6/8/10
+  retained); `1.27` Push button -> 72; `1.36.2` Fire alarm control panel -> 74;
+  `1.36.5` Smoke detector -> 11 (aliases 30/44 retained). Generic fluorescent
+  lamps are NOT 1x40/2x40 targets; single-pole switches are NOT guessed gang
+  counts; main/power/lighting panelboards are NOT silently merged. **49 other
+  device-reference entries remain reference-only, with no exact current-head
+  equivalent**; all original reference identities remain available. No new
+  project/catalog class or approval manufactured.
+- **PASS actual local diagnostic, not detection readiness:**
+  `pec-reference-20261005-diagnostic-v1` has 60 construction-known composite
+  images (12 per matched reference), unchanged full **80-class numeric head**,
+  native glyph orientation, isotropic scaling and known placements. Complete
+  synthetic-background supervision is diagnostic-only; no unannotated real
+  page treated as empty background. User-requested supplied-source development
+  permission is hash-bound; public sources remain excluded. No new download,
+  architecture, hosted inference or larger replay training.
+- Exact-threshold probe: **score 0.50, IoU >= 0.50, one-to-one matching, 320 input**.
+  Base: **0/60 classified+localized, 6/60 localized**. After three CPU epochs:
+  **46/60 classified+localized, 56/60 localized**. After seven further bounded
+  epochs (new immutable run, same-dataset warm start, optimizer reset): **60/60
+  classified+localized and localized**, 12/12 for each of the five references.
+  **67 raw proposals include seven unmatched/duplicate synthetic proposals**;
+  memorization does not prove generalization or clean full-page behavior.
+  Classification loss run1 5.20362 -> 1.23748; run2 1.03165 -> 0.55555.
+  Trainer validation reuses training images: its mAP is NOT independent accuracy.
+  No real-page recall/precision, 85% result, or production acceptance claimed.
+- Reproducible private evidence: cleaned manifest SHA256
+  `44d16ab12d86bf12b0900b33caff5a6021483456b807fa0090a68336cbc50240`;
+  diagnostic dataset `d81890f913aabbc46037f30dffed51fa786084749df9a7ce18bd5a69c8d22c38`;
+  run2 `last.pt` `621f13bfb3a9d2ed4fc76480c3c1691ea00f2f1b924948568c93a78a13ef2721`.
+  Reports/overlays: `pec-reference-20261005-base-probe-v1`,
+  `pec-reference-20261005-trained-probe-v1` and `...-v2`. Discovery index v2
+  remains the earlier source-discovery snapshot, not this diagnostic's approval.
+- **PASS focused:** 19 discovery/reference tests + seven PDF-source tests +
+  eight delegated-PDF tests + eight authored-legend tests (**42 total**),
+  compilation, scoped diff check and hash verification. Tests include variant
+  separation, faint-wire retention, table fringes/subscripts, no subtype guesses,
+  altered glyph/source rejection before writes, immutable revisions, unchanged
+  numeric names and synthetic/source authorization. Full backend/frontend and
+  browser **NOT RUN**: no application/UI/schema/API changes in this checkpoint.
+  Live detector remains `switch-real-20261004-run3`, original/parent hashes and
+  stash unchanged. Branch `codex/vlm-localization-experiment`, HEAD `85448ef`;
+  task changes uncommitted; unrelated work preserved.
+- **Next bounded work:** reconcile remaining reference meanings against actual
+  drawing/catalog evidence (no per-class approval re-request), then prepare
+  source-supported real-layout positives/ignore regions and an all-class replay
+  candidate with old-class regression checks. Public-plan use additionally needs
+  an intended-use rights basis; its posting alone is insufficient. Diagnostic
+  weights MUST NOT replace the shared detector: 75 head classes had no samples
+  in this run, and no old-class/full-page regression has been performed.
+
+### October 5 Philippine public electrical-source preparation
+
+- **PASS discovery/preparation, not training:** attempted 12 primary official
+  Philippine source URLs; four PDFs downloaded, eight unavailable (including
+  three DPWH URLs). No access-control bypass, hosted inference or model download.
+  Only **34** explicitly selected electrical sheets enter preparation: **31
+  layout sheets + three legend/notes sheets**. Complete procurement originals
+  are hash-bound inspection archives, not 449 training pages. Sources:
+  [TESDA NCR](https://www.tesda.gov.ph/Uploads/File/PhilGeps/2021/Bid%20Docs%20-%20RTC%20-%20NCR%20Part%202.pdf)
+  (17 sheets: lighting, power, FDAS/PA and ELV/CCTV/voice/data),
+  [SLSU Tomas Oppus](https://southernleytestateu.edu.ph/attachments/article/728/merged.pdf)
+  (four lighting/power sheets; no verified drawing legend),
+  [BSU veterinary teaching hospital](https://bsu.edu.ph/wp-content/uploads/IB2024/IB-2024-22A-bid-docs_whole.pdf)
+  (three lighting/power/legend sheets), and
+  [Quezon City school rehabilitation](https://quezoncity.gov.ph/wp-content/uploads/2025/02/25-00004.pdf)
+  (10 electrical sheets). Title blocks and six extracted legend panels visually
+  inspected by assistant; not independent human annotation approval.
+- Supplied source `reference-8fa0851445cb` preserved with exact SHA256
+  `8fa0851445cbe840c59af1b59042369aec4dc78eef8401f10e18ca22736f3af3`.
+  All **66 requested entries** extracted from PDF pages 1-2: 54 point/reference
+  entries and 12 separately typed wiring patterns. Ceiling/wall variants kept;
+  generic fluorescent symbols do not imply 1x40/2x40 ratings. User-requested
+  local reference use recorded, not publisher permission or a separate approver.
+  Appendix attribution is user-supplied; edition/publisher not established from
+  five scanned pages. Reference glyphs are not real-layout localization boxes.
+- **PASS integrity/coordinates:** five original hashes, five selected manifests,
+  36 rendered pages, 66 reference crops and six legend panels verified. Visual
+  QA caught clipped initial crops; immutable corrected revisions retain failed
+  drafts as inspection only. A real metadata omission affected seven 270-degree
+  university pages: new preparation explicitly records rotation and rendered
+  top-left point frame, never unrotated PDF user space. Rotation regression
+  included; original scans and prior manifests unchanged.
+- Private current index: ignored
+  `storage/training/ph-electrical-discovery-20261005-v1/dataset-index-v2.json`.
+  Public selections `electrical-selected-v2`, public panels `legend-panels-v3`,
+  supplied reference `pec-reference-20261005-v3`. Unreviewed regions must be
+  ignored/masked, not empty background. Related floors/crops stay together;
+  no new independent evaluation split claimed.
+- **BLOCKED public-source training eligibility:** consolidated missing evidence
+  for `tesda-ncr`, `slsu`, `bsu`, `qc-masambong-school`: intended-use rights basis,
+  drawing-specific class mappings, positive boxes/ignore regions and project
+  relationships; `slsu` additionally lacks an explicit verified source legend.
+  Public posting is not a rights grant. Government-work commercial-use
+  restrictions remain relevant ([Section 176.1 court discussion](https://lawphil.net/judjuris/juri2020/jun2020/gr_236050_2020.html));
+  PEC notes are not independent compliance certification. Existing VED source
+  permissions and encryption deferral unchanged. No repeated VED approval asked.
+  Supplied references still require class mapping and border cleanup before
+  synthetic use; no ambiguous subtype silently merged or activated.
+- **PASS focused:** 12 discovery/preparation tests + seven existing PDF tests,
+  compilation and diff check. Full application/backend/frontend regressions and
+  browser **NOT RUN** (offline preparation only; no application/schema/API edits).
+  Model/checkpoint unchanged; no new measured detection accuracy or trained
+  class coverage. Branch `codex/vlm-localization-experiment`, HEAD `85448ef`;
+  task changes uncommitted, unrelated edits and recovery stash preserved.
+
+### October 5 universal legend choices and duplicate-proposal fusion
+
+- **PASS scoped implementation:** duplicate *choices* grouped by identical
+  complete descriptions in Admin catalog, draft mapping, legacy correction and
+  manual-placement menus. Live read-only inventory: **105 active source rows,
+  69 unique descriptions, 36 duplicate choices**. Every original database ID,
+  source name, inactive decision, trained class index and review history stays;
+  no rows/files deleted or approvals invented. Admin exposes original aliases
+  under Drawing references; a previously selected alias keeps its ID on save.
+  Rated/mounted variants, one/two/three-gang vs three-way, single/twin lamps,
+  new/existing detectors and unresolved descriptions are not family-merged.
+- The existing default remains **one shared development detector**, unchanged
+  80-index checkpoint/dataset, not another page-specific/template model or a
+  newly trained "universal" architecture. Exact-description grouping yields
+  **61 model meanings**, not 61 proven detectors or all 286 catalog definitions.
+  Spatial fusion now removes co-located equivalent-class observations before
+  the 200-proposal cap, using existing IoU/nested-center bounds. Adjacent or
+  genuinely different classes remain separate. Highest raw observation wins;
+  losing equivalent model IDs, source entries, boxes, scores and tile origins
+  are retained as candidate warnings, without automatic acceptance.
+- Historical original-replay predictions contain **140** such duplicate
+  proposals. This count comes from postprocessing already capped saved
+  predictions, **not** a new full inference/precision/recall measurement.
+  Actual new-pipeline upload check: **30 unresolved proposals**, including
+  16 twin lamps, four single lamps, five one-gang, four two-gang and one homerun;
+  strict candidate roundtrip passes, no smoke output, no silent approvals.
+  Previous measured misses and classification errors remain limitations.
+- **PASS focused verification:** **53 isolated backend tests + 21 subtests**,
+  **47 frontend tests / four files**, scoped ESLint, build, compilation, diff
+  check. A new warning initially used an unqualified entity reference; strict
+  roundtrip regression caught it, corrected reference and full focused rerun
+  passed. Broader regression **NOT RERUN** this checkpoint; prior counts above
+  are historical. Existing deprecation/chunk-size warnings remain.
+- Configuration SHA256
+  `4a6dd710ece41828271ccc94d7e6c863feeb674d196a9eda860093cd8e891f91`:
+  pins `exact-complete-legend-description-v1` alongside unchanged artifact
+  hashes. Restarted owned loopback backend after checking zero active leases
+  and open jobs. Existing results are preserved; run a **new analysis** for
+  changed fusion. Production release/gateway and rollback providers unchanged.
+- **NOT TESTED authenticated browser catalog/review:** computer-use reload
+  reaches sign-in only; no role impersonation or authentication bypass.
+  Data consolidation is a reversible view/fusion change, not destructive DB
+  contraction. Branch `codex/vlm-localization-experiment`, HEAD `85448ef`;
+  scoped changes uncommitted, unrelated work and `stash@{0}` preserved. No
+  larger training run, release promotion or additional epic started.
+
+### October 4 switch localization replay (bounded development checkpoint)
+
+- Existing switch IDs were present but ineffective on drawing tiles: original
+  lamp-repair checkpoint matched **1/4** inspected three-storey switches and
+  **0/9** on both the DepED PDF panel and its small upload. All four centered
+  three-storey training crops predict their correct IDs (raw scores
+  0.997–1.000). This supports grid-phase/context sensitivity, not a missing
+  class head or an independent accuracy claim. Saved exact diagnosis and
+  baseline JSON/overlays; inference threshold remains **0.50**.
+- Under the existing delegated development permission, inspected real S/Sa,
+  Sab/circuit-letter variants against both authored legends. Reused four
+  three-storey records unchanged, added nine PDF and nine related derivative
+  boxes. Identical one/two-gang meanings may share IDs 62/63 while each source
+  legend alias remains traceable; three-gang ID 64 remains distinct. The
+  ambiguous Sf mark conflicts with the displayed fan-control meaning and
+  fluorescent branch context: excluded, not silently approved or relabeled.
+- Immutable `switch-real-20261004-v1` SHA256
+  `131e8dc0af696192e13924d7c1d3c31ecd77f0bccf7bf651c8b75ab9acab24ef`:
+  preserves all **80** IDs, original reviewed records, old manifests, copied
+  permissions and split history; adds **594 dependent context views**, varying
+  x/y grid phase ±80 pixels and isotropic scale. Unreviewed areas remain masked.
+  PDF/upload remain one project; assistant inspection is not human approval.
+- Run1 completed one CPU epoch, 320 input, batch four/effective target 64,
+  lr 0.0003, same local architecture/weights, no download. Last SHA256
+  `c730369139bf308a7c4cef1871d1850ddca3bdfcf423df1f419793ac04e1b346`.
+  Full pre-recorded panels and full upload, one-to-one class + IoU ≥0.50:
+  switches **3/4** other PDF, **7/9** DepED PDF, **5/9** small upload; upload
+  retains **20/20** lamps (16 two-lamp/four single-lamp), 26 total proposals.
+  Two-gang misses/misclassifications remain explicit; overlays inspected.
+  Other PDF **28/35** total targets. Original reviewed replay **802/830**
+  matches, 805 localized, 2,483 proposals, no cap: versus previous active
+  lamp checkpoint 795/830 and historical original baseline 806/830.
+- Run2 completed, optimizer reset and exact run1 warm-start: switches **3/4,
+  8/9, 6/9** (other PDF, DepED PDF, upload), both lamp views **20/20**; original
+  replay **804/830**, one capped page. It regressed other-PDF outlets from
+  **5/6 to 2/6** and was **not activated**. Its evidence remains unchanged.
+- Restorative immutable `switch-real-20261004-v2` manifest SHA256
+  `11ef819e20b120ea1bb44e08a64822f820f2f575c7c76212d5043f2b6249f527`
+  keeps all v1 records and adds **162 dependent views of the six existing
+  outlet boxes**, not new independent examples. Run3: one CPU epoch, 996 steps,
+  same partial-label loss/architecture/settings, base run2 SHA256
+  `cb2271b6ccccd8f03fb221f12a2fe6bec7bf6eedbf5b031b7f6d29e93e03c1f6`.
+  Selected last checkpoint SHA256
+  `867c7fb399104bf91caff1d6aad859504cc923443cb3e02fcb2b00255b2affa2`.
+- Frozen full-panel/upload checks at **0.50**, class-aware one-to-one IoU 0.50:
+  DepED PDF switches **9/9** (six one-gang, three two-gang); derivative upload
+  **8/9** (five/six one-gang, three/three two-gang; the remaining one-gang is
+  localized but misclassified). Other PDF **3/4** (one/two one-gang, two/two
+  three-gang). Both related lamp views retain **20/20**; upload has 30 proposals
+  including nine switch proposals and no smoke-detector output. Other PDF
+  **31/35** total: lamps 20/22, outlets restored 5/6, homeruns 3/3. Upload/PDF
+  overlays visually inspected: misses, the wrong gang subtype, grid/wall-edge
+  false proposals remain unresolved. Precision and independent accuracy **unscored**.
+- Original replay **802/830** classified, 806 localized, 2,886 proposals,
+  **three pages capped at 200**; versus prior active lamp replay 795/830 and
+  historical original baseline 806/830. All original 56 IDs retain nonzero
+  matches; rare IDs 21/51 each 5/5. This is a measured development tradeoff,
+  not release acceptance. Immutable all-80-entry coverage report:
+  `storage/training/switch-real-20261004-run3-coverage/report.json`; source
+  legend aliases/counts, each checkpoint-bound probe and limitations separate.
+  **63 classes have source-positive boxes; 17 remain reference/synthetic-only.**
+- **PASS implementation / experimental development selection:** existing
+  `lamps80` shared model path now pins run3/v2, prompt revision
+  `partial-label-80-switch-replay-v2`, configuration SHA256
+  `bd5ce9767d9fed192e853876e2d5714b1ba6b5424c98f42d3a0101516557d986`.
+  Actual weights/head/hash validation and strict payload roundtrip produce
+  named one/two-gang proposals with unknown mapping, no catalog approval.
+  Retained `original56` rollback and previous 80-entry checkpoints unchanged.
+  Restarted only the owned loopback backend after checking zero active leases
+  and zero queued/processing jobs. Existing results are not rewritten; new
+  analysis is required. This is supervised YOLO, not local VLM inference.
+- **PASS verification:** 22 script tests + 31 subtests; final focused backend
+  **57 + six subtests**, including isolated MySQL switch persistence and review,
+  candidate contracts and multipage lease regressions. Full isolated backend
+  **1,069 passed / four skipped / 525 subtests** (before final artifact-pin
+  update; final focused run after it). Full frontend **441 tests / 50 files**;
+  scoped ESLint, frontend build, compilation and diff checks. Existing
+  deprecation warnings and large build chunks remain. Initial test/diagnostic
+  field-name/import mistakes were corrected and rerun, not counted as passes.
+- Integration uncovered a pre-existing page-one queue stall: a succeeded
+  page lease left the job processing, but the next claim treated it as legacy
+  recovery; successful page ordinals also consumed the retry bound. Trusted
+  continuation now requires persisted same-job/page candidates, while only
+  failed/expired leases consume the three-failure budget. Fencing, cancellation
+  and legacy recovery remain enforced. Four-page continuation and retry-budget
+  tests pass. Live job **24178** advanced to page two, then exhausted retries
+  with `INTERPRETATION_PROCESSING_FAILED`; page one preserved, page two failed,
+  pages three/four queued inside that failed job. No direct status rewrite or
+  claim of completed multipage processing. Read-only reproduction passed page
+  two normalization, geometry and 44-symbol strict payload generation; the
+  remaining worker failure needs separate diagnosis; registration, provenance
+  and persistence have not been established as its cause.
+- **NOT TESTED signed-in browser correction/save/reload or WebGL:** computer-use
+  inspection reaches the sign-in screen only; no authenticated session or
+  impersonated actor. Database-backed contract tests are not browser evidence.
+  **PENDING** independent quality/precision, production catalog approval,
+  real gold/release gates. Next bounded work: diagnose the one-gang miss and
+  gang confusion using frozen overlays, then independently reviewed positives
+  and false-positive coverage; do not scale training or claim 85% accuracy.
+  Recovery stash and unrelated work preserved; no commit/push this checkpoint.
+  OpenAPI **44 operations**, metadata **33 tables**, source hashes unchanged.
+
+### October 4 fluorescent-lamp misclassification repair (bounded development checkpoint)
+
+- Reconciled actual saved runs 100–104 / jobs 24172–24176 with upload SHA256
+  `e9f091252f664a6c97e1d3202d5552f6e80507f6304e3dc5c2d1e653dd3f2a48`:
+  each used the original `development_multiclass56_yolo` weights and proposed
+  eight Smoke detector (new) plus one Conventional smoke detector. Neither
+  fluorescent-lamp class exists in that checkpoint. This is model scope and
+  misclassification, not a UI rename bug. Catalog registration does not train
+  weights. Historical candidates remain unchanged; smoke detections are not
+  globally suppressed or silently relabeled.
+- Under the existing delegated local-development authorization, visually
+  inspected the PDF legend and 20 actual DepED lighting-panel targets: **16
+  two-lamp / four single-lamp** fixtures. Separately inspected all 20 boxes on
+  the exact **691 x 488** upload. It is a related derivative of the same drawing,
+  not an independent project or a verified PDF-to-image affine transform.
+  Original images, prior box revisions and project grouping preserved; a new
+  immutable revision tightens one single-lamp box to exclude switch lettering.
+  These are assistant proposals, not fabricated independent human box review.
+- Immutable datasets `lamps-real-20261004-v1` and `v3` preserve the complete
+  **80-class** head and original replay/authorization history. Added 20 real
+  PDF boxes, 160 dependent scaled/context views, 48 single-lamp sampling copies,
+  plus 20 derivative boxes and 384 dependent upload views. Unreviewed regions
+  remain loss-masked; no new empty-background assumptions. The v2 derivative
+  revision is preserved but was not trained. Dataset v3 SHA256:
+  `11b8ade4bc1318214243d807c4ea6a6cc4d381b3444c8482e3c46e81648123b1`.
+- Two two-epoch CPU runs completed: existing YOLO architecture/weights, 320 input,
+  batch four, effective batch target 64, lr 0.0003, offline, no new download.
+  Run1 last SHA256 `250204bc7e65c71b58f49483aa7ae9ed3ad7e53b9a0420c5c99854f6550244e6`;
+  run2 last SHA256 `7d8f5de180f2d47771e66f3153b9cb13f2bf0e150400d7da373c8646c10312bf`.
+  Training-resubstitution auto-validation is **not** release-quality evidence.
+- Frozen score 0.50, shared 256/192 detail tiler, bounded second grid/batch eight,
+  one-to-one class + IoU >=0.50: original 56-class weights **0/20** DepED PDF
+  fixtures; prior 80-class candidate **10/20** PDF fixtures and zero proposals on
+  the exact upload. Run1 **20/20** PDF fixtures but misses all four singles on
+  the upload. Run2 **20/20** PDF fixtures (27 proposals) and **20/20** exact-upload
+  fixtures (**16 two-lamp + four single-lamp proposals, no smoke proposals**).
+  Overlays visually inspected. These are same-source learning checks; partial
+  precision, independent accuracy and the 85% objective remain unscored.
+- Wider run2 replay check: **783/830** original reviewed class/location matches,
+  801 localized, 1,827 proposals, no cap hit; recorded original baseline was
+  806/830, 2,196 proposals and one cap hit. Classes 21 and 51 (drawing-specific
+  pull-station variants, five positives each) regress to zero matches. Other
+  supplied PDF is **23/35**, versus run1 26/35. Do not trade these failures for a
+  misleading all-class success claim. A one-epoch restorative replay experiment
+  completed: v4 preserves v3, adds **696 exact train-only sampling copies** for
+  classes 21/51/62/71, no independent examples or altered labels. Manifest SHA256
+  `d495f772a97b80b6121355cfac89396765f3d3656a241ec70bd92acabd412fb4`.
+- Run3 last SHA256 `6185f40f8679d0183a9c97d5e2eaf15f89641ceef6d8823688c36175bf1d6d57`.
+  Exact upload **20/20** with exactly 16 two-lamp/four single-lamp proposals;
+  PDF panel **20/20**, 25 proposals including apparent wall-edge false matches;
+  other PDF **26/35** (18/22 lamps, 5/6 outlets, 1/2 three-gang switches,
+  2/3 homeruns, **0/2 one-gang switches**). Original replay **795/830** class
+  matches, 800 localized, 2,362 proposals and no cap hit. Classes 21/51 restore
+  to **5/5 each**; all original 56 classes have matches. The eleven-match deficit
+  against the recorded baseline remains visible; no all-class or generalization
+  success is claimed. Immutable all-80-entry JSON coverage preserves class IDs,
+  legend mappings, sample counts, per-source matches/predictions and limitations:
+  **62 classes have real source boxes; 18 have reference/synthetic-only examples**.
+- Fixed source-scoped probe denominators: page number and coordinates cannot
+  identify a PDF in a combined replay manifest. An earlier mixed-source report
+  is retained as invalid evidence; v2 and later reports filter exact PDF hash.
+  Added class-specific nested tile-duplicate suppression; adjacent fixtures and
+  different classes are retained. Added hash-bound 80-class loader compatibility
+  with integrity-checked restorative sampling, exact-upload scoring,
+  and an honest missing-lamp-class warning for the original provider.
+- Fresh **PASS:** 51 focused backend/script tests + 30 subtests; restricted,
+  empty isolated MySQL review/save/worker/catalog regression **53 tests + 15
+  subtests**; focused frontend **43 tests / four files**; scoped ESLint and Vite
+  build (existing large-chunk warning). Initial full isolated backend run:
+  **1,063 passed / four skipped / 525 subtests** before final profile-provenance
+  checks. New persisted fluorescent-worker coverage exposed unordered inference
+  parameters; fixed sorting at construction, preserving strict validation. A
+  subsequent full run exposed one historical 56-version assertion (1,064 passed,
+  one failed); updated it to assert the selected pinned head/profile, not bypass
+  the provenance contract. Final restricted/empty isolated full rerun **PASS:
+  1,065 tests / four skips / 525 subtests**, five existing dependency warnings.
+  Final worker tests include persisted named fluorescent proposals and actual
+  selected-profile/head provenance. Compilation and diff checks passed; OpenAPI
+  **44 operations / 33 tables** unchanged. Full frontend suite
+  **NOT RERUN**. Computer-use
+  browser check again reaches normal sign-in, not an authenticated review session;
+  live correction/save/reload and WebGL **NOT TESTED**. No account impersonation.
+- **Development only:** one shared `lamps80` checkpoint now feeds new upload
+  proposals through the existing unresolved correction/save workflow, with exact
+  names and an experimental warning describing measured failures. The historical
+  `development_multiclass56_yolo` provider key is retained for stored-contract
+  compatibility; actual head count, profile, dataset/checkpoint SHA256, warm-start
+  base and prompt revision are explicitly recorded. It is YOLO, not local VLM
+  inference. `DEVELOPMENT_SYMBOL_PROFILE=original56` plus backend restart restores
+  the original pinned 56-class rollback; both real loaders checked. Production,
+  configured local-gateway and promoted-release selections remain unchanged.
+  Actual exact-upload inference produced a valid strict 20-symbol candidate,
+  correct lamp names and all mappings unresolved; this is not authenticated
+  browser saving or approved canonical geometry. No model auto-learning.
+- Idle local backend restarted with access logging disabled; a second verified
+  repository backend on port 8000 was stopped to remove stale-server ambiguity.
+  Health is 200, sole listener is loopback. Existing completed job JSON/reviews
+  are not rewritten: re-run analysis for new proposals. Original sources/fallback
+  weights rehashed unchanged and recovery stash
+  are preserved; branch `codex/vlm-localization-experiment`, HEAD `85448ef`, task
+  changes uncommitted with unrelated work preserved. No production promotion,
+  new Markdown report or dataset approval invented. Next: authenticated live
+  re-analysis and correction/save/reload; import the approved PDF catalog through
+  the real Admin workflow if still absent. Further detection work must target
+  the missed one-gang switches and high-resolution wall-edge false proposals,
+  and check original-class regressions; independent evaluation remains pending.
+
+### October 4 complete authored PDF catalog (implementation verified; live import pending)
+
+- Owner instruction: "all those must be used in the legend catalog list for the
+  user to use". Applies to the supplied approved sources: 16 DepED page-7 entries
+  and 24 three-storey page-1 entries. **40 source-specific definitions**, including
+  36 symbols/notations and four wiring patterns; no checkpoint inclusion or
+  detection success is required for catalog availability. This does not assert
+  independent human box review or production model approval.
+- Added **Import approved PDF legends** to the existing Admin catalog. Uses the
+  existing authenticated import endpoint with `catalog=approved-pdf`; verifies
+  pinned preparation manifests, source permissions, originals, source pages and
+  every glyph crop before an atomic catalog/history write. No client paths or
+  model downloads. Sources/manifests remain private and unchanged; manifest pins
+  are `41d23c6e6d477508e17068901d4018234fa0e7df84976b83dcb3a0676280bb9a`
+  and `305a464ef9e907785dbc3b5712be5c9418f1d614c677f230ca6506c698030963`.
+- Each name retains `[pdf-<source hash prefix>:p<page>:L<entry>]`. Identical wording
+  across drawings remains traceable, allocated app IDs remain separate from
+  model indices, repeat import is idempotent, and existing/inactive entries are
+  never overwritten/reactivated. Authenticated Admin and development-only gates
+  remain enforced. Wire definitions are catalog-visible references: disabled in
+  device pickers and rejected as point devices by manual placement,
+  classification, review approval and canonical save. Rejected proposals remain
+  saveable. This does **not** add a wiring-pattern editor or auto-route wiring.
+- **PASS:** actual pinned artifact verification found all 40 definitions / four
+  wiring patterns; focused isolated MySQL regression **58 tests + 30 subtests**;
+  frontend **52 tests / five files**; scoped ESLint, frontend build, Python
+  compilation and diff whitespace checks. Initial new tests expected 422 rather
+  than the existing 409 conflict contract; corrected assertions and reran to pass.
+  Existing Starlette/anyio deprecations and large build chunks remain warnings.
+  OpenAPI remains **44 operations**, metadata **33 tables**. **NOT TESTED:** full
+  backend/frontend suites, authenticated live browser import/selection/reload.
+- **BLOCKED only for live publication into the catalog:** computer-use reached
+  the local app but `/#/app` redirected to sign-in; no connected authenticated
+  Admin session. No role bypass, fabricated actor/history or development database
+  write. Next: sign in as Admin, open **Symbol legends → Manage symbol legends →
+  Import approved PDF legends**, then verify the Designer's named picker after
+  reload. Existing fixture-backed API tests prove public catalog availability and
+  named draft selection/persistence; they are not live browser evidence.
+- Branch `codex/vlm-localization-experiment`, HEAD remains `85448ef`; these edits
+  are uncommitted. Preserved all unrelated edits and `stash@{0}` unchanged. Both
+  PDF original hashes and active 56-class checkpoint hash reverified unchanged;
+  the failed 80-class candidate stays inactive. Catalog use is not detection
+  readiness or an 85% accuracy claim.
+
+### October 4 delegated electrical PDF training (completed experiment; inactive)
+
+- User explicitly approved training and delegated preparation without routine
+  reconfirmation. Recorded exact statement, PDF/preparation hashes and train-only
+  source grouping in immutable private authorization revisions. This is local
+  development authority, **not an independent human box review or production
+  approval**. It supersedes the source-only pending status below for this experiment.
+- Visually inspected **35 assistant-prepared page-3 targets**: 22 two-lamp fixtures,
+  six grounding duplex outlets, two one-gang switches, two three-gang switches and
+  three homeruns. Corrected clipped/rotated outlet and homerun boxes in new
+  revisions; retained every prior proposal. Missing regions remain loss-masked,
+  not assumed background; pages 2/4 are not used as negative examples.
+- Dataset `storage/training/elect-20261004-v1/` retains all parent 60 numeric class
+  IDs and replay data. It appends 20 drawing-specific definitions; L02/L14 share
+  exact authored meanings with candidate IDs 56/58. **80-class head**, 22 traceable
+  device/notation entries, two wiring definitions explicitly outside device
+  detection. Added 176 reference-derived placements (eight per entry), separately
+  counted from real labels; reference-only coverage is not demonstrated detection.
+  Manifest SHA256 `9aeff278dab44abb438db366fd5fe9b986e0a283f94d76bf202a09ea473fa5d8`.
+- Reused head-extension, known-composite generation, partial-label loss and shared
+  bounded tiler. New preparation/probe tools validate source authorization, hashes,
+  transforms, copied labels and same-source one-to-one matching. Production import
+  and active provider unchanged. Three-epoch CPU run (320 input, batch 4, lr 0.0003)
+  completed at `storage/training/elect-20261004-run1/`. Last checkpoint SHA256
+  `15247c3eadd911d53f39855912f79f24cde6255024e9bdeae30bf5c5f3f11e1d`.
+- Same inspected drawing panels, frozen threshold 0.50 and one-to-one IoU >=0.50:
+  initialized candidate **0/35** correctly classified (2 localized), replay
+  candidate **4/35** correctly localized/classified (four lamps; no outlet,
+  switch or homerun matches). Five proposals; no cap hit. Raw JSON/overlays saved
+  in `elect-20261004-initial-probe/` and `elect-20261004-trained-probe/`.
+- Diagnosed weak rare-target learning rather than empty inputs/label-ID drift:
+  isolated the same 35 real tiles, kept all 80 head IDs, partial-label masking
+  and explicit delegated provenance. Ten bounded epochs with effective batch 4
+  and lr 0.001 reduced classification loss 2.37 ->0.32. Same-panel check:
+  **34/35 localized, 33/35 classified** (22/22 lamps, 6/6 outlets, 2/2 three-gang
+  switches, 3/3 homeruns; **0/2 one-gang switches**). This is **memorization**, not
+  94.3% general accuracy. It produces 110 proposals, including visually apparent
+  grid/column false matches. The diagnostic checkpoint is explicitly non-deployable.
+- One full replay epoch completed with all 80 classes, **85 non-independent
+  sampling replicas** to bring each real-target class to at least 24 centered
+  tiles, and **18 assistant-inspected negative regions** (nine grid numbers,
+  nine architectural columns). Known symbol intersections are rejected. Negative
+  evidence is delegated assistant review, not invented human approval; whole
+  pages 2/4 remain excluded from negative supervision. Dataset v2 SHA256
+  `7440bc96c6e6a033060277c21234cf9456a724cc0fdad9f4db39533c280d3ec9`.
+  Final checkpoint `storage/training/elect-20261004-run2/weights/last.pt`, SHA256
+  `dbe34851344d17cbd53623374441fd70b506536dd95df3d23309248bd1d8cd94`.
+  It is **inactive**; no active provider or production contract changed.
+- Final frozen same-panel probe: **15/35 localized and classified (42.9% positive
+  recall on this training source)**, 15 proposals, neither panel truncated.
+  Lamps **10/22**, ordinary duplex outlets **3/6**, one-gang switches **0/2**,
+  three-gang switches **1/2**, homeruns **1/3**. The other **17 source legend
+  entries** are reference-only and yielded zero proposals on these panels;
+  their real detection success is **NOT ESTABLISHED**, not a zero-recall score
+  on nonexistent test targets. All 22 mapping/count rows are recorded in
+  `storage/training/elect-20261004-final-probe/report.json`; source L10/L11 remain
+  explicitly wiring-only. All previous 60 class IDs remain in the trained head.
+- Diagnostic proposal centers inside the 18 visually inspected grid/column
+  regions: **18 ->0** after replay. This is bounded assistant negative-region
+  evidence, **not whole-page precision**. Final overlays were visually inspected;
+  20 expected targets are still missed. **Model-quality gate FAIL; no activation**.
+  Independent accuracy, global precision and the 85% target remain unverified.
+  Automatic YOLO validation used training tiles and incomplete-page labels; its
+  precision/mAP values are not accepted real-world measurements. The narrow
+  33/35 memorization checkpoint cannot replace the full detector as a success.
+- **PASS:** focused preparation, source authorization, class replay, partial loss,
+  coordinate/matching, tamper and private-corpus verification **89 tests +23
+  subtests**. **SKIPPED:** one Windows symlink test (privilege unavailable).
+  Python compilation/diff checks pass. Original PDF, prior datasets/weights,
+  private corpus revision 4 and stash preserved; no downloads, DB mutations,
+  frontend edits or automatic upload training. Full backend/frontend/browser and
+  cross-project evaluation **NOT RUN** for this offline experiment. Work remains
+  uncommitted on the existing branch with unrelated edits untouched.
+- Exact next bounded experiment: translated/native-grid real-context tiles plus
+  balanced replay for the missed lamps/outlets/switches/homeruns, checking recall
+  and the fixed negative regions together. Keep all 80 classes and the existing
+  fallback; do not reactivate the high-recall/high-false-positive diagnostic.
+
+### October 4 additional electrical PDF intake (source preparation, not training)
+
+- User-authorized source `76f411c60b6d3a7b0d4c1d89b8cadb0de1fd54a58573aae706fe6fa07113c868`
+  (906,148 bytes; four pages) added incrementally to private corpus revision 4.
+  Source permission is user-attested local reference/training use, not a separate
+  approver or new box-review claim. All pages/derivatives stay together in train;
+  relationships to prior projects remain unverified and outside scored evaluation.
+- Prepared `storage/training/pdf-source-20261004-76f411c60b6d-v3/`:
+  four 6000 x 4000 pages at 200 DPI, one full legend, **24 individual definitions
+  (22 device/notation entries, two wiring patterns)** and six layout regions.
+  Page 3 has visible fluorescent lamps, switches, outlets and homeruns. Pages 2/4
+  are titled lighting/power but visually contain architectural backgrounds only;
+  they are **not complete negatives**. Legend/box proposals remain unreviewed,
+  `training_ready=false`; no new reviewed real targets or model training claimed.
+- Preserved source-specific identities L01-L24. Proposed equivalent references
+  only for L02 (candidate class 56, 2 x 40 W lamp) and L14 (58, ordinary grounding
+  duplex); other mappings remain unresolved. Raceway patterns are wiring, not
+  walls/devices. Visual inspection corrected neighboring fragments in L20/L21
+  through a new region/preparation revision; earlier revisions remain intact.
+- Existing strict upload validation passed; pypdf warned about non-zero-indexed
+  xref entries corrected **in memory**, not source bytes. All pages rendered and
+  were visually inspected; text is available but includes symbol-font private-use
+  characters, so extracted text alone is not glyph identity. Private inspection
+  metadata records findings, provenance and the no-empty-background policy.
+- **PASS:** focused PDF-preparation/private-corpus tests **48 passed, 10 subtests**;
+  **1 skipped** (Windows symlink creation unavailable, not a pass). Original/private/prepared PDF copies,
+  rendered/crop hashes and all five prior manifest records verified unchanged;
+  revision 3 is hash-verified in the immutable archive; repeat intake `changed=false`.
+  Source manifest SHA256 `305a464ef9e907785dbc3b5712be5c9418f1d614c677f230ca6506c698030963`.
+  Corpus now six sources / 30 pages. Its two eligible inventory groups are **not
+  verified independent project coverage**. Active weights and prior dataset/PDF
+  hashes unchanged; stash/unrelated edits preserved. No API/schema/frontend edits;
+  full regressions/browser/training **NOT RUN** for this data-only checkpoint.
+- Next: retain readable page-3 location proposals and reconcile drawing-specific
+  mappings before supervised real-layout training; mask unreviewed areas. Current
+  detector and inactive 60-class candidate remain as previously reported.
+
+### October 4 fluorescent-lamp / outlet extension (training, not activation)
+
+- Retained every original 0-55 model ID. Appended **56: 2 x 40 W fluorescent
+  lamp**, **57: 1 x 40 W fluorescent lamp**, **58: ordinary duplex grounding
+  outlet**, **59: weatherproof duplex grounding outlet**, bound to authorized
+  PDF page 7 legends L02/L07/L12/L13 respectively. These are distinct entries,
+  not aliases for troffers or for each other. Source authorization is unchanged;
+  no new human review or production approval was invented.
+- `prepare_authored_legend_extension.py` preserves the parent head/backbone at
+  initialization, transfers related classifier seeds without claiming class
+  equivalence, and prepares **256 construction-known synthetic placements**
+  (64/class) plus the original **830 reviewed real targets** and background
+  replay. Each new class has **one authored reference**, **zero reviewed real
+  layout targets** and **zero independent examples**. v1/v2 and failed runs are
+  retained. v2 manifest SHA256:
+  `b6f16c97cd9ea41bf05927edad7b17068464b6de58d59e3355aecd9f5cf488d1`.
+- Completed three bounded full-data runs of three epochs each, using the
+  existing local YOLO architecture/weights and CPU (320-pixel model input;
+  batch 2 initially, batch 4 in the last replay). Latest candidate:
+  `storage/training/deped-legend-20261004-run4/weights/last.pt`, SHA256
+  `2cc5c84974596afd71a28883785b5130f9b1b41c83075379165c54037ff06a68`.
+  It contains all 60 classes but is **not selected in the running application**.
+- Diagnosed Unicode/ASCII serialization of class 53, not numeric ID leakage;
+  comparison preserves numeric identities and accepts only canonical spelling.
+  Direct loss/gradient probes confirmed gradients for all four added logits.
+  The first 320-input learning check classified 0/16 two-lamp examples and 15/16
+  one-lamp examples; a subsequent epoch reversed the collapse. An eight-example
+  640-input check also failed (0/8 matching at 0.50, with candidate flooding).
+  Corrected tiny-run effective batch/optimizer update frequency, bounded
+  fine-tune bias warmup, and construction-known synthetic background treatment:
+  the corrected eight-example check matches **4/4 two-lamp and 3/4 one-lamp**
+  examples. This is partial memorization, **not generalization or a release gate**.
+  Those diagnostic-only weights can never satisfy the extension loader.
+- Real partial pages continue ignoring unreviewed regions. Complete background
+  supervision applies only to hash-checked, provenance-marked generated images;
+  it is not labeled human-reviewed. Latest 16-per-class synthetic check matches
+  **10/16, 9/16, 12/16, 14/16** for IDs 56-59 at the unchanged **0.50** threshold.
+  Synthetic positives are not counted as independent real training examples.
+- Identical real lighting/power crops: active baseline **15/17 proposals**;
+  initial six-epoch extension **27/23**; revised replay **5/4**. The revised
+  lighting result has **zero 56/57 proposals**; power has **zero ordinary-outlet
+  proposals and two weatherproof proposals**, despite the visually ordinary
+  outlet glyphs. Earlier results misclassified a one-lamp fixture as two-lamp
+  and ordinary outlets as weatherproof. Saved raw candidates/overlays under
+  `storage/training/deped-20261004-*`; assistant inspection is not independent
+  human approval. New-source precision/recall remain **unscored**.
+- Same-source original-data replay (23 pages, IoU >= 0.5, one-to-one matching):
+  baseline **806/830** class-matched reviewed positives, **2196 proposals**, one
+  capped page; six-epoch extension **809/830**, **4452 proposals**, 19 capped
+  pages; revised replay **809/830**, **3023 proposals**, three capped pages.
+  These are training-source positive-recall checks, not precision, held-out
+  accuracy or evidence that the requested 85% target was achieved.
+- Added fail-closed 60-entry loader compatibility with original-map/source-hash
+  checks and retained the exact 56-entry rollback. Added PDF/page/legend identity
+  support in the candidate contract; names survive unresolved candidate
+  serialization. Admin import validation supports complete unique 56/60-entry
+  catalogs and remains role-gated/local-development-only. UI does not hard-code
+  56 entries or auto-approve proposals. Lamp/outlet display-family tests pass.
+  **Active configuration remains 56**, because the new checkpoint fails useful
+  real-page detection. Offline loader verification of the 60-entry artifact
+  passed; that is artifact compatibility, not detection acceptance.
+- **PASS:** training/preparation/probe/loss tests **41 + 14 subtests**; focused
+  isolated candidate/catalog/review/persistence tests **45 + 42 subtests**;
+  full isolated backend **1048 passed / 4 skipped / 514 subtests**; frontend
+  scoped **39 tests / 4 files**, scoped ESLint, Vite build, compilation and diff
+  check. First full run failed I4 storage-integrity teardown because the fixture
+  watched live training files; fixed it to the configured isolated storage,
+  matching the existing H3 fixture, then reran successfully. Initial wrong-import
+  collection failure was corrected before successful focused/full reruns.
+  Existing dependency deprecation and build chunk-size warnings remain. Full
+  frontend suite/global lint were not rerun for this scope.
+- **Browser / integration NOT TESTED:** computer-use browser reaches sign-in;
+  no authenticated session is connected. No Admin import, upload, correction,
+  draft save/reload or 2D/3D completion is claimed. Existing workflow preserved
+  by regression tests; there was no canonical geometry change or fabricated
+  measurement. Originals, parent dataset and active weights match prior hashes.
+- One standalone diagnostic accidentally invoked Ultralytics auto-install for
+  the package `app`; it was immediately uninstalled. Subsequent model loads
+  explicitly disable auto-install/network and add the repository backend path.
+  No alternate model was acquired. No secrets or private account changes.
+- **Remaining:** reviewed real-layout examples for the new glyph styles and
+  subtype markers, followed by a bounded replay and visual verification. Source
+  permission needs no reconfirmation. Do not activate run4 or either memorization
+  checkpoint as a working detector; production/data/release gates remain pending.
+  Local uncommitted implementation on `codex/vlm-localization-experiment` at
+  `85448ef`; unrelated edits and `stash@{0}` preserved. No new Markdown files.
+
+### October 4 additional authorized PDF training source
+
+- Recorded the user's VED source/training permission against exact source
+  SHA256 `efa570519f08bc3596d443fcc63c96ddd6bf73039bcba7ed3e52881d0943d9af`;
+  source ID `source-efa57051`. User-attested permission is not a fabricated
+  separate approver, reviewed box annotation or production release approval.
+  Encryption remains deferred by existing user acceptance.
+- Preserved the Downloads original and an exact private source snapshot. Added
+  eight pages incrementally to the existing private corpus, revision **3**:
+  **5 sources / 26 pages**, all four prior records unchanged and prior revisions
+  recoverable. Repeated intake reports `changed=false`. Page **7 / E-1** is
+  visually readable and classified electrical; other pages remain inventoried,
+  with pending quality/classification where not visually established. No legacy
+  permission, established split or review decision was rewritten.
+- Prepared immutable local versions under
+  `storage/training/pdf-source-20261004-efa570519f08-v3/`: one **6000 x 4000**
+  page at **200 DPI**, lighting/power crops, full legend reference and **16**
+  readable individual legend crops. Fourteen are symbol definitions; two are
+  conduit/wiring patterns, not device or wall classes. Preserved drawing-specific
+  L01-L16 identities, page hash, crop hashes and source-coordinate transforms.
+  Assistant transcription correction for L14 is versioned; v1/v2 retained.
+- Visual evidence relates this lighting layout to the prior source crop hash
+  `e9f091252f664a6c97e1d3202d5552f6e80507f6304e3dc5c2d1e653dd3f2a48`.
+  Both must stay in one train-only related-source cluster. Main-corpus coverage
+  computes one eligible intake project/page; this is **not** proof of an
+  independent held-out project or a reviewed detection dataset. Relationships
+  to other project groups remain unverified and are not scored.
+- **PASS:** preparation/intake/filter regression **53 tests / 10 subtests**;
+  **1 SKIPPED** real symlink creation unavailable on Windows (mock rejection
+  branch separately tested). Compilation, diff check, original/snapshot hashes,
+  prior-record preservation and immutable history checks pass. No model download,
+  cloud processing, database write or UI alteration. PDF parser reports existing
+  nonzero xref numbering; strict validation passes without editing source bytes.
+  PDFium exposes no text on this page; metadata records text extraction
+  unavailable, rather than treating an empty text file as OCR success.
+- **Pending / NOT RUN:** supervised detection training and evaluation on this
+  source; **0 reviewed layout targets** in the new package. The assistant's
+  extracted legend labels remain proposals, not human-reviewed training boxes.
+  Next input is reviewed symbol locations and drawing-legend links on the two
+  extracted layouts; incomplete/unlabeled areas must be ignored, not trained as
+  empty background. No permission reconfirmation required. Existing 56-entry
+  checkpoint, class mappings, production approval rules and weights unchanged.
+  No new training accuracy or detector activation claimed.
+- Local/uncommitted on `codex/vlm-localization-experiment` at `85448ef`;
+  unrelated changes and `stash@{0}` preserved. Existing documentation updated,
+  no new Markdown. Browser/full app regressions not run for data-only preparation.
+
+### October 4 outlined-wall / circuit separation checkpoint
+
+- Confirmed the exact supplied lighting source by immutable SHA256
+  `e9f091252f664a6c97e1d3202d5552f6e80507f6304e3dc5c2d1e653dd3f2a48`.
+  Baseline thick-stroke detection promoted circuit runs to walls. A new RGB
+  regression also exposed drawing bounds clipping the outer wall outline;
+  corrected that padding rather than weakening the test.
+- Shared structural CV now qualifies sustained, similar-weight paired strokes
+  enclosing white space in two directions. Bounded search retains solid/hatched
+  structure, extends only on qualified ink, preserves openings and consolidates
+  duplicate centerlines. No page coordinates, trained-model changes, automatic
+  symbol acceptance or wiring generation. Existing solid-wall fallback remains.
+- Private immutable diagnostics: `storage/reports/wall-outline-20261004-c/`
+  contains before/after JSON and overlays. Same-source proposals **29 -> 11 walls,
+  15 -> 3 rooms**; assistant overlay inspection finds the illustrated circuit runs
+  no longer overlaid as walls. Counts are not accuracy, independent review or
+  approved geometry. Prior diagnostic revisions a/b remain available unchanged.
+- **PASS:** final focused isolated MySQL regression **129 tests / 95 subtests**
+  (wall/demo CV, persistence, demo review/save API, both experimental symbol
+  providers and interpretation worker); two existing dependency warnings.
+  Added scale, rotation, opening, mixed solid/outline, adjacent circuit, safe
+  OpenCV failure, malformed output and end-to-end room regressions. An initial
+  run failed the new room test; the corrected drawing bounds pass it. Compilation
+  and Git diff checks pass; only existing LF/CRLF notices. Original source bytes
+  remain unchanged. Full backend/frontend suites are **NOT RERUN**
+  for this backend-only patch; prior full totals are historical.
+- **NOT TESTED:** authenticated browser reprocess/review/2D/3D. Computer-use
+  verified `http://localhost:5173/#/app` redirects to sign-in; no authenticated
+  session exists in the connected browser. No access bypass or project mutation.
+  Reprocess under the real user to create new proposals; saved prior runs and
+  approved geometry remain immutable. Close parallel wiring, degraded outlines
+  and semantic ambiguity still require review; no detection-readiness claim.
+- Local/uncommitted on `codex/vlm-localization-experiment`; existing legend,
+  maintenance, planning/UI changes and `stash@{0}` preserved. Originals,
+  datasets and weights were not edited. No new Markdown files or release claim.
 
 ## Resume index
 
@@ -2528,6 +4745,26 @@ the original sequence only after the demo handoff and further user direction.
 - Fresh verification before publication: restricted/empty isolated MySQL preflight and full backend **1029 passed, 4 skipped, 509 subtests passed**, with five dependency deprecation warnings; frontend **50 files / 422 tests passed**, Vite build passed with the existing large-chunk warning; ESLint passed for the published `src` tree; six directly relevant script test files passed **34 tests**. A broad script-discovery run had one unrelated import error because optional `peft` is absent locally; it is not reported as a pass. Staged diff check and added-line secret scan passed. In-app browser loaded the local landing page; authenticated review, WebGL, save/reload, and production model acceptance were **NOT TESTED** by browser in this audit.
 - Deliberately excluded an unused/untracked `DeviceMeshCatalog.jsx` that fails lint and references unavailable assets/dependencies, a local MySQL repair script, and an unrelated deletion of the Gemini review prompt. Ignored private dataset, original images, manifests and model weights were not staged. The local 56-class development checkpoint must be provisioned separately on another host; it remains experimentally fenced and known to fail cross-style usability. Keep the recovery stash unchanged.
 
+### October 2 local account/session reset
+
+- Owner-authorized maintenance completed against local development `ved_electrical`. Live account/role tables checked OK and all four Google mappings resolved before reset; corruption was not reproduced. Complete database dump plus private configuration snapshot saved in ignored `storage/reports/account-reset-20261002T144611213579Z/`; dump completion marker and SHA256 recorded privately. Cleared cached profiles for 53 retained accounts, removed 63 unreferenced synthetic accounts and 17 unused synthetic roles. Four Google identities, existing ADMIN/DESIGNER assignments and 49 referenced synthetic identities retained. Every unaffected table's row counts/content hashes matched before/after; no uploaded source, annotations, model weights or project geometry changed.
+- Rotated private session key and restarted backend with OAuth-code-bearing access logs disabled. Fresh live checks: health 200, signed-out `/api/auth/me` 401, pre-reset signed session 401, fresh login 302 to Google with state session issued; four Google profile-refresh/resolution checks passed in rollback-only transactions. Browser computer-use verified landing and sign-in screens. Fresh interactive Google callback for each Gmail **NOT TESTED**; users must begin a new sign-in rather than replay an old callback.
+- **PASS:** four reset utility tests (dry run, identity/authority/reference preservation, idempotence, rollback); restricted isolated MySQL authentication/reset suite **13 passed, 2 subtests passed**, two existing dependency warnings; compilation and diff checks. Full regressions **NOT RERUN** for this maintenance scope. Added `scripts/reset_local_accounts.py`, its script tests and `backend/tests/test_account_reset.py`; existing backend README documents maintenance/recovery. Changes remain uncommitted on `codex/vlm-localization-experiment`; unrelated deletion, untracked UI/repair files and `stash@{0}` preserved. U/data/training/release acceptance unchanged.
+
+### October 2 project-only reset (owner clarification)
+
+- Explicit authorization to delete projects and linked application data while preserving datasets/trained data. Fresh private dump/configuration recovery snapshot: ignored `storage/reports/project-reset-20261002T150148024805Z/`. Deleted **575 rows** in FK-safe transactional order: **56 projects, 55 floors, 73 plan records**, plus linked jobs/outcomes/artifacts/detections/walls/reviews/settings. All **25 project-owned tables now empty**; no schema drop, ID resequencing, disabled FK checks, or filesystem deletion. Account/role/session, shared legend/history/material, dataset authority and release table contents unchanged by hash verification. Stored originals retained privately for recovery: **23 original files hash-identical**. All **47,748 training/model files metadata-identical** (size/mtime inventory; not a claim of full content rehash). Downloads and annotation workspace untouched.
+- **PASS:** eight maintenance tests, including project-only dry run, dependency deletion, preserved accounts/catalogs, unknown-dependency refusal, rollback and idempotence; isolated MySQL authentication/project/floor/upload/reset regression **103 passed, 25 subtests passed**, two existing dependency warnings; compilation/diff checks. Command: `run_isolated_backend_tests.py tests/test_account_reset.py tests/test_authorization.py tests/test_projects.py tests/test_project_floors.py tests/test_floor_plan_upload_api.py -q`. Post-reset dry run returns zero removable project records, and all four Google accounts' actual project-service lists are empty. Session configuration unchanged. Backend restarted (health 200); frontend was stopped, restarted and browser computer-use verified its protected app route redirects to normal sign-in. Initial frontend connection checks failed during startup, then recovered. Authenticated browser project list **NOT TESTED** because the connected browser is signed out; full regressions **NOT RERUN** for maintenance scope.
+- Extended existing reset utility/tests/README only; ledger updated here. Changes uncommitted on `codex/vlm-localization-experiment`; unrelated work and recovery stash preserved. U/data/training/release statuses unchanged. Refresh the existing authenticated project page to retrieve the empty list; backend and frontend are already running.
+
+### October 2 trained-legend names and review mapping
+
+- New proposals from the pinned `development_multiclass56_yolo` checkpoint retain a typed `training_legend` snapshot: exact user-attested training name, drawing-specific entry, model index and dataset SHA256. Verified all **56 actual manifest entries** against pinned dataset/checkpoint hashes and validated their snapshot shapes. Display names feed the existing shared draft 2D/3D presentation; model predictions and reviewer corrections remain separate. Existing candidate JSON, original images, annotations and weights were not rewritten or retrained.
+- Added authenticated, **ADMIN + development-only** `POST /api/admin/symbol-legends/import-trained` and the existing Admin panel's **Import 56 trained legend entries** action. It registers unique `name [drawing:legend]` entries with separate app class numbers and normal actor-attributed history. Imports are transactional/repeat-safe; existing meanings and inactive decisions are retained. **Use trained legend mapping** matches only the exact active drawing-specific name, never a checkpoint index or similar wording, and leaves the detection unresolved until explicit review. No role/production approval bypass or fabricated approver was used.
+- **PASS:** focused backend **62 tests / 12 subtests**; focused frontend **34 tests**; final restricted/empty isolated MySQL full backend **1036 passed, 4 skipped, 509 subtests passed**, five existing dependency deprecation warnings; full frontend **50 files / 426 tests passed**; scoped ESLint, Vite build (existing large-chunk warning), compilation and diff checks. Final full run includes the added database save/reload snapshot test. Initial runs failed old OpenAPI totals and a new test fixture/query; corrected the exact route contracts (now **44 operations / 33 tables**) without changing application gates. An initial full run also failed H3's storage hash assertion because it watched live development logs; H3 now honors the isolated runner's configured temporary storage and retains the hash comparison. The final full rerun passed.
+- **NOT TESTED / pending:** authenticated browser import and real-plan review/2D/3D interaction. Computer-use verified that the protected local app redirects to sign-in; no signed-in Admin is available in the connected browser. Live catalog remains **9 entries**; the 56-entry import has **not** been executed against it. Next action: sign in as the actual Admin → Manage symbol legends → Import 56 trained legend entries; refresh/open a newly processed review and explicitly select its trained mapping. No account impersonation, restored projects, model activation, production promotion or accuracy improvement is claimed.
+- Implementation remains local/uncommitted on `codex/vlm-localization-experiment`; earlier maintenance/planning edits, unrelated files and `stash@{0}` preserved. Existing README updated; no new Markdown report. Dataset/training/real-data/release gates unchanged.
+
 ### October 9 source-supported wall junctions
 
 - Draft-only 3D browser check **PASS**: WebGL rendered the same saved wall/device draft, with roof initially hidden and unmeasured observed wiring explicitly withheld from 3D. Screenshot `wall-supported-junctions-20261009-v5/browser-shared-wall-draft-3d.jpg`. This is an illustrative draft using existing preview dimensions, **not** measured canonical geometry or engineering approval. Returned the connected browser to 2D after verification. Canvas alternative text initially suggested a WebGL failure; the actual screenshot and empty WebGL error log demonstrated rendering, so no browser failure is claimed.
@@ -2551,3 +4788,182 @@ the original sequence only after the demo handoff and further user direction.
 - **PASS focused:** 90 backend tests / 111 subtests; four frontend files / 25 tests, followed by three edited-file suites / 18 tests after preserving click snapping/tool-session isolation. **PASS full working-tree verification:** isolated MySQL backend **1,285 passed / 4 skipped / 1,438 subtests**, five existing dependency warnings; frontend **65 files / 569 tests**. Vite build and scoped ESLint pass; existing >500KB chunks remain. **FAIL full ESLint:** six unrelated errors in untracked `DeviceMeshCatalog.jsx`, left untouched. Full suites include unrelated working-tree edits and do not establish independent detection accuracy. No APIs/tables added: **36 OpenAPI paths / 44 operations / 34 metadata tables**.
 - **PASS computer-use browser:** existing project 10218/floor 6323/upload **9377**, normal project reanalysis (no duplicate import, no drawing selection) created **job 24222**, **13 walls / 2 rooms / 29 unresolved symbol proposals / 12 partial unresolved wiring proposals**. Drew test trace **402,89 -> 453,89**, saved unfinished review **revision 1**, reloaded and verified the exact source coordinates; removed the test duplicate and saved **revision 2**. The tombstone, revision 1 and prior raw jobs **24220/24221** remain. Neither human review completeness nor canonical approval was granted. Read-only proof: `wall-stable-scope-20261009-v1/browser-verification.json`. Job 24221's old 90x5 selected region remains historical evidence, not a full-plan detection. Screenshot records the simplified editor and restored automatic perimeter.
 - **NOT TESTED this checkpoint:** fresh measured canonical 2D/3D and engineered routing, because no saved canonical layout/approved scale/elevation exists. Prior draft-WebGL verification remains separate; unmeasured observed wiring is not fabricated in 3D. No new model download, larger training run, dataset reset, production promotion, accuracy claim or GitHub push. Scoped checkpoint starts at `4cec132`; unrelated legend/class-tail/auth/estimate/training edits and stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` retained. Next smallest wall experiment remains source-supported missing-section recovery with lighting, wiring and hatch negatives, not additional UI controls.
+
+### October 9 Admin Excel pricing, reviewed BOM and metric route tubes
+
+- Priority: Admin Excel import, user BOM, then 3D ceiling/wall wiring. Reused the existing MySQL materials/price revisions, estimate snapshots, role checks, canonical route projection and React controls; no new dependency, table, training or engineering default. Routing/3D skills kept geometry authoritative; spreadsheet inspection exposed ambiguous purchase-unit quotes rather than treating them as per-meter prices. Current branch `codex/vlm-localization-experiment`, starting at `5789c6b`; this work remains uncommitted, with unrelated edits and recovery stash preserved.
+- **PASS import implementation:** ADMIN-only XLSX preview/apply, bounded ZIP/XML parsing, no formula evaluation/macros/external-link execution, stable brand/SKU codes, explicit currency, row selection, file hash, optimistic price revisions, transactional rollback and actor-attributed append-only history. Existing material name/unit conflicts are not overwritten. Repeating identical prices creates no revision; after an uncertain apply the UI requires a fresh preview. Supplied workbook SHA-256 `e6ac185848d507a8fa2a273887f2b941470d1d042e1f62e6ca5c16e09d480640` is unchanged. Initial numeric extraction found 571 rows/25 issues; source/browser inspection found nine explicitly unresolved price bases. Final preview is **562 eligible / 34 skipped**, with roll/length/piece units retained and historical-source warning. TBA, formula prices, duplicate codes and ambiguous price bases remain unimportable until clarified in a copy of the workbook. No source workbook was rewritten. **NOT TESTED live apply:** browser preview only; no application prices were changed.
+- **PASS BOM implementation:** reviewed canonical component quantities, missing-floor/route state, explicit additional purchase quantities, explicit meters per wire/conduit purchase unit and historical CSV download bound to a selected estimate. No inferred roll size, wastage, purchase rounding, conductor count, live repricing or raw-AI quantity acceptance. Old meter-only requests remain compatible. Isolated tests prove extra quantities, package conversion, ownership checks and fixed CSV contents after later price changes. Existing circuit-planning snapshots remain excluded from monetary estimates (`CIRCUIT_ESTIMATION_NOT_CONFIGURED`) until circuit conductor/material configuration is implemented; the new BOM does not disguise that limitation.
+- **PASS 3D implementation:** saved metric route segments now render as slim tubes, orange ceiling runs and copper wall rise/drop, retaining underground inspection and ordinary depth occlusion. A display-only 8 mm radius is not conductor sizing or a takeoff input. Exact endpoint/elevation and zero-length tests pass; geometry is shared with existing 2D projection and backend length calculation. The existing routing engine requires actual wall attachment and elevations for a switch drop. This change does not infer which switch controls a light, invent wall heights, move unknown wiring into the ceiling, or create furniture. Unknown installation remains unresolved.
+- **PASS focused/full verification:** focused import/BOM/price/estimate backend selection 24 tests before the additional ambiguous-basis check; final restricted isolated-MySQL full working-tree suite **1,292 passed / 4 skipped / 1,438 subtests**, five existing dependency warnings. Initial full run had three exact OpenAPI-set failures caused by the four new endpoints; updated only their contract expectations and operation counts, then reran successfully. Final frontend **68 files / 577 tests**, production build and focused ESLint pass. Two earlier renderer contract tests expected line-only children and failed after the tube change; revised assertions preserve endpoint/style/depth and immutability checks and pass. **FAIL full lint:** six pre-existing errors in unrelated untracked `DeviceMeshCatalog.jsx`, untouched. Temporary browser-fixture lint errors were removed from frontend by archiving the fixture in ignored storage. Existing >500 KB chunk warnings remain. Working-tree OpenAPI **40 paths / 48 operations**, metadata **34 tables**; four new endpoints, no new schema tables.
+- **PASS computer-use browser:** user switched the connected localhost session to ADMIN; uploaded the exact supplied workbook to preview, verified final **562/34**, deselected all and left confirmation unchecked. Admin dashboard retains the pending preview, not an applied import. Existing project 10218 BOM correctly shows **0 reviewed snapshots**, floor **6323** missing a reviewed layout, no measured route and disabled saved-BOM download. Separate labeled synthetic WebGL fixture exercises the actual `RouteLines3D` in perspective/front views, visibly demonstrating ceiling-to-wall-to-switch routing; this is NOT the user's uploaded plan or approved measurements. Screenshots/archived fixture: `storage/training/pricing-bom-runtime-20261009-v2/`. Initial fixture used unavailable Drei; removed that fixture-only import, no library installed. Reference website fetch failed; supplied screenshots guided the visual treatment.
+- **BLOCKED only for live measured-plan demonstration:** no saved canonical layout, approved scale/elevation, reviewed device heights/attachments and confirmed light-switch circuit associations on the current plan. Live populated BOM generation/download and measured canonical 2D/3D routing remain **NOT TESTED**; isolated API and synthetic renderer evidence are distinct. Need genuine review/measurement inputs, not fabricated approval. Local API was refreshed only after confirming zero active jobs; it remains loopback-only. Originals, datasets, annotations and trained artifacts were not modified; stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` and unrelated work retained. No push or production activation. Next smallest ticket: supply reviewed canonical measurements/connections, then verify a real saved ceiling-to-switch route and configure circuit-specific conductor/material takeoff.
+
+### October 9 whole-plan draft wiring and continuous walls
+
+- **PASS implementation:** every valid, non-rejected observed/manual wiring polyline in the shared review draft is projected into 3D from its original source coordinates, independent of page identity, dimensions or layout approval. No demo box or synthetic plan is required. Explicit heights (including negative heights) are preserved; unknown heights use the illustrative preview ceiling, never saved as measured geometry. Display-only wall drops require an observed endpoint near one unambiguous wall-mounted device; proximity does not prove a light-switch circuit relationship. Invalid traces are reported, not silently hidden. Canonical measured routes remain separate and unchanged.
+- **PASS editing:** click a 3D wire, drag its blue source-point handles, or edit its XY/optional height in the inspector. The same points appear/edit in 2D and persist through the existing immutable draft-save endpoint. Removal is a tombstone; undo/redo and role enforcement remain. Both Add wall and Draw Walls enter continuous A → B → C drawing; Escape finishes. Moved the stale-room warning below the canvas because browser verification exposed a layout shift between B and C. No source-backed wall detection or model weights changed in this ticket.
+- **PASS live Designer browser:** reused project 10218/floor 6323/upload 9377, current job **24223**, with **13 walls / 2 rooms / 29 symbol proposals / 12 partial wiring proposals**. Clicked segment-0001 in real-plan 3D, dragged its endpoint **179,250 → 212,274**, saved unfinished revision **1**, reloaded and verified exact coordinates. Restored original coordinates/unresolved state in revision **2**, then reloaded again. Both revisions have null wire height and false review-complete/layout-approval flags, confirmed by read-only database inspection. Continuous wall clicks produced **438,408 → 544,408 → 544,456**; Escape ended the chain and both test walls were undone before saving. Source original SHA-256 `e9f091252f664a6c97e1d3202d5552f6e80507f6304e3dc5c2d1e653dd3f2a48` rehashed identically. Evidence: ignored `storage/training/draft-wiring-runtime-20261009/`; connected tab retained on the actual plan's 3D view.
+- **Reconciled failure:** initial browser save against historical job **24222** correctly returned **409 STALE_INTERPRETATION_RUN** because 24223 superseded it. Historical results/revisions were not changed; the UI now explains this condition. Initial canvas drags missed tiny handles and the browser screenshot scale; enlarged the visual handles and used observed coordinate mapping, then verified a real drag. An initial regression test used the wrong accessible 3D button name and failed; corrected the assertion. Incorrect test-runner/source-inspection paths were corrected without modifying configuration or data. Temporary save diagnostics removed.
+- **PASS verification:** final frontend **70 files / 588 tests**, build, scoped implementation/test ESLint and diff whitespace checks. Restricted isolated-MySQL review/wiring tests **33 passed / 8 subtests**, two existing dependency warnings. OpenAPI **40 paths / 48 operations**, metadata **34 tables**; no new API/schema/dependency. **FAIL full lint:** six existing errors in unrelated `DeviceMeshCatalog.jsx`, untouched. Existing >500 KB build chunk and Konva layer/Three.Clock warnings remain. Full backend suite **NOT RERUN** for this frontend-only ticket.
+- **Limits/state:** current floor has **0 canonical layouts**. Unknown real scale/heights, missed traces and unconfirmed light-switch associations still prevent measured circuit/BOM claims, but do not block draft 3D display/edit/save. No independent human review, inferred engineering approval, training run or production promotion. Branch `codex/vlm-localization-experiment`, HEAD `5789c6b`; scoped work remains uncommitted with unrelated edits and stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` preserved. Next smallest experiment: verify an observed ceiling-to-switch endpoint on another supplied page, separating draft visibility from confirmed circuit topology.
+
+### October 9 device-connected wiring and cross-plan hollow-wall recovery
+
+- **PASS bounded implementation:** draft wiring now attaches at every eligible source-polyline vertex, including ceiling fixtures and intermediate switches, using corrected glyph bounds and the same `devicePlacement` as the rendered device. Ceiling connectors reach fixture tops; switch/outlet/panel drops reach actual wall-mounted meshes. Ambiguous proximity and absent nearby mounting walls remain unresolved. Explicit elevations, including underground traces, are untouched. Connectors are illustrative display geometry, not inferred circuit associations, measured lengths or BOM inputs. Source points and original glyph evidence remain immutable. Owners: `devicePresentation`, `draftWiringScene`, `devicePlacement` and their tests.
+- **PASS saved-route alignment:** exact-version saved single-target A* records now supply explicit device installation metadata to the shared renderer, as circuit records already did. Short display-only connectors join exact stored route endpoints to actual mounted mesh centers without moving canonical anchors or changing backend route lengths. Stale, unrelated-floor, unknown-algorithm and unbound nearby lines are rejected. Owners: `circuitMounting`, `routeDeviceConnectors`, `Viewer3DCanvas`, `routeProjection` and focused tests. Reused FUNCTIONAL_SPEC M1-M7 contracts and existing obstacle-aware A*; no A* path or guessed light-switch topology was inserted into detection.
+- **PASS power-plan failure reproduction and bounded wall fix:** user-reported `powerlayout.png` is upload **9382**, filename **power-layout.png**, normalized original **1765 x 1084**. Its repeated tied, hollow triple-line walls were excluded as thin wiring bundles. Qualification now requires distributed transverse ties in original pixels, sufficiently long narrow bands and tied evidence in both native axis directions. Bounded direction-balanced proposals, overlap consolidation and reapplying detached enclosing-frame rejection after supplements recover the perimeter/interior without introducing page IDs, template coordinates or model classes. Plain parallel wiring, two end caps and clustered crossings fail the qualification. Evidence version `cv-balanced-outline-ties-v9`; owner `wall_detection/detector.py`, `demo_cv.py` and native-resolution tests.
+- **Cross-plan evidence, NOT an accuracy percentage:** power **9 -> 13 walls / 3 rooms** (`storage/training/power-wall-repro-20261009-v8/`); school lighting **13 -> 11 walls / 2 rooms** after overlap consolidation (`lighting-wall-crosscheck-20261009-v2/`); mezzanine **53 -> 53 walls / 5 rooms** (`mezzanine-wall-crosscheck-20261009-v3/`). Counts do not establish correctness or 85% recall. An intermediate broadly enabled voting experiment regressed mezzanine to two walls; it was not retained. Two-direction tied-band gating restored the existing path before runtime activation. Synthetic cross-tied perimeter fixtures at 1x/2x pass >=95% sampled reference coverage; this is synthetic regression evidence only. The final detached-frame supplement guard does not activate for the other two examples. Door gaps are not indiscriminately bridged.
+- **PASS additional observed wiring, partial completeness only:** a bounded second Hough pass accepts repeated regular dashed ink after original-pixel support validation; single erased spans and irregular missing intervals remain rejected. Known parallel walls and symbol interiors remain excluded; distinct device bounds anchor fragments, not electrical connectivity. On the power plan, **3 -> 7** observed traces. Evidence version `device-anchored-visible-and-dashed-ink-v2`; owners `automatic_wiring.py` and its tests. **NOT ACHIEVED:** complete curved, one-ended and unsupported-gapped branches. Existing observations are retained; all proposals remain partial/ambiguous, with no inferred connections or elevations. No claim that every drawn cable or circuit is detected.
+- **PASS verification:** final frontend **71 files / 594 tests**, production build, scoped implementation/test ESLint and diff whitespace check. Restricted isolated-MySQL wall/native-resolution/gap/grid/junction, interpretation, A*, ceiling boundary, routing API, automatic wiring and review API selection **193 passed / 173 subtests**, two existing dependency warnings. Full backend suite **NOT RERUN** this checkpoint. Full ESLint is not claimed clean: six previously recorded errors in unrelated untracked `DeviceMeshCatalog.jsx` remain untouched. Existing >500 KB build chunks remain. OpenAPI **40 paths / 48 operations**, metadata **34 tables**; no new API, table or dependency. An initial read-only proof query incorrectly treated the stored wiring list as an object; corrected query verified counts without writing data.
+- **PASS live Designer computer-use save/reload:** normal project reanalysis created power-plan jobs **24227**, then **24228** after the dashed-ink update. Final UI and read-only persisted review show **13 walls / 3 rooms / 16 symbols / 7 partial unresolved traces**. Saved unfinished **revision 1**, reloaded and verified notes, original coordinates and false `review_complete` / `approved_for_layout`. First trace remains **(288,592) -> (291,759)** with null elevation. No human approval or circuit association was granted. Final screenshot `storage/training/device-wiring-wall-runtime-20261009/power-plan-saved-overlay.png`; connected tab retained on this actual result. Historical jobs/reviews remain stored. Runtime refreshed only after an idle-job preflight; API remains loopback-only with OAuth-bearing access logs disabled.
+- **BLOCKED visual 3D/reference inspection:** the connected browser could not create WebGL on either the retained or a fresh actual-plan tab. Geometry and renderer tests pass, but this checkpoint does not claim a live visual 3D pass; prior successful WebGL evidence is separate. Reference-site browser access was declined by the saved security preference and was not bypassed; supplied screenshots guided ceiling runs and wall drops. **NOT TESTED:** independent real-plan 85% wall accuracy, complete wiring recall, real measured populated routing/BOM, and new connector appearance in working WebGL.
+- **Integrity / state:** originals rehashed unchanged: power `2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94`, lighting `e9f091252f664a6c97e1d3202d5552f6e80507f6304e3dc5c2d1e653dd3f2a48`, mezzanine `6ad0b03b0fede2142fabd88114af086184e8fa97d1acaa70fbdb506e87b34128`. Originals, datasets, approved annotations, trained weights, unrelated edits and stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` preserved. Branch **codex/vlm-localization-experiment**, HEAD **5789c6b**; no staging, commit, push, production promotion or model training this checkpoint. Existing documentation updated only. Next bounded work, not started: source-supported curved/junction/one-ended trace recovery with negatives and a working-WebGL visual check, without fabricating engineering topology or claiming evaluation coverage from proposal counts.
+
+### October 9 immediately editable wiring drafts, without item confirmations
+
+- **PASS normal draft workflow:** removed per-item Accept/Confirm decision selectors and proposal badges from the plan editor. Devices, walls, rooms and wiring are immediately editable, removable and restorable; Save draft requires no confirmation. Legacy detection review now offers Remove/Restore device instead of a normal confirmation step. Measured-layout controls are collapsed and separate from ordinary draft saving. Explicit whole-layout review remains optional and must still satisfy existing scale, elevation, mapping and completeness gates; automatic processing does not fabricate Designer approval or training truth. Existing visual design and libraries retained; routing/CV/canvas skills preserved shared geometry and separate evidence, while UX guidance informed disclosure of secondary controls.
+- **PASS general automatic fallback:** new pure `app/routing/draft_wiring.py` reuses existing A*, with orthogonal source-pixel grid routes, drawing-region bounds, wall-band obstacles and no direct-diagonal fallback on NO_ROUTE. Visible traces are prioritized, followed by nearby panel/device anchors. Nearest-anchor selection is an editable visual heuristic, **not inferred circuit association or guaranteed globally optimal engineering routing**. Local wall-device exits are bounded by the drawn glyph size, not whole-wall shortcuts. Limits are 64 devices, 128 wall records, 256 visible traces and a three-second between-path budget; unavailable paths are reported rather than silently omitted. Saved edits/removal tombstones are not regenerated, and moved devices disconnected from saved paths produce a coverage warning. This is shared behavior, not a power-plan template.
+- **PASS additive persistence/provenance:** generated paths use separate `generated_wiring` review JSON, A* origin, source/target anchor IDs, partial completeness and null elevation. They are never inserted into immutable image observations, canonical observed routes, measured quantities or BOM. API service validates references, source bounds, uniqueness, ownership and existing save concurrency. Both 2D and draft 3D consume the same saved paths. No new API, table, dependency or migration: **40 paths / 48 operations / 34 tables**.
+- **PASS actual Designer browser save/reload:** current power-layout upload **9382**, user-created latest job **24229**, saved unfinished **revision 1** through normal Save draft with no confirmation clicks. Computer-use reload and read-only DB check verify **7 observed traces + 13 automatic paths**, false `review_complete`/`approved_for_layout`, and unchanged seven immutable machine observations. All recognized physical device anchors on this sample touch an active trace/path; three homerun annotations are not physical devices. Runtime route generation measured **0.496 seconds** before save. Earlier 12-path result left one offset outlet unwired; bounded glyph attachment recovered it. Coverage is proximity to polyline, not proof of correct circuit topology, electrical safety or detection accuracy. Historical job 24228 save correctly refused STALE_INTERPRETATION_RUN; no old review was overwritten. Screenshot: `storage/training/device-wiring-wall-runtime-20261009/no-confirmation-editor.png`; actual editor tab retained.
+- **PASS verification:** final full frontend **71 files / 596 tests**, Vite build, scoped ESLint and diff whitespace checks. Restricted isolated MySQL selection `test_draft_wiring.py`, `test_observed_wiring_review_api.py`, `test_demo_interpretation_api.py`, `test_routing.py`, `test_routing_api.py`: **76 passed**, two existing dependency warnings. Tests cover obstacles/NO_ROUTE, local mounts, saved removals/moves, evidence priority, fallback starvation, API validation, persistence without confirmation and prevention of generated-path laundering into canonical quantities. Initial UI checks failed changed copy/ambiguous X selection and generated tombstone precedence; corrected and final gates passed. Final copy change briefly failed an outdated warning-string test; preserved all-56 scope wording, updated the exact unverified-accuracy assertion, and reran all 596 tests successfully. Full backend and full ESLint **NOT RERUN**; existing >500 KB chunks and unrelated DeviceMeshCatalog lint findings remain.
+- **BLOCKED visual 3D:** current saved result opens the draft preview but the connected browser cannot create WebGL. Shared geometry/renderer tests pass, not a live visual rendering claim. **NOT ACHIEVED/NOT TESTED:** universal complete image-wiring recall, independent real-plan 85% wall accuracy, correct light-switch circuit association, measured populated BOM, automatic routing of unidentified/manual-only newly added devices, or guaranteed routes for impossible/budget-limited layouts. Users can draw/edit wiring directly; unavailable paths are not forced through walls. Explicit saved wire edits take precedence over automatic rerouting.
+- **Integrity/state:** original power SHA256 reverified `2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94`; originals, datasets, approved labels, trained weights and unrelated changes untouched. Stash remains `bb78854e87833124a1725b51f0be6099a8ac0cfa`, branch **codex/vlm-localization-experiment**, HEAD **5789c6b**. No staging, commit, push, training or production promotion. Refreshed only verified idle localhost API processes; loopback binding/no OAuth access logs preserved. Existing ledger updated only. Further accuracy/unknown-device/WebGL work is not silently marked complete or started as a new phase.
+
+### October 10 incremental wiring for added and reclassified devices
+
+- **PASS reproduced/fixed:** regression tests first reproduced manual devices omitted from routing and an empty saved `generated_wiring` collection preventing future automatic paths. The shared backend draft router now uses current saved symbol geometry plus manual symbols, excludes rejected/omitted devices, and appends paths for newly known devices while keeping every prior generated path/edit/removal unchanged. New IDs follow the largest saved identity, not the count. Devices already touching a trace/path do not get redundant routes. Existing generated source/target anchors are protected from automatic regeneration even after moves/removals; disconnected saved devices remain reported rather than overriding wire edits.
+- **PASS save contract:** normal Save draft resolves explicitly chosen active catalog names even while item disposition is unresolved, without declaring human approval. Existing catalog mapping can establish routing eligibility without guessing an unfamiliar name; the name-based fallback also covers existing camera, contact, keypad, breaker, meter, service entrance, push button and box entries. This changes draft eligibility only, not detector classes, training weights, circuit assignment, quantities or engineering rules. Unknown device types receive an explicit limitation, and homerun annotations remain excluded as nonphysical anchors. New generated paths are stored in the same append-only revision and returned immediately; frontend merges service additions while saved edits/tombstones win for existing IDs. Owners: `routing/draft_wiring.py`, `demo_interpretation_service.py`, `observedWiringDraft.js` and their tests. Routing/canvas/3D skills kept shared geometry, separate evidence and original coordinates; surgical-patch skill kept the change at these existing boundaries.
+- **PASS live Designer computer-use test/cleanup:** actual power job **24229**, revision 2 saved a temporary mapped **1 x 40 watts fluorescent lamp**. At its initial center **(883,542)** it was **0.5 pixels** from an existing draft path, so no duplicate route was required. Moving it to **(1100,650)** and saving revision 3 generated **manual-route-0014**, taking active wiring from **20 to 21 paths**, with no confirmation or approval action. Removed only this temporary lamp/path using recoverable editor removal and saved **revision 4**. Reload shows original **16 symbol records / 20 active wiring paths**, with the test entries retained only as removed history. Read-only DB equality verifies all original walls, rooms, symbols, observed wiring and the original **13 generated paths** unchanged; flags remain false and no coverage notes remain on this sample. Screenshot `storage/training/device-wiring-wall-runtime-20261009/incremental-wiring-cleaned-20261010.png`; cleaned-up editor tab retained. An initial browser catalog selection failed because grouped option numbering differed from the AX description; read its actual visible option and selected the correct original entry, without catalog modification.
+- **PASS verification:** final isolated MySQL routing/review selection **92 passed**, two existing dependency warnings; full frontend **71 files / 598 passed**; Vite build, scoped ESLint and diff whitespace checks passed. Tests cover new mapped/unresolved manual persistence, empty-list reclassification, old route/removal preservation, unknown/omitted/rejected devices, other existing catalog families and immediate frontend service additions. Initial three reproducer tests failed as expected; the old unknown-device silence assertion then failed and was replaced with an explicit warning assertion. All final focused gates passed. No new endpoint, table, dependency or migration: **40 paths / 48 operations / 34 tables**. Full backend and full ESLint **NOT RERUN** this slice; existing large build chunks remain.
+- **BLOCKED/NOT TESTED:** actual 3D preview was retried on the saved 21-path result and still cannot create WebGL in the connected browser. No live visual 3D success is claimed. Complete wiring recall across arbitrary plans, independent 85% wall accuracy, correct inferred light-switch topology and final measured BOM remain unproven. Newly mapped devices receive automatic paths on draft save; unclassified devices and impossible/bounded-out paths need editing, not fabricated connections. Existing budget and evidence/engineering separation remain unchanged.
+- **Integrity/state:** original power SHA256 remains `2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94`; originals, datasets, approved annotations, weights and unrelated changes preserved. Stash `bb78854e87833124a1725b51f0be6099a8ac0cfa`, branch **codex/vlm-localization-experiment**, HEAD **5789c6b**, no staging/commit/push/training/promotion. Only verified idle loopback API processes refreshed, with access logs disabled; no accounts/roles/schema reset. Existing ledger updated only. Further CV recovery/WebGL validation is not silently marked complete or started as a new phase.
+
+### October 10 continuous draft wiring instead of disconnected branches
+
+- **PASS reproduced/fixed:** a four-device fixture produced two separate local paths despite complete device coverage. The initial regression failed on two paths rather than three. `routing/draft_wiring.py` now finds literal geometric contacts (including crossings, tolerance only `1e-5` source pixels), then appends orthogonal A* joins between exact known-device anchors on separate unmeasured runs. Nearby parallel lines are not mistaken for contact. This is geometric draft continuity, **not electrical circuit membership or a junction/safety determination**. Existing image traces and saved paths remain unchanged; no new options or item confirmations were introduced. Routing/canvas guidance kept the same source coordinates in both views and generated joins separate from observations; surgical-patch guidance kept the implementation at the existing draft-router boundary.
+- **PASS safeguards:** joins stay within one drawing region, use existing wall-band obstacles and bounded local device exits, and have no diagonal/through-wall fallback. Different explicit elevations are not automatically bridged. Removed generated joins protect their associated runs against alternate-endpoint recreation. Runs without exact known-device anchors, blocked paths, separate drawings and budget-limited paths remain explicitly reported rather than silently called connected. Pairwise geometry is bounded to **256 active paths / 512 segments**; existing **64-device / 128-wall / three-second between-path** bounds remain. This is a nearest-reachable-component heuristic using A* grid paths, not a globally optimal engineering network. No detection/class/model change, new endpoint, table, dependency or migration: **40 paths / 48 operations / 34 tables**.
+- **PASS actual plan save/reload:** read-only probe of power upload **9382**, job **24229**, revision 4 found **six disconnected runs**. Four joins (`manual-route-0015` through `0018`) reduced them to **one geometrically connected draft network**, taking **20 to 24 active paths**; probe elapsed **0.145 seconds**. Normal Designer Save draft through computer use saved **revision 5**, and browser reload retained all four joins. Selected join `0018`, edited its third point X to `630`, and Undo restored exact X `625.0517457389237` without saving that temporary change. No approval/confirmation was applied. Screenshot: `storage/training/device-wiring-wall-runtime-20261009/joined-wiring-saved-20261010.png`; connected 2D editor tab retained.
+- **PASS verification/integrity:** final restricted isolated MySQL selection **107 passed / 8 subtests**, two existing dependency-deprecation warnings; full frontend **71 files / 599 tests**, Vite build, scoped ESLint and diff whitespace checks passed. Added pure regressions for disconnected pairs, save idempotence, blocking walls, removed joins, different heights/drawings, exact contacts and missing anchors; API regression proves normal append-only save/reload without approval; frontend projection regression proves both bridge endpoints contact the existing branches at the same shared ceiling height. Read-only comparison of revisions 4/5 verifies original walls, rooms, symbols, observed wiring and all existing generated paths/tombstones unchanged. Candidate/review hashes verify; `review_complete` and `approved_for_layout` remain false. Original power SHA256 remains `2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94`. Full backend/full ESLint **NOT RERUN**; existing large build chunks remain.
+- **BLOCKED/NOT TESTED:** live 3D preview still reports inability to create WebGL; shared projection tests pass, not live visual 3D rendering. Correct electrical circuit assignments, complete image-wiring recall on arbitrary plans, measured BOM and independent wall accuracy remain unproven. Joins are editable unmeasured drafts and are not canonical takeoff inputs. This change does not retrain detection or claim all impossible/unknown-device layouts are connected.
+- **State:** local/uncommitted on **codex/vlm-localization-experiment**, HEAD **5789c6b**; stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` unchanged. Originals, datasets, approved labels, trained weights and unrelated edits preserved. Only verified idle loopback API processes refreshed, access logs disabled; no account/role/database reset, staging, commit, push, training or promotion. Existing documentation updated only. Further CV recovery/circuit validation is not started as a new phase.
+
+### October 10 approved dashed wiring, connected branches and BOM identities
+
+- **Scope/acceptance:** the owner authorized reuse of the approved dashed-line meaning on similar drawings. Drawing-specific active wiring legends take precedence; unavailable explicit mappings remain unknown. This is catalog semantics for editable drafts, not inferred conductor sizes/counts, burial depths, prices, circuit safety or professional approval. CV, electrical-routing, shared 3D and surgical-patch guidance kept pixel evidence separate from generated geometry and quantities. No new controls or per-item confirmations were introduced.
+- **PASS CV regression:** `automatic_wiring.py` now recovers bounded regular dashed spans and orthogonal bends, trims unsupported tails, masks device/homerun glyphs, rejects short two-stroke/text fragments and continuous architectural-border negatives, while preserving repeated dashes parallel to walls. One-ended supported traces remain partial with no inferred circuit membership. `candidate.py` adds backward-compatible `line_style`; prior immutable JSON is hash-verified before parsing. Actual power replay yields **9 observed dashed segments**, including the right-side bends and central branch. Some left-side ink and glyph/curve gaps still need generated links; complete image-wiring recall is **NOT PROVEN**. No page-specific coordinates, model weights or training changes were introduced.
+- **PASS routing regression:** `routing/draft_wiring.py` attaches devices at literal geometric contacts, including short masked-glyph gaps, inherits unambiguous approved trace types and connects existing components toward one known panel using bounded orthogonal A*. It reuses the network rather than generating independent panel-to-device stars. Multiple panels require explicit assignment; conflicting known installation methods/heights are not automatically merged. Only unresolved automatic routes whose endpoints already have an alternative observed-connected path are suppressed, longest-first with connectivity recomputed. Suppressed paths remain recoverable tombstones; manually edited/accepted/added paths, user removals and explicit heights are preserved. This is geometric connectivity and a nearest-reachable-component heuristic using shortest grid paths, **not global network optimality or electrically verified circuits**.
+- **PASS catalog/BOM/3D contract:** new `services/wiring_legend_service.py` resolves names from active database catalog entries, sanitizes client names and enriches copies only. Additive fields in `schemas/demo_interpretation.py`, `demo_interpretation_service.py` and its API response give fresh scans and saved drafts the same meanings. `observedWiringDraft.js` merges service metadata/suppressions without overwriting edited geometry. `draftWiringScene.js`, `DraftRoomPreview.jsx`, `ObservedWiringPanel.jsx` and `DemoInterpretationPage.jsx` preserve shared coordinates; under-floor wiring with unknown depth uses the illustrative floor reference, not the ceiling, and explicit user elevations win. Manual edits clear automatic-suppression reasons. `services/bom_service.py`, the estimates API and `BOMPanel.jsx` list approved draft wiring names separately from reviewed quantities and captured prices. Draft lengths remain **null**, not fabricated takeoff inputs. Active approved references 1789/1790 and 1806/1807 remain unchanged; no legend deactivation or schema changes.
+- **PASS live Designer computer-use:** ordinary reanalysis of existing power upload **9382** (`power-layout.png`), project **10218**, floor **6323**, created **job 24232**. The normal editor saved unfinished **revision 1**, without confirmations or canonical approval. Reload and read-only stored-geometry comparison preserve **9 observed + 17 active generated = 26 active paths**, one literal connected network reaching the panelboard; automatic route `manual-route-0010` remains recoverably removed. Read-only replay routing elapsed **0.766 seconds** on this drawing. BOM visibly shows **Raceway conduit concealed under floor · Plan 9382**. After final idle API refresh, the browser again loads these 26 paths and remains on the saved 2D draft. Evidence: `storage/training/device-wiring-wall-runtime-20261009/dashed-network-saved-20261010.png` and `dashed-wiring-bom-20261010.png`.
+- **PASS final verification:** guarded restricted/disposable MySQL selection **220 passed / 8 subtests**, two existing dependency warnings; full frontend **71 files / 602 passed**, existing mocked-Konva DOM warnings. Vite production build, scoped ESLint on nine relevant frontend files and `git diff --check` pass; existing >500KB chunks and LF/CRLF notices remain. Tests cover bent/one-ended/near-wall dashed evidence and negatives, literal attachments, redundancy recovery, panel connectivity, incompatible installations, approved pattern/drawing-specific precedence, foreign-owner rejection, append-only save/reload, historical pricing and shared 3D elevations. An initial final verification command referenced an incorrect test filename and ran no tests; corrected selection above passed. Full backend and full ESLint **NOT RERUN** this slice. No dependency/migration/API/table additions: **40 OpenAPI paths / 48 operations / 34 tables**.
+- **BLOCKED / NOT TESTED:** live 3D still cannot create a WebGL canvas in the connected browser; projection regressions pass but visual 3D rendering is **BLOCKED**. Final priced wire/conduit BOM is **BLOCKED** by zero active wire/cable/conduit materials in the database and missing approved metric/conductor inputs. Independent wall precision/recall (including 85%), arbitrary-plan completeness, correct electrical circuit topology and global optimization are **NOT TESTED/PROVEN**. This checkpoint does not declare them complete or infer engineering inputs.
+- **Integrity/state:** original power SHA256 remains `2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94`; old job 24229/revision 5 and their verified immutable hashes remain intact. Originals, datasets, approved annotations, weights and unrelated dirty-tree work retained. Branch **codex/vlm-localization-experiment**, HEAD **5789c6b**, stash `bb78854e87833124a1725b51f0be6099a8ac0cfa`; no staging/commit/push/training/promotion/account reset. Only verified idle API launcher/worker processes were refreshed on loopback; no access logs, frontend interruption or database mutation beyond the authorized normal analysis/draft revision. Existing progress ledger updated only. Further wall/CV coverage or engineering validation is not silently started as another phase.
+
+### October 10 horizontal devices, magnetic wiring and keyboard navigation
+
+- **PASS implementation:** shared device placement now uses horizontal outlet plates at every wall angle, grounded socket details or data-port cavities according to the existing family/label, recognizable switch paddles, and distinct single/twin fluorescent bodies. No new detection classes or brands. New `viewer-3d/DeviceBody.jsx` replaces the inline generic bodies in `DeviceMesh.jsx`; `devicePlacement.js` retains saved anchors, mount rules and existing illustrative dimensions except the outlet aspect ratio and single-tube width. `DeviceGlyph.jsx` supplies matching horizontal 2D outlet details and single/twin light glyphs. Source device coordinates and engineering quantities are not inferred from meshes.
+- **PASS cleaner wiring:** `draftWiringScene.js` prevents coincident vertical drops to the same mounted device while retaining each branch's horizontal attachment. The regression first reproduced two drops and passes with one. `DraftWiring3D.jsx` uses narrower conduit cylinders, closed ends, generous invisible picking targets and smaller point handles. `wiringAppearance.js` shares ceiling/underfloor styling with the 2D canvas; `CanonicalScene.jsx` and `Viewer3DCanvas.jsx` use restrained architectural materials/lighting, without furniture or geometry changes. These visual connectors remain illustrative and are not authoritative BOM lengths.
+- **PASS keyboard movement:** `cameraMovement.js` and `ViewerCameraControls.jsx` implement W/A/S/D and all four arrow aliases, translating camera and orbit target together on the ground plane. Top view has a stable direction. Movement requires the focused viewer, ignores inspector inputs/modifiers, pauses during dragging, invalidates the demand-rendered view and removes listeners on cleanup. Existing orbit/pan/zoom/reset remain. `Viewer3DCanvas.jsx` is focusable; `viewer3d.css` keeps the compact navigation hint visible inside the canvas rather than clipped below it.
+- **PASS magnetic drawing / placement:** `wireDrawing.js`, `DemoInterpretationCanvas.jsx` and `DemoInterpretationPage.jsx` snap clicks to exact active device centers, existing vertices or projected segment points with scale-adjusted tolerance and green device/wire feedback. Rejected items and nonphysical annotations are excluded. The right inspector supplies Ceiling / Underground-underfloor while drawing and for an existing wire. Installation intent and solid/dashed style persist through the existing review API; approved catalog mapping is resolved server-side. Explicit elevations are retained, and unset depth/height remains null rather than invented. No per-wire approval gate, API/schema change or new dependency.
+- **PASS live computer-use:** reopened localhost after the prior tabs/servers had closed, restored the existing Designer session using the normal retry, and tested actual power plan 9382 / job 24232. Drawing slightly off the two outlets snapped to exact fractional anchors `(283.08581298205627,571.8851742582465)` and `(284.15019234924546,778.616051476317)`. Revision 2 saved underground intent; reload preserved it and both anchors. Revision 3 saved Ceiling; reload preserved that change with height unset. Green Wire snap was separately reproduced against an existing segment and cancelled without adding another path. The current connected browser now successfully renders WebGL (the earlier slice's limitation no longer reproduces). W plus ArrowRight visibly translated the live 3D scene; screenshots record before/after. Unit tests cover all aliases, top view, focus/input exclusion, disabled mode and cleanup.
+- **PASS recoverable cleanup / integrity:** removed only temporary `manual-wiring-0001`. Its presence had automatically suppressed original branch `manual-route-0005` and, after removal, generated `manual-route-0019`; restored the original branch and removed the incidental replacement through the normal editor, saving revision 5. All original walls, rooms, symbols, observed traces and generated route coordinates match revision 1. Original branch 0005 has only its disposition changed from unresolved to corrected by Restore item. The two temporary paths remain rejected in append-only history, with **26 original active paths** restored and approval flags false. Read-only verification script and browser confirm this; original SHA256 reverified `2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94`. No original, dataset, annotation, weight or account reset.
+- **PASS verification:** full frontend **74 files / 618 tests**; final production build **2122 modules**; scoped ESLint across 23 relevant JS/JSX files; diff whitespace check. Guarded restricted empty verification database: `test_observed_wiring_review_api.py` and `test_wiring_legend_service.py`, **20 passed**, two existing dependency warnings. Two initial full-frontend failures were overly broad structural assertions: socket-detail circles counted as semantic markers and the new wiring halo group lacked an explicit listening prop. Narrowed the marker query and retained explicit group interaction state; final full suite passes. Final CSS overlay was built and checked live. Original-hash utility initially used the wrong relative storage root; corrected to the app's configured upload directory and passed.
+- **FAIL full lint outside this change:** six existing errors in unused, separately authored `DeviceMeshCatalog.jsx` (unused import, mixed exports, conditional hooks). This file was neither adopted nor modified. Full backend **NOT RERUN**; focused backend checks above passed. Existing large frontend chunks remain warnings. Physical sizing/elevations, electrical circuit correctness, independent wall accuracy, arbitrary-plan completeness and final measured/priced BOM are **NOT VERIFIED** by this display/control slice.
+- **Evidence / handoff:** `storage/training/device-wiring-wall-runtime-20261009/` contains `wiring-magnet-horizontal-outlets-20261010.png`, `wire-to-wire-magnet-20261010.png`, `keyboard-before-20261010.png`, `keyboard-after-20261010.png`, `controls-3d-saved-20261010.png`, read-only `check-controls-integrity.py`, and loopback runtime logs. Clean saved 2D editor retained as a browser deliverable. Frontend launcher PID 27680; backend launcher PID 28688 / uvicorn PID 23432, loopback only, no OAuth access logs.
+- **Scope / skills / Git:** the asset, visualizer and design skills guided recognizable procedural bodies, shared geometry and uncluttered styling; canvas/routing skills kept magnetic source anchors, installation metadata and illustrative attachments separate from engineering measurements. Surgical-patch / lean-build constrained changes to these existing boundaries. Branch **codex/vlm-localization-experiment**, HEAD **5789c6b**, recovery stash retained. No staging, commit, push, model training, promotion, dependency, table or endpoint additions; prior contract baseline remains **40 paths / 48 operations / 34 tables** (counts not remeasured in this frontend slice). Unrelated dirty-tree work preserved. No next roadmap phase started.
+
+### October 10 POV-relative smooth spectator flight
+
+- **PASS reproduced / fixed:** a focused regression first failed because forward movement discarded camera pitch (`delta.y == 0`). `viewer-3d/cameraMovement.js` now derives forward and strafe from the camera quaternion, including pitch and a stable straight-down view. Held W/A/S/D or arrow keys move continuously; Q/E descend/ascend. Simultaneous directions are normalized, opposites cancel, and Shift targets **3x** translation speed rather than relying on OS key-repeat timing.
+- **PASS smooth navigation:** `ViewerCameraControls.jsx` uses R3F frames with exact exponential acceleration/braking and a bounded frame delta. Camera and look target translate together. Demand rendering continues only during movement/braking, then stops. Focus loss, window blur, hidden document, dragging/disabled controls, camera presets, mode changes, Escape and unmount clear movement; inspector inputs and modified browser shortcuts are not captured. Right-drag turns the spectator in place with bounded pitch and no orbit-position change. Pointer capture/listeners are cleaned up. This is a non-colliding spectator, not a walk-through with wall collision or eye-height assumptions.
+- **PASS mode / UX:** `Viewer3DCanvas.jsx` starts in **Free fly**, keeps a single Free fly / Orbit switch, and shows the right-drag, movement, Q/E and Shift guide in the viewport. `viewer3d.css` styles the compact mode button and focus state. Existing orbit/pan/zoom and perspective/top/front/reset presets remain available; no route, device, wall, measurement or persistence changes. The visualizer skill guided quaternion-based navigation and on-demand frames; surgical-patch kept this inside the navigation owner. No additional libraries or guessed engineering rules from skill examples were introduced.
+- **PASS verification:** focused four-file selection **19 passed**; full frontend **74 files / 625 tests passed**; production build **2122 modules**; scoped ESLint across all six changed JS/JSX files; diff whitespace checks. Regression coverage includes pitched/rotated POV, top view, arrows, normalized diagonals, opposite keys, 30/60/144 FPS path equivalence, smooth launch/braking, sprint ratio, long-idle delta bounds, key release, focus/blur/input/disabled/mode guards, idle rendering stop, right-drag in-place look and listener disposal. Three test files changed: `cameraMovement.test.js`, `ViewerCameraControls.test.jsx`, `Viewer3DCanvas.test.jsx`. Initial old ground-plane test failed as expected; no failed final gate remains in this slice. Existing large-build-chunk warning retained; full lint and backend tests **NOT RERUN** (no backend changes; unrelated catalog lint findings from the preceding slice remain).
+- **PASS live computer-use:** current Designer draft power plan 9382 / job 24232 renders in the connected browser. Holding W for **800 ms** moves along the pitched view, enlarging the plan as the camera approaches. After Reset, **Shift+W for the same 800 ms** visibly travels much farther. Free fly / Orbit toggling and reset worked, and the browser remains in Free fly with its guide visible. Right-drag look is covered by component/geometry tests; a live right-button drag was **NOT TESTED** with the available browser drag API. Smoothness is mathematically verified across frame rates; no device-specific sustained-FPS benchmark is claimed. No Save draft was invoked, and the prior saved revision 5 / 26 paths remain untouched.
+- **Evidence / integrity / stop:** `storage/training/device-wiring-wall-runtime-20261009/free-flight-normal-20261010.png`, `free-flight-sprint-20261010.png` and `free-flight-controls-20261010.png` record browser checks; existing current tab retained as deliverable. Originals, datasets, weights, database, roles and unrelated dirty-tree work untouched. No backend/schema/API/table/dependency addition, migration, training, commit or push. Branch **codex/vlm-localization-experiment**, HEAD **5789c6b** retained. Existing ledger updated only; this request is complete, with no next roadmap phase started.
+
+### October 10 lighting localization and pre-annotation wiring evidence
+
+- **Scope:** reproduce `4-lightinglayout.jpg` (upload 9376, project 10218/floor 6323) and improve shared evidence handling, not add sheet-specific coordinates, another detector selector, confirmation steps or training from an unreviewed upload. CV/investigation guidance separated source pixels from review overlays; routing/surgical-patch guidance kept observed traces distinct from generated unmeasured A* paths. This is a partial detection improvement, not a completed accuracy/release gate.
+- **PASS source isolation:** `interpretation_processing_service._decode_rgb` explicitly makes normalized pre-annotation RGB read-only. Wiring receives that same registered source array after device localization, never a detection-overlay or review screenshot. Worker regressions compare exact pixel hashes/array identity before and after extraction. Symbol bounds only mask glyph interiors in a private working raster and anchor source strokes; they cannot become source ink. Original uploads and earlier candidate/review bytes remain unchanged.
+- **PASS bounded shared localization:** `multiclass_symbol_detector` first uses the existing 256px crops, then selects native 320px context/160px stride for fixture-majority content (at least eight fixture observations and 70% of physical observations), only when both passes fit the existing 500-window cap. The score cutoff remains .50; one pinned approved numeric class map and checkpoint are retained. Power/mixed content and rollback profiles retain baseline localization. `experimental_symbol_detector` uses actual per-pass crop sizes for seam filtering and preserves crop-size/box/score/origin evidence during fusion. This is broader context, not a lower threshold or an added zoom pass. No model weights, training manifests, catalog identities or dataset approvals changed.
+- **PASS source-region/anchor safeguards:** `demo_cv` can delimit a drawing from repeated compact structural-column rows before falling back to existing ink bounds; synthetic tests include detached dimensions/title ink and scaled inputs. `multiclass_symbol_detector.with_proposals` excludes observations outside those plan regions. `automatic_wiring` requires centre-axis device-port contact for both solid and dashed observations, reducing fixture-tip/grid attachments. Unverified wall hypotheses through two ceiling-fixture cores are warned/preserved and omitted before routing, with opening-host walls protected. No saved review walls are changed. Actual lighting replay still has 11 wall segments and no rooms; complete walls are **NOT PROVEN**.
+- **PASS ceiling intent:** `wiring_legend_service` resolves automatic lighting defaults from the filename/OCR intent to the approved ceiling-raceway catalog. Explicit active drawing/manual wiring assignments, underfloor choices, unavailable explicit mappings and entered elevations retain precedence. The service annotates copies before routing and after generating paths; immutable evidence remains untouched. Defaults do not invent ceiling height, burial depth, conductor specification or price. Tests cover lighting dashed/solid defaults, generated defaults and explicit/manual overrides.
+- **PASS routing/coverage:** `routing/draft_wiring.draft_path` searches the complete zero/one-bend Manhattan candidate graph with the existing A* and wall-band checks before building the dense grid. Successful candidates attain the Manhattan distance lower bound; blocked candidates fall back to the existing obstacle-safe grid, never a diagonal/wall shortcut. Three-second lighting replay now finishes in approximately **1.623s**, matching the previous ten-second coverage rather than timing out with 18 runs. All **51 currently detected physical devices** touch **one geometric network**; seven additional unanchored source fragments remain preserved. Status now distinguishes those fragments from truly disconnected device-anchored networks. This does not establish electrical circuit membership, global network optimality or takeoff lengths.
+- **PASS live Designer computer-use:** normal project reanalysis created **job 24238/run 167** from the same original, then the editor saved unfinished **revision 1** and reloaded. New output: **58 candidate items** (43 troffers, four downlights, two ordinary switches, two outlet labels and seven circuit annotations), versus the previous 70-item run with 42 troffers and false panel/smoke/hold-up labels. Lower total is not a recall score; missed fixtures/switches and the remaining outlet labels still require source review. Saved active wiring: **37 observed + 63 generated = 100**, all `concealed_in_ceiling`, no explicit elevations. Four redundant automatic generated paths remain recoverably suppressed. Approval/review-complete flags remain false. Old job 24237 and power job 24232/revisions 1–5 retain valid immutable hashes; power draft remains 26 underfloor paths, one network and 13 connected physical devices.
+- **PASS final focused verification:** restricted isolated MySQL **308 passed / 1 skipped / 138 subtests**, two existing dependency warnings; four frontend projection/review suites **50 passed**; production build **2122 modules** and diff whitespace checks passed. Earlier over-wide stroke-band experiments increased scan false positives and were fully reverted. A status-test insertion accidentally displaced three existing assertions and an orphan status obscured a moved-device warning; restored assertion ownership, limited orphan counts to observed fragments and reran the entire final selection successfully. Full backend/frontend suites and full ESLint **NOT RERUN** this slice. Existing large-build chunks and unrelated catalog lint findings remain. OpenAPI remeasured **40 paths / 48 operations / 34 metadata tables**; no API/schema/dependency additions.
+- **FAIL / BLOCKED / NOT TESTED:** complete missing-symbol recovery and arbitrary-plan wall/wiring accuracy remain **FAIL/NOT PROVEN**, including the requested independent 85% wall threshold. Seven unanchored traces remain unresolved and there is no verified panelboard on this lighting scan; no fictitious panel or engineered circuit was added. Live 3D visual verification is **BLOCKED** because the connected browser cannot create its WebGL canvas; source-point/ceiling/drop projection tests pass but are not a visual pass. Final metric/priced BOM and professionally validated circuits are **NOT TESTED** by this draft slice.
+- **Integrity/handoff:** original lighting SHA256 reverified `915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9`; pinned weight SHA256 remains `2800866028ff65f5828b1e592542a3b09a08c15ad4ac7e657f4ade849b856aaa`. Content-gate power inference still returns 12 outlets/one panel/three homeruns. Ignored local diagnostics and browser proof: `storage/training/lighting-inspection-20261010/`, including `check_saved.py` and `lighting-saved-raw-source-ceiling.jpg`. Final backend launcher PID 14108, loopback-only/no access logs; existing frontend retained. Branch **codex/vlm-localization-experiment**, HEAD **5789c6b**, recovery stash and unrelated dirty work preserved. No training, production promotion, account reset, staging, commit or push. Existing ledger updated only; no next roadmap phase started.
+
+### October 10 user-designated wiring reference from the earlier workspace
+
+- **PASS reference recovery:** computer-use opened the user's existing `http://127.0.0.1:3000/` tab, selected Group 4 / `4-lightinglayout.jpg`, and downloaded a normal Export review copy without editing annotations. Export schema `ved-editable-review-v2`, sheet `sheet-11`, original-pixel frame **1340 x 3264**, original SHA256 **915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9** exactly match production upload 9376. This establishes source registration without estimating coordinates from screenshots.
+- **PASS path preservation:** the private comparison retains **8 user-reviewed Conduit wiring polylines / 38 edges**, including **4 polylines stored under the symbols layer**. Geometry and label semantics, not layer alone, identify the reference paths. Original point order, connection IDs, human method/review state and provenance are preserved. Filtered source-matched reference is `storage/training/lighting-inspection-20261010/user-wiring-reference.json`; comparison script/result are alongside it and Git-ignored. The broader export remains in Downloads, unmodified.
+- **FAIL reference completeness of current draft:** length-weighted geometric sampling at 2px spacing against the existing local shared-pipeline replay finds reference coverage **18.96% observed / 54.34% observed-plus-generated within 8px**, and **24.24% / 65.50% within 16px**. These are partial-reference path coverage, not calibrated detection accuracy, circuit correctness, false-positive precision or an engineering approval. Exact branches/turns need improvement; the preceding single-geometric-network result is explicitly insufficient to establish correct wiring. The sparse source-trace recovery and global nearest-component joins are relevant mechanisms to investigate, not a proven solution.
+- **NOT TESTED implementation change:** no production detector/router/UI change, reprocessing, database write, new training release, schema/API/dependency addition, commit or push in this reference-recovery slice. No production tests rerun because product code was unchanged. User designation makes these paths the comparison reference; the export still records `training_approved=false` / `training_eligible=false`, so no automatic training or production class creation occurred. Existing saved drafts, original images, model weights and unrelated dirty work remain intact. CV/routing and investigation guidance kept reference annotations separate from raw source ink and A* suggestions.
+
+### October 10 apply reference wiring to the lighting plan only
+
+- **Scope / PASS:** user explicitly narrowed the request: keep previous detection behavior and use this specific annotation only on `4-lightinglayout.jpg`. No production code or model changes. Used the existing Designer editor's Add visible wiring trace, exact source-pixel points, Ceiling placement and Save review revision controls; no raw API/SQL writes, hidden React-state injection, new import option or confirmation gate. CV/routing guidance kept this a human project correction rather than a detector benchmark improvement or automatic training.
+- **PASS saved result:** latest lighting analysis **job 24240 / run 169 / review revision 1** contains exactly **8 active manually added source-reference paths**, with all **38 ordered edges** matching the exported annotation coordinates exactly. Four reference paths originally filed under symbols were included. Approved ceiling installation intent is stored; explicit heights remain unset. Old 37 observed and 67 generated paths are retained as recoverable rejected entries in this review, not deleted from raw candidates or previous revisions. Review evidence notes record source SHA256 and ordered annotation-ID mapping. No circuit membership, conductor specification, real measurement or engineering approval was inferred.
+- **PASS preservation / verification:** before/after read-only `verify_plan_reference.py` checks exact path-coordinate equality, ceiling intent, inactive prior paths, unchanged candidate/review hashes, unchanged wall endpoints and device centers, unchanged original source bytes and unchanged power job 24232/revisions 1–5. Normal browser save reported revision 1 saved; reload still shows **Wiring · 8 paths** and Ceiling placement. Original lighting SHA256 remains **915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9**. Prior job 24238/revision 1 is unchanged.
+- **Recovery / warning:** initial attempt to save against historical job 24238 was correctly rejected as superseded; no historical write occurred. Read-only discovery found job 24240 with the identical source, and the exact correction was reapplied there. A long browser loop timed out after partial UI edits; fresh state was inspected and only remaining active paths were processed in bounded batches. Full-page screenshot capture was unavailable; native browser screenshot captured the saved 2D result at `storage/training/lighting-inspection-20261010/lighting-reference-applied-24240.png`. Diagnostics/baseline/reference artifacts remain local and Git-ignored.
+- **NOT TESTED / stop:** no detection-accuracy improvement, retraining, future-upload annotation override, new canonical/BOM approval, or new live 3D rendering claim. Full unit/build gates were not rerun because product code and dependencies were untouched; live save/reload plus exact persisted-data checks are the applicable acceptance gates here and pass. Existing reference workspace, originals, datasets, weights, roles and unrelated dirty work were not modified. Only this project's latest draft and existing progress ledger changed; no commit/push/schema/API/dependency changes and no next roadmap phase started.
+
+### October 12 source-supported initial device connections and labelled elevation guidance
+
+- **Evidence / cause:** the latest screenshots reproduce the power source (plan **9382/page 2984**, `power-layout.png`, **1765 x 1084**, SHA256 `2c4fb66b01bcd37aecfd91e9264e907e5dae1a0e6bca7f896662574b7ab4ce94`), not the ambient lighting tab. Exact screenshot job identity is unavailable. Old job **24248/review 1** has **9 raw observed segments and zero candidate device contacts**; legacy generated/proximity-derived display connections are not persisted source evidence. The extraction symbol mask removes the final stroke through the glyph, and the final observed-route return discarded associations. A tight box-boundary endpoint helper rejected those mask-cut ports, endpoint-only logic missed inline devices, and observed canonical wiring did not use the mounted rear-terminal projection. Earlier nearest-device rendering is not a defensible source-backed fix; an exact historical working renderer artifact cannot be reconstructed from the mixed uncommitted workspace.
+- **PASS implementation:** bounded `device_contact_evidence.py` proposes typed direction/bounds/source-ink contacts, including glyph occlusion and inline devices. Nearby devices alone do not qualify; crossings do not become segment junctions, overlapping ports remain ambiguous. Candidate/fusion contracts retain anchors, edge indexes and evidence, including reversed tile coordinates. `endpoint_connections.py` adapts only untouched proposals, retains every raw source vertex and inserts distinct proposed short leads; new evidence-required routes do not fall back to proximity. Save validates run/contact/source references. Actual human edits, mounting/pricing data and detach opt-outs remain authoritative; untouched machine attachments regenerate on reanalysis without acquiring human approval. Wiring provenance version **raw-source-device-port-evidence-v8** is persisted through the existing processing path.
+- **PASS shared geometry:** canonical extension **v4** stores stable device references/anchors while preserving v2/v3 snapshots. `geometry/observed_connections.py` produces one stored measured branch per device/service elevation; `canonicalScene.js` and shared `connectionGeometry.js` project that same branch to the rear terminal without adding a second route or altering BOM geometry. Display lane anchors pin terminals. Draft projection supports interior attachments, movement and detachment, and marks missing-height connections explicitly. Concealed underfloor traces/selected wires use existing inspection rendering to expose concealed geometry; this is display-only and not the root-cause repair.
+- **PASS user-authorized guidance:** draft preview uses labelled **switch 1.2 m AFF / outlet 0.45 m AFF** planning presets, relative to each floor. The outlet preset is accessibility-oriented, not a universal building mounting mandate. Stored dimensions override presets; no standard floor-to-floor or service height is invented. Preset-only rises/drops are excluded from measured takeoff and do not block a 2D draft save.
+- **PASS live initial analysis/save/reload:** ordinary Designer reanalysis created **24268**, then the final source-preserving run **24269/review 1**. Final candidate and persisted draft have **12 source-supported attachments across 9 outlets / 9 active observed paths**. A temporary outlet move updated its attached vertex without creating another path; Undo restored the exact original coordinate, and the temporary change was not saved. Computer use verified 2D and a rendered 3D planning preview. Read-only verification proves raw wire vertices, symbols, walls, original bytes and old 24248 review unchanged. Source and saved correction history were not overwritten; original user lighting tab remained untouched. Screenshots: `storage/training/lighting-inspection-20261010/power-connections-before-24248.png`, `power-connections-after-24269.png`, and `power-connections-after-24269-3d.png`.
+- **PASS tests:** final full frontend **86 files / 699 tests**; focused backend **158 tests / 8 subtests**, plus independent canonical-contract **6 tests**; earlier wider selection **185 / 29 subtests**. Vite build **2130 modules**, scoped ESLint and whitespace checks pass. Coverage includes masked boundary contacts, inline devices, adjacent/unconnected devices, crossing non-junctions, ambiguity, raw immutability, tile reversal/fusion, API save/reload, reanalysis inheritance, stored nonzero floor/service/mount elevations, a single measured rise/drop, rear-terminal projection, movement, detach and pinned display anchors. Full backend/full ESLint **NOT RERUN**. Existing two backend deprecation warnings and large build chunks remain.
+- **Unresolved / NOT TESTED / BLOCKED:** outlets **symbol-0010, symbol-0011 and symbol-0014** still lack extracted short/curved branch evidence; they are visibly unresolved rather than forced onto nearby wiring. Complete wire recall and wall accuracy are not established. Additional lighting association-stage replay proposes **72 contacts, 4 ambiguous**, preserving its 35 raw polylines; this is not fresh YOLO inference or a detection-accuracy score. Lighting **9384/job 24260/review 3** remains unchanged. The exact live power source has no approved measured canonical layout; measured live 3D/BOM verification is blocked by missing scale/elevation inputs, while synthetic API/canonical measured tests pass. Browser preview renders and shows rises, but a pixel-level close-up of every rear terminal is **NOT TESTED**. No universal detection, engineering approval, VLM training or release promotion claim.
+- **Owners changed this slice:** backend candidate/automatic_wiring/observed_wiring plus new device_contact_evidence; routing/endpoint_connections; schemas/demo_interpretation; services/demo_interpretation_service; reviewed_reference; geometry/canonical_extension plus new observed_connections. Frontend canonicalExtension; canonicalScene/CanonicalScene; new connectionGeometry; DraftWiring3D; devicePlacement; DraftRoomPreview/draftRoomScene/draftWiringScene; deviceConnections; DemoInterpretationPage; wiringPresentation. Corresponding evidence, fusion, review/API, measured-connection, contract, planning-mounting and presentation tests updated/added. Only this existing ledger updated, no additional planning document.
+- **Scoped checkpoint / integrity:** branch **codex/vlm-localization-experiment**, commit **dff2f94** contains only the four independent backend/frontend canonical-v4 contract and contract-test files. Integration/evidence/rendering changes remain local and uncommitted in the pre-existing mixed worktree; the checkpoint alone is not the complete release. Index empty after commit; no push. Stash **bb78854e87833124a1725b51f0be6099a8ac0cfa** unchanged. OpenAPI measured **41 paths / 49 operations / 34 metadata tables**, no endpoint/table/dependency/DDL addition by this slice. Originals, historical reviews, weights, roles and unrelated changes preserved. Final verified-idle loopback API refreshed (launcher **7196**, server **39400**, access logs disabled); no active job interrupted. CV/canvas/routing/3D and investigation/migration/surgical-patch guidance kept source evidence, human corrections, measured geometry and planning assumptions separate. No next roadmap ticket started.
+
+### October 12 wall evidence, joined footprints and non-destructive reanalysis
+
+- **Diagnosis:** the supplied corner matches lighting plan **9384**, `4-lightinglayout.jpg`, **1340 x 3264**. Old **24260/review 3** has 43 raw wall hypotheses; `wall-0043`, `(1237,465) to (1175,527)`, crosses a filled corner block without corresponding diagonal wall evidence. The diagonal is already in detection, not coordinate conversion. Separate square-capped Konva strokes and independent Three.js boxes cause additional internal overlap seams. Source thickness was discarded at the candidate/review boundary. Tile fusion retained exact overlapping observations, but the reproduced live CV result is not tile-derived. An interim new run displayed 82 walls because unchanged auto-accepted walls in an incomplete/unapproved draft were inherited as human corrections alongside new proposals. These defects have separate owners.
+- **PASS extraction:** new `wall_detection/band_geometry.py` fits supported centerlines from contiguous cross-sections of already qualified masks, excludes corner blobs from typical thickness, trims supported thin tails and rejects compact oblique corner hypotheses only in independently observed junction context. `detector.py` uses common-band/gap evidence for consolidation rather than merging neighboring walls or white openings. `junctions.py` bounds source-backed trim/extension and deduplicates identical/reversed spans; `chromatic_walls.py` shares this refinement, retains openings and float source coordinates. `preparation.py` fuses only exactly collinear overlapping tile observations, retaining evidence references, touching identities and separate parallel walls. No filename-specific rules, page overlay, forced boundary or rescaling. Provenance: **cv-qualified-wall-junctions-v14**, **qualified-band-centres-v2**, **source-supported-overshoot-trim-dedup-v3**.
+- **PASS topology/rendering:** new `frontend/src/geometry/wallTopology.js` derives exact L/T/X/angled contacts from shared geometry, partitions connected footprints by stable per-wall ownership and retains IDs. `wallGeometry.js` / `JoinedWallMesh.jsx` emit triangulated footprints and exterior side faces only: internal caps are removed, not merely hidden. Demo and canonical 2D/3D consume the same topology. Estimated source thickness survives candidate/draft/presentation contracts; approved metric thickness remains authoritative. `draftRoomScene.js` no longer creates walls from room boxes. Joined movement propagates shared endpoints; T-branch movement projects the joined end onto its existing support instead of bending the straight wall. **Alt-drag moves a wall independently**; existing undo/redo, Shift constraint and revision saves remain.
+- **PASS reanalysis/live preservation:** `reviewed_reference.py` regenerates only unchanged automatic wall snapshots in incomplete/unapproved drafts. Actual edits, different thickness, mounted-wall references, manually added/corrected walls and complete/approved reviews remain protected. Historical records are not rewritten. Ordinary Designer reanalysis created **24271**, **24272/review 1**, then final **24273/review 1**, containing **38 walls / 58 symbol records / 35 observed paths**. The 43-to-38 count is not an accuracy score. Actual UI numeric movement changed a shared endpoint X from **365.11569752504926** to **366.11569752504926** and updated its neighbor; Undo restored the original exactly. Temporary changes were not saved. Final baseline saved/reloaded normally. Read-only checks prove old **24260/review 3**, source bytes and symbol candidates unchanged; power **24269/review 1** was not edited. Lighting SHA256 remains **915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9**. Actual 2D and illustrative 3D inspected at 24272; final 24273 deduplicates identical spans.
+- **Evidence artifacts:** private ignored `storage/training/lighting-inspection-20261010/wall-before-after-comparison.png` shows source/red-before/green-after corner; `wall-final-source-overlay.png` shows whole drawing. Actual browser screenshots: `wall-24273-saved-2d.png`, `wall-24272-junction-2d.png`, `wall-24272-joined-3d.png`. Final saved-result tab retained; original user tab untouched. Images are diagnostics, not page-specific detection overlays.
+- **PASS gates:** guarded restricted/disposable backend selection **207 tests / 168 subtests**, including structural masks/grid distractors, real thin/thick/short/angled walls, faint continuity, gaps/parallel walls, junctions, transforms/native sizes, tile fusion, review inheritance, append-only API save/reload and stale 409 checks. Full frontend **88 files / 711 tests passed**; triangle-level tests verify absent internal caps, topology tests cover contacts and detach, and page integration covers joined movement/save/reload. Vite build **2133 modules**, scoped ESLint and whitespace checks passed. One outdated footer assertion failed initially, then was corrected and the full suite rerun passed. Existing two backend deprecation warnings, large build chunks and LF/CRLF notices remain. Full backend/full ESLint and live concurrent-job overwrite injection **NOT TESTED**.
+- **Additional drawings / remaining limitations:** frozen-code wall-stage repeat replay was deterministic and preserved native dimensions. Baseline/current chromatic hypothesis counts: lighting4 **53 to 49**, lighting6 **49 to 41**, datacom23 **15 to 14**; power has no chromatic result and retains 13 monochrome hypotheses. These isolated replays omit live symbol masks: they are not the live 38-wall count or labelled precision/recall. Additional lighting6/datacom23 were not threshold-specific tuning targets. Visual overlays still contain fixture/grid-like short fragments, faint missing sections, residual corner ambiguity and inadequate datacom coverage. **FAIL complete wall coverage / fully clean arbitrary-plan detection; NOT TESTED independent labelled accuracy or 85% recall.** Unsupported gaps remain unbridged. This is a reusable improvement of the reproduced regression, not a universal guarantee. Draft heights/scales are illustrative, not approved engineering measurements; live approved metric-layout/BOM verification is outside this wall slice.
+- **Changed owners:** backend `band_geometry.py`, `detector.py`, `junctions.py`, `chromatic_walls.py`, `preparation.py`, `candidate.py`, `demo_cv.py`, `schemas/demo_interpretation.py`, `reviewed_reference.py`; frontend `wallTopology.js`, `wallGeometry.js`, `JoinedWallMesh.jsx`, `DemoInterpretationCanvas.jsx`, `DemoInterpretationPage.jsx`, `devicePresentation.js`, `draftRoomScene.js`, `canonicalScene.js`, `CanonicalScene.jsx`, `CanonicalLayoutCanvas.jsx`; corresponding tests and this existing ledger. CV/canvas/3D and investigation/surgical-patch skills kept evidence, shared editable geometry and rendering separate. No new planning Markdown or dependencies.
+- **Scoped checkpoint/integrity:** branch **codex/vlm-localization-experiment**, core commits **91513ca** and **50f1d04**. Only task-owned core files/hunks committed; mixed UI/preprocessing/review integration and mixed tests remain local/uncommitted alongside preserved unrelated edits. Commits alone are not the complete integrated release. Index empty; no push. Stash **bb78854e87833124a1725b51f0be6099a8ac0cfa** unchanged. **41 OpenAPI paths / 49 operations / 34 tables**, no endpoint/table/DDL changes by this slice. Only verified-idle loopback API refreshed: launcher **27392**, server **25268**, access logs disabled, no active job interrupted. Original uploads, historical reviews, corrections, roles, weights and datasets preserved. No VLM training/promotion or next roadmap phase started.
+
+### October 13 researched centerline editing, paired partition recovery and provisional switch counts
+
+- **Baseline and scope:** owner supplied a pasted task plus five October 12 screenshots. Full source pixels confirm the lighting drawing **9384/page 2986**, `4-lightinglayout.jpg`, **1340 x 3264**; screenshots contain no exact job ID, so their precise run cannot be proven. Reproducible live baseline **24273/review 1** contains **38 walls / 58 symbol records / 35 observed paths**, source SHA256 **915bcaeed344b890c517c2148422c4c9886fa0f93caba30c325f6347089880b9**, artifact hash **22f024231b6d02b6121dab7b9477d3624284f365619511190582978cea350d28**. Local frozen model is **power80**, checkpoint **2800866028ff65f5828b1e592542a3b09a08c15ad4ac7e657f4ade849b856aaa**, detector cutoff **0.50**, configuration **afa2134684254cdd639436072cfd5f4252feaee30f6ca4e3b802a63c01f72747**; raw predictions and all run provenance retained. Private immutable baseline: `storage/training/lighting-inspection-20261010/wall-followup-live-baseline.json`. Originals, historical reviews, model artifacts, source annotations and unrelated changes were not overwritten.
+- **Verified primary research / limitations:** [Liu et al., Raster-to-Vector, ICCV 2017](https://art-programmer.github.io/floorplan-transformation/paper.pdf) reconstructs junction primitives with integer-program topology constraints; its axis-aligned Manhattan assumptions are not suitable as a blanket rule for these angled walls. [Kalervo et al., CubiCasa5K](https://arxiv.org/pdf/1904.01920) combines segmentation and junction/opening heatmaps before geometric reconstruction. [Zeng et al., ICCV 2019](https://arxiv.org/pdf/1908.11025) separates semantic room-boundary elements from generic edges and uses spatial context, including diagonal directions. [Fan et al., FloorPlanCAD](https://arxiv.org/pdf/2105.07147) jointly studies symbol instances and wall semantics on CAD entities; that vector input differs from scanned raster electrical drawings. Applicable architectural lesson: separate wall evidence, vector reconstruction and topology; edges/thickness alone do not establish semantics. This slice implements small deterministic evidence checks, **not those trained networks or their published accuracy**. No paper dataset/model download, imported ground truth, retraining or promotion.
+- **Diagnosis:** filled physical footprints were the default editing presentation, independently causing oversized 2D overlays. Existing topology extended every endpoint at a junction by its own half-width; a wide T branch could consequently protrude through a thinner support. Missing walls were already absent from source candidates, not merely invisible meshes. Chromatic refinement replaced the earlier monochrome proposals and required sustained filled colour bands, omitting some outlined partitions; blanket symbol bounding-box masks cut structural ink around switches and broad homerun boxes. Native dimensions and existing source transforms remain unchanged. Remaining standalone slabs still correspond to unresolved detected fragments; centerline styling is not presented as their detection fix.
+- **PASS wall/editor implementation:** new `wall_detection/paired_boundaries.py` recovers sustained paired narrow banks with clear interiors only when anchored to independently qualified structural walls. It follows source banks through Hough fragmentation, stops at real white gaps, rejects interior window rails and free-floating fixture boxes, protects separate parallel partitions, suppresses overlapping duplicate observations, and remains bounded. `chromatic_walls.py` excludes ceiling-fixture interiors rather than erasing all annotation/device bounding boxes and joins recovered outlined walls using original ink evidence. Shared `wallTopology.js` omits T endpoint extension and bounds end/end angled joins by the other wall width, preserving individual IDs/exterior faces. Demo/canonical 2D now show thin, selectable centerlines by default; **Wall footprints** is optional, and physical source/metric thickness remains unchanged for 3D. Existing endpoint handles, movement, undo/redo, openings and exact-contact rules remain. No forced room-box boundaries or nearest-wall joins.
+- **PASS provisional gang policy:** new `switch_semantics.py` and additive candidate `SwitchGangProposal` preserve original labels, trained legend IDs, pixel locations and uncertainty. Only an already identified gang switch without a determined count gets **one gang / user_requested_default / provisional=true**. Existing two-/three-gang names and credible local `S2/S3` OCR evidence retain their count; placeholder `SYM_n` is never treated as text. Unknown marks, homeruns, fan-control and three-way switches do not receive this fallback. The frontend suggests an existing active one-gang class only when unambiguous, displays provenance and allows correction. Optional persisted `gang_count_confirmed` records explicit class correction, omitted when unset for historical-shape compatibility. Merely moving the device cannot set it. Final complete review rejects uncorrected defaults with public **409 PROVISIONAL_SWITCH_COUNT_REQUIRES_CORRECTION**, while unfinished saves remain available. Candidate truth is not rewritten or automatically converted to approved training labels.
+- **FAIL missed-switch recovery / honest investigation:** native frozen-checkpoint context/rotation diagnostics around the existing switch/homerun observations yielded no additional switch proposals at the unchanged cutoff; these experiments were **not promoted**. The CV OCR helper produces placeholder tokens, not recognized text. Installed Windows OCR language availability was checked (en-US); a diagnostic bridge was blocked by script execution policy. No policy bypass/weakening, software/model installation or runtime integration occurred. The screenshot's switch-versus-homerun confusion and missing switch recall remain unresolved. This is an explicit fallback for identified switches, not a claim that OCR or switch detection is fixed. Live source has two predicted one-gang symbols, not unknown-count defaults; live fallback UI on a real unknown-count source is **NOT TESTED**, while synthetic integration/API tests exercise it.
+- **PASS live reanalysis/save/reload:** normal Designer UI created **24276**, saved unfinished **review 1**, then reloaded **37 walls / 58 symbol records / 35 paths**. Raw 38-to-37 is not a quality score. Read-only verification proves baseline 24273 candidate/review, original bytes, checkpoint and original symbol predictions unchanged; new gang metadata is additive. Long outlined partition recovery and continuity across former annotation masks appear in shared 2D and rendered 3D. Earlier user lighting/power reviews remain intact. Optional footprint display was exercised without saving geometry. Matched top-view comparisons use the same browser viewport, top preset, one identical scroll-zoom gesture, roof hidden, devices/wiring hidden and illustrative **40 m / 3 m** dimensions. Baseline 3D capture uses the corrected shared renderer on old saved geometry, so it demonstrates geometry recovery—not a historical before-image of the T-cap renderer. Screen positioning differs by a few pixels; exported full-source red/green overlays share an exact raster frame.
+- **Artifacts / regression drawings:** private ignored `wall-followup-live-before-overlay.png` / `wall-followup-live-after-overlay.png`; browser `wall-followup-before-24273-3d.png`, `wall-followup-after-24276-3d.png`, `wall-followup-after-24276-2d.png` under the same inspection directory. Side-by-side presentations: `wall-followup-comparison-overlays.png` / `wall-followup-comparison-3d.png`; final editor `wall-followup-final-editor-24276.png` retains wiring/devices visible and footprints off. Additional frozen wall-stage baselines/current counts: lighting6 **45 to 41**, datacom23 **11 to 14**; monochrome power keeps its legacy path unchanged (no chromatic result). These were not tuned by filename/coordinates and no original labels changed. Isolated replays omit live YOLO symbol context on those additional drawings: counts are **not precision/recall or proof of non-regression**. Visual coverage remains partial, with fixture/grid-like fragments and missing partitions; datacom coverage is insufficient. **FAIL complete walls / all isolated-slab removal / missed switches; NOT TESTED independent labelled accuracy or universal generalization.**
+- **PASS final gates:** broad guarded restricted/disposable backend **262 tests / 179 subtests**; focused final compatibility source check **17 passed**. Full frontend **88 files / 715 tests passed**; build **2133 modules**, scoped ESLint and whitespace check pass. New tests cover paired-bank recovery, real openings/windows, nearby partitions/rotation, annotation-mask preservation, unequal-width T caps, thin styling independent of physical thickness, provisional semantics and readable counts, historical schema shapes, explicit correction versus movement, unfinished save/final guard and reload. Earlier failures were an invalid partial test fixture, a stale configuration assertion, an unregistered public validation code and a multiple-note test locator; corrected, then gates rerun. Full backend/full lint and labelled wall/switch recall **NOT RUN**. Existing two dependency deprecations, >500KB build chunks and LF/CRLF notices remain.
+- **Changed owners:** core `candidate.py`, `chromatic_walls.py`, new `paired_boundaries.py` / `switch_semantics.py`, `wallTopology.js` and new/updated core tests; mixed integration `demo_cv.py`, `interpretation_processing_service.py`, `schemas/demo_interpretation.py`, `demo_interpretation_service.py`, demo API public errors, `DemoInterpretationCanvas.jsx`, `ReviewToolRail.jsx`, `devicePresentation.js`, `DemoInterpretationPage.jsx`, `CanonicalLayoutCanvas.jsx`, `layoutLayers.js`, `LayoutEditorPage.jsx` and corresponding integration tests. Existing ledger updated only. CV/canvas/3D and investigation/surgical-patch skills separated source evidence, canonical properties and display styling.
+- **Scoped checkpoint / runtime / stop:** branch **codex/vlm-localization-experiment**, commit **b6058fd**, eight task-owned core files/hunks, **327 insertions / 9 deletions**. Mixed UI/review/preprocessing integrations and tests remain local/uncommitted among preserved pre-existing edits; this commit alone is **not a complete integrated release**. Index empty, no push, stash **bb78854e87833124a1725b51f0be6099a8ac0cfa** unchanged. Existing **41 paths / 49 operations / 34 tables** retained; no endpoint/table/dependency/DDL changes. Verified-idle local API refreshed with access logs disabled; final launcher **37640**, server **7216**. No active processing job interrupted, role/account reset, original rewrite or weight mutation. No VLM training or next roadmap phase started.
+
+### October 13 - Blueprint3D wall editor interaction and dimension adaptation
+
+- **Reference / inspect first:** pinned `charmlinn/blueprint3d-modern` commit **f56f0b2a4a6e177181aefbf535d2945b937b5c02**, cloned into ignored `storage/training/blueprint3d-reference` for read-only inspection. Examined `src/floorplanner/floorplanner.ts`, `floorplanner_view.ts`, `src/model/corner.ts`, `wall.ts`, `floorplan.ts`, `half_edge.ts`, `src/core/configuration.ts`, `dimensioning.ts` and demo `FloorplannerControls.tsx`. Live Vercel demo inspected in 2D: continuous drawing, corner/edge merge, wall hover, dimensions and controls observed. The deployed demo's commit is not independently known. MIT copyright/permission/disclaimer retained in root `THIRD_PARTY_NOTICES` and the shipped `frontend/public/blueprint3d-wall-editor.LICENSE.txt` (verified copied to build output). No reference TypeScript, furniture/catalog application, Next.js or IndexedDB persistence imported.
+- **Evidence / smallest seam:** VED already had continuous source-pixel drawing, endpoint/edge preview snapping, joined movement, review revisions and history. It lacked committing a split at a wall-edge contact, automatic axis alignment, numeric wall length, confirmed-scale delivery to the canvas and per-wall physical dimensions reaching canonical save. Reference colors/strokes come from code: normal `#dddddd` / 5 screen px; hover/preview `#008cba` / 7 px; edges `#888888` / 1 px; delete `#ff0000`; corner hover radius 7; Arial 12 px labels with white outline. Reference tolerances 20 cm merge / 25 cm alignment are converted at its 15 px/foot view scale, then made VED zoom-aware. Physical thickness remains independent of screen stroke. New calibrated manual walls use the reference's 10 cm design default; uncalibrated pages retain source-pixel thickness, not assumed real-world units.
+- **Implementation / PASS:** new `wallDrawing.js` operates on the existing shared draft, with endpoint/corner alignment, continuous chain/closure, atomic wall-edge and manual X-intersection splits, original-wall identity retention, mounted-device reassignment, overlap/collapse checks and deletion tombstones. Moving shared corners uses existing canonical topology, moves explicitly mounted devices and their existing attached wire geometry, and keeps saved opening widths rather than scaling openings with wall length. Splits through saved or source-supported openings are blocked; unreviewed detected openings protect their supporting wall. No proximity electrical connections introduced by this module. Numeric length keeps start anchored; positive units convert to canonical source coordinates. All changes use existing history and backend revision/concurrency paths. Escape (including focused length input), Done and tool changes cancel preview; a drag gesture cannot commit an accidental wall. Undo/redo cancels pending drawing anchors.
+- **Measurements / 2D and 3D:** `wallMeasurements.js` derives interior-face lengths only for explicit closed endpoint faces. Open walls and live previews are explicitly labelled centerline; numeric editing always edits centerline. No inferred room closure or measured length on unknown scale. Confirmed page scale is returned only when its stored reference dimensions match the candidate source plane; canvas and draft 3D use it. Optional per-wall thickness/height persist through strict review schema, `reviewGeometryPayload`, canonical save and 3D projection; existing global approval dimensions remain compatible fallbacks. Original detection output and weights are not modified. The lighting page has **no confirmed scale**, so its inspector correctly displays **161.11 source px (unscaled)** rather than fabricated metres. Live length edit to **170 px**, Undo, Redo and Undo back to baseline verified; temporary edit was **not saved**. Its illustrative 3D defaults remain explicitly labelled as assumptions.
+- **Changed integrations:** `DemoInterpretationCanvas.jsx` / test, `DemoInterpretationPage.jsx` / test, `ReviewToolRail.jsx`, `devicePresentation.js`, `DraftRoomPreview.jsx`, `draftRoomScene.js`; backend `schemas/demo_interpretation.py`, `services/demo_interpretation_service.py`, `tests/test_demo_interpretation_api.py`. New task-owned modules/tests: `wallDrawing.js`, `wallDrawing.test.js`, `wallAppearance.js`, `wallMeasurements.js`, `WallDimensionEditor.jsx`, `WallDimensionEditor.test.jsx`; notices above. Canvas/3D and lean-build skills kept interactions, physical dimensions and shared persistence separate; no detector changes or new dependency/endpoint/table/DDL.
+- **PASS verification:** full frontend **90 files / 729 tests**, Vite **2137 modules**, scoped ESLint and whitespace checks. Guarded disposable MySQL backend **40 tests**, including per-wall split dimensions through review/save/canonical reload, immutable review/stale-save gates and reanalysis durability. Tests cover exact rectangle/interior dimensions, angled walls, zoom-aware axes, edge/X splits, duplicate/collapse prevention, opening preservation, mounted device/wire movement, numeric metre/cm/mm/feet conversion, undo/redo, save/reload, and matching metric 3D sizes. Initial test failures were stale continuous-chain assertions and a missing strict response-schema scale field; fixed and gates rerun. Existing two backend dependency deprecations and >500KB frontend chunks remain. Full backend/full lint and exhaustive pathological polygon topology **NOT TESTED**.
+- **Browser / evidence / intentional differences:** ordinary live Plan editor **9384 / 24276 / review 1** reload, numeric wall edit/undo/redo and loaded 3D view checked. Matched-scale normal and hover comparisons use the actual Konva component in an isolated fixture (not a fake toolbar or historical saved layout). Evidence under ignored `storage/training/blueprint3d-wall-editor`: `wall-editor-comparison.png`, `wall-editor-hover-comparison.png`, `ved-preview.jpg`, `live-inspector-24276.jpg`, `live-3d-24276.jpg`; fixture source archived there after verification. Reference room-grid/background/furniture UI not copied. VED retains selected endpoint handles and shared seam-free footprints instead of copying reference internal diagonal half-edge seams. It explicitly marks open-wall centerline labels and refuses destructive attachment edits. Complex/open/non-manifold faces do not receive invented interior dimensions; exact pixel-for-pixel parity in every topology is **not claimed**. Canonical measured 2D/3D dimensions are proven on calibrated synthetic save/reload, not on the uncalibrated live lighting scan.
+- **Preservation / checkpoint:** branch **codex/vlm-localization-experiment**, scoped core checkpoint **f689542**, **8 new task-owned files / 418 insertions**. Mixed UI/backend integrations and tests remain local/uncommitted among pre-existing edits: checkpoint alone is **not a complete integrated release**. Index empty; no push. Stash **bb78854e87833124a1725b51f0be6099a8ac0cfa** preserved. Read-only before/after checks cover originals and every candidate/review hash on plans **9376/9382/9384**, all unchanged. No reanalysis, reviewed-layout overwrite, model/training promotion, role reset or new planning Markdown. Idle API refreshed once (launcher **40976**, server **17184**, no access logs); no active jobs interrupted. Temporary verification files removed from the served frontend and archived in ignored storage. Next roadmap phase not started.
+- **Final read-only gate:** **41 OpenAPI paths / 49 operations / 34 metadata tables**, unchanged. Frozen model checkpoint SHA256 matches the earlier preserved baseline; original uploads/candidate/review hashes still match this task's baseline, with **0 active jobs**. Served build includes the full MIT notice. Live user/editor tabs retained; agent-created reference/fixture tabs closed. Source and private diagnostic artifacts remain local.
+- **User-requested wall color override:** normal walls now dark navy `#0f172a`, with near-black edges `#020617`, in the Plan editor, canonical 2D canvas and joined/fallback 3D meshes. Hover/selection/preview cyan and deletion red stay distinct. Display-only shared `wallAppearance.js` change, no geometry/detection/persistence mutation. Updated canvas color assertion; focused frontend **21 tests passed**, build **2137 modules**, scoped lint and whitespace checks passed. Build chunk warning remains. No backend tests required for this appearance-only follow-up; changes remain local/uncommitted. Canvas/3D/design-system guidance preserved the common color token and interactive feedback.
+
+### October 13 - Essential permanent application publication
+
+- **User-authorized scope:** publish the essential permanent implementation to the tracked `origin/codex/vlm-localization-experiment` branch; no merge or force-push to `main`. Integrates the prior scoped wall/routing checkpoints with their required frontend/backend dependencies, dark-navy appearance, editable shared connections, draft BOM/material workbook import, corrected review persistence and regression tests. **192 changed/new application, test, safe-template and existing-ledger files** selected explicitly. Earlier statements that these integrations were only local are historical; this publication packages them together.
+- **Excluded / preserved:** original uploads, private source/annotation/reference packs, model weights/manifests, actual pricing workbooks, `.env` credentials, generated builds, temporary browser fixtures and diagnostic scripts. Account-switch/reset work, unrelated planning/diagram edits, the unused `DeviceMeshCatalog.jsx` prototype (uninstalled optional dependency) and other unrelated working-tree changes remain local. `stash@{0}` hash **bb78854e87833124a1725b51f0be6099a8ac0cfa** unchanged. No ignored/private files force-added, reanalysis, model training, source rewrite or live review mutation.
+- **PASS export gates:** tested a Git-index export independent of unstaged edits. **89 frontend files / 723 tests**, Vite **2137 modules**, **full frontend ESLint**, staged whitespace checks. Restricted/disposable MySQL **1442 backend tests / 1411 subtests passed**, **4 skipped**, with **5 dependency/deprecation warnings**. The initial frontend failures required the documented public `VITE_API_BASE_URL=http://localhost:8000`; development-only catalog tests required `APP_ENV=development` and still explicitly test production denial. Two stale assertions were aligned with the already-implemented contract: the additive runtime wiring response is distinct from immutable persisted review bytes, and OpenAPI includes `/api/projects/{project_id}/bom.csv`. Historical byte/hash assertions remain intact. No product features changed during publication verification. Existing >500KB frontend chunks remain warnings.
+- **Integrity / reproducibility:** index-to-export content audit passed across **627 tracked files**, allowing only Git's configured Windows text line endings; source/test content otherwise matches. Sensitive-token and private-artifact path checks found none in the selected publication. Read-only checks confirm all original bytes, candidate hashes and saved review hashes for plans **9376/9382/9384** unchanged, with **0 active jobs**. Local model packs, reviewed catalog/scale/elevation inputs and pricing data must be supplied separately on another machine; publication does not make private weights/data available or claim independent detection accuracy. Verification skill kept the operation scoped to publication and gate maintenance.
+- **Checkpoint:** application integration committed on the current branch and pushed using ordinary fast-forward Git push after the passing gates. Remote commit equality is checked separately; original/stash/unrelated files remain local and untouched. No next roadmap phase started.

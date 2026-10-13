@@ -142,6 +142,7 @@ def fuse_observed_routes(
         raise ValueError("Wiring fusion input exceeds the segment budget.")
     groups = {}
     local_keys = {}
+    local_points = {}
     for region_id, segment in tile_segments:
         identity = (region_id, segment.id)
         if identity in local_keys:
@@ -157,10 +158,12 @@ def fuse_observed_routes(
         tuple(PixelPoint(x=x, y=y) for x, y in points)
         key = min(points, tuple(reversed(points)))
         local_keys[identity] = key
-        group = groups.setdefault(key, {"evidence": set(), "ambiguities": set()})
+        local_points[identity] = points
+        group = groups.setdefault(key, {"evidence": set(), "ambiguities": set(), 'styles':set()})
         group["evidence"].update(segment.evidence_refs)
         group["evidence"].add(f"region:{region_id}")
         group["ambiguities"].add(segment.ambiguity)
+        group['styles'].add(segment.line_style)
 
     segments = []
     ids = {}
@@ -176,9 +179,11 @@ def fuse_observed_routes(
             id=segment_id, route_kind="observed",
             points=tuple(PixelPoint(x=x, y=y) for x, y in key),
             evidence_refs=tuple(sorted(group["evidence"])), ambiguity=ambiguity,
+            line_style=next(iter(group['styles'])) if len(group['styles'])==1 else 'unknown',
         ))
 
     connections = set()
+    contacts = {}
     def remap(region_id, reference):
         kind, identity = reference.split(":", 1)
         if kind != "segment":
@@ -191,12 +196,29 @@ def fuse_observed_routes(
     for region_id, connection in tile_connections:
         left = remap(region_id, connection.from_ref)
         right = remap(region_id, connection.to_ref)
-        if left != right:
+        if connection.evidence_kind is not None:
+            key=local_keys[(region_id,connection.from_ref.split(':',1)[1])]
+            points=local_points[(region_id,connection.from_ref.split(':',1)[1])]
+            edge=connection.source_edge_index if points==key else len(points)-2-connection.source_edge_index
+            transform=region_transforms[region_id]
+            path=local_to_source_coords(transform,connection.path_anchor.x,connection.path_anchor.y)
+            anchor=local_to_source_coords(transform,connection.device_anchor.x,connection.device_anchor.y)
+            signature=(left,right,edge,path,anchor,connection.evidence_kind)
+            item=contacts.setdefault(signature,dict(evidence=set(),ambiguous=False))
+            item['evidence'].update(connection.evidence_refs);item['evidence'].add(f'region:{region_id}')
+            item['ambiguous'] |= connection.ambiguity=='ambiguous'
+        elif left != right:
             connections.add(tuple(sorted((left, right))))
-    return tuple(segments), tuple(
+    result=list(
         ObservedRouteConnection(id=f"connection-{i:04d}", from_ref=a, to_ref=b)
         for i, (a, b) in enumerate(sorted(connections), 1)
     )
+    for (left,right,edge,path,anchor,kind),item in sorted(contacts.items()):
+        result.append(ObservedRouteConnection(id=f'connection-{len(result)+1:04d}',from_ref=left,to_ref=right,
+            source_edge_index=edge,path_anchor=PixelPoint(x=path[0],y=path[1]),
+            device_anchor=PixelPoint(x=anchor[0],y=anchor[1]),evidence_kind=kind,
+            evidence_refs=tuple(sorted(item['evidence'])),ambiguity='ambiguous' if item['ambiguous'] else 'unambiguous'))
+    return tuple(segments),tuple(result)
 
 
 def build_observed_routes_payload(

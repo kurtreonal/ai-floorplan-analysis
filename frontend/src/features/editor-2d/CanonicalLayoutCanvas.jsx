@@ -4,6 +4,8 @@ import { Button } from '../../components/ui/button.jsx'
 import { DeviceGlyph } from '../detection-review/DeviceGlyph.jsx'
 import { deviceFamily } from '../detection-review/devicePresentation.js'
 import { routeAppearance } from '../routing/routeProjection.js'
+import {buildWallTopology} from '../../geometry/wallTopology.js'
+import {WALL_APPEARANCE} from '../detection-review/wallAppearance.js'
 import {
   Circle,
   Group,
@@ -61,6 +63,8 @@ export function CanonicalLayoutCanvas({
     760,
   ), [availableWidth, coordinateSystem.image_height_pixels, coordinateSystem.image_width_pixels])
   const selectedSymbol = geometry.symbols.find((symbol) => symbol.id === selectedSymbolId) ?? null
+  const wallTopology=useMemo(()=>buildWallTopology(geometry.walls.filter(w=>w.thickness_meters>0)
+    .map(w=>({...w,thickness:w.thickness_meters}))),[geometry.walls])
 
   function zoomAt(factor, pointer = { x: stage.width / 2, y: stage.height / 2 }) {
     setViewport((current) => {
@@ -131,11 +135,17 @@ export function CanonicalLayoutCanvas({
           </Layer>
 
           <Layer name="walls" visible={visibility.walls} listening={false}>
+            {visibility.wallFootprints && wallTopology.walls.map(wall=><Group key={`footprint-${wall.id}`}>
+              {wall.footprints.map((poly,i)=><Line key={`body-${i}`} closed
+                points={metricPointsToPixels(poly,coordinateSystem)} fill={WALL_APPEARANCE.normal} strokeWidth={0} />)}
+              {wall.boundary.map((edge,i)=><Line key={`edge-${i}`} points={metricPointsToPixels(edge,coordinateSystem)}
+                stroke={WALL_APPEARANCE.edge} strokeWidth={1/stage.scale} />)}
+            </Group>)}
             {geometry.walls.map((wall) => (
               <Line
                 key={wall.id}
                 points={metricPointsToPixels([wall.start, wall.end], coordinateSystem)}
-                stroke={wall.status === 'verified' ? '#136f63' : '#355070'}
+                stroke={WALL_APPEARANCE.normal}
                 strokeWidth={Math.max(2 / stage.scale, 1)}
                 dash={wall.status === 'verified' ? [] : [7 / stage.scale, 3 / stage.scale]}
               />

@@ -26,6 +26,7 @@ from app.repositories.floor_plan_interpretation_repository import (
     add_review,
     find_latest_for_floor_plan,
     find_latest_review,
+    find_latest_previous_review,
     find_review_revision,
     next_review_revision,
 )
@@ -40,6 +41,9 @@ from app.services.analysis_settings_service import (
     retrieve_settings,
 )
 from app.services.layout_service import LayoutServiceError, save_owned_layout
+from app.services.wiring_legend_service import annotate_wiring
+from app.routing.endpoint_connections import connect_touching_endpoints
+from app.repositories.analysis_settings_repository import latest_elevation, latest_scales
 
 
 SAFE_ERROR_MESSAGE = "The demo interpretation operation could not be completed."
@@ -57,6 +61,24 @@ class DemoInterpretationRecord:
     candidate: FloorPlanInterpretationCandidate
     review: FloorPlanInterpretationReview | None
     review_document: dict[str, object] | None
+    generated_wiring: list[dict] | None = None
+    draft_wiring_limitations: list[str] | None = None
+    observed_wiring: list[dict] | None = None
+    draft_walls: list[dict] | None = None
+    draft_review: dict | None = None
+    routing_context: dict | None = None
+
+
+def _routing_context(session, run):
+    floor = session.get(FloorPlan, run.floor_plan_id).project_floor_id
+    elevation = latest_elevation(session, floor)
+    scale = latest_scales(session,[run.floor_plan_page_id]).get(run.floor_plan_page_id)
+    plane = _candidate(run).payload.source_plane
+    ppm = float(scale.pixels_per_meter) if scale and scale.pixels_per_meter is not None and (
+        scale.reference_width_pixels,scale.reference_height_pixels)==(plane.width_pixels,plane.height_pixels) else None
+    return {'floor_elevation_meters': float(elevation.elevation_meters)
+            if elevation and elevation.elevation_meters is not None else None,
+            'pixels_per_meter':ppm}
 
 
 def _fail(code: str) -> None:
@@ -112,7 +134,7 @@ def _authorized_run(
     if processing_job_id is not None:
         statement = statement.where(FloorPlanInterpretationRun.processing_job_id == processing_job_id)
     run = session.scalar(
-        statement.order_by(FloorPlanInterpretationRun.id.desc()).limit(1)
+        statement.order_by(FloorPlanInterpretationRun.processing_job_id.desc(), FloorPlanInterpretationRun.id.desc()).limit(1)
     )
     if run is None:
         _fail("INTERPRETATION_NOT_FOUND")
@@ -135,11 +157,35 @@ def retrieve_interpretation(
             processing_job_id=processing_job_id,
         )
         review = find_latest_review(session, interpretation_run_id=run.id)
+        candidate = _candidate(run)
+        document = None if review is None else _review_document(review)
+        inherited = {}
+        if review is None:
+            previous = find_latest_previous_review(session, run=run)
+            if previous is not None:
+                from app.ai.floor_plan_interpretation.reviewed_reference import inherit_review_draft
+                inherited = inherit_review_draft(candidate, _candidate(previous[0]),
+                                                      _review_document(previous[1]))
+                document = inherited or None
+        drawing_name=session.get(FloorPlan,run.floor_plan_id).original_filename
+        document = annotate_wiring(session,candidate,document,drawing_name=drawing_name)
+        from app.routing.draft_wiring import generate_draft_wiring
+        generated, limitations = generate_draft_wiring(candidate, document)
+        document=annotate_wiring(session,candidate,{**document,'generated_wiring':generated},
+                                 drawing_name=drawing_name)
+        document = connect_touching_endpoints(candidate, document)
+        generated=document['generated_wiring']
         return DemoInterpretationRecord(
             run=run,
-            candidate=_candidate(run),
+            candidate=candidate,
             review=review,
-            review_document=None if review is None else _review_document(review),
+            review_document=document,
+            generated_wiring=generated,
+            draft_wiring_limitations=limitations,
+            observed_wiring=document.get("observed_wiring",[]),
+            draft_walls=inherited.get('walls'),
+            draft_review=inherited or None,
+            routing_context=_routing_context(session, run),
         )
     except DemoInterpretationError:
         raise
@@ -185,6 +231,9 @@ def append_interpretation_review(
         _unique_ids(payload.rooms, "ROOM")
         _unique_ids(payload.symbols, "SYMBOL")
         _unique_ids(payload.observed_wiring, "WIRING")
+        _unique_ids(payload.generated_wiring, "GENERATED_WIRING")
+        if {w.id for w in payload.observed_wiring} & {w.id for w in payload.generated_wiring}:
+            _fail("DUPLICATE_WIRING_IDENTITY")
         expected = {
             "walls": {item.id for item in candidate.payload.walls.items},
             "rooms": {item.id for item in candidate.payload.rooms.items},
@@ -221,10 +270,44 @@ def append_interpretation_review(
                 if wire.elevation_meters is None:
                     _fail("OBSERVED_WIRING_ELEVATION_REQUIRED")
 
+        # Generated drafts never enter observed wiring, canonical quantities or
+        # dataset completeness. Their anchors must belong to this saved draft.
+        symbol_ids = {s.id for s in payload.symbols}
+        active_symbols = {s.id: s for s in payload.symbols if s.disposition != 'rejected'}
+        active_wall_ids = {w.id for w in payload.walls if w.disposition != 'rejected'}
+        if any(s.mounting_wall_id is not None and s.mounting_wall_id not in active_wall_ids for s in active_symbols.values()):
+            _fail('INVALID_DEVICE_ATTACHMENT')
+        for wire in [*payload.observed_wiring, *payload.generated_wiring]:
+            if wire.disposition == 'rejected':
+                continue  # A historical tombstone is not an active connection.
+            for attachment in wire.device_attachments:
+                symbol = active_symbols.get(attachment.symbol_id)
+                if symbol is None or wire.points[attachment.point_index] != symbol.center:
+                    _fail('INVALID_DEVICE_ATTACHMENT')
+                if attachment.provenance == 'source_supported_proposal':
+                    evidence_run = session.scalar(select(FloorPlanInterpretationRun).where(
+                        FloorPlanInterpretationRun.floor_plan_id == run.floor_plan_id,
+                        FloorPlanInterpretationRun.candidate_run_id == attachment.source_candidate_run_id))
+                    evidence_candidate = _candidate(evidence_run) if evidence_run else None
+                    contact = next((c for c in evidence_candidate.payload.observed_routes.connections
+                        if c.id == attachment.source_connection_id),None) if evidence_candidate else None
+                    if (contact is None or contact.ambiguity != 'unambiguous'
+                        or contact.evidence_kind != attachment.evidence_kind
+                        or contact.path_anchor.model_dump() != attachment.observed_anchor.model_dump()
+                        or evidence_candidate.provenance.source_sha256 != candidate.provenance.source_sha256):
+                        _fail('INVALID_DEVICE_ATTACHMENT')
+        trace_ids = {w.id for w in payload.observed_wiring}
+        for wire in payload.generated_wiring:
+            if wire.source_device_id not in symbol_ids or wire.target_id not in (
+                    symbol_ids if wire.target_kind == "device" else trace_ids):
+                _fail("UNKNOWN_CANDIDATE_IDENTITY")
+            for point in wire.points:
+                _validate_bounds(point, width=width, height=height)
+
         legend_ids = {
             symbol.symbol_legend_id
             for symbol in payload.symbols
-            if symbol.disposition in ("accepted", "corrected", "added")
+            if symbol.disposition != "rejected"
             and symbol.symbol_legend_id is not None
         }
         legends = {
@@ -239,7 +322,16 @@ def append_interpretation_review(
         accepted_symbols = [
             symbol for symbol in payload.symbols if symbol.disposition in ("accepted", "corrected", "added")
         ]
+        from app.services.pdf_legend_catalog import is_wiring_legend
+        if any(symbol.disposition != "rejected" and symbol.symbol_legend_id in legends
+               and is_wiring_legend(legends[symbol.symbol_legend_id].name)
+               for symbol in payload.symbols):
+            _fail("SYMBOL_MAPPING_REQUIRED")
         if payload.review_complete:
+            provisional_defaults={s.id for s in candidate.payload.symbols.items if s.gang_count_proposal
+                and s.gang_count_proposal.basis=='user_requested_default'}
+            if any(s.id in provisional_defaults and not s.gang_count_confirmed for s in accepted_symbols):
+                _fail('PROVISIONAL_SWITCH_COUNT_REQUIRES_CORRECTION')
             if payload.checklist is not None and not payload.checklist.complete:
                 _fail("CHECKLIST_PENDING")
             all_items = (
@@ -284,6 +376,25 @@ def append_interpretation_review(
             for symbol in payload.symbols
         ]
         document.pop("expected_revision_number")
+        # Compatibility: older clients detach by removing an attachment. Persist
+        # that intent as an endpoint opt-out instead of immediately reattaching.
+        previous_document = _review_document(latest) if latest else {}
+        previous_wires = {w['id']: w for key in ('observed_wiring','generated_wiring')
+                          for w in previous_document.get(key, [])}
+        for key in ('observed_wiring','generated_wiring'):
+            for wire in document.get(key, []):
+                occupied = {a['point_index'] for a in wire.get('device_attachments', [])}
+                removed = {a['point_index'] for a in previous_wires.get(wire['id'], {}).get('device_attachments', [])} - occupied
+                endpoints = set(range(len(wire['points'])))
+                wire['auto_connect_disabled_endpoints'] = sorted((set(wire.get('auto_connect_disabled_endpoints', [])) | removed) & endpoints - occupied)
+        drawing_name=session.get(FloorPlan,run.floor_plan_id).original_filename
+        document = annotate_wiring(session,candidate,document,drawing_name=drawing_name)
+        from app.routing.draft_wiring import generate_draft_wiring
+        generated, limitations = generate_draft_wiring(candidate, document)
+        document["generated_wiring"] = generated
+        document=annotate_wiring(session,candidate,document,drawing_name=drawing_name)
+        document = connect_touching_endpoints(candidate, document)
+        generated = document['generated_wiring']
         serialized = json.dumps(document, sort_keys=True, separators=(",", ":"))
         review = add_review(
             session,
@@ -307,6 +418,10 @@ def append_interpretation_review(
             candidate=candidate,
             review=review,
             review_document=document,
+            generated_wiring=generated,
+            draft_wiring_limitations=limitations,
+            observed_wiring=document.get("observed_wiring",[]),
+            routing_context=_routing_context(session, run),
         )
     except DemoInterpretationError:
         session.rollback()
@@ -449,11 +564,13 @@ def save_approved_interpretation_layout(
         scale = float(pixels_per_meter)
 
         walls = []
+        wall_id_map = {}
         for index, wall in enumerate(
             (item for item in document["walls"] if item["disposition"] in ("accepted", "corrected", "added")),
             start=1,
         ):
             start = {axis: round(float(wall["start"][axis]) / scale, 9) for axis in ("x", "y")}
+            wall_id_map[wall['id']] = index
             end = {axis: round(float(wall["end"][axis]) / scale, 9) for axis in ("x", "y")}
             delta_x, delta_y = end["x"] - start["x"], end["y"] - start["y"]
             walls.append({
@@ -465,8 +582,8 @@ def save_approved_interpretation_layout(
                 "end": end,
                 "length_meters": round(math.hypot(delta_x, delta_y), 9),
                 "angle_degrees": round(math.degrees(math.atan2(delta_y, delta_x)) % 180, 9),
-                "thickness_meters": document["wall_thickness_meters"],
-                "height_meters": document["wall_height_meters"],
+                "thickness_meters": wall.get("thickness_meters") or document["wall_thickness_meters"],
+                "height_meters": wall.get("height_meters") or document["wall_height_meters"],
             })
         rooms = [
             {
@@ -495,7 +612,10 @@ def save_approved_interpretation_layout(
                 )
             )
         }
+        from app.services.pdf_legend_catalog import is_wiring_legend
         if len(legends) != len(legend_ids) or any(
+            is_wiring_legend(legend.name) for legend in legends.values()
+        ) or any(
             item["class_id"] != legends[item["symbol_legend_id"]].class_id
             or item["class_name"] != legends[item["symbol_legend_id"]].name
             for item in accepted_symbols
@@ -503,6 +623,7 @@ def save_approved_interpretation_layout(
             _fail("SYMBOL_MAPPING_REQUIRED")
 
         symbols = []
+        symbol_id_map = {}
         for symbol in accepted_symbols:
             # K1 remains frozen: an accepted interpretation proposal is persisted as
             # a real human-approved manual placement. The immutable run/review retain
@@ -532,8 +653,8 @@ def save_approved_interpretation_layout(
                     "y": round(float(symbol["center"]["y"]) / scale, 9),
                 },
             })
-        routes = []
-        route_details = []
+            symbol_id_map[symbol['id']] = symbols[-1]['id']
+        draft_symbols = {s['id']: s for s in accepted_symbols}
         for wire in document.get("observed_wiring", []):
             if wire["disposition"] not in ("accepted", "corrected", "added"):
                 continue
@@ -541,20 +662,14 @@ def save_approved_interpretation_layout(
                 _fail("OBSERVED_WIRING_INCOMPLETE")
             if wire.get("elevation_meters") is None:
                 _fail("OBSERVED_WIRING_ELEVATION_REQUIRED")
-            route_id = len(routes) + 1
-            routes.append({
-                "id": route_id,
-                "points": [{
-                    "project_floor_id": project_floor_id,
-                    "x": round(float(point["x"]) / scale, 9),
-                    "y": round(float(point["y"]) / scale, 9),
-                    "elevation_meters": wire["elevation_meters"],
-                } for point in wire["points"]],
-            })
-            route_details.append({
-                "route_id": route_id, "route_kind": "observed",
-                "provenance_ref": f"vlm:{candidate_run_id}:review:{review_revision_number}:wiring:{wire['id']}",
-            })
+            for attachment in wire.get('device_attachments', []):
+                symbol = draft_symbols.get(attachment['symbol_id'])
+                if symbol is None or symbol.get('mounting_height_meters') is None:
+                    _fail('DEVICE_MOUNTING_HEIGHT_REQUIRED')
+        from app.geometry.observed_connections import observed_connection_routes
+        routes,route_details,connection_v4=observed_connection_routes(document.get('observed_wiring',[]),
+            draft_symbols,symbol_id_map,floor_id=project_floor_id,floor_elevation=elevation,scale=scale,
+            provenance=f'vlm:{candidate_run_id}:review:{review_revision_number}')
         geometry = canonical_geometry_from_dict({
             "schema_version": 1,
             "project_id": project_id,
@@ -613,18 +728,34 @@ def save_approved_interpretation_layout(
                     "bounds": None,
                 })
 
+        installations = {symbol_id_map[s['id']]: {
+            'elevation_meters': float(elevation) + s['mounting_height_meters'],
+            'wall_id': wall_id_map.get(s.get('mounting_wall_id')),
+        } for s in accepted_symbols if s.get('mounting_height_meters') is not None}
+        for symbol in accepted_symbols:
+            wall_id = wall_id_map.get(symbol.get('mounting_wall_id'))
+            if wall_id is None:
+                continue
+            wall = next(w for w in walls if w['id'] == wall_id)
+            a, b = wall['start'], wall['end']
+            x, y = symbol['center']['x']/scale, symbol['center']['y']/scale
+            dx, dy = b['x']-a['x'], b['y']-a['y']
+            t = max(0., min(1., ((x-a['x'])*dx+(y-a['y'])*dy)/(dx*dx+dy*dy)))
+            if math.hypot(x-a['x']-t*dx, y-a['y']-t*dy) > wall['thickness_meters']/2 + 1e-8:
+                _fail('DEVICE_NOT_ON_MOUNTING_WALL')
         symbol_details = [
             {
                 "symbol_id": sym["id"],
                 "orientation_degrees": None,
                 "bounds": None,
                 "provenance": f"vlm:{candidate_run_id}:symbol:{sym['id']}",
+                **({'installation': installations[sym['id']]} if sym['id'] in installations else {}),
             }
             for sym in symbols
         ]
 
         extension = {
-            "extension_schema_version": 2,
+            "extension_schema_version": 4 if connection_v4 else 3 if installations else 2,
             "base_schema_version": 1,
             "source_plane_reference": {
                 "floor_plan_page_id": run.floor_plan_page_id,

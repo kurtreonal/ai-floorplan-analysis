@@ -7,6 +7,7 @@ independently validated, calibrated, or authorized for production activation.
 from __future__ import annotations
 
 from functools import lru_cache
+from contextlib import ExitStack, closing
 from hashlib import sha256
 import json
 import os
@@ -131,21 +132,26 @@ def _linked_model():
     return YOLO(str(LINKED_CHECKPOINT))
 
 
-def _origins(length: int) -> list[int]:
-    values = list(range(0, max(1, length - TILE_SIZE + 1), TILE_STRIDE))
-    final = max(0, length - TILE_SIZE)
+def _origins(length: int, *, tile_size=None, stride=None) -> list[int]:
+    tile_size=TILE_SIZE if tile_size is None else tile_size
+    stride=TILE_STRIDE if stride is None else stride
+    values = list(range(0, max(1, length - tile_size + 1), stride))
+    final = max(0, length - tile_size)
     if values[-1] != final:
         values.append(final)
     return values
 
 
-def tile_positions(width, height, *, dual_phase=False):
-    positions = [(x, y) for y in _origins(height) for x in _origins(width)]
+def tile_positions(width, height, *, dual_phase=False, tile_size=None, stride=None):
+    tile_size=TILE_SIZE if tile_size is None else tile_size
+    stride=TILE_STRIDE if stride is None else stride
+    positions = [(x, y) for y in _origins(height,tile_size=tile_size,stride=stride)
+                 for x in _origins(width,tile_size=tile_size,stride=stride)]
     if dual_phase:
         # A deterministic second lattice, independent of any target positions.
         # Retain the existing page cap; never widen the resource allowance.
-        shifted = [(x, y) for y in range(128, max(128, height-TILE_SIZE+1), TILE_STRIDE)
-                   for x in range(128, max(128, width-TILE_SIZE+1), TILE_STRIDE)]
+        shifted = [(x, y) for y in range(128, max(128, height-tile_size+1), stride)
+                   for x in range(128, max(128, width-tile_size+1), stride)]
         if len(positions)+len(shifted) <= MAX_TILES:
             positions.extend(shifted)
     return positions
@@ -159,12 +165,72 @@ def _iou(a, b) -> float:
     return intersection / (area_a + area_b - intersection) if area_a + area_b > intersection else 0.0
 
 
-def fuse(predictions):
+def _nested_duplicate(a, b):
+    """Same-center nested tile boxes; adjacent marks are not duplicates."""
+    intersection = max(0,min(a[2],b[2])-max(a[0],b[0])) * max(0,min(a[3],b[3])-max(a[1],b[1]))
+    smaller = min((a[2]-a[0])*(a[3]-a[1]),(b[2]-b[0])*(b[3]-b[1]))
+    tolerance = .5 * min(a[2]-a[0],a[3]-a[1],b[2]-b[0],b[3]-b[1])
+    return (smaller > 0 and intersection/smaller >= .85
+            and abs((a[0]+a[2]-b[0]-b[2])/2) <= tolerance
+            and abs((a[1]+a[3]-b[1]-b[3])/2) <= tolerance)
+
+
+def _covered_tile_fragment(fragment, complete):
+    """Require observed coverage across an internal tile seam, not a wall mask."""
+    edges = fragment.get('clipped_tile_edges', ())
+    if not edges or complete.get('clipped_tile_edges') or fragment['class_id'] != complete['class_id']:
+        return False
+    a, b = fragment['bbox'], complete['bbox']
+    overlap = max(0, min(a[2],b[2])-max(a[0],b[0])) * max(0, min(a[3],b[3])-max(a[1],b[1]))
+    area = (a[2]-a[0])*(a[3]-a[1])
+    complete_area = (b[2]-b[0])*(b[3]-b[1])
+    cx, cy = (a[0]+a[2])/2, (a[1]+a[3])/2
+    x, y = fragment['tile_origin']
+    size=fragment.get('tile_size',TILE_SIZE)
+    crosses = ('left' in edges and b[0] < x-4 or 'top' in edges and b[1] < y-4
+               or 'right' in edges and b[2] > x+size+4
+               or 'bottom' in edges and b[3] > y+size+4)
+    return (crosses and area > 0 and area >= .25 * complete_area and overlap/area >= .4
+            and b[0]-4 <= cx <= b[2]+4 and b[1]-4 <= cy <= b[3]+4)
+
+
+def fuse(predictions, *, nested=False, class_groups=None, box_fusion=False):
+    if box_fusion:
+        # Conservative seam heuristic: require observed coverage, comparable
+        # box areas and a complete observation crossing the clipped edge.
+        complete_by_class = {}
+        for row in predictions:
+            if not row.get('clipped_tile_edges'):
+                complete_by_class.setdefault(row['class_id'], []).append(row)
+        predictions = [row for row in predictions if not row.get('clipped_tile_edges') or not any(
+            _covered_tile_fragment(row, other) for other in complete_by_class.get(row['class_id'], ()))]
     kept = []
     for row in sorted(predictions, key=lambda value: -value["score"]):
-        if not any(row["class_id"] == prior["class_id"]
-                   and _iou(row["bbox"], prior["bbox"]) >= NMS_IOU for prior in kept):
-            kept.append(row)
+        duplicate = next((prior for prior in kept
+            if (row["class_id"] == prior["class_id"] or class_groups is not None
+                and class_groups.get(row["class_id"], ("id", row["class_id"]))
+                    == class_groups.get(prior["class_id"], ("id", prior["class_id"])))
+            and (_iou(row["bbox"], prior["bbox"]) >= NMS_IOU
+                 or nested and _nested_duplicate(row['bbox'], prior['bbox']))), None)
+        if duplicate is None:
+            kept.append(dict(row) if class_groups is not None or box_fusion else row)
+        elif box_fusion and row['class_id'] == duplicate['class_id'] and not duplicate.get('localization_observations'):
+            # Use only the best two mutually overlapping observations. Scores
+            # weight coordinates; the retained score is NOT calibrated confidence.
+            observations = tuple({key: candidate[key] for key in ('class_id','bbox','score','tile_origin','tile_size')
+                                  if key in candidate} for candidate in (duplicate, row))
+            total = duplicate['score'] + row['score']
+            if total > 0:
+                duplicate['bbox'] = tuple((duplicate['bbox'][i]*duplicate['score'] + row['bbox'][i]*row['score'])/total
+                                          for i in range(4))
+            duplicate['localization_observations'] = observations
+        elif class_groups is not None and row['class_id'] != duplicate['class_id']:
+            # One best raw observation per equivalent head identity, preserved
+            # alongside the winning ID. Never mutate inputs or reindex weights.
+            alternatives = duplicate.get('equivalent_observations', ())
+            if not any(observation['class_id'] == row['class_id'] for observation in alternatives):
+                duplicate['equivalent_observations'] = (*alternatives, {
+                    key: row[key] for key in ('class_id', 'bbox', 'score', 'tile_origin', 'tile_size') if key in row})
     return kept
 
 
@@ -176,22 +242,28 @@ def locate(rgb: np.ndarray, *, linked: bool = False, catalog=None) -> tuple[tupl
     height, width = rgb.shape[:2]
     if max(width, height) > 10_000 or width * height > 60_000_000:
         raise ExperimentalDetectorUnavailable("EXPERIMENTAL_PAGE_TOO_LARGE")
-    origins = tile_positions(width, height, dual_phase=catalog is not None)
+    tile_size=catalog.get('tile_size',TILE_SIZE) if catalog is not None else TILE_SIZE
+    stride=catalog.get('tile_stride',TILE_STRIDE) if catalog is not None else TILE_STRIDE
+    if type(tile_size) is not int or not 224<=tile_size<=512 or type(stride) is not int or not 1<=stride<=tile_size:
+        raise ExperimentalDetectorUnavailable('EXPERIMENTAL_TILE_INVALID')
+    origins = tile_positions(width, height, dual_phase=catalog is not None,tile_size=tile_size,stride=stride)
     if len(origins) > MAX_TILES:
         raise ExperimentalDetectorUnavailable("EXPERIMENTAL_TILE_LIMIT")
-    source = Image.fromarray(rgb)
     predictions = []
-    with _inference_lock:
+    with _inference_lock, ExitStack() as images:
+        source = images.enter_context(closing(Image.fromarray(rgb)))
         model = catalog["model"] if catalog is not None else _linked_model() if linked else _model()
         classes = catalog["classes"] if catalog is not None else LINKED_CLASSES if linked else CLASSES
         threshold = catalog["threshold"] if catalog is not None else THRESHOLD
         for offset in range(0, len(origins), 8):
             positions = origins[offset:offset + 8]
-            tiles = [source.crop((x, y, x + TILE_SIZE, y + TILE_SIZE)) for x, y in positions]
-            results = model.predict(tiles, imgsz=320, conf=threshold,
-                                    classes=sorted(classes),
-                                    batch=8, max_det=100,
-                                    device="cpu", verbose=False)
+            with ExitStack() as batch_images:
+                tiles = [batch_images.enter_context(closing(source.crop((x, y, x + tile_size, y + tile_size))))
+                         for x, y in positions]
+                results = model.predict(tiles, imgsz=320, conf=threshold,
+                                        classes=sorted(classes),
+                                        batch=8, max_det=100,
+                                        device="cpu", verbose=False)
             if len(results) != len(positions):
                 raise ExperimentalDetectorUnavailable("EXPERIMENTAL_OUTPUT_INVALID")
             for (x, y), result in zip(positions, results):
@@ -209,10 +281,18 @@ def locate(rgb: np.ndarray, *, linked: bool = False, catalog=None) -> tuple[tupl
                     if class_id not in classes or not np.isfinite([*source_box, score]).all():
                         raise ExperimentalDetectorUnavailable("EXPERIMENTAL_OUTPUT_INVALID")
                     predictions.append({"bbox": source_box, "class_id": class_id,
-                                        "score": score, "tile_origin": (x, y)})
+                                        "score": score, "tile_origin": (x, y),
+                        **({'tile_size':tile_size} if tile_size!=TILE_SIZE else {}),
+                        **({'clipped_tile_edges': tuple(edge for edge, clipped in (
+                            ('left', x > 0 and x1 <= 4), ('top', y > 0 and y1 <= 4),
+                            ('right', x+tile_size < width and x2 >= tile_size-4),
+                            ('bottom', y+tile_size < height and y2 >= tile_size-4)) if clipped)}
+                           if catalog is not None and catalog.get('box_fusion') else {})})
                     if len(predictions) > 5000:
                         raise ExperimentalDetectorUnavailable("EXPERIMENTAL_CANDIDATE_LIMIT")
-    fused = fuse(predictions)
+    fused = fuse(predictions, nested=catalog is not None,
+                 class_groups=catalog.get('class_groups') if catalog is not None else None,
+                 box_fusion=catalog.get('box_fusion',False) if catalog is not None else False)
     return tuple(fused[:MAX_CANDIDATES]), len(fused) > MAX_CANDIDATES
 
 
@@ -223,6 +303,12 @@ def with_trained_symbol_proposals(payload, predictions, truncated=False, *, link
         SymbolCandidate(
             id=f"symbol-{index:04d}", mapping_state="unknown", catalog_class_id=None,
             observed_label=classes[row["class_id"]][0],
+            training_legend=({
+                "model_class_id": row["class_id"],
+                "legend_entry": classes[row["class_id"]][1],
+                "name": classes[row["class_id"]][0],
+                "dataset_sha256": catalog["dataset_sha256"],
+            } if catalog is not None and "dataset_sha256" in catalog else None),
             center=PixelPoint(x=(row["bbox"][0] + row["bbox"][2]) / 2,
                               y=(row["bbox"][1] + row["bbox"][3]) / 2),
             bounds=PixelBounds(x=row["bbox"][0], y=row["bbox"][1],
@@ -235,7 +321,7 @@ def with_trained_symbol_proposals(payload, predictions, truncated=False, *, link
     warnings = payload.warnings + (
         CandidateWarning(
             code="experimental_supervised_symbol_scope", severity="warning",
-            message=("One development-only supervised detector trained on all 56 eligible drawing-legend entries. Inclusion is not successful detection; scarce and conflicting examples remain limitations. Scores are not calibrated. Every proposal requires drawing-legend review; no production or independent accuracy approval." if catalog is not None else
+            message=(f"One development-only supervised detector trained on {len(classes)} drawing-legend entries. Some classes may have synthetic reference-derived examples only. Inclusion is not successful detection; scarce and conflicting examples remain limitations. Scores are not calibrated. Every proposal requires drawing-legend review; no production or independent accuracy approval." if catalog is not None else
                      "Development-only supervised YOLO proposals for five linked legend IDs: troffer, duplex outlet, circuit homerun, LED downlight, and magnetic contact. Same-source diagnostics only; grid/text mistakes occur. No independent accuracy or production approval. Confirm drawing legend and every candidate before use." if linked else
                      "Development-only supervised YOLO proposals for troffer, smoke detector, and Pull station. Same-source diagnostics only; no independent accuracy or production approval. Confirm drawing legend and every candidate before use."),
         ),
@@ -243,7 +329,16 @@ def with_trained_symbol_proposals(payload, predictions, truncated=False, *, link
         CandidateWarning(
             code="experimental_detector_score", severity="info",
             message=(f"Training legend {classes[row['class_id']][1]}; score {row['score']:.4f} "
-                     f"is not calibrated confidence; tile origin {row['tile_origin']} source pixels."),
+                     f"is not calibrated confidence; tile origin {row['tile_origin']} source pixels."
+                     + (f" Native context {row['tile_size']} source pixels." if row.get('tile_size') else '')
+                     + (' Two-observation coordinate fusion; original boxes/scores/origins: '
+                        + json.dumps(row['localization_observations'],separators=(',',':'))
+                        if row.get('localization_observations') else '')
+                     + (' Equivalent legend source observations: '
+                        + json.dumps([{'legend_entry':classes[o['class_id']][1], **o}
+                                      for o in row['equivalent_observations']],separators=(',',':'))
+                        if row.get('equivalent_observations') and catalog is not None
+                        and catalog.get('alias_evidence_in_score') else '')),
             entity_refs=(f"symbol:symbol-{index:04d}",),
         ) for index, row in enumerate(predictions, start=1)
     )

@@ -117,7 +117,8 @@ describe('processing job panel', () => {
     startFloorPlanProcessing.mockResolvedValueOnce({ job_id: JOB_ID, status: 'queued' })
     renderPanel()
     expect(screen.getByText(/all 56 eligible legend entries/i)).toBeTruthy()
-    expect(screen.getByText(/not production or independently validated/i)).toBeTruthy()
+    expect(screen.getByText(/Independent accuracy remains unverified/i)).toBeTruthy()
+    expect(screen.getByText(/draft saving needs no per-item confirmation/i)).toBeTruthy()
     fireEvent.change(screen.getByLabelText(/Page selection/), { target: { value: '3' } })
     fireEvent.click(screen.getByRole('button', { name: 'Start processing' }))
     await settle()
@@ -268,7 +269,7 @@ describe('processing job panel', () => {
     await startJob()
     await runNextPoll()
 
-    const link = screen.getByRole('link', { name: 'Review floor-plan proposals' })
+    const link = screen.getByRole('link', { name: 'Open plan editor' })
     expect(link.getAttribute('href')).toBe(
       `#/app/projects/${PROJECT_ID}/floors/${PROJECT_FLOOR_ID}/floor-plans/${FLOOR_PLAN_ID}/interpretation/${JOB_ID}`,
     )

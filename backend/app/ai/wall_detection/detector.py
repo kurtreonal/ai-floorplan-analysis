@@ -829,6 +829,73 @@ def _has_intermittent_middle_bar(segment,image):
     return float(np.mean(~middle_ink)) >= .1
 
 
+def _has_repeated_band_ties(pair, ink, minimum):
+    """Original transverse ties distinguish a subdivided hollow band from bars.
+
+    Require three separated ties distributed across a long narrow band. Two
+    end caps of a glyph/bundle, closing-created ink and missing mates cannot
+    qualify. This remains geometric evidence, not architectural approval.
+    """
+    (a, b), thickness = pair
+    length = math.dist(a, b)
+    if length < max(minimum * 2, min(ink.shape) * .14) or length < thickness * 12:
+        return False
+    axis = (np.asarray(b, float) - a) / length
+    normal = np.array([-axis[1], axis[0]])
+    along = np.arange(math.ceil(length) + 1)
+    across = np.linspace(-(thickness-1)*.35, (thickness-1)*.35,
+                         max(3, min(64, math.ceil(thickness))))
+    points = np.asarray(a)[None,None,:] + along[:,None,None]*axis + across[None,:,None]*normal
+    xy = np.rint(points).astype(int)
+    valid = ((xy[:,:,0]>=0)&(xy[:,:,0]<ink.shape[1])
+             &(xy[:,:,1]>=0)&(xy[:,:,1]<ink.shape[0]))
+    if not valid.all():
+        return False
+    tied = np.mean(ink[xy[:,:,1],xy[:,:,0]]>0,axis=1) >= .85
+    rows = np.flatnonzero(tied)
+    if not rows.size:
+        return False
+    clusters = np.split(rows,np.flatnonzero(np.diff(rows)>1)+1)
+    positions = [float(np.mean(cluster)) for cluster in clusters]
+    separated = []
+    for position in positions:
+        if not separated or position-separated[-1] >= max(minimum,thickness*3):
+            separated.append(position)
+    return len(separated)>=3 and separated[-1]-separated[0]>=length*.6
+
+
+def _has_tied_axis_band(lines, ink, minimum):
+    """Qualify supplemental voting before changing the established scan path."""
+    binary = cv2.bitwise_not(ink)
+    maximum = min(64,max(4,min(ink.shape)*.03))
+    directions = set()
+    for index,(x1,y1,x2,y2) in enumerate(lines):
+        horizontal = y1 == y2
+        if horizontal in directions:
+            continue
+        if not horizontal and x1 != x2:
+            continue
+        for ax,ay,bx,by in lines[index+1:]:
+            if horizontal and ay == by:
+                separation = abs(ay-y1)
+                lo,hi = max(x1,ax),min(x2,bx)
+                pair = (((lo,(y1+ay)/2),(hi,(y1+ay)/2)),separation+1)
+            elif not horizontal and ax == bx:
+                separation = abs(ax-x1)
+                lo,hi = max(y1,ay),min(y2,by)
+                pair = ((((x1+ax)/2,lo),((x1+ax)/2,hi)),separation+1)
+            else:
+                continue
+            if (2<=separation<=maximum and hi-lo>=max(minimum*2,min(ink.shape)*.14)
+                    and _regular_thin_parallel_bars((*pair[0][0],*pair[0][1],pair[1]),binary)
+                    and _has_repeated_band_ties(pair,ink,minimum)):
+                directions.add(horizontal)
+                if len(directions)==2:
+                    return True
+                break
+    return False
+
+
 def _has_observed_side_cavities(ink,px,py,qx,qy):
     """White original pixels on both interior sides despite raster jitter."""
     support = []
@@ -985,12 +1052,34 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None, *, partial_pai
         canonical = _canonical_segments(raw, width=width, height=height)
         axis_segments = set(_axis_boundary_segments(vote_ink, minimum))
         canonical += list(axis_segments)
+    # Reserve evidence in both axes: horizontal duplicates on a wide page must
+    # not crowd vertical wall mates out of the bounded pool. Native runs only
+    # propose pixels; cavity, width, bundle and tie checks below still qualify.
+    native_axes = sorted(set(_axis_boundary_segments(ink, minimum)))
+    balanced_axes = _has_tied_axis_band(native_axes,ink,minimum)
+    if balanced_axes:
+        canonical += native_axes
+        axis_segments.update(native_axes)
     lines = []
     for x1, y1, x2, y2 in canonical:
         length = math.hypot(x2 - x1, y2 - y1)
         if length >= minimum:
             lines.append((length, x1, y1, x2, y2))
-    lines = sorted(set(lines), key=lambda row: (-row[0], row[1:]))[:256]
+    ranked = sorted(set(lines), key=lambda row: (-row[0], row[1:]))
+    if balanced_axes:
+        groups = [[], [], []]
+        for row in ranked:
+            _, x1, y1, x2, y2 = row
+            group = 0 if abs(y2-y1) <= 1 else 1 if abs(x2-x1) <= 1 else 2
+            groups[group].append(row)
+        reserved = set(groups[0][:96] + groups[1][:96] + groups[2][:64])
+        for row in ranked:
+            if len(reserved) >= 256:
+                break
+            reserved.add(row)
+        lines = sorted(reserved, key=lambda row: (-row[0], row[1:]))
+    else:
+        lines = ranked[:256]
     # Native-resolution outlines scale with the drawing. A fixed 32px cap
     # makes the same hollow wall lose its evidence on a higher-resolution
     # upload, then falls back to treating bold circuit strokes as walls. Keep
@@ -1002,6 +1091,7 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None, *, partial_pai
     original_binary = cv2.bitwise_not(ink)
     pairs = []
     axis_pairs = []
+    tied_pairs = []
     center_obscured = []
     strong_directions = set()
     for index, (length, x1, y1, x2, y2) in enumerate(lines):
@@ -1062,10 +1152,13 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None, *, partial_pai
                 # Only an intermittent center stroke between two outer outlines
                 # may be rescued by TWO observed wall junctions. Continuous
                 # three-wire bundles and all wider repeated bundles stay out.
-                if (not _has_intermittent_middle_bar(band,original_binary)
+                if _has_repeated_band_ties((endpoints,separation+1),ink,minimum):
+                    tied_pairs.append((endpoints,separation+1))
+                elif (not _has_intermittent_middle_bar(band,original_binary)
                         or not _has_observed_side_cavities(ink,px,py,qx,qy)):
                     continue
-                obscured = True
+                else:
+                    obscured = True
             if obscured:
                 center_obscured.append((endpoints,separation+1))
                 continue
@@ -1101,8 +1194,8 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None, *, partial_pai
     recovery = _recover_paired_band_ends(pairs,ink,continuity_ink,minimum)
     # Retain independently qualified long axis bands if skeleton voting later
     # misses one door-separated half. This only supplements dense-pool cases.
-    axis_pairs = [pair for pair in dict.fromkeys(axis_pairs) if pair in qualified]
-    return mask, float(np.median([thickness for _, thickness in pairs])), rejected, recovery, recovered_bands, axis_pairs
+    axis_pairs = [pair for pair in dict.fromkeys(axis_pairs + tied_pairs) if pair in qualified]
+    return mask, float(np.median([thickness for _, thickness in pairs])), rejected, recovery, recovered_bands, axis_pairs, balanced_axes
 
 
 def _add_verified_outline_bands(segments,bands):
@@ -1521,6 +1614,32 @@ def _detect_structural_wall_lines(
         retained = _recover_bracketed_paired_gaps(retained, partial_pairs,
                                                   original_ink, min_wall_length,
                                                   accept_merge=passes_final_guards)
+    if outlined is not None and len(outlined)>6 and outlined[6]:
+        # Supplemental original bands can describe the same cavity from its
+        # adjacent outline pairs. Collapse overlapping centreline hypotheses;
+        # observed evidence still gates any short-gap merge.
+        # A shorter native fragment can be 'qualified' while its encompassing
+        # frame rule was rejected. Apply that same exclusion AFTER supplements.
+        without_frames = []
+        for segment in retained:
+            start,end = np.asarray(segment[:2]),np.asarray(segment[2:4])
+            excluded = False
+            for (a,b),thickness in outlined[2]:
+                a,b = np.asarray(a),np.asarray(b)
+                length = float(np.linalg.norm(b-a))
+                axis = (b-a)/length
+                normal = np.array([-axis[1],axis[0]])
+                projections = sorted(float((p-a)@axis) for p in (start,end))
+                if (max(abs(float((p-a)@normal)) for p in (start,end))<=thickness+2
+                        and projections[0]>=-thickness-2 and projections[1]<=length+thickness+2):
+                    excluded = True
+                    break
+            if not excluded:
+                without_frames.append(segment)
+        retained = _consolidate_wall_segments(
+            [(*s, math.hypot(s[2]-s[0],s[3]-s[1])) for s in without_frames],
+            width, height, max_gap, evidence_mask=outlined[0])
+        retained = [s for s in retained if passes_final_guards(s)]
     if outlined is None:
         # Previously qualified faint continuation must not be trimmed against
         # the stronger seed mask alone. No new segment is seeded here.

@@ -28,7 +28,7 @@ def find_latest_for_floor_plan(
     return session.scalar(
         select(FloorPlanInterpretationRun)
         .where(FloorPlanInterpretationRun.floor_plan_id == floor_plan_id)
-        .order_by(FloorPlanInterpretationRun.id.desc())
+        .order_by(FloorPlanInterpretationRun.processing_job_id.desc(), FloorPlanInterpretationRun.id.desc())
         .limit(1)
     )
 
@@ -56,6 +56,18 @@ def find_latest_review(
         .order_by(FloorPlanInterpretationReview.revision_number.desc())
         .limit(1)
     )
+
+
+def find_latest_previous_review(session: Session, *, run: FloorPlanInterpretationRun):
+    """Nearest saved review, not an arbitrary older favorable annotation."""
+    return session.execute(select(FloorPlanInterpretationRun, FloorPlanInterpretationReview)
+        .join(FloorPlanInterpretationReview,
+              FloorPlanInterpretationReview.interpretation_run_id == FloorPlanInterpretationRun.id)
+        .where(FloorPlanInterpretationRun.floor_plan_id == run.floor_plan_id,
+               FloorPlanInterpretationRun.floor_plan_page_id == run.floor_plan_page_id,
+               FloorPlanInterpretationRun.processing_job_id < run.processing_job_id)
+        .order_by(FloorPlanInterpretationRun.processing_job_id.desc(),
+                  FloorPlanInterpretationReview.revision_number.desc()).limit(1)).first()
 
 
 def find_review_revision(

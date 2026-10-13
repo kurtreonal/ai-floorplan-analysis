@@ -455,6 +455,20 @@ class DetectionClassificationApiTests(unittest.TestCase):
             f"?processing_job_id={self.job.id}"
         )
 
+    def test_wiring_reference_cannot_classify_a_point_device(self):
+        original = self.legend_a.name
+        with Session(self.engine) as session:
+            session.get(SymbolLegend, self.legend_a.id).name = "Raceway conduit concealed under floor [pdf-76f411c60b6d:p1:L11]"
+            session.commit()
+        try:
+            response = self._put()
+            self.assertEqual(response.status_code, 409, response.text)
+            self.assertEqual(response.json()["detail"]["error"]["code"], "SYMBOL_LEGEND_UNAVAILABLE")
+        finally:
+            with Session(self.engine) as session:
+                session.get(SymbolLegend, self.legend_a.id).name = original
+                session.commit()
+
     def test_first_idempotent_reversal_and_fresh_authoritative_get(self) -> None:
         machine_before = tuple(
             getattr(self.pending_symbol, column.name)
@@ -753,7 +767,7 @@ class DetectionClassificationApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 43)
+        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
 
 
 if __name__ == "__main__":

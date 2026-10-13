@@ -171,7 +171,7 @@ class ProcessingExecutionTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 43)
+        self.assertEqual(operations, 49)  # Includes draft BOM CSV as well as material import.
 
     def test_concurrent_claim_has_exactly_one_active_owner(self) -> None:
         job_id = self._job()
@@ -314,6 +314,25 @@ class ProcessingExecutionTests(unittest.TestCase):
             finish_processing_attempt(session, attempt_id=claim.attempt_id, worker_identity="worker-a", outcome="cancelled")
         with Session(self.engine) as session:
             self.assertEqual(session.get(ProcessingJob, active_job).status, "cancelled")
+
+    def test_successful_page_leases_do_not_exhaust_three_failed_retries(self) -> None:
+        job_id=self._job()
+        with Session(self.engine) as session:
+            moment=datetime(2026,1,1)
+            for number in range(1,5):
+                session.add(ProcessingJobAttempt(processing_job_id=job_id,attempt_number=number,
+                    worker_identity='completed-page',status='succeeded',stage='completed',
+                    active_marker=None,heartbeat_at=moment,lease_expires_at=moment+timedelta(seconds=30)))
+            session.commit()
+        for failure in range(1,MAXIMUM_ATTEMPTS+1):
+            with Session(self.engine) as session:
+                claim=claim_processing_job(session,job_id=job_id,worker_identity='retry-test',lease_seconds=30)
+                self.assertEqual(claim.attempt_number,4+failure)
+                finish_processing_attempt(session,attempt_id=claim.attempt_id,worker_identity='retry-test',
+                    outcome='failed',failure_code='MODEL_FAILED')
+                session.refresh(session.get(ProcessingJob,job_id))
+                self.assertEqual(session.get(ProcessingJob,job_id).status,
+                    'failed' if failure==MAXIMUM_ATTEMPTS else 'queued')
 
     def test_legacy_processing_requires_explicit_recovery(self) -> None:
         job_id = self._job(status="processing")

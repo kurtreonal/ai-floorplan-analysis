@@ -25,10 +25,10 @@ function Navigation({ projectRoute, session, onNavigate }) {
       {links.map(({ label, icon: Icon, href, active }) => href
         ? <a key={label} href={href} onClick={onNavigate} aria-current={active ? 'page' : undefined}><Icon aria-hidden="true" /><span>{label}</span></a>
         : <span key={label} className="studio-nav-unavailable"><Icon aria-hidden="true" /><span>{label}<small>Choose a floor in the project</small></span></span>)}
-      {['detection-review', 'demo-interpretation'].includes(view) && <span className="studio-nav-context"><ScanLine aria-hidden="true" />AI proposal review</span>}
+      {['detection-review', 'demo-interpretation'].includes(view) && <span className="studio-nav-context"><ScanLine aria-hidden="true" />Plan editor</span>}
       {session.user.role === 'ADMIN' && <><p className="mono">ADMINISTRATION</p><a href="#/app" onClick={onNavigate}><ShieldCheck aria-hidden="true" />Legend administration</a></>}
     </nav>
-    <div className="studio-boundary"><ShieldCheck aria-hidden="true" /><div><strong>Local planning workspace</strong><p>Originals preserved. AI proposals require review.</p></div></div>
+    <div className="studio-boundary"><ShieldCheck aria-hidden="true" /><div><strong>Local planning workspace</strong><p>Editable planning draft. Originals preserved.</p></div></div>
     <div className="studio-profile"><span className="studio-avatar" aria-hidden="true">{(session.user.display_name || 'VED').slice(0, 2).toUpperCase()}</span><div><strong>{session.user.display_name || session.user.email || 'VED user'}</strong><small className="mono">{session.user.role}</small></div></div>
     <Button variant="outline" className="studio-sign-out" disabled={session.isSigningOut} onClick={session.signOut}><LogOut aria-hidden="true" />{session.isSigningOut ? 'Signing out…' : 'Sign out'}</Button>
   </>

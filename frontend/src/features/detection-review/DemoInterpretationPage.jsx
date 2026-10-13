@@ -8,7 +8,8 @@ import {
 } from '../../api/demoInterpretation.js'
 import { fetchCurrentLayout, LayoutApiError } from '../../api/layouts.js'
 import { fetchReviewImage } from '../../api/reviewImages.js'
-import { fetchSymbolLegends } from '../../api/symbolLegends.js'
+import { fetchSymbolLegends, isWiringLegend } from '../../api/symbolLegends.js'
+import { groupLegendChoices } from '../../api/legendChoices.js'
 import {
   getLayoutHref,
   getProjectHref,
@@ -16,12 +17,19 @@ import {
 } from '../../routes/projectRoutes.js'
 import { DemoInterpretationCanvas } from './DemoInterpretationCanvas.jsx'
 import { ObservedWiringPanel } from './ObservedWiringPanel.jsx'
-import { initialWiringDraft, nextWiringId } from './observedWiringDraft.js'
+import { WireDeviceConnections } from './WireDeviceConnections.jsx'
+import { BOMPanel } from '../estimation/BOMPanel.jsx'
+import { initialWiringDraft, nextWiringId, wiringSavePayload } from './observedWiringDraft.js'
+import { withWiringMethod } from './wireDrawing.js'
+import { connectTouchingWireEndpoints, detachDevice, moveConnectedDevice, moveConnectedWirePoint } from './deviceConnections.js'
 import './detectionReview.css'
 import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, Undo2, Redo2, Save, Trash2 } from 'lucide-react'
 import { ReviewToolRail } from './ReviewToolRail.jsx'
-import { clampDevicePoint, describeReviewSymbol, reviewGeometryPayload } from './devicePresentation.js'
+import { orderNamed } from '../../utils/listOrder.js'
+import { autoLinkSymbols, clampDevicePoint, describeReviewSymbol, deviceFamily, relatedSymbolIds, updateRelatedSymbols, reviewGeometryPayload } from './devicePresentation.js'
+import { addConnectedWall, moveConnectedWall, deleteConnectedWall } from './wallDrawing.js'
+import { WallDimensionEditor } from './WallDimensionEditor.jsx'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
 
@@ -43,42 +51,55 @@ const EXPERIMENTAL_SYMBOL_PROVIDERS = new Set([
 ])
 
 
-function initialDraft(record) {
+function initialDraft(record, legends = []) {
+  const draft = rawInitialDraft(record,legends)
+  draft.openings=structuredClone(record.review?.openings??record.draft_review?.openings??[])
+  draft.source_openings=(record.candidate.payload.openings?.items??[]).map(o=>({id:o.id,points:[o.start,o.end]}))
+  if (record.review?.approved_for_layout) return draft
+  return connectTouchingWireEndpoints(draft,Object.fromEntries(draft.symbols.map(s =>
+    [s.id,describeReviewSymbol(s,record,legends)])))
+}
+
+function rawInitialDraft(record, legends = []) {
   if (record.review) {
     return {
       walls: record.review.walls,
       rooms: record.review.rooms,
       wirings: initialWiringDraft(record),
-      symbols: record.review.symbols.map((symbol) => ({
+      symbols: autoLinkSymbols(record.review.symbols.map((symbol) => ({
         id: symbol.id,
         disposition: symbol.disposition,
         center: symbol.center,
         symbol_legend_id: symbol.symbol_legend_id,
-      })),
+        custom_unit_price: symbol.custom_unit_price ?? null,
+        mounting_height_meters: symbol.mounting_height_meters ?? null,
+        mounting_wall_id: symbol.mounting_wall_id ?? null,
+        ...(symbol.gang_count_confirmed ? {gang_count_confirmed:true} : {}),
+      })),record,legends),
     }
   }
   const payload = record.candidate.payload
   return {
     wirings: initialWiringDraft(record),
-    walls: payload.walls.items.map((item) => ({
+    walls: record.draft_review?.walls ?? record.draft_walls ?? payload.walls.items.map((item) => ({
       id: item.id,
       disposition: 'accepted',
       start: item.start,
       end: item.end,
       estimated_thickness_pixels: item.estimated_thickness_pixels ?? 12,
     })),
-    rooms: payload.rooms.items.map((item) => ({
+    rooms: record.draft_review?.rooms ?? payload.rooms.items.map((item) => ({
       id: item.id,
       disposition: 'accepted',
       name: item.label,
       boundary: item.boundary,
     })),
-    symbols: payload.symbols.items.map((item) => ({
+    symbols: autoLinkSymbols(record.draft_review?.symbols ?? payload.symbols.items.map((item) => ({
       id: item.id,
       disposition: 'unresolved',
       center: item.center,
       symbol_legend_id: null,
-    })),
+    })),record,legends),
   }
 }
 
@@ -86,9 +107,11 @@ function initialDraft(record) {
 function errorMessage(error) {
   if (error?.status === 401) return null
   if (error?.code === 'SYMBOL_MAPPING_REQUIRED') return 'Map every accepted symbol to an approved VED legend class before completing review.'
+  if (error?.code === 'PROVISIONAL_SWITCH_COUNT_REQUIRES_CORRECTION') return 'Correct the provisional switch gang count before final approval. You can still save an unfinished draft.'
   if (error?.code === 'METRIC_INPUTS_UNRESOLVED') return 'Approve the exact page scale and floor elevation from the project page first.'
   if (error?.code === 'SCALE_REFERENCE_MISMATCH') return 'The approved scale dimensions do not match this normalized page. Review the scale again.'
   if (error?.code === 'STALE_REVIEW_REVISION') return 'A newer review revision exists. Reload before saving.'
+  if (error?.code === 'STALE_INTERPRETATION_RUN') return 'This analysis has been superseded. Open the latest result from the project to edit and save; this historical result stays preserved.'
   if (error?.code === 'STALE_LAYOUT_VERSION') return 'A newer canonical layout exists. Reload before saving.'
   return error instanceof DemoInterpretationApiError || error instanceof LayoutApiError
     ? error.message
@@ -134,6 +157,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   // Default to wall-focused view with rooms hidden
   const [layers, setLayers] = useState({ walls: true, rooms: false, symbols: true, names: false, dimensions: false, wirings: true, source: true })
   const [tool, setTool] = useState('select')
+  const [placementLegendId, setPlacementLegendId] = useState('')
+  const [drawingWireMethod, setDrawingWireMethod] = useState('concealed_in_ceiling')
   const [editingSession, setEditingSession] = useState(0)
   const [blueprintOpacity, setBlueprintOpacity] = useState(1.0)
   const [history, setHistory] = useState([])
@@ -157,7 +182,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         throw new DemoInterpretationApiError('The review image dimensions do not match the immutable candidate source plane.')
       }
       if (!active) return
-      const initial = initialDraft(record)
+      const initial = initialDraft(record,legends)
       setState({ status: 'ready', record, image, legends, error: null })
       setDraft(initial)
       setHistory([initial])
@@ -188,6 +213,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) return
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault()
+        setEditingSession(value=>value+1)
         if (e.shiftKey) {
           if (historyIndex < history.length - 1) {
             setDraft(history[historyIndex + 1])
@@ -205,6 +231,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault()
+        setEditingSession(value=>value+1)
         if (historyIndex < history.length - 1) {
           setDraft(history[historyIndex + 1])
           setHistoryIndex(historyIndex + 1)
@@ -226,7 +253,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   [draft, state.record, state.legends])
 
   const savedReviewMatches = Boolean(state.record?.review
-    && JSON.stringify(draft) === JSON.stringify(initialDraft(state.record))
+    && JSON.stringify(draft) === JSON.stringify(initialDraft(state.record,state.legends))
     && notes.trim() === state.record.review.evidence_notes
     && reviewComplete === state.record.review.review_complete
     && approveLayout === state.record.review.approved_for_layout
@@ -234,6 +261,9 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     && (approveLayout ? Number(wallHeight) : null) === state.record.review.wall_height_meters)
 
   function pushDraft(nextDraft, { wallChange = false } = {}) {
+    if (saveState.status === 'saving' || nextDraft === draft) return
+    const nextPresentations = Object.fromEntries(nextDraft.symbols.map(s => [s.id, describeReviewSymbol(s,state.record,state.legends)]))
+    nextDraft = connectTouchingWireEndpoints(nextDraft,nextPresentations)
     setHistory((prev) => [...prev.slice(0, historyIndex + 1), nextDraft])
     setHistoryIndex((prev) => prev + 1)
     setDraft(nextDraft)
@@ -247,6 +277,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
 
   function handleUndo() {
     if (historyIndex > 0) {
+      setEditingSession(value=>value+1)
       const prev = history[historyIndex - 1]
       setHistoryIndex(historyIndex - 1)
       setDraft(prev)
@@ -258,6 +289,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
 
   function handleRedo() {
     if (historyIndex < history.length - 1) {
+      setEditingSession(value=>value+1)
       const next = history[historyIndex + 1]
       setHistoryIndex(historyIndex + 1)
       setDraft(next)
@@ -267,29 +299,33 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     }
   }
 
-  function handleAddWall({ start, end, estimated_thickness_pixels }) {
-    const id = nextManualId(draft.walls, 'manual-wall')
-    const newWall = {
-      id,
-      disposition: 'accepted',
-      start,
-      end,
-      estimated_thickness_pixels: estimated_thickness_pixels || 12,
-    }
-    const nextWalls = [...draft.walls, newWall]
-    pushDraft({ ...draft, walls: nextWalls }, { wallChange: true })
-    setSelected({ kind: 'wall', id })
+  function handleAddWall(wall) {
+    if(saveState.status==='saving')return false
+    let next
+    try {next=addConnectedWall(draft,wall)}catch(error){setSaveState({status:'error',message:error.message});return false}
+    if(next===draft)return false
+    pushDraft(next, { wallChange: true })
+    setSelected({ kind: 'wall', id:next.walls.at(-1).id })
     setLayers((cur) => ({ ...cur, walls: true }))
+    return true
   }
 
-  function handleUpdateWall(updated) {
-    const nextWalls = draft.walls.map((w) => w.id === updated.id ? updated : w)
-    pushDraft({ ...draft, walls: nextWalls }, { wallChange: true })
+  function handleUpdateWall(updated,options) {
+    if(saveState.status==='saving')return
+    try {
+      updated={...updated,disposition:updated.disposition==='added'?'added':'corrected'}
+      const next=moveConnectedWall(draft,updated,options)
+      const plane=state.record.candidate.payload.source_plane
+      if(next.walls.some(w=>w.disposition!=='rejected'&&[w.start,w.end].some(p=>p.x<0||p.y<0||p.x>plane.width_pixels||p.y>plane.height_pixels)))throw new Error('Wall edit would leave the source page.')
+      if(next.symbols.some(s=>s.disposition!=='rejected'&&(s.center.x<0||s.center.y<0||s.center.x>plane.width_pixels||s.center.y>plane.height_pixels)))throw new Error('Wall edit would move a mounted device outside the source page.')
+      pushDraft(next, { wallChange: true })
+    }catch(error){setSaveState({status:'error',message:error.message})}
   }
 
   function handleDeleteWall(wallId) {
-    const nextWalls = draft.walls.map((w) => w.id === wallId ? { ...w, disposition: 'rejected' } : w)
-    pushDraft({ ...draft, walls: nextWalls }, { wallChange: true })
+    if(saveState.status==='saving')return
+    try {pushDraft(deleteConnectedWall(draft,wallId), { wallChange: true })}
+    catch(error){setSaveState({status:'error',message:error.message});return}
     if (selected?.id === wallId) setSelected(null)
   }
 
@@ -301,6 +337,10 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
 
   function updateSelected(replacement) {
     if (!selected) return
+    if(selected.kind==='wall'){handleUpdateWall(replacement);return}
+    if (selected.kind === 'wiring' && replacement.origin === 'generated') {
+      replacement = {...replacement, suppression_reason:null}
+    }
     const key = `${selected.kind}s`
     const isWall = selected.kind === 'wall'
     const nextDraft = {
@@ -310,23 +350,44 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     pushDraft(nextDraft, { wallChange: isWall })
   }
 
+  function updateDeviceType(patch) {
+    if (selected?.kind !== 'symbol') return
+    pushDraft({...draft,symbols:updateRelatedSymbols(draft.symbols,selected.id,state.record,patch)})
+  }
+
   function updateRoom(room) {
     const nextRooms = draft.rooms.map((item) => item.id === room.id ? room : item)
     pushDraft({ ...draft, rooms: nextRooms })
   }
 
-  function updateSymbol(symbol) {
+  function updateSymbol(symbol, snap = null) {
+    if (saveState.status === 'saving') return false
     const plane = state.record.candidate.payload.source_plane
     const center = clampDevicePoint(symbol.center, plane.width_pixels, plane.height_pixels)
-    if (!center) return
-    pushDraft({ ...draft, symbols: draft.symbols.map((item) => item.id === symbol.id ? { ...symbol, center } : item) })
+    if (!center) return false
+    const next = moveConnectedDevice(draft, {...symbol, center}, snap)
+    if (next === draft) return false
+    pushDraft(next)
+    return true
   }
 
   function removeSymbol(id) {
-    pushDraft({ ...draft, symbols: draft.symbols.map((item) => item.id === id ? { ...item, disposition: 'rejected' } : item) })
+    pushDraft({ ...detachDevice(draft, id), symbols: draft.symbols.map((item) => item.id === id ? { ...item, disposition: 'rejected' } : item) })
+  }
+
+  function moveWirePoint(id, index, point, snap = null) {
+    if (saveState.status === 'saving') return
+    const plane = state.record.candidate.payload.source_plane
+    const next = moveConnectedWirePoint(draft, id, index, point, plane.width_pixels, plane.height_pixels, snap, presentations)
+    if (next !== draft) pushDraft(next)
   }
 
   function addEntity(kind) {
+    if (kind === 'symbol') {
+      setTool('place-device'); setSelected(null); setPlacementLegendId(''); setView('2d')
+      setLayers(current => ({...current, symbols: true}))
+      return
+    }
     const plane = state.record.candidate.payload.source_plane
     const center = { x: Math.round(plane.width_pixels / 2), y: Math.round(plane.height_pixels / 2) }
     const radius = Math.min(50, plane.width_pixels / 4, plane.height_pixels / 4)
@@ -362,11 +423,14 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         // Preserve review layers not edited by this workspace; never silently erase them.
         ...Object.fromEntries(['openings', 'panels', 'scale_evidence', 'observed_wiring', 'checklist']
           .filter((key) => state.record.review?.[key] != null).map((key) => [key, state.record.review[key]])),
-        ...reviewGeometryPayload(draft),
-        observed_wiring: draft.wirings,
+        ...reviewGeometryPayload(!draftOnly && reviewComplete ? { ...draft,
+          ...Object.fromEntries(['walls','rooms','symbols'].map(key => [key,draft[key].map(item => item.disposition === 'unresolved' ? { ...item, disposition: 'accepted' } : item)])),
+        } : draft),
+        openings:draft.openings??[],
+        ...wiringSavePayload(draft.wirings),
       })
       setState((current) => ({ ...current, record }))
-      const savedDraft = initialDraft(record)
+      const savedDraft = initialDraft(record,state.legends)
       setDraft(savedDraft)
       setHistory((previous) => [...previous.slice(0, historyIndex), savedDraft, ...previous.slice(historyIndex + 1)])
       setNotes(record.review.evidence_notes)
@@ -404,7 +468,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     }
   }
 
-  if (state.status === 'loading') return <div className="detection-state" role="status">Loading unified room, wall, and symbol proposals…</div>
+  if (state.status === 'loading') return <div className="detection-state" role="status">Loading plan editor…</div>
   if (state.status === 'error') return <section className="detection-state detection-error"><p role="alert">{state.error}</p><a href={getProjectHref(projectId)}>Back to project</a></section>
 
   const plane = state.record.candidate.payload.source_plane
@@ -425,25 +489,26 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       <nav className="demo-steps" aria-label="Floor-plan workflow">
         <a href={getProjectHref(projectId)}>1 · Upload &amp; analyze</a>
         <strong aria-current="step">2 · Edit plan &amp; devices in 2D / 3D</strong>
-        <a href="#demo-approval-title" onClick={(event) => { event.preventDefault(); document.getElementById('demo-approval-title')?.scrollIntoView({ behavior: 'smooth' }) }}>3 · Save &amp; approve when ready</a>
+        <span>3 · Save &amp; continue editing</span>
       </nav>
       <header className="detection-review-header">
         <div>
           <span className="mono">LOCAL DEMO REVIEW · JOB #{processingJobId}</span>
-          <h1>Correct floor-plan proposals</h1>
+          <h1>Plan editor</h1>
         </div>
-        <p>{activeWallsCount} wall segments · {activeRoomsCount} room proposals</p>
+        <p>{activeWallsCount} wall segments · {activeRoomsCount} rooms</p>
       </header>
-      <p>Review the plan, correct proposals, then save your draft.</p>
+      <p>Edit devices, walls and wiring, then save. No per-item confirmation.</p>
       <details className="demo-detection-details"><summary>Detection details and limitations</summary>
       <p role="note">
-        Walls are proposed from structural evidence. Wiring, grids and dimensions can still produce false walls; inspect the blueprint and correct them before approval or routing.
+        Automatic detection can mistake wiring, grids and dimensions for walls. All draft items are editable; saving does not certify the design.
       </p>
-      {experimental && <p role="note">Experimental Pull station template proposals only (two Group 7 source templates; page scale selected from 1.0/1.2 using interior matches). The second page was used for tuning, not held-out evaluation. Orange review overlays are unconfirmed; match similarity is not calibrated confidence. Inspect the original image, then accept, correct, reject, or add symbols. Map accepted symbols to an approved VED legend. Other classes remain unresolved.</p>}
-      {general && <p role="note">One shared supervised development detector includes all 56 eligible drawing-legend entries. Inclusion is not a guarantee of detection. Scarce examples and conflicting labels limit results; scores are not calibrated and independent accuracy is unverified. Proposals start unresolved. Inspect, accept, correct, reject, or add symbols, then map accepted symbols to the approved drawing legend and save your draft.</p>}
-      {(trained || linked) && <p role="note">Experimental trained symbol proposals are unresolved until you inspect, correct, and map them to the drawing's approved VED legend. {linked ? 'This five-class linked-legend model has uneven same-source recall and text/grid mistakes.' : 'This narrower model covers troffer, smoke detector, and Pull station only.'} Detector scores are not calibrated confidence; no independent-project accuracy or production approval is claimed.</p>}
+      {experimental && <p role="note">Experimental two-template Pull station detector; similarity is not calibrated confidence. Edit or remove incorrect devices. Other classes may be missing.</p>}
+      {general && <p role="note">The shared development detector uses the trained legend catalog. Sparse or synthetic examples and conflicting labels limit results; independent accuracy remains unverified. Edit names and positions as needed.</p>}
+      {(trained || linked) && <p role="note">Legacy limited-class detector. {linked ? 'Five classes with uneven same-source recall.' : 'Troffer, smoke detector and Pull station only.'} Independent-project accuracy is unverified.</p>}
       </details>
-      {truncated.length > 0 && <p className="detection-limit-warning" role="alert">Bounded proposal cap reached for: {truncated.join(', ')}. Add missing geometry manually where needed.</p>}
+      {truncated.length > 0 && <p className="detection-limit-warning" role="alert">Detection limit reached for: {truncated.join(', ')}. Add missing items manually.</p>}
+      {state.record.draft_wiring_limitations?.length > 0 && <details><summary>Wiring connectivity</summary>{state.record.draft_wiring_limitations.map(note => <p key={note}>{note}</p>)}</details>}
       {state.legends.length === 0 && <details><summary>Do I need a symbol legend?</summary><p>Not for wall review or 3D preview. Electrical-symbol approval requires an approved VED legend.</p></details>}
 
       <div className="studio-review-headerbar">
@@ -459,21 +524,29 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       <div className="studio-review-workbench studio-device-workbench">
       <ReviewToolRail view={view} tool={tool} onToolChange={(nextTool) => {
         setTool(nextTool); setEditingSession((value) => value + 1)
+        if (nextTool === 'wire') setSelected(null)
       }} onAdd={addEntity}
-        layers={layers} setLayers={setLayers} opacity={blueprintOpacity} onOpacityChange={setBlueprintOpacity} />
+        layers={layers} setLayers={setLayers} opacity={blueprintOpacity} onOpacityChange={setBlueprintOpacity}
+        wiringControls={<>
+          {view === '2d' && tool === 'wire' && <fieldset className="studio-wire-method">
+            <legend>New wiring</legend>
+            <label>Wiring placement<select value={drawingWireMethod} onChange={event => setDrawingWireMethod(event.target.value)}>
+              <option value="concealed_in_ceiling">Ceiling</option>
+              <option value="concealed_under_floor">Underground / under floor</option>
+            </select></label>
+            <p>Snap to a device or existing wire. Depth and height stay unset until you enter them.</p>
+          </fieldset>}
+          <ObservedWiringPanel wires={draft.wirings} width={plane.width_pixels} height={plane.height_pixels}
+            disabled={saveState.status === 'saving'}
+            view={view} visible={Boolean(layers.wirings)} onVisibilityChange={(visible) => setLayers((current) => ({ ...current, wirings: visible }))}
+            onChange={(wirings) => { if (saveState.status !== 'saving') pushDraft({ ...draft, wirings }) }} />
+        </>} />
       <section className="demo-preview-workspace" aria-label="Wall-first workspace">
-
-        {staleRoomsWarning && (
-          <div className="demo-stale-rooms-banner" role="alert">
-            <span>Wall edits invalidate automatic room boundaries. Review room corners or proceed with a walls-only layout.</span>
-            <button type="button" className="btn-stale-dismiss" onClick={excludeStaleRooms}>Exclude stale room polygons</button>
-          </div>
-        )}
 
         <p className="demo-next-step">
           {view === '2d'
-            ? tool === 'wire' ? 'Click two points to draw a wire. Hold Shift for a straight horizontal or vertical run; Escape cancels.' : 'Select and move proposals, or draw missing walls and wiring. Save when ready.'
-            : 'Select or drag a device in 3D. Classify and remove it in the inspector. Walls use the same 2D draft; no real mounting heights are assumed.'}
+            ? tool === 'wire' ? 'Click two points to draw a wire. Shift keeps it straight; Escape cancels.' : tool === 'draw' ? 'Click A → B → C to keep drawing walls. Escape finishes; Shift keeps it straight.' : 'Click a device or wire to edit. Save when ready.'
+            : 'Click a wire and drag its blue points. Devices and wiring share the same 2D/3D draft.'}
         </p>
 
         {view === '2d' ? (
@@ -496,15 +569,25 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               onAddWall={handleAddWall}
               onUpdateWall={handleUpdateWall}
               onDeleteWall={handleDeleteWall}
+              scaleMeters={state.record.routing_context?.pixels_per_meter??null}
               onUpdateRoom={updateRoom}
               onUpdateSymbol={updateSymbol}
+              placementPresentation={placementLegendId ? describeReviewSymbol({id:'placement', symbol_legend_id:Number(placementLegendId), center:{x:0,y:0}},state.record,state.legends) : null}
+              onPlaceDevice={(center) => {
+                if (saveState.status === 'saving' || !placementLegendId) return
+                const id = nextManualId(draft.symbols, 'manual-symbol')
+                pushDraft({...draft, symbols:[...draft.symbols,{id,center,disposition:'added',symbol_legend_id:Number(placementLegendId)}]})
+                setSelected({kind:'symbol',id}); setTool('select'); setPlacementLegendId('')
+              }}
               onDeleteSymbol={removeSymbol}
+              onMoveWirePoint={moveWirePoint}
+              drawingWireMethod={drawingWireMethod}
               presentations={presentations}
               blueprintOpacity={blueprintOpacity}
               onAddWire={(points) => {
                 if (saveState.status === 'saving' || draft.wirings.length >= 2048) return
                 pushDraft({ ...draft, wirings: [...draft.wirings, { id: nextWiringId(draft.wirings), points,
-                  disposition: 'added', completeness: 'partial', elevation_meters: null }] })
+                  ...withWiringMethod({ disposition: 'added', completeness: 'partial', elevation_meters: null },drawingWireMethod) }] })
                 setLayers((current) => ({ ...current, wirings: true }))
               }}
             />
@@ -512,50 +595,124 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         ) : (
           <Suspense fallback={<p role="status">Opening draft 3D preview…</p>}>
             <DraftRoomPreview draft={draft} layers={layers} width={plane.width_pixels} height={plane.height_pixels} projectId={projectId}
-              presentations={presentations} selected={selected} onSelect={setSelected} onUpdateSymbol={updateSymbol} navigationMode={tool} />
+              routingContext={state.record.routing_context}
+              presentations={presentations} selected={selected} onSelect={setSelected} onUpdateSymbol={updateSymbol}
+              onMoveWirePoint={moveWirePoint} navigationMode={tool} />
           </Suspense>
+        )}
+        {staleRoomsWarning && (
+          <div className="demo-stale-rooms-banner" role="alert">
+            <span>Wall edits invalidate automatic room boundaries. Review room corners or proceed with a walls-only layout.</span>
+            <button type="button" className="btn-stale-dismiss" onClick={excludeStaleRooms}>Exclude stale room polygons</button>
+          </div>
         )}
         {saveState.message && <p role={saveState.status === 'error' ? 'alert' : 'status'}>{saveState.message}</p>}
       </section>
 
       <section className="demo-review-tools" aria-labelledby="demo-tools-title">
-        <h2 id="demo-tools-title">Review and inspect</h2>
+        {tool === 'place-device' && <fieldset><legend>Add device</legend>
+          <label>Device to place<select aria-label="Device to place" value={placementLegendId} onChange={event => setPlacementLegendId(event.target.value)}>
+            <option value="">Choose a device</option>{groupLegendChoices(state.legends).filter(l => l.is_active !== false && !isWiringLegend(l) && deviceFamily(l.displayName) !== 'annotation').map(l => <option key={l.id} value={l.id}>{l.displayName}</option>)}
+          </select></label>
+          <p>Click the blueprint to place one device. Escape cancels. Touching wire endpoints connect automatically.</p>
+          <Button variant="outline" onClick={() => setTool('select')}>Cancel placement</Button>
+        </fieldset>}
+        <h2 id="demo-tools-title">Edit item</h2>
 
-        <label>Select proposal
+        <label>Select item
           <select value={selected ? `${selected.kind}:${selected.id}` : ''} onChange={(event) => {
             const [kind, id] = event.target.value.split(':')
             setSelected(event.target.value ? { kind, id } : null)
             if (event.target.value) setLayers((current) => ({ ...current, [`${kind}s`]: true }))
           }}>
             <option value="">Choose an item</option>
-            {['symbol', 'wall', 'room'].flatMap((kind) => draft[`${kind}s`].map((item) => <option key={`${kind}:${item.id}`} value={`${kind}:${item.id}`}>{kind === 'symbol' ? presentations[item.id].label : item.name || `${kind} ${item.id}`} · {item.disposition === 'rejected' ? 'removed' : item.disposition} · {item.id}</option>))}
+            {orderNamed(['symbol', 'wall', 'room', 'wiring'].flatMap(kind => draft[`${kind}s`].map(item => ({kind,item,id:`${kind}:${item.id}`,label:kind === 'symbol' ? presentations[item.id].label : item.name || `${kind} ${item.id}`}))), choice => choice.label).map(({kind,item,id,label}) => <option key={id} value={`${kind}:${item.id}`}>{label}{item.origin === 'generated' ? ' · Automatic A* draft' : ''}{item.disposition === 'rejected' ? ' · removed' : ''}</option>)}
           </select>
         </label>
         {selectedEntity && <div className="demo-selected-editor">
           <h3>{selected.kind === 'symbol' ? presentations[selectedEntity.id].name : `${selected.kind} ${selectedEntity.id}`}</h3>
-          {selected.kind === 'symbol' && <p className="studio-device-provenance"><span className="mono">{selectedEntity.id}</span><br />{presentations[selectedEntity.id].mapped ? 'Legend linked · review decision remains separate' : 'Unmapped proposal · choose an approved legend below'}<br />Original detection: {presentations[selectedEntity.id].originalLabel}</p>}
-          <label>Review decision
-            <select value={selectedEntity.disposition} onChange={(event) => updateSelected({ ...selectedEntity, disposition: event.target.value })}>
-              <option value="unresolved">Unresolved</option><option value="accepted">Accept</option><option value="corrected">Corrected</option><option value="added">Manually added</option><option value="rejected">Reject</option>
-            </select>
-          </label>
+          {selected.kind === 'symbol' && <p className="studio-device-provenance">{presentations[selectedEntity.id].mapped ? 'Catalog class linked automatically or saved' : 'No unique catalog match; choose the class below'} · Class and price edits apply to {relatedSymbolIds(draft.symbols,selectedEntity.id,state.record).length} matching devices in this plan.</p>}
+          {selected.kind === 'symbol' && presentations[selectedEntity.id].family!=='annotation'
+            && draft.wirings.some(w => w.source_evidence_required)
+            && !draft.wirings.some(w => w.disposition!=='rejected' && w.device_attachments?.some(a => a.symbol_id===selectedEntity.id))
+            && <p role="note">No source-supported wire connection was resolved for this device. Edit its wiring; nearby lines are not electrical connections.</p>}
+          {selectedEntity.disposition === 'rejected' && <Button variant="outline" onClick={() => updateSelected({ ...selectedEntity, disposition: 'corrected' })}>Restore item</Button>}
           {selected.kind === 'wall' && (
             <>
+              <WallDimensionEditor key={selectedEntity.id} wall={selectedEntity} pixelsPerMeter={state.record.routing_context?.pixels_per_meter}
+                onUpdate={handleUpdateWall} onError={message=>setSaveState({status:'error',message})} />
               <NumericPoint label="Start point" value={selectedEntity.start} onChange={(start) => updateSelected({ ...selectedEntity, start })} />
               <NumericPoint label="End point" value={selectedEntity.end} onChange={(end) => updateSelected({ ...selectedEntity, end })} />
               <button type="button" className="btn btn-outline-danger" onClick={() => handleDeleteWall(selectedEntity.id)}>Delete wall</button>
             </>
           )}
+          {selected.kind === 'wiring' && <>
+            <label>Wiring placement<select value={selectedEntity.installation_method || 'unknown'}
+              onChange={event => updateSelected(withWiringMethod(selectedEntity,event.target.value))}>
+              <option value="unknown" disabled>Not specified</option>
+              <option value="concealed_in_ceiling">Ceiling</option>
+              <option value="concealed_under_floor">Underground / under floor</option>
+            </select></label>
+            <p>{selectedEntity.origin === 'generated' ? 'Automatic A* draft — not detected in the image.' : 'Drawing trace.'}</p>
+            {selectedEntity.device_attachments?.some(a => a.provenance==='source_supported_proposal') && <p>Source-supported device contacts · short glyph-obscured leads are proposed geometry, not observed pixels or human approval.</p>}
+            {state.record.candidate.payload.observed_routes?.connections?.filter(c => c.from_ref===`segment:${selectedEntity.id}` && c.ambiguity==='ambiguous').map(c =>
+              <p role="note" key={c.id}>Unresolved contact: {c.to_ref.replace('symbol:','')} · overlapping or ambiguous device port. Edit the connection rather than guessing.</p>)}
+            <p>Drag a blue endpoint near a device in either view. Green means release to connect; Escape cancels.</p>
+            <WireDeviceConnections wire={selectedEntity} draft={draft} presentations={presentations}
+              disabled={saveState.status === 'saving' || selectedEntity.disposition === 'rejected'}
+              onConnect={(index,snap) => moveWirePoint(selectedEntity.id,index,snap.point,snap)}
+              onDetach={index => updateSelected({...selectedEntity,
+                auto_connect_disabled_endpoints:[...new Set([...(selectedEntity.auto_connect_disabled_endpoints || []),index])],
+                device_attachments:(selectedEntity.device_attachments || []).filter(a => a.point_index !== index)})} />
+            {selectedEntity.points.map((point,index) => <NumericPoint key={index} label={`Wire point ${index+1}`} value={point}
+              onChange={p => moveWirePoint(selectedEntity.id,index,p)} />)}
+            <label>Wire height (m, optional)<input type="number" min="-1000" max="10000" step="0.1" value={selectedEntity.elevation_meters ?? ''}
+              onChange={e => { const value = e.target.value === '' ? null : Number(e.target.value)
+                if (value === null || (Number.isFinite(value) && value >= -1000 && value <= 10000)) updateSelected({ ...selectedEntity, elevation_meters: value }) }} /></label>
+            <small>Wire elevation uses the project datum; device mounting height is measured above its floor. Missing heights do not block draft saves.</small>
+            <Button variant="outline" onClick={() => updateSelected({ ...selectedEntity, disposition: 'rejected' })}>Remove wiring</Button>
+          </>}
           {selected.kind === 'room' && <>
             <label>Room name<input value={selectedEntity.name || ''} maxLength="255" onChange={(event) => updateSelected({ ...selectedEntity, name: event.target.value || null })} /></label>
             <div className="demo-room-points">{selectedEntity.boundary.map((point, index) => <NumericPoint key={`${selectedEntity.id}-${index}`} label={`Boundary point ${index + 1}`} value={point} onChange={(nextPoint) => updateSelected({ ...selectedEntity, boundary: selectedEntity.boundary.map((item, pointIndex) => pointIndex === index ? nextPoint : item) })} />)}</div>
+            <Button variant="outline" onClick={() => updateSelected({ ...selectedEntity, disposition: 'rejected' })}>Remove room</Button>
           </>}
           {selected.kind === 'symbol' && <>
+            {presentations[selectedEntity.id].gangProposal?.basis==='user_requested_default' && <div>
+              <p role="note" className="studio-device-provenance">The original one-gang count was defaulted, not read from the drawing. Original prediction is retained; this draft is not training truth.
+                {selectedEntity.gang_count_confirmed ? ' Your class correction is recorded.' : ' Correct the VED class before final approval; unfinished saving is available.'}</p>
+              {!selectedEntity.gang_count_confirmed && <Button variant="outline" disabled={!selectedEntity.symbol_legend_id}
+                onClick={()=>updateDeviceType({symbol_legend_id:selectedEntity.symbol_legend_id,gang_count_confirmed:true})}>Record switch class correction</Button>}
+            </div>}
+            {presentations[selectedEntity.id].trainingLegend && <div className="studio-device-provenance">
+              Trained legend: {presentations[selectedEntity.id].trainingLegend.name}<br />
+              Drawing entry: {presentations[selectedEntity.id].trainingLegend.legend_entry} · Model class {presentations[selectedEntity.id].trainingLegend.model_class_id}
+              {!presentations[selectedEntity.id].mapped && <p>No unique active catalog match for this drawing entry.</p>}
+            </div>}
             <NumericPoint label="Symbol center (source pixels)" value={selectedEntity.center} onChange={(center) => updateSymbol({ ...selectedEntity, center })} />
-            <label>Approved VED legend class<select value={selectedEntity.symbol_legend_id || ''} onChange={(event) => updateSelected({ ...selectedEntity, symbol_legend_id: event.target.value ? Number(event.target.value) : null })}>
-              <option value="">Unmapped</option>{state.legends.map((legend) => <option key={legend.id} value={legend.id}>{legend.class_id} — {legend.name}</option>)}
+            <label>VED legend class<select value={selectedEntity.symbol_legend_id || ''} onChange={(event) => updateDeviceType({symbol_legend_id: event.target.value ? Number(event.target.value) : null,custom_unit_price:null,
+              ...(presentations[selectedEntity.id].gangProposal?.basis==='user_requested_default' ? {gang_count_confirmed:Boolean(event.target.value)} : {})})}>
+              <option value="">Unmapped</option>{groupLegendChoices(state.legends, { selectedId: selectedEntity.symbol_legend_id }).map((legend) => <option key={legend.id} value={legend.id} disabled={isWiringLegend(legend)}>{legend.class_id} — {legend.displayName}{isWiringLegend(legend) ? ' — Wiring reference, not a device' : ''}</option>)}
             </select></label>
-            <p className="studio-device-provenance">Drag this device in either view, or edit X/Y. Mounting height and physical dimensions are not yet recorded.</p>
+            <p className="studio-device-provenance">Use Select &amp; move devices to drag. Release on the green endpoint preview to attach; proximity alone does not connect.</p>
+            <label>Mounting height above floor (m, optional)<input type="number" min="0" max="100" step="0.01"
+              value={selectedEntity.mounting_height_meters ?? ''} onChange={event => {
+                const value = event.target.value === '' ? null : Number(event.target.value)
+                if (value === null || (Number.isFinite(value) && value >= 0 && value <= 100)) updateSymbol({...selectedEntity,mounting_height_meters:value})
+              }} /></label>
+            <label>Mounting wall (optional)<select value={selectedEntity.mounting_wall_id ?? ''}
+              onChange={event => updateSymbol({...selectedEntity,mounting_wall_id:event.target.value || null})}>
+              <option value="">Not specified</option>{orderNamed(draft.walls.filter(w => w.disposition !== 'rejected'),w => w.id)
+                .map(w => <option key={w.id} value={w.id}>{w.id}</option>)}
+            </select></label>
+            <Button variant="outline" disabled={!draft.wirings.some(w => (w.device_attachments || []).some(a => a.symbol_id === selectedEntity.id))}
+              onClick={() => pushDraft(detachDevice(draft,selectedEntity.id))}>Detach from wiring</Button>
+            <label>Custom device unit price (PHP, optional)<input type="number" min="0" max="1000000000" step="0.01"
+              value={selectedEntity.custom_unit_price ?? ''} onChange={event => {
+                const value = event.target.value === '' ? null : Number(event.target.value)
+                if (value === null || (Number.isFinite(value) && value >= 0 && value <= 1000000000)) updateDeviceType({custom_unit_price:value})
+              }} /></label>
+            <p className="studio-device-provenance">Price per device, applied to matching devices. Save the draft to update the BOM. Does not change Admin prices.</p>
             <Button variant="outline" className="studio-remove-device" disabled={selectedEntity.disposition === 'rejected'} onClick={() => removeSymbol(selectedEntity.id)}><Trash2 aria-hidden="true" />Remove device</Button>
           </>}
         </div>}
@@ -563,11 +720,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       </section>
 
       </div>
-      <ObservedWiringPanel wires={draft.wirings} width={plane.width_pixels} height={plane.height_pixels}
-        disabled={saveState.status === 'saving'}
-        view={view} visible={Boolean(layers.wirings)} onVisibilityChange={(visible) => setLayers((current) => ({ ...current, wirings: visible }))}
-        onChange={(wirings) => { if (saveState.status !== 'saving') pushDraft({ ...draft, wirings }) }} />
-      <section className="demo-approval-panel" aria-labelledby="demo-approval-title">
+      <details className="demo-approval-panel"><summary>Measured layout &amp; estimates (optional)</summary>
+      <section aria-labelledby="demo-approval-title">
         <h2 id="demo-approval-title">Optional: approve a measured, saved layout</h2>
         <p>You do not need this step for the draft 2D / 3D preview above. Use it only after reviewing geometry and real dimensions. Saving an unfinished draft does not approve it.</p>
         <p>Before layout approval, use “Review scale and elevation” on the project page. Required normalized dimensions: {plane.width_pixels} × {plane.height_pixels} pixels.</p>
@@ -583,6 +737,11 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           <button type="button" className="btn btn-accent" disabled={!state.record.review?.approved_for_layout || !savedReviewMatches || saveState.status === 'saving'} onClick={publishCanonicalLayout}>Save shared canonical layout</button>
         </div>
         {savedLayout && <p><a href={getLayoutHref(projectId, projectFloorId)}>Open aligned 2D layout</a> · <a href={getViewer3dHref(projectId, projectFloorId)}>Open aligned 3D layout</a></p>}
+      </section>
+      </details>
+      <section className="studio-review-estimation" aria-label="Plan estimation">
+        <BOMPanel projectId={projectId} floorPlanId={floorPlanId} processingJobId={state.record.processing_job_id}
+          refreshKey={state.record.review?.revision_number || 0} />
       </section>
     </article>
   )

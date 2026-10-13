@@ -60,7 +60,14 @@ class PartialLabelLoss(v8DetectionLoss):
                                             margin_pixels=self.negative_margin_pixels)
         weights = (fg_mask | near_reviewed).to(bce_loss.dtype)
         if self.reviewed_background_enabled:
-            weights = reviewed_background_weights(weights, batch.get("reviewed_background"), mask_gt)
+            weights = reviewed_background_weights(weights, batch.get("reviewed_background"), mask_gt,
+                logits=pred_scores, hard_mining=batch.get('reviewed_background_sampling') == 'top_score_anchors',
+                mining_class=batch.get('reviewed_background_mining_class'))
+            weights = construction_known_weights(weights, batch.get('synthetic_complete'), mask_gt)
+            weights = reviewed_region_weights(weights, anchor_points * stride_tensor,
+                batch.get('reviewed_negative_regions'), logits=pred_scores,
+                mining_class=batch.get('reviewed_background_mining_class'),
+                image_size=(int(imgsz[1]),int(imgsz[0])))
         bce_loss *= weights.unsqueeze(-1)
         loss[1] = bce_loss.sum() / target_scores_sum
         if fg_mask.sum():
@@ -108,7 +115,8 @@ class ReviewedBoxOnlyTrainer(PartialLabelTrainer):
     model_class = ReviewedBoxOnlyDetectionModel
 
 
-def reviewed_background_weights(weights, reviewed_background, mask_gt):
+def reviewed_background_weights(weights, reviewed_background, mask_gt, *, logits=None, hard_mining=False,
+                                mining_class=None):
     """Only explicitly reviewed, wholly negative images supervise other anchors.
 
     Limit their loss mass to 32 anchors per image so thousands of background
@@ -120,11 +128,65 @@ def reviewed_background_weights(weights, reviewed_background, mask_gt):
     flags = torch.as_tensor(reviewed_background, device=weights.device, dtype=torch.bool)
     if flags.shape != (weights.shape[0],) or (flags & mask_gt.bool().any(dim=(1, 2))).any():
         raise ValueError("Invalid reviewed background identity or conflicting positive labels")
+    if hard_mining:
+        if (logits is None or logits.ndim != 3 or logits.shape[:2] != weights.shape
+                or logits.shape[2] == 0 or not torch.isfinite(logits.detach()[flags]).all()):
+            raise ValueError('Hard-negative mining requires finite matching class logits')
+        # Every selected image is explicitly wholly non-device. Focus the same
+        # 32-anchor budget on its strongest false proposals; do not dilute them
+        # over thousands of easy empty anchors. Ranking has no gradient path.
+        if mining_class is not None and (type(mining_class) is not int or not 0 <= mining_class < logits.shape[2]):
+            raise ValueError('Invalid reviewed-background mining class')
+        ranking = logits.detach().amax(dim=-1) if mining_class is None else logits.detach()[:, :, mining_class]
+        selected = ranking.topk(min(32, weights.shape[1]), dim=1).indices
+        hard_weights = torch.zeros_like(weights).scatter_(1, selected, 1.)
+        return torch.where(flags[:, None], hard_weights, weights)
     return torch.where(flags[:, None], torch.full_like(weights, min(1., 32 / weights.shape[1])), weights)
 
 
 class ReviewedBackgroundLoss(ReviewedBoxOnlyLoss):
     reviewed_background_enabled = True
+
+
+def reviewed_region_weights(weights, anchor_pixels, regions, *, logits, mining_class, image_size=(320,320)):
+    """Native-context tiles: supervise only inspected rectangles, never exterior.
+
+    This opt-in diagnostic path has the same 32-anchor budget as whole-negative
+    images. Coordinates are transformed to training-image pixels by the caller.
+    """
+    if regions is None:
+        return weights
+    if (anchor_pixels.shape != (weights.shape[1],2) or logits.ndim != 3
+            or logits.shape[:2] != weights.shape or logits.shape[2] == 0
+            or not torch.isfinite(anchor_pixels).all() or not torch.isfinite(logits).all()
+            or len(image_size) != 2 or any(type(v) is not int or not 1 <= v <= 10_000 for v in image_size)):
+        raise ValueError('Invalid inspected-region anchors, logits or image bounds')
+    boxes = torch.as_tensor(regions, device=weights.device, dtype=anchor_pixels.dtype)
+    if (boxes.ndim != 3 or boxes.shape[0] != weights.shape[0] or boxes.shape[2] != 4
+            or boxes.shape[1] > 16 or not torch.isfinite(boxes).all() or (boxes < 0).any()
+            or type(mining_class) is not int or not 0 <= mining_class < logits.shape[2]):
+        raise ValueError('Invalid inspected-region coordinates or mining class')
+    valid = boxes.abs().sum(dim=2) > 0
+    if ((boxes[:,:,[0,2]] > image_size[0]).any()
+            or (boxes[:,:,[1,3]] > image_size[1]).any()):
+        raise ValueError('Inspected-region coordinates exceed image bounds')
+    if ((boxes[:,:,2] <= boxes[:,:,0]) | (boxes[:,:,3] <= boxes[:,:,1]))[valid].any():
+        raise ValueError('Invalid inspected-region extent')
+    known = local_negative_mask(anchor_pixels, boxes, valid.unsqueeze(-1), margin_pixels=0)
+    ranking = logits.detach()[:,:,mining_class].masked_fill(~known, -torch.inf)
+    indices = ranking.topk(min(32, weights.shape[1]), dim=1).indices
+    selected = torch.zeros_like(weights).scatter_(1, indices, 1) * known.to(weights.dtype)
+    return torch.maximum(weights, selected)
+
+
+def construction_known_weights(weights, synthetic_complete, mask_gt):
+    """Complete generated composites, never unknown regions on real pages."""
+    if synthetic_complete is None:
+        return weights
+    flags = torch.as_tensor(synthetic_complete, device=weights.device, dtype=torch.bool)
+    if flags.shape != (weights.shape[0],) or (flags & ~mask_gt.bool().any(dim=(1,2))).any():
+        raise ValueError('Invalid complete synthetic target identity')
+    return torch.where(flags[:,None],torch.ones_like(weights),weights)
 
 
 class ReviewedBackgroundDetectionModel(ReviewedBoxOnlyDetectionModel):
@@ -144,6 +206,19 @@ class ReviewedBackgroundTrainer(ReviewedBoxOnlyTrainer):
             if manifest.get("required_loss") != "positive_boxes_and_explicit_reviewed_background":
                 raise ValueError("Missing explicit reviewed-background manifest")
             self._reviewed_background_stems = {r["image_id"] for r in manifest["reviewed_background_images"]}
+            self._reviewed_background_sampling = manifest.get('reviewed_background_sampling', 'uniform_budget')
+            if self._reviewed_background_sampling not in ('uniform_budget', 'top_score_anchors'):
+                raise ValueError('Unsupported reviewed-background sampling method')
+            self._synthetic_complete_stems = set()
+            if manifest.get('synthetic_complete_background') is True:
+                for row in manifest.get('authored_legend_synthetic_images', []):
+                    if (row.get('human_review_claim') is not False
+                            or row.get('label_origin') != 'known_synthetic_composite_geometry'):
+                        raise ValueError('Missing construction-known synthetic provenance')
+                    self._synthetic_complete_stems.add(row['image_id'])
         batch["reviewed_background"] = torch.tensor(
             [Path(name).stem in self._reviewed_background_stems for name in batch["im_file"]], device=self.device)
+        batch['reviewed_background_sampling'] = self._reviewed_background_sampling
+        batch['synthetic_complete'] = torch.tensor(
+            [Path(name).stem in self._synthetic_complete_stems for name in batch['im_file']], device=self.device)
         return batch

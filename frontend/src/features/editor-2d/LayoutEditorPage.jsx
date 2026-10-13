@@ -17,7 +17,7 @@ import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, Save } from 'lucide-react'
 
 const INITIAL_VISIBILITY = Object.freeze({
-  blueprint: true, walls: true, rooms: true, symbols: true, routes: true,
+  blueprint: true, walls: true, wallFootprints: false, rooms: true, symbols: true, routes: true,
 })
 const INITIAL_SAVE_STATE = Object.freeze({ status: 'idle', error: null, idempotencyKey: null })
 const NOOP = () => {}

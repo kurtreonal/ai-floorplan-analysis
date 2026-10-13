@@ -18,5 +18,6 @@ SOFTWARE. */
 // Values from src/floorplanner/floorplanner_view.ts at
 // blueprint3d-modern f56f0b2a4a6e177181aefbf535d2945b937b5c02 (MIT).
 // These are SCREEN pixels, never physical dimensions.
-export const WALL_APPEARANCE=Object.freeze({normal:'#dddddd',active:'#008cba',edge:'#888888',delete:'#ff0000',
-  corner:'#cccccc',width:5,activeWidth:7,edgeWidth:1,cornerRadius:7,fontSize:12,fontFamily:'Arial'})
+// VED override: user-requested dark navy walls; reference interaction accents remain.
+export const WALL_APPEARANCE=Object.freeze({normal:'#0f172a',active:'#008cba',edge:'#020617',delete:'#ff0000',
+  corner:'#0f172a',width:5,activeWidth:7,edgeWidth:1,cornerRadius:7,fontSize:12,fontFamily:'Arial'})

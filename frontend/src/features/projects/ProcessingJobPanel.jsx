@@ -273,7 +273,7 @@ export function ProcessingJobPanel({
 
       {canStart && import.meta.env.DEV && !isActive && viewState !== 'starting' && (
         <div className="processing-detector-selection">
-          <p role="note">Development default: one shared multi-class electrical-symbol detector trained on all 56 eligible legend entries, unless an administrator configured a local gateway. Inclusion does not guarantee successful detection. Review every proposal and drawing-specific legend before saving; scores are not calibrated. Not production or independently validated.</p>
+          <p role="note">Automatic development analysis with all 56 eligible legend entries. Edit results in the plan editor; draft saving needs no per-item confirmation. Independent accuracy remains unverified.</p>
           <label>Page selection (blank processes all uploaded pages)
             <input type="number" min="1" max="50" step="1" value={pageNumber}
               onChange={(event) => setPageNumber(event.target.value)} />
@@ -328,9 +328,9 @@ export function ProcessingJobPanel({
           <strong>Processing completed.</strong>
           <p>Next: open the room workspace to explore 2D and unfinished 3D. No symbol legend or dimension approval is needed for the draft preview.</p>
           <a className="btn btn-outline-dark" href={getDemoInterpretationHref(projectId, projectFloorId, floorPlanId, job.job_id)}>
-            Review floor-plan proposals
+            Open plan editor
           </a>
-          <p><strong>2D / 3D room preview is inside “Review floor-plan proposals”.</strong></p>
+          <p>Edit devices, walls and wiring directly in 2D or 3D.</p>
           {canStart && <button className="btn btn-outline-dark" type="button" onClick={startProcessing}>Re-analyze room geometry</button>}
           <details><summary>Advanced symbol review</summary><a className="btn btn-outline-dark" href={getDetectionReviewHref(projectId, floorPlanId, job.job_id)}>
             Review detections

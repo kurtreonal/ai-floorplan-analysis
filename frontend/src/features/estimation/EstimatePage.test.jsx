@@ -15,8 +15,8 @@ async function fillMappings() {
   await screen.findByLabelText('Material for Troffer')
   fireEvent.change(screen.getByLabelText('Material for Troffer'), { target: { value: '5' } })
   fireEvent.change(screen.getByLabelText('Material units per Troffer'), { target: { value: '1' } })
-  fireEvent.change(screen.getByLabelText('Conduit material (meter)'), { target: { value: '6' } })
-  fireEvent.change(screen.getByLabelText('Wire material (meter)'), { target: { value: '7' } })
+  fireEvent.change(screen.getByLabelText('Conduit material'), { target: { value: '6' } })
+  fireEvent.change(screen.getByLabelText('Wire material'), { target: { value: '7' } })
   fireEvent.change(screen.getByLabelText('Conductor count'), { target: { value: '3' } })
   fireEvent.click(screen.getByLabelText('I reviewed these material mappings and conversion factors.'))
 }
@@ -73,6 +73,22 @@ it('handles stale sources safely and refreshes readiness without hiding history'
   fireEvent.click(screen.getByRole('button', { name: 'Reload inputs' }))
   await screen.findByRole('button', { name: 'Generate estimate snapshot' })
   await waitFor(() => expect(fetchEstimateOptions).toHaveBeenCalledTimes(2))
+})
+
+it('captures explicit purchase-unit conversions and additional BOM materials', async () => {
+  fetchEstimateOptions.mockResolvedValue({ ...options, materials: options.materials.map(row => row.id === 7 ? { ...row, unit: 'roll' } : row) })
+  createEstimate.mockResolvedValue(record)
+  render(<EstimatePage projectId={15} session={designer} />)
+  await fillMappings()
+  fireEvent.change(screen.getByLabelText('Meters per wire purchase unit (roll)'), { target: { value: '305' } })
+  fireEvent.click(screen.getByText('Additional BOM materials'))
+  fireEvent.click(screen.getByRole('button', { name: 'Add BOM material' }))
+  fireEvent.change(screen.getByLabelText('Additional material 1'), { target: { value: '5' } })
+  fireEvent.change(screen.getByLabelText('Purchase quantity 1'), { target: { value: '3' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Generate estimate snapshot' }))
+  await screen.findByText('Reviewed fixture')
+  expect(createEstimate).toHaveBeenCalledWith(15, expect.objectContaining({ wire_meters_per_unit: '305',
+    conduit_meters_per_unit: null, additional_materials: [{ material_id: 5, quantity: '3' }] }), expect.any(Object))
 })
 
 it('keeps historical estimates visible but does not offer incomplete circuit takeoff', async () => {

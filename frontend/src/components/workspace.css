@@ -133,6 +133,9 @@
 .studio-estimate-table td:first-child { white-space: normal; min-width: 140px; }
 .studio-estimate-table td small { display: block; font-size: 10px; color: var(--ink-soft); margin-top: 4px; }
 .studio-estimate-table tfoot { background: var(--paper); font-weight: 700; }
+.studio-bom-table { table-layout: fixed; }
+.studio-bom-table th, .studio-bom-table td { white-space: normal; overflow-wrap: anywhere; }
+.studio-bom-table th:first-child, .studio-bom-table td:first-child { width: 38%; min-width: 0; }
 .studio-field { display: grid; gap: 7px; margin: 14px 0; font-size: 12px; font-weight: 600; }
 .studio-estimate-page fieldset { margin: 0 0 14px; padding: 0; border: 0; min-width: 0; }
 .studio-estimate-page fieldset:disabled { opacity: .65; }
@@ -229,6 +232,38 @@
 .studio-3d-hud label { font-size: 10px; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .studio-3d-hud input { width: 80px; accent-color: var(--accent); }
 .studio-device-workbench [aria-label="Unfinished room preview"] > p:last-child { padding: 10px 15px; font-size: 11px; color: var(--ink-soft); }
+/* Keep editor side panels from stretching the blueprint into a blank column. */
+.studio-device-workbench > .studio-review-rail { max-height: max(650px, 78dvh); overflow-y: auto; overscroll-behavior: contain; align-self: start; }
+.studio-device-workbench > .demo-preview-workspace { align-self: start; }
+.studio-shell .studio-device-workbench > .demo-review-tools { max-height: max(650px, 78dvh); overflow-y: auto; overscroll-behavior: contain; }
+.studio-rail-wiring { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--paper-line); }
+.studio-rail-wiring .demo-wiring-panel { padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
+.studio-rail-wiring h2 { font-size: 12px; margin: 0 0 10px; }
+.studio-rail-wiring p { font-size: 10px; line-height: 1.6; color: var(--ink-soft); }
+.studio-rail-wiring label { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.studio-rail-wiring input[type="checkbox"] { accent-color: var(--accent-dim); }
+.studio-rail-wiring .demo-wiring-editor, .studio-rail-wiring .studio-wire-method { min-width: 0; padding: 8px; margin: 12px 0; }
+.studio-rail-wiring .demo-wiring-editor label, .studio-rail-wiring .studio-wire-method label { display: grid; align-items: start; }
+.studio-rail-wiring textarea, .studio-rail-wiring select { width: 100%; min-width: 0; padding: 7px 4px; border: 1px solid var(--paper-line); border-radius: 5px; background: var(--white); color: var(--ink); font: inherit; }
+.studio-rail-wiring legend { font-size: 10px; overflow-wrap: anywhere; }
+.studio-rail-wiring .demo-add-actions { display: grid; gap: 6px; }
+.studio-rail-wiring .btn { width: 100%; white-space: normal; height: auto; min-height: 34px; padding: 7px; font-size: 10px; }
+.studio-review-estimation { width: 100%; min-width: 0; margin-top: 20px; }
+.studio-bom-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; }
+.studio-bom-setting { min-width: 0; padding: 16px; border: 1px solid var(--paper-line); border-radius: 7px; background: var(--paper); }
+.studio-bom-setting h3 { margin: 0; font-size: 13px; }
+.studio-bom-setting p { font-size: 11px; line-height: 1.6; color: var(--ink-soft); }
+.studio-bom-setting select, .studio-bom-setting input { width: 100%; min-width: 0; min-height: 38px; padding: 9px 10px; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--white); color: var(--ink); font: inherit; }
+.studio-bom-panel .studio-table-scroll { border: 1px solid var(--paper-line); border-radius: 7px; }
+.studio-bom-panel .studio-bom-table { min-width: 560px; }
+.studio-bom-panel .studio-bom-table th, .studio-bom-panel .studio-bom-table td { border-right: 1px solid var(--paper-line); padding: 14px 16px; }
+.studio-bom-panel .studio-bom-table th:last-child, .studio-bom-panel .studio-bom-table td:last-child { border-right: 0; }
+.studio-bom-panel .studio-bom-table thead { background: var(--paper); }
+.studio-bom-panel .studio-bom-table tbody tr:nth-child(even) { background: #f8f7f4; }
+.studio-bom-panel .studio-bom-table td:not(:first-child) { font-variant-numeric: tabular-nums; }
+.studio-bom-panel .studio-bom-table tfoot th { text-align: right; }
+.studio-bom-panel .studio-bom-table tfoot td { font-weight: 700; }
+.studio-bom-panel .studio-table-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .studio-device-workbench .viewer-3d-canvas { border: 0; border-radius: 0; height: min(68dvh, 740px); min-height: 500px; }
 .studio-review-page .demo-steps { font-size: 11px; padding: 12px; background: var(--white); border: 1px solid var(--paper-line); border-radius: 7px; margin-bottom: 18px; }
 .studio-review-page > p[role="note"] { font-size: 12px; line-height: 1.6; color: var(--ink-soft); }
@@ -249,6 +284,8 @@
   .studio-shared-model { display: none; }
   .studio-review-headerbar { flex-wrap: wrap; }
   .studio-review-headerbar > button:last-child { margin-left: auto; }
+  .studio-device-workbench > .studio-review-rail { max-height: none; overflow-y: visible; }
+  .studio-bom-panel .studio-panel-heading { flex-wrap: wrap; }
 }
 .studio-preview-dimensions { padding: 10px 14px; border-bottom: 1px solid var(--paper-line); font-size: 12px; }
 .studio-preview-dimensions summary { cursor: pointer; font-weight: 600; }

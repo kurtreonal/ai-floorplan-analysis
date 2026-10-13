@@ -262,6 +262,122 @@ class DemoInterpretationApiTests(unittest.TestCase):
         signed = TimestampSigner(SESSION_SECRET).sign(encoded).decode()
         self.client.cookies.set("ved_session", signed, domain="testserver.local")
 
+    def test_joined_wall_coordinates_width_and_revision_survive_move_reload(self):
+        self._login()
+        body=self._review_payload(complete=False,approved=False,mapped=False)
+        body['walls'] += [dict(id='manual-wall-1000',disposition='added',start=dict(x=30,y=50),end=dict(x=150,y=50),estimated_thickness_pixels=8),
+                         dict(id='manual-wall-1001',disposition='added',start=dict(x=150,y=50),end=dict(x=150,y=190),estimated_thickness_pixels=8)]
+        url=f'/api/floor-plans/{self.ids["floor_plan"]}/interpretation'
+        first=self.client.post(url+'/reviews',json=body)
+        self.assertEqual(first.status_code,201,first.text)
+        revision=first.json()['review']['revision_number']
+        body['expected_revision_number']=revision
+        body['walls'][-2]['start']['y']=60;body['walls'][-2]['end']['y']=60
+        body['walls'][-1]['start']['y']=60
+        second=self.client.post(url+'/reviews',json=body)
+        self.assertEqual(second.status_code,201,second.text)
+        loaded=self.client.get(url).json()['review']['walls']
+        self.assertEqual(loaded[-2]['end'],loaded[-1]['start'])
+        self.assertEqual(loaded[-1]['estimated_thickness_pixels'],8)
+        self.assertEqual(first.json()['review']['walls'][-1]['start']['y'],50)
+        self.assertEqual(self.client.post(url+'/reviews',json=body).status_code,409)
+
+    def test_manual_split_dimensions_persist_and_feed_canonical_geometry(self):
+        self._login()
+        body=self._review_payload()
+        body['walls'] += [dict(id='manual-wall-2000',disposition='added',start=dict(x=10,y=280),end=dict(x=200,y=280),
+                              estimated_thickness_pixels=10,thickness_meters=0.1,height_meters=2.5),
+                          dict(id='manual-wall-2001',disposition='added',start=dict(x=200,y=280),end=dict(x=390,y=280),
+                              estimated_thickness_pixels=10,thickness_meters=0.1,height_meters=2.5)]
+        url=f'/api/floor-plans/{self.ids["floor_plan"]}/interpretation'
+        first=self.client.post(url+'/reviews',json=body)
+        self.assertEqual(first.status_code,201,first.text)
+        loaded=self.client.get(url).json()
+        self.assertEqual(loaded['routing_context']['pixels_per_meter'],100)
+        self.assertEqual(loaded['review']['walls'][-2:],body['walls'][-2:])
+        saved=self.client.post(f'/api/projects/{self.ids["project"]}/floors/{self.ids["floor"]}/floor-plans/{self.ids["floor_plan"]}/interpretation/layout',
+            json=dict(candidate_run_id=self.candidate.provenance.candidate_run_id,review_revision_number=first.json()['review']['revision_number'],
+                      expected_layout_version_number=None,idempotency_key=str(uuid4())))
+        self.assertEqual(saved.status_code,201,saved.text)
+        walls=saved.json()['geometry']['walls'][-2:]
+        self.assertEqual(walls[0]['end'],walls[1]['start'])
+        self.assertEqual([w['length_meters'] for w in walls],[1.9,1.9])
+        self.assertEqual([w['thickness_meters'] for w in walls],[0.1,0.1])
+        self.assertEqual([w['height_meters'] for w in walls],[2.5,2.5])
+        reloaded=self.client.get(f'/api/projects/{self.ids["project"]}/floors/{self.ids["floor"]}/layouts')
+        self.assertEqual(reloaded.json()['geometry'],saved.json()['geometry'])
+
+    def test_bom_includes_unapproved_saved_draft_without_creating_layout_or_approval(self):
+        self._login()
+        payload = self._review_payload(complete=False, approved=False)
+        payload['symbols'][0]['disposition']='unresolved'
+        saved=self.client.post(f'/api/floor-plans/{self.ids["floor_plan"]}/interpretation/reviews',json=payload)
+        self.assertEqual(saved.status_code,201,saved.text)
+        before=self._counts()
+        url=f'/api/projects/{self.ids["project"]}/bom?floor_plan_id={self.ids["floor_plan"]}&processing_job_id={self.ids["job"]}'
+        response=self.client.get(url)
+        self.assertEqual(response.status_code,200,response.text)
+        self.assertEqual(sum(r['quantity'] for r in response.json()['planning']['items'] if r['kind']=='device'),1)
+        self.assertEqual(response.json()['planning']['sources'][0]['state'],'saved_draft')
+        csv=self.client.get(url.replace('/bom?', '/bom.csv?'))
+        self.assertEqual(csv.status_code,200,csv.text)
+        self.assertIn('DRAFT BOM',csv.text)
+        self.assertEqual(self._counts(),before)
+        self._login('other')
+        self.assertEqual(self.client.get(url).status_code,404)
+
+
+    def test_custom_device_price_persists_in_draft_and_prices_without_approval(self):
+        self._login()
+        payload=self._review_payload(complete=False,approved=False,mapped=False)
+        payload['symbols'][0].update(disposition='unresolved',custom_unit_price=123.45)
+        url=f'/api/floor-plans/{self.ids["floor_plan"]}/interpretation'
+        saved=self.client.post(url+'/reviews',json=payload)
+        self.assertEqual(saved.status_code,201,saved.text)
+        self.assertEqual(saved.json()['review']['symbols'][0]['custom_unit_price'],123.45)
+        self.assertEqual(self.client.get(url).json()['review']['symbols'][0]['custom_unit_price'],123.45)
+        bom=self.client.get(f'/api/projects/{self.ids["project"]}/bom',params={'floor_plan_id':self.ids['floor_plan'],'paper_size':'A3'})
+        self.assertEqual(bom.status_code,200,bom.text)
+        item=next(r for r in bom.json()['planning']['items'] if r['kind']=='device')
+        self.assertEqual(item['pricing_state'],'custom_priced')
+        self.assertEqual(float(item['line_total']),123.45)
+        measured=bom.json()['planning']['sources'][0]
+        self.assertEqual(measured['scale_basis'],'measured_page')
+        self.assertEqual(measured['pixels_per_meter'],100)
+        custom=self.client.get(f'/api/projects/{self.ids["project"]}/bom',params={
+            'floor_plan_id':self.ids['floor_plan'],'paper_size':'CUSTOM','custom_width_mm':300,'custom_height_mm':600})
+        self.assertEqual(custom.json()['planning']['sources'][0]['pixels_per_meter'],100)
+        self.assertFalse(saved.json()['review']['approved_for_layout'])
+        for bad in (-1,1000000001,True):
+            payload['expected_revision_number']=1
+            payload['symbols'][0]['custom_unit_price']=bad
+            self.assertEqual(self.client.post(url+'/reviews',json=payload).status_code,422)
+
+    def test_all_paper_assumptions_and_custom_size_allow_mismatches_without_scale_writes(self):
+        self._login()
+        with Session(self.engine) as session:
+            scale=session.scalar(select(PageScaleSetting).where(PageScaleSetting.floor_plan_page_id==self.ids['page']))
+            scale.reference_width_pixels=401  # no usable measured source-page scale
+            session.commit()
+        try:
+            before=self._counts()
+            url=f'/api/projects/{self.ids["project"]}/bom'
+            for paper,long_mm in [('A4',297),('A3',420),('A2',594),('A1',841),('A0',1189),('CUSTOM',600)]:
+                params={'floor_plan_id':self.ids['floor_plan'],'paper_size':paper}
+                if paper=='CUSTOM': params.update(custom_width_mm=300,custom_height_mm=600)
+                response=self.client.get(url,params=params)
+                self.assertEqual(response.status_code,200,response.text)
+                source=response.json()['planning']['sources'][0]
+                self.assertAlmostEqual(source['pixels_per_meter'],400/(long_mm/10))
+                self.assertEqual(source['scale_basis'],'assumed_full_paper_1_100')
+                self.assertIsNone(source['scale_revision_id'])
+            self.assertEqual(self._counts(),before)
+        finally:
+            with Session(self.engine) as session:
+                scale=session.scalar(select(PageScaleSetting).where(PageScaleSetting.floor_plan_page_id==self.ids['page']))
+                scale.reference_width_pixels=400
+                session.commit()
+
     def _review_payload(self, *, complete=True, approved=True, expected=None, mapped=True):
         payload = self.candidate.payload
         walls = [
@@ -315,7 +431,8 @@ class DemoInterpretationApiTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 43)  # Includes four implemented estimate operations.
+        self.assertEqual(operations, 49)  # Includes draft BOM CSV as well as material import.
+        self.assertIn("post", schema["paths"]["/api/admin/symbol-legends/import-trained"])
 
     def test_owner_retrieves_candidate_but_other_designer_cannot(self):
         self._login()
@@ -327,6 +444,96 @@ class DemoInterpretationApiTests(unittest.TestCase):
         self._login("other")
         response = self.client.get(f"/api/floor-plans/{self.ids['floor_plan']}/interpretation")
         self.assertEqual(response.status_code, 404)
+
+    def test_provisional_gang_default_saves_as_draft_but_requires_correction_for_final_review(self):
+        from app.ai.floor_plan_interpretation import FloorPlanInterpretationCandidate
+        document=self.candidate.model_dump(mode='json')
+        document['payload']['symbols']['items'][0]['observed_label']='Gang switch'
+        document['payload']['symbols']['items'][0]['gang_count_proposal']={
+            'count':1,'basis':'user_requested_default','provisional':True}
+        snapshot=FloorPlanInterpretationCandidate.model_validate_json(json.dumps(document)).model_dump_json()
+        with Session(self.engine) as session:
+            run=session.get(FloorPlanInterpretationRun,self.ids['run'])
+            original=(run.candidate_json,run.candidate_sha256)
+            run.candidate_json=snapshot;run.candidate_sha256=sha256(snapshot.encode()).hexdigest();session.commit()
+        try:
+            self._login()
+            url=f"/api/floor-plans/{self.ids['floor_plan']}/interpretation/reviews"
+            draft=self._review_payload(complete=False,approved=False)
+            saved=self.client.post(url,json=draft)
+            self.assertEqual(saved.status_code,201,saved.text)
+            final=self._review_payload(expected=1)
+            blocked=self.client.post(url,json=final)
+            self.assertEqual(blocked.status_code,409,blocked.text)
+            self.assertIn('PROVISIONAL_SWITCH_COUNT_REQUIRES_CORRECTION',blocked.text)
+            final['symbols'][0]['disposition']='corrected'
+            moved=self.client.post(url,json=final)
+            self.assertEqual(moved.status_code,409,'Movement alone must not verify a gang count.')
+            final['symbols'][0]['gang_count_confirmed']=True
+            corrected=self.client.post(url,json=final)
+            self.assertEqual(corrected.status_code,201,corrected.text)
+            with Session(self.engine) as session:
+                self.assertEqual(session.get(FloorPlanInterpretationRun,self.ids['run']).candidate_json,snapshot)
+        finally:
+            with Session(self.engine) as session:
+                run=session.get(FloorPlanInterpretationRun,self.ids['run'])
+                run.candidate_json,run.candidate_sha256=original;session.commit()
+
+    def test_training_legend_survives_review_save_and_reload_without_rewriting_prediction(self):
+        from app.ai.floor_plan_interpretation import FloorPlanInterpretationCandidate
+        document = self.candidate.model_dump(mode="json")
+        training = {"model_class_id": 0, "legend_entry": "sheet-08:L01",
+                    "name": "Reviewed downlight", "dataset_sha256": "a" * 64}
+        document["provenance"]["model_release_id"] = "development_multiclass56_yolo"
+        document["payload"]["symbols"]["items"][0]["training_legend"] = training
+        snapshot = FloorPlanInterpretationCandidate.model_validate_json(json.dumps(document)).model_dump_json()
+        with Session(self.engine) as session:
+            run = session.get(FloorPlanInterpretationRun, self.ids["run"])
+            original = (run.candidate_json, run.candidate_sha256)
+            run.candidate_json = snapshot
+            run.candidate_sha256 = sha256(snapshot.encode()).hexdigest()
+            session.commit()
+        try:
+            self._login()
+            body = self._review_payload(complete=False, approved=False)
+            body["symbols"][0]["disposition"] = "unresolved"
+            response = self.client.post(
+                f"/api/floor-plans/{self.ids['floor_plan']}/interpretation/reviews", json=body)
+            self.assertEqual(response.status_code, 201, response.text)
+            loaded = self.client.get(f"/api/floor-plans/{self.ids['floor_plan']}/interpretation").json()
+            self.assertEqual(loaded["candidate"]["payload"]["symbols"]["items"][0]["training_legend"], training)
+            self.assertEqual(loaded["review"]["symbols"][0]["disposition"], "unresolved")
+            self.assertEqual(loaded["review"]["symbols"][0]["symbol_legend_id"], self.ids["legend"])
+            with Session(self.engine) as session:
+                self.assertEqual(session.get(FloorPlanInterpretationRun, self.ids["run"]).candidate_json, snapshot)
+        finally:
+            with Session(self.engine) as session:
+                run = session.get(FloorPlanInterpretationRun, self.ids["run"])
+                run.candidate_json, run.candidate_sha256 = original
+                session.commit()
+
+    def test_wiring_reference_cannot_be_saved_as_symbol_even_in_unfinished_draft(self):
+        with Session(self.engine) as session:
+            legend = session.get(SymbolLegend, self.ids["legend"])
+            original = legend.name
+            legend.name = "Raceway conduit concealed in ceiling [pdf-76f411c60b6d:p1:L10]"
+            session.commit()
+        try:
+            self._login()
+            payload = self._review_payload(complete=False, approved=False)
+            response = self.client.post(
+                f"/api/floor-plans/{self.ids['floor_plan']}/interpretation/reviews", json=payload)
+            self.assertEqual(response.status_code, 409, response.text)
+            self.assertEqual(response.json()["detail"]["error"]["code"], "SYMBOL_MAPPING_REQUIRED")
+            for symbol in payload["symbols"]:
+                symbol["disposition"] = "rejected"
+            rejected = self.client.post(
+                f"/api/floor-plans/{self.ids['floor_plan']}/interpretation/reviews", json=payload)
+            self.assertEqual(rejected.status_code, 201, rejected.text)
+        finally:
+            with Session(self.engine) as session:
+                session.get(SymbolLegend, self.ids["legend"]).name = original
+                session.commit()
 
     def test_review_is_immutable_stale_safe_and_preserves_candidate(self):
         self._login()
@@ -532,6 +739,8 @@ class DemoInterpretationApiTests(unittest.TestCase):
         wire = {"id": "manual-wiring-0001", "disposition": "unresolved",
                 "points": [{"x": 20.0, "y": 30.0}, {"x": 80.0, "y": 90.0}],
                 "completeness": "partial", "elevation_meters": None}
+        from app.schemas.demo_interpretation import DemoObservedWiringReview
+        wire=DemoObservedWiringReview.model_validate(wire).model_dump()
         payload["observed_wiring"] = [wire]
         first = self.client.post(review_path, json=payload)
         self.assertEqual(first.status_code, 201)

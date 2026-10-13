@@ -21,6 +21,24 @@ def synthetic_plan(width=400, height=300):
 
 
 class DemoCVInterpretationTests(unittest.TestCase):
+    def test_column_frame_excludes_dimension_and_title_rules_without_page_specific_coordinates(self):
+        from app.ai.floor_plan_interpretation.demo_cv import _plan_bounds
+        for scale in (1,2):
+            ink=np.zeros((1100,700),np.uint8)
+            for y,xs in ((180,(100,200,300,400,500,600)),(900,(100,600))):
+                for x in xs:
+                    cv2.rectangle(ink,(x-12,y-12),(x+12,y+12),255,-1)
+            cv2.rectangle(ink,(100,180),(600,900),255,2)
+            cv2.line(ink,(100,80),(600,80),255,2)
+            cv2.line(ink,(100,990),(600,990),255,2)
+            original=ink.copy()
+            if scale!=1:
+                ink=cv2.resize(ink,None,fx=scale,fy=scale,interpolation=cv2.INTER_NEAREST)
+            x,y,w,h=_plan_bounds(ink)
+            assert 80*scale<y<180*scale and 900*scale<y+h<990*scale
+            assert x<100*scale and x+w>600*scale
+            if scale==1: np.testing.assert_array_equal(ink,original)
+
     def test_automatic_scope_does_not_pull_in_detached_nearby_annotations(self):
         from app.ai.floor_plan_interpretation.demo_cv import _plan_bounds
         ink = np.zeros((500, 700), np.uint8)

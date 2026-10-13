@@ -23,6 +23,25 @@ async function request(method, body, id) {
 }
 
 export const listAdminLegends = () => request('GET')
+export const importTrainedLegends = () => importCatalog('trained')
+export const importApprovedPdfLegends = () => importCatalog('approved-pdf')
+async function importCatalog(catalog) {
+  const suffix = catalog === 'approved-pdf' ? '?catalog=approved-pdf' : ''
+  const response = await fetch(`${API_BASE_URL}/api/admin/symbol-legends/import-trained${suffix}`, {
+    method: 'POST', credentials: 'include', headers: { Accept: 'application/json' },
+  })
+  if (!response.ok) throw new Error(response.status === 403
+    ? 'Only an Admin in local development can import legend catalogs.'
+    : `${catalog === 'approved-pdf' ? 'Authorized PDF' : 'Verified training'} legends could not be imported. Reload before retrying.`)
+  const result = await response.json()
+  if (!Array.isArray(result) || !(catalog === 'approved-pdf' ? [40] : [56, 60, 80]).includes(result.length) || !result.every(valid)
+    || new Set(result.map((row) => row.id)).size !== result.length
+    || new Set(result.map((row) => row.class_id)).size !== result.length
+    || new Set(result.map((row) => row.name)).size !== result.length) {
+    throw new Error('The training legend service returned an invalid result. Reload before retrying.')
+  }
+  return result
+}
 export function saveAdminLegend(body, id) {
   if (!Number.isSafeInteger(body.class_id) || body.class_id < 0 || body.class_id > 2147483647
     || typeof body.name !== 'string' || !body.name.trim() || body.name.length > 255

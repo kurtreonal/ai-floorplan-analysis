@@ -146,6 +146,25 @@ def test_exact_duplicate_fusion_preserves_evidence_and_ambiguity(sample_config):
     assert result[0].evidence_refs == ("region:tile-0001", "region:tile-0002")
     with pytest.raises(ValueError, match="Missing wiring source transform"):
         fuse_observed_routes(tiles, [], {}, sample_config)
+
+
+def test_device_contact_survives_offset_reversed_tile_fusion_without_duplicate_connections(sample_config):
+    from app.ai.floor_plan_interpretation.candidate import ObservedRouteConnection,ObservedRouteSegment
+    segment=ObservedRouteSegment(id='segment-0001',points=(PixelPoint(x=60,y=20),PixelPoint(x=40,y=20),PixelPoint(x=20,y=20)),
+        evidence_refs=('region:tile-0001',),ambiguity='clear',line_style='dashed')
+    contact=ObservedRouteConnection(id='connection-0001',from_ref='segment:segment-0001',to_ref='symbol:symbol-0001',
+        source_edge_index=1,path_anchor=PixelPoint(x=20,y=20),device_anchor=PixelPoint(x=15,y=20),
+        evidence_kind='symbol_occlusion',evidence_refs=('region:tile-0001',),ambiguity='unambiguous')
+    transform=AffineTransform(a=1,b=0,c=0,d=1,e=100,f=50)
+    tiles=[('tile-0001',segment),('tile-0002',segment)]
+    result,connections=fuse_observed_routes(tiles,[('tile-0001',contact),('tile-0002',contact)],
+        {'tile-0001':transform,'tile-0002':transform},sample_config)
+    assert len(result)==1 and result[0].line_style=='dashed'
+    assert len(connections)==1
+    assert connections[0].source_edge_index==0
+    assert connections[0].path_anchor==PixelPoint(x=120,y=70)
+    assert connections[0].device_anchor==PixelPoint(x=115,y=70)
+    assert connections[0].evidence_refs==('region:tile-0001','region:tile-0002')
     
 
 def test_build_observed_routes_payload(sample_config):

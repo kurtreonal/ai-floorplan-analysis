@@ -1,6 +1,7 @@
 import re
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import AnyHttpUrl, BaseModel, Field, SecretStr, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -77,6 +78,8 @@ class Settings(BaseSettings):
 
     yolo_model_path: Path | None = None
     yolo_confidence_threshold: float = Field(default=0.50, ge=0, le=1)
+    # One shared development checkpoint, never a production runtime selection.
+    development_symbol_profile: Literal['original56', 'lamps80', 'power80'] = 'power80'
     # The durable U13 worker owns queued analysis jobs in local development.
     # Production deployments should run an explicitly managed worker process.
     auto_start_interpretation_worker: bool = True

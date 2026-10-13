@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { orderNamed } from '../../utils/listOrder.js'
 import { Calculator, Layers3, Receipt, ShieldCheck } from 'lucide-react'
 import { createEstimate, EstimateApiError, fetchEstimateOptions, listEstimates } from '../../api/estimates.js'
 import { getProjectHref } from '../../routes/projectRoutes.js'
 import { Button } from '../../components/ui/button.jsx'
 import { Input } from '../../components/ui/input.jsx'
+import { BOMPanel } from './BOMPanel.jsx'
 
 function money(value, currency) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(Number(value))
@@ -21,7 +23,7 @@ function failure(error) {
 }
 
 function MaterialSelect({ label, materials, value, onChange, required = true }) {
-  return <label className="studio-field"><span>{label}</span><select required={required} value={value} onChange={(event) => onChange(event.target.value)}><option value="">Choose priced material…</option>{materials.map((material) => <option key={material.id} value={material.id}>{material.code} · {material.name} ({material.unit})</option>)}</select></label>
+  return <label className="studio-field"><span>{label}</span><select required={required} value={value} onChange={(event) => onChange(event.target.value)}><option value="">Choose priced material…</option>{orderNamed(materials).map((material) => <option key={material.id} value={material.id}>{material.code} · {material.name} ({material.unit})</option>)}</select></label>
 }
 
 export function EstimatePage({ projectId, session }) {
@@ -36,6 +38,9 @@ export function EstimatePage({ projectId, session }) {
   const [conduit, setConduit] = useState('')
   const [wire, setWire] = useState('')
   const [conductors, setConductors] = useState('')
+  const [wireUnitLength, setWireUnitLength] = useState('')
+  const [conduitUnitLength, setConduitUnitLength] = useState('')
+  const [additionalMaterials, setAdditionalMaterials] = useState([])
   const [confirmed, setConfirmed] = useState(false)
   const [saveState, setSaveState] = useState('idle')
   const [saveError, setSaveError] = useState(null)
@@ -45,7 +50,7 @@ export function EstimatePage({ projectId, session }) {
   const selected = records.find((record) => record.id === selectedId) || records[0]
   const designer = session?.user?.role === 'DESIGNER'
   const pricedMaterials = options?.materials.filter((material) => material.has_price) || []
-  const lengthMaterials = pricedMaterials.filter((material) => material.unit === 'meter')
+  const lengthMaterials = pricedMaterials.filter((material) => ['meter', 'roll', 'length', 'pack'].includes(material.unit))
 
   useEffect(() => {
     const controller = new AbortController()
@@ -55,7 +60,8 @@ export function EstimatePage({ projectId, session }) {
     }).catch((error) => { if (!controller.signal.aborted) { setHistoryError(failure(error)); setHistoryState('error') } })
     fetchEstimateOptions(projectId, { signal: controller.signal }).then((value) => {
       if (controller.signal.aborted) return
-      setOptions(value); setBindings({}); setConduit(''); setWire(''); setConductors(''); setConfirmed(false)
+      setOptions({...value,components:orderNamed(value.components, item => item.class_name)}); setBindings({}); setConduit(''); setWire(''); setConductors(''); setConfirmed(false)
+      setWireUnitLength(''); setConduitUnitLength(''); setAdditionalMaterials([])
     }).catch((error) => { if (!controller.signal.aborted) setOptionsError(failure(error)) })
     return () => controller.abort()
   }, [projectId, attempt])
@@ -74,6 +80,9 @@ export function EstimatePage({ projectId, session }) {
       components: options.components.map((component) => ({ class_id: component.class_id,
         material_id: Number(bindings[component.class_id]?.material), units_per_symbol: bindings[component.class_id]?.units })),
       conduit_material_id: Number(conduit), wire_material_id: Number(wire), conductor_count: Number(conductors), mappings_confirmed: confirmed,
+      additional_materials: additionalMaterials.map((row) => ({ material_id: Number(row.material), quantity: row.quantity })),
+      wire_meters_per_unit: pricedMaterials.find((row) => row.id === Number(wire))?.unit === 'meter' ? null : wireUnitLength,
+      conduit_meters_per_unit: pricedMaterials.find((row) => row.id === Number(conduit))?.unit === 'meter' ? null : conduitUnitLength,
     }
     retryPayload.current = payload
     inFlight.current = true
@@ -101,6 +110,7 @@ export function EstimatePage({ projectId, session }) {
       <section><Layers3 aria-hidden="true" /><span>Saved estimates</span><strong>{historyState === 'ready' ? records.length : '—'}</strong><small>Historical unit prices remain fixed</small></section>
       <section><ShieldCheck aria-hidden="true" /><span>Route readiness</span><strong>{options ? options.route_version_id && !options.stale ? 'Current' : 'Needs review' : 'Unavailable'}</strong><small>{options?.route_version_id ? `Route version ID ${options.route_version_id}` : 'Save a measured route first'}</small></section>
     </div>
+    <BOMPanel projectId={projectId} estimate={selected} refreshKey={attempt} />
     <div className="studio-estimate-workbench">
       <section className="studio-panel" aria-labelledby="estimate-history-title"><div className="studio-panel-heading"><h2 id="estimate-history-title">Estimate breakdown</h2><span className="mono">CAPTURED PRICES</span></div>
         {historyState === 'loading' && <p role="status">Loading saved estimates…</p>}
@@ -117,7 +127,19 @@ export function EstimatePage({ projectId, session }) {
           <fieldset disabled={saveState !== 'idle'}><legend className="sr-only">Material and route mappings</legend>
             <p className="studio-panel-note">Route #{options.route_version_id} · {options.floors.length} floors. Specify conversion factors; none are assumed.</p>
             {options.components.map((component) => <div className="studio-material-binding" key={component.class_id}><p><strong>{component.class_name}</strong><small>{component.quantity} reviewed symbols · class {component.class_id}</small></p><MaterialSelect label={`Material for ${component.class_name}`} materials={pricedMaterials} value={bindings[component.class_id]?.material || ''} onChange={(material) => setBindings((current) => ({ ...current, [component.class_id]: { ...current[component.class_id], material } }))} /><label className="studio-field"><span>Material units per {component.class_name}</span><Input type="number" min="0.0001" max="1000" step="0.0001" required value={bindings[component.class_id]?.units || ''} onChange={(event) => setBindings((current) => ({ ...current, [component.class_id]: { ...current[component.class_id], units: event.target.value } }))} /></label></div>)}
-            <MaterialSelect label="Conduit material (meter)" materials={lengthMaterials} value={conduit} onChange={setConduit} /><MaterialSelect label="Wire material (meter)" materials={lengthMaterials} value={wire} onChange={setWire} />
+            <MaterialSelect label="Conduit material" materials={lengthMaterials} value={conduit} onChange={setConduit} /><MaterialSelect label="Wire material" materials={lengthMaterials} value={wire} onChange={setWire} />
+            {[[conduit, conduitUnitLength, setConduitUnitLength, 'Conduit'], [wire, wireUnitLength, setWireUnitLength, 'Wire']].map(([id, value, setValue, label]) => {
+              const material = pricedMaterials.find((row) => row.id === Number(id))
+              return material && material.unit !== 'meter' ? <label className="studio-field" key={label}>Meters per {label.toLowerCase()} purchase unit ({material.unit})<Input type="number" required min="0.0001" max="100000" step="0.0001" value={value} onChange={(event) => setValue(event.target.value)} /></label> : null
+            })}
+            <details><summary>Additional BOM materials</summary>
+              {additionalMaterials.map((row, index) => <div className="studio-material-binding" key={index}>
+                <MaterialSelect label={`Additional material ${index + 1}`} materials={pricedMaterials} value={row.material} onChange={(material) => setAdditionalMaterials((current) => current.map((item, n) => n === index ? { ...item, material } : item))} />
+                <label className="studio-field">Purchase quantity {index + 1}<Input type="number" required min="0.0001" step="0.0001" value={row.quantity} onChange={(event) => setAdditionalMaterials((current) => current.map((item, n) => n === index ? { ...item, quantity: event.target.value } : item))} /></label>
+                <Button type="button" variant="ghost" onClick={() => setAdditionalMaterials((current) => current.filter((_, n) => n !== index))}>Remove material {index + 1}</Button>
+              </div>)}
+              <Button type="button" variant="outline" disabled={additionalMaterials.length >= 200} onClick={() => setAdditionalMaterials((current) => [...current, { material: '', quantity: '' }])}>Add BOM material</Button>
+            </details>
             <label className="studio-field"><span>Conductor count</span><Input type="number" min="1" max="1000" step="1" required value={conductors} onChange={(event) => setConductors(event.target.value)} /></label>
             <label className="studio-confirmation"><input type="checkbox" required checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed these material mappings and conversion factors.</label>
           </fieldset>

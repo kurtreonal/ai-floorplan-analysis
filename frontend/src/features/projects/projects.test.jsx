@@ -143,9 +143,9 @@ describe('project dashboard', () => {
     render(<ProjectDashboardPage session={DESIGNER_SESSION} />)
     await screen.findByRole('heading', { name: PROJECT.name })
     expect(screen.getAllByRole('link', { name: /^Open / }).map((link) => link.textContent)).toEqual(['Open project →', 'Open project →'])
-    expect(screen.getAllByRole('link', { name: /^Open / })[0].getAttribute('href')).toBe('#/app/projects/129')
-    fireEvent.change(screen.getByLabelText('Sort projects'), { target: { value: 'name' } })
     expect(screen.getAllByRole('link', { name: /^Open / })[0].getAttribute('href')).toBe('#/app/projects/130')
+    fireEvent.change(screen.getByLabelText('Sort projects'), { target: { value: 'updated' } })
+    expect(screen.getAllByRole('link', { name: /^Open / })[0].getAttribute('href')).toBe('#/app/projects/129')
   })
 
   it('adds the backend-created project to the dashboard', async () => {

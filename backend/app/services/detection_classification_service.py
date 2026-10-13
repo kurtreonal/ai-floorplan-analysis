@@ -113,7 +113,8 @@ def correct_detection_classification(
             database_session,
             symbol_legend_id=symbol_legend_id,
         )
-        if selected_legend is None or not selected_legend.is_active:
+        from app.services.pdf_legend_catalog import is_wiring_legend
+        if selected_legend is None or not selected_legend.is_active or is_wiring_legend(selected_legend.name):
             raise DetectionClassificationServiceError(
                 "SYMBOL_LEGEND_UNAVAILABLE"
             )

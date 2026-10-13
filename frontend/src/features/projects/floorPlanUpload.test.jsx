@@ -263,15 +263,15 @@ describe('project floor upload panel', () => {
     expect(listProjectFloors).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps floor ordering exactly as returned by the API', async () => {
+  it('uses explicit floor order even when the API response is shuffled', async () => {
     listProjectFloors.mockResolvedValue([FLOORS[1], FLOORS[0]])
 
     render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
 
     const options = await screen.findAllByRole('option')
     expect(options.map((option) => option.textContent)).toEqual([
-      'Second Floor',
       'Ground Floor',
+      'Second Floor',
     ])
   })
 

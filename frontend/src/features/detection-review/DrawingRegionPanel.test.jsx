@@ -21,7 +21,7 @@ describe('drawing-region reprocessing safeguards', () => {
     expect(props.onSelectRegion).toHaveBeenCalledOnce()
     fireEvent.click(acknowledgement())
     fireEvent.click(screen.getByRole('button', { name: 'Process selected drawing' }))
-    await screen.findByRole('link', { name: 'Open new proposals for correction' })
+    await screen.findByRole('link', { name: 'Open plan editor' })
     expect(startDrawingRegionProcessing).toHaveBeenCalledWith(7, expect.objectContaining({
       candidate_run_id: record.candidate_run_id, expected_source_artifact_sha256: 'b'.repeat(64), region: props.region,
     }), expect.objectContaining({ signal: expect.any(AbortSignal) }))

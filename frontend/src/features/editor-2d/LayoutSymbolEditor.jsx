@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { orderNamed } from '../../utils/listOrder.js'
 
 import { moveCanonicalSymbol } from '../../geometry/canonicalGeometry.js'
 
@@ -95,7 +96,7 @@ export function LayoutSymbolEditor({
               <tr><th scope="col">Select</th><th scope="col">ID</th><th scope="col">Class</th><th scope="col">Source</th><th scope="col">Status</th><th scope="col">X (m)</th><th scope="col">Y (m)</th></tr>
             </thead>
             <tbody>
-              {geometry.symbols.map((symbol) => {
+              {orderNamed(geometry.symbols, symbol => symbol.class.name).map((symbol) => {
                 const isSelected = symbol.id === selectedSymbolId
                 return (
                   <tr key={symbol.id} className={isSelected ? 'is-selected' : undefined}>

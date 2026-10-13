@@ -97,21 +97,26 @@ def generate_estimate(session, user, project_id, request):
     if set(grouped) != {item.class_id for item in request.components}:
         raise EstimateError("COMPLETE_COMPONENT_MAPPING_REQUIRED")
     lengths = measure_material_lengths(RouteResult.model_validate(route.result), conductor_count=request.conductor_count)
-    raw_lines = [(item.material_id, Decimal(grouped[item.class_id]["quantity"]) * item.units_per_symbol, False)
+    raw_lines = [(item.material_id, Decimal(grouped[item.class_id]["quantity"]) * item.units_per_symbol, None, False)
                  for item in request.components]
-    raw_lines.extend([(request.conduit_material_id, Decimal(str(lengths.conduit_meters)), True),
-                      (request.wire_material_id, Decimal(str(lengths.wire_meters)), True)])
+    raw_lines.extend([(request.conduit_material_id, Decimal(str(lengths.conduit_meters)), request.conduit_meters_per_unit or Decimal(1), request.conduit_meters_per_unit is None),
+                      (request.wire_material_id, Decimal(str(lengths.wire_meters)), request.wire_meters_per_unit or Decimal(1), request.wire_meters_per_unit is None)])
+    raw_lines.extend((item.material_id, item.quantity, None, False) for item in request.additional_materials)
     locked = {key: prices.lock_material(session, key) for key in sorted({item[0] for item in raw_lines})}
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     lines, price_ids, currencies = [], [], set()
     with localcontext() as context:
         context.prec = 48
-        for material_id, raw_quantity, is_length in raw_lines:
+        for material_id, raw_quantity, meters_per_unit, meter_required in raw_lines:
             material = locked[material_id]
             if material is None or not material.is_active:
                 raise EstimateError("MATERIAL_UNAVAILABLE")
-            if is_length and material.unit != "meter":
-                raise EstimateError("MATERIAL_UNIT_MUST_BE_METER")
+            if meters_per_unit is not None:
+                if material.unit != 'meter' and meter_required:
+                    raise EstimateError('MATERIAL_UNIT_MUST_BE_METER')
+                if material.unit == 'meter' and meters_per_unit != 1:
+                    raise EstimateError('METER_UNIT_CONVERSION_MUST_BE_ONE')
+                raw_quantity /= meters_per_unit
             price = prices.latest_price(session, material_id, at=now, lock=True)
             if price is None or price.unit != material.unit:
                 raise EstimateError("MISSING_MATERIAL_PRICE")

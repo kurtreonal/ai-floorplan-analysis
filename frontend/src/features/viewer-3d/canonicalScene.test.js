@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import fixture from '../../../../fixtures/canonical_geometry_v1.json'
 import { buildCanonicalScene, canonicalPointToWorld } from './canonicalScene.js'
 import { canonicalRoomShapePoints } from './canonicalScene.js'
 import { Vector3 } from 'three'
 import { CanonicalScene } from './CanonicalScene.jsx'
+import { WiringTube3D } from '../routing/WiringTube3D.jsx'
+vi.mock('react', async importOriginal => ({...await importOriginal(),useMemo:fn=>fn()}))
 
 function reviewed() {
   const geometry = structuredClone(fixture)
@@ -36,6 +38,22 @@ function elements(node) {
 }
 
 describe('canonical scene coordinates', () => {
+  it('reads explicit mounting from version 3 and projects a single stored connection without another inferred route', () => {
+    const geometry=wiringGeometry()
+    const symbol=geometry.symbols[0]
+    geometry.routes[0].points=[{project_floor_id:2,x:symbol.position.x,y:symbol.position.y,elevation_meters:1.2},
+      {project_floor_id:2,x:symbol.position.x,y:symbol.position.y,elevation_meters:2.8},
+      {project_floor_id:2,x:3,y:2,elevation_meters:2.8}]
+    const extension={...routeExtension(geometry,'observed'),extension_schema_version:3,
+      symbol_details:[{symbol_id:symbol.id,orientation_degrees:null,bounds:null,provenance:null,
+        installation:{elevation_meters:1.2,wall_id:geometry.walls[0].id}}]}
+    const scene=buildCanonicalScene(geometry,extension)
+    expect(scene.symbols[0].installation.elevation_meters).toBe(1.2)
+    expect(scene.routeSegments).toHaveLength(2)
+    expect(scene.routeSegments[0].start[1]).toBe(1.2)
+    expect(scene.routeSegments[0].end[1]).toBe(2.8)
+    expect(extension.extension_schema_version).toBe(3)
+  })
   it('renders saved route elevations without assuming observed provenance or installation method', () => {
     const geometry = wiringGeometry()
     const before = JSON.stringify(geometry)
@@ -45,17 +63,21 @@ describe('canonical scene coordinates', () => {
       start: [1, -2, 1], end: [3, 0.75, 2] }])
     expect(JSON.stringify(geometry)).toBe(before)
     const rendered = elements(CanonicalScene({ scene }))
-    const line = rendered.find((element) => element.type === 'line')
-    expect(line.props.userData).toMatchObject({ provenance: 'unresolved', elevationState: 'stored' })
-    expect(Array.from(rendered.find((element) => element.type === 'bufferAttribute').props.args[0]))
-      .toEqual([1, -2, 1, 3, 0.75, 2])
+    const route = rendered.find((element) => element.props.name === 'canonical-route')
+    expect(route.props.userData).toMatchObject({ provenance: 'unresolved', elevationState: 'stored' })
+    const tube=rendered.find(element=>element.type===WiringTube3D)
+    expect(tube.props.run.points).toEqual([[1,-2,1],[3,.75,2]])
+    expect(tube.props.run.sourcePoints).toEqual([[1,-2,1],[3,.75,2]])
+    expect(tube.props.run.laneOffset).toBe(0)
   })
   it.each(['observed', 'generated'])('uses only validated extension metadata for %s provenance', (kind) => {
     const geometry = wiringGeometry()
     const scene = buildCanonicalScene(geometry, routeExtension(geometry, kind))
     expect(scene.routeSegments[0]).toMatchObject({ provenance: kind, installationMethod: 'unresolved' })
-    const material = elements(CanonicalScene({ scene })).find((element) => element.type === 'lineBasicMaterial')
-    expect(material.props.color).toBe(kind === 'observed' ? '#8a5a00' : '#64748b')
+    const route = elements(CanonicalScene({ scene })).find((element) => element.props.name === 'canonical-route')
+    const tube = elements(route).find((element) => element.type === WiringTube3D)
+    expect(tube.props.color).toBe('#8a5a00')
+    expect(route.props.userData.provenance).toBe(kind)
     const invalid = routeExtension(geometry, kind)
     invalid.route_details[0].route_id = 99
     expect(() => buildCanonicalScene(geometry, invalid)).toThrow(/canonical geometry/)

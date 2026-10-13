@@ -148,7 +148,7 @@ describe('detection review page', () => {
     await screen.findByTestId('canvas')
     fireEvent.click(screen.getByRole('button', { name: 'outlet' }))
     expect(screen.getByText(/No approved symbol classes are configured yet/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Confirm detection' }).disabled).toBe(false)
+    expect(screen.getByRole('button', { name: 'Remove device' }).disabled).toBe(false)
   })
 
   it('fails the initial load safely when the approved catalog is unavailable', async () => {
@@ -186,25 +186,25 @@ describe('detection review page', () => {
     expect(signal.aborted).toBe(true)
   })
 
-  it('confirms, prevents duplicate clicks, updates locally, and preserves selection', async () => {
+  it('removes without confirmation, prevents duplicate clicks, and preserves selection', async () => {
     let resolveReview
     putDetectionReview.mockReturnValueOnce(new Promise((resolve) => { resolveReview = resolve }))
     render(<DetectionReviewPage projectId={1} floorPlanId={2} processingJobId={3} />)
     await screen.findByTestId('canvas')
     fireEvent.click(screen.getByRole('button', { name: 'outlet' }))
-    const confirm = screen.getByRole('button', { name: 'Confirm detection' })
+    const confirm = screen.getByRole('button', { name: 'Remove device' })
     fireEvent.click(confirm)
     fireEvent.click(confirm)
     expect(putDetectionReview).toHaveBeenCalledTimes(1)
     expect(confirm.disabled).toBe(true)
     resolveReview({
       detected_symbol_id: 4, floor_plan_id: 2, processing_job_id: 3,
-      decision: 'confirmed', sequence_number: 1, reviewed_at: '2026-08-29T12:00:00',
+      decision: 'deleted', sequence_number: 1, reviewed_at: '2026-08-29T12:00:00',
     })
-    expect(await screen.findByText('Detection confirmed successfully.')).toBeTruthy()
-    expect(screen.getAllByText('Confirmed by Designer').length).toBeGreaterThan(0)
+    expect(await screen.findByText(/original AI result remains visible/)).toBeTruthy()
+    expect(screen.getAllByText('Rejected by Designer').length).toBeGreaterThan(0)
     expect(screen.getAllByText(/7.*outlet/).length).toBeGreaterThanOrEqual(2)
-    expect(putDetectionReview).toHaveBeenCalledWith(2, 3, 4, 'confirmed')
+    expect(putDetectionReview).toHaveBeenCalledWith(2, 3, 4, 'deleted')
   })
 
   it('rejects and reverses while keeping the original result visible', async () => {
@@ -218,11 +218,11 @@ describe('detection review page', () => {
     render(<DetectionReviewPage projectId={1} floorPlanId={2} processingJobId={3} />)
     await screen.findByTestId('canvas')
     fireEvent.click(screen.getByRole('button', { name: 'outlet' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Reject detection' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove device' }))
     expect(await screen.findByText(/original AI result remains visible/)).toBeTruthy()
     expect(screen.getByRole('button', { name: /Canvas symbol 4 deleted/ })).toBeTruthy()
     expect(screen.getAllByText(/7.*outlet/).length).toBeGreaterThanOrEqual(2)
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm detection' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Restore device' }))
     expect(await screen.findByText('Detection confirmed successfully.')).toBeTruthy()
     expect(putDetectionReview).toHaveBeenNthCalledWith(2, 2, 3, 4, 'confirmed')
   })
@@ -319,10 +319,10 @@ describe('detection review page', () => {
     render(<DetectionReviewPage projectId={1} floorPlanId={2} processingJobId={3} />)
     await screen.findByTestId('canvas')
     fireEvent.click(screen.getByRole('button', { name: 'outlet' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm detection' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove device' }))
     expect(await screen.findByRole('alert')).toBeTruthy()
     expect(screen.getByTestId('canvas')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Confirm detection' }).disabled).toBe(false)
+    expect(screen.getByRole('button', { name: 'Remove device' }).disabled).toBe(false)
     expect(screen.queryByText('private raw error')).toBeNull()
   })
 
@@ -331,7 +331,7 @@ describe('detection review page', () => {
     render(<DetectionReviewPage projectId={1} floorPlanId={2} processingJobId={3} />)
     await screen.findByTestId('canvas')
     fireEvent.click(screen.getByRole('button', { name: 'outlet' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm detection' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove device' }))
     await waitFor(() => expect(window.location.hash).toBe('#/signin?reason=session-expired'))
   })
 

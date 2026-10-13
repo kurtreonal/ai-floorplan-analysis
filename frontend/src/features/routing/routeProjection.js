@@ -1,3 +1,5 @@
+import { WIRING_COLORS } from './wiringDesign.js'
+
 export function routeWorldPositions(segment) {
   return [segment.start.x, segment.start.elevation_meters, segment.start.y,
     segment.end.x, segment.end.elevation_meters, segment.end.y]
@@ -5,12 +7,13 @@ export function routeWorldPositions(segment) {
 
 // Display policy only: never infer installation methods from a glyph or height.
 export function routeAppearance(kind) {
-  if (kind === 'ceiling_service') return { color: '#f05a28', label: 'Generated ceiling/service run', dashed: false }
-  if (kind === 'wall_rise' || kind === 'wall_drop') return { color: '#c8816a', label: 'Generated wall rise/drop', dashed: true }
-  if (kind === 'riser') return { color: '#9c36b5', label: 'Generated inter-floor riser', dashed: false }
-  if (kind === 'underground') return { color: '#2563eb', label: 'Generated underground run', dashed: true }
-  if (kind === 'underground_rise' || kind === 'underground_drop') return { color: '#2563eb', label: 'Generated floor passage', dashed: true }
-  return { color: '#8a5a00', label: 'Stored wiring — installation unresolved', dashed: true }
+  if (kind === 'device_connector') return { color: WIRING_COLORS.wall, label: 'Device attachment · display only', dashed: false }
+  if (kind === 'ceiling_service') return { color: WIRING_COLORS.ceiling, label: 'Generated ceiling/service run', dashed: false }
+  if (kind === 'wall_rise' || kind === 'wall_drop') return { color: WIRING_COLORS.wall, label: 'Generated wall rise/drop', dashed: true }
+  if (kind === 'riser') return { color: WIRING_COLORS.riser, label: 'Generated inter-floor riser', dashed: false }
+  if (kind === 'underground') return { color: WIRING_COLORS.underground, label: 'Generated underground run', dashed: true }
+  if (kind === 'underground_rise' || kind === 'underground_drop') return { color: WIRING_COLORS.underground, label: 'Generated floor passage', dashed: true }
+  return { color: WIRING_COLORS.unresolved, label: 'Stored wiring — installation unresolved', dashed: true }
 }
 
 export function projectRoute(record, layout) {

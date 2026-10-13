@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from hashlib import sha256
 from io import BytesIO
+import json
 from pathlib import Path
 import re
 from uuid import uuid4
@@ -15,9 +16,11 @@ from sqlalchemy.orm import Session
 
 from app.ai.floor_plan_interpretation.candidate import CandidateHostProvenance, InferenceParameter, build_candidate_envelope
 from app.ai.floor_plan_interpretation import interpret_floor_plan_demo
-from app.ai.floor_plan_interpretation.demo_cv import EVIDENCE_VERSION as CV_EVIDENCE_VERSION
+from app.ai.floor_plan_interpretation.demo_cv import EVIDENCE_VERSION as CV_EVIDENCE_VERSION, preprocessing_configuration
+from app.ai.floor_plan_interpretation.chromatic_walls import with_chromatic_wall_evidence
+from app.ai.floor_plan_interpretation.switch_semantics import with_switch_gang_proposals
 from app.ai.floor_plan_interpretation.automatic_wiring import (
-    EVIDENCE_VERSION as WIRING_EVIDENCE_VERSION, with_automatic_wiring,
+    EVIDENCE_VERSION as WIRING_EVIDENCE_VERSION, with_automatic_wiring, with_fixture_wall_conflicts,
 )
 from app.ai.floor_plan_interpretation import multiclass_symbol_detector as multiclass
 from app.ai.floor_plan_interpretation.experimental_pull_station import (
@@ -303,6 +306,10 @@ def _decode_rgb(content: bytes) -> np.ndarray:
             if image.format != "PNG":
                 raise ValueError
             rgb = np.asarray(image.convert("RGB"), dtype=np.uint8)
+            # Preserve pre-annotation pixels for every evidence provider. Any
+            # provider needing an editable raster must explicitly make a copy;
+            # rendered detection/review overlays must never feed wiring CV.
+            rgb.setflags(write=False)
     except Exception:
         raise InterpretationProcessingError("NORMALIZED_IMAGE_INVALID") from None
     return rgb
@@ -568,7 +575,7 @@ def process_interpretation_job(
         general = pinned_configuration.provider == multiclass.PROVIDER
         trained = pinned_configuration.provider in (TRAINED_PROVIDER, LINKED_PROVIDER, multiclass.PROVIDER)
         trained_checkpoint = multiclass.CHECKPOINT_SHA256 if general else LINKED_CHECKPOINT_SHA256 if linked else TRAINED_CHECKPOINT_SHA256
-        trained_dataset = multiclass.DATASET_SHA256 if general else LINKED_DATASET_SHA256 if linked else TRAINED_DATASET_SHA256
+        trained_dataset = multiclass.TRAINING_DATASET_SHA256 if general else LINKED_DATASET_SHA256 if linked else TRAINED_DATASET_SHA256
         gateway_configured = None if experimental or trained else _configured_local_gateway(settings)
         if pinned_configuration.provider == PROVIDER:
             # Tests and unconfigured jobs may explicitly pin the deterministic
@@ -603,6 +610,9 @@ def process_interpretation_job(
                         payload = with_trained_symbol_proposals(payload, proposals, truncated, linked=True) if linked else with_trained_symbol_proposals(payload, proposals, truncated)
                 except ExperimentalDetectorUnavailable as error:
                     raise InterpretationProcessingError(str(error)) from None
+            payload = with_switch_gang_proposals(payload)
+            payload = with_chromatic_wall_evidence(payload, rgb)
+            payload = with_fixture_wall_conflicts(payload)
             payload = with_automatic_wiring(payload, rgb)
             candidate = build_candidate_envelope(
                 payload,
@@ -623,11 +633,17 @@ def process_interpretation_job(
                                          f"opencv-template-{cv2.__version__}" if experimental else
                                          f"opencv-{cv2.__version__}"),
                     adapter_revision=f"supervised-{trained_checkpoint[:12]}" if trained else None,
-                    prompt_version=("reviewed-background-56-detector-v3" if general else
+                    prompt_version=(multiclass.PROMPT_VERSION if general else
                                     "partial-label-symbol-detector-v1" if trained else
                                     "pull-template-v1" if experimental else "demo-cv-room-v2"),
                     runtime_version=("ultralytics-local-cpu-v1" if trained else f"opencv-{cv2.__version__}"),
                     inference_parameters=tuple(sorted(selection_parameters + (
+                        InferenceParameter(name="preprocessing-configuration", value=json.dumps(
+                            preprocessing_configuration(
+                                region.width if region else rgb.shape[1],
+                                region.height if region else rgb.shape[0]), sort_keys=True, separators=(',', ':'))),
+                        *((InferenceParameter(name="symbol-configuration-sha256", value=multiclass.configuration_sha256()),)
+                          if general else ()),
                         InferenceParameter(name="geometry-evidence-version", value=CV_EVIDENCE_VERSION),
                         InferenceParameter(name="wiring-evidence-version", value=WIRING_EVIDENCE_VERSION),
                     ) + (
@@ -635,9 +651,15 @@ def process_interpretation_job(
                             InferenceParameter(name="checkpoint-sha256", value=trained_checkpoint),
                             InferenceParameter(name="dataset-sha256", value=trained_dataset),
                             InferenceParameter(name="detector-score-threshold", value=str(multiclass.THRESHOLD if general else TRAINED_THRESHOLD)),
+                            *((InferenceParameter(name="development-profile", value=multiclass.PROFILE),
+                               InferenceParameter(name="model-class-count", value=str(multiclass.CLASS_COUNT))) if general else ()),
                             InferenceParameter(name="partial-label-training", value="true"),
                             InferenceParameter(name="provider", value=provider),
+                            *((InferenceParameter(name="refinement-manifest-sha256", value=multiclass.REFINEMENT_MANIFEST_SHA256),)
+                              if general and multiclass.REFINEMENT_MANIFEST_SHA256 else ()),
                             InferenceParameter(name="review-required", value="true"),
+                            *((InferenceParameter(name="serving-dataset-sha256", value=multiclass.DATASET_SHA256),)
+                              if general and multiclass.PROFILE == 'power80' else ()),
                         ) if trained else (
                             InferenceParameter(name="provider", value=provider),
                             InferenceParameter(name="review-required", value="true"),

@@ -4,8 +4,83 @@ import math
 import re
 
 
-def connect_touching_endpoints(candidate, document):
+def apply_source_contacts(candidate, document, *, preserve_source=True):
+    """Adapt pixel-supported proposals, preserving raw candidates and user edits."""
     result = deepcopy(document)
+    if result.get('approved_for_layout'):return result
+    observed = getattr(candidate.payload,'observed_routes',None)
+    if observed is None:return result
+    contacts = [c for c in observed.connections
+                if c.evidence_kind is not None and c.ambiguity == 'unambiguous']
+    predictions = {s.id:s for s in candidate.payload.symbols.items}
+    saved_symbols = {s['id']:s for s in result.get('symbols', [])}
+    source_routes = {w.id:w for w in observed.segments}
+    parameters = getattr(getattr(candidate,'provenance',None),'inference_parameters', ())
+    strict = any(p.name == 'wiring-evidence-version' and p.value in (
+        'raw-source-device-port-evidence-v7','raw-source-device-port-evidence-v8') for p in parameters)
+    for wire in result.get('observed_wiring', []):
+        source = source_routes.get(wire['id'])
+        if strict:wire['source_evidence_required'] = source is not None
+        if (source is None or wire.get('disposition','unresolved') != 'unresolved'
+            or wire.get('device_attachments') or wire.get('auto_connect_disabled_endpoints')
+            or wire['points'] != [p.model_dump() for p in source.points]):continue
+        selected=[]
+        for contact in contacts:
+            if contact.from_ref != f"segment:{wire['id']}":continue
+            identity=contact.to_ref.split(':',1)[1];symbol=saved_symbols.get(identity,{})
+            if symbol.get('disposition') == 'rejected':continue
+            center = symbol.get('center') or predictions[identity].center.model_dump()
+            if center != contact.device_anchor.model_dump():continue
+            selected.append((contact,identity,center))
+        points=[];attachments=[]
+        def append(point):
+            if not points or points[-1] != point:points.append(dict(point))
+            return len(points)-1
+        for edge in range(len(source.points)-1):
+            a,b=source.points[edge],source.points[edge+1]
+            delta=(b.x-a.x,b.y-a.y);length2=delta[0]**2+delta[1]**2
+            insertions=[]
+            for contact,identity,center in selected:
+                if contact.source_edge_index != edge:continue
+                anchor=contact.path_anchor
+                t=((anchor.x-a.x)*delta[0]+(anchor.y-a.y)*delta[1])/length2
+                insertions.append((max(0,min(1,t)),contact,identity,center))
+            if not points:points.append(a.model_dump())
+            insertions.sort(key=lambda item:(item[0],item[2]))
+            for t,contact,identity,center in insertions:
+                if preserve_source and t<=1e-8:
+                    if edge==0 and center!=points[0]:
+                        points.insert(0,dict(center));index=0
+                    else:index=len(points)-1;points[index]=dict(center)
+                elif preserve_source and t>=1-1e-8:
+                    append(b.model_dump());index=append(center)
+                elif preserve_source:
+                    # Keep the visible line on its original axis; only the
+                    # small glyph-core interval is adapted through the port.
+                    symbol=predictions[identity];half=min(8,min(symbol.bounds.width,symbol.bounds.height)*.3)
+                    length=math.sqrt(length2);step=min(t,1-t,half/length)
+                    append(dict(x=a.x+(t-step)*delta[0],y=a.y+(t-step)*delta[1]))
+                    index=append(center)
+                    append(dict(x=a.x+(t+step)*delta[0],y=a.y+(t+step)*delta[1]))
+                elif t<=1e-8:index=len(points)-1;points[index]=dict(center)
+                elif t>=1-1e-8:
+                    points.append(dict(center));index=len(points)-1
+                else:
+                    points.append(dict(center));index=len(points)-1
+                attachments.append(dict(symbol_id=identity,point_index=index,
+                    provenance='source_supported_proposal',source_connection_id=contact.id,
+                    source_candidate_run_id=candidate.provenance.candidate_run_id,
+                    geometry_version='source_preserving_v1' if preserve_source else 'center_replace_v0',
+                    evidence_kind=contact.evidence_kind,observed_anchor=contact.path_anchor.model_dump()))
+            # The next original vertex remains unless this edge's end was attached.
+            if not insertions or insertions[-1][0]<1-1e-8:append(b.model_dump())
+        if attachments and not any(a==b for a,b in zip(points,points[1:])):
+            wire.update(points=points,device_attachments=attachments)
+    return result
+
+
+def connect_touching_endpoints(candidate, document):
+    result = apply_source_contacts(candidate, document)
     if result.get('approved_for_layout'):
         return result  # Approved historical geometry is not silently rewritten.
     predictions = {s.id: s for s in candidate.payload.symbols.items}
@@ -29,6 +104,8 @@ def connect_touching_endpoints(candidate, document):
     wires = result.get('observed_wiring', []) + result.get('generated_wiring', [])
     for wire in wires:
         if wire.get('disposition') == 'rejected' or wire.get('suppression_reason'):
+            continue
+        if wire.get('source_evidence_required'):
             continue
         points = wire['points']
         attachments = wire.get('device_attachments', [])

@@ -1,20 +1,22 @@
 /* @vitest-environment jsdom */
 
 import { StrictMode } from 'react'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ViewerCameraControls } from './ViewerCameraControls.jsx'
-import { MOUSE } from 'three'
+import { MOUSE, Quaternion, Vector3 } from 'three'
 
 const mocks = vi.hoisted(() => ({
   camera: { name: 'camera', position: { set: vi.fn() } },
   domElement: document.createElement('canvas'),
   invalidate: vi.fn(),
   instances: [],
+  frame: null,
 }))
 
 vi.mock('@react-three/fiber', () => ({
+  useFrame: fn => { mocks.frame = fn },
   useThree: () => ({
     camera: mocks.camera,
     gl: { domElement: mocks.domElement },
@@ -26,9 +28,10 @@ vi.mock('three/addons/controls/OrbitControls.js', () => ({
   OrbitControls: class OrbitControls {
     constructor(camera, domElement) {
       Object.assign(this, {
-        camera, domElement, target: { x: 2, y: 1, z: 3, set: vi.fn() }, update: vi.fn(), saveState: vi.fn(),
+        camera, domElement, target: new Vector3(2,1,3), update: vi.fn(), saveState: vi.fn(),
         reset: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispose: vi.fn(), mouseButtons: {},
       })
+      vi.spyOn(this.target,'set')
       mocks.instances.push(this)
     }
   },
@@ -37,16 +40,47 @@ vi.mock('three/addons/controls/OrbitControls.js', () => ({
 beforeEach(() => {
   mocks.instances.length = 0
   mocks.invalidate.mockReset()
-  mocks.camera.position.set.mockReset()
+  mocks.camera.position = new Vector3(2,8,10)
+  mocks.camera.quaternion = new Quaternion()
+  vi.spyOn(mocks.camera.position,'set')
+  mocks.frame = null
 })
 
 afterEach(cleanup)
 
 describe('3D camera controls', () => {
+  it('moves only the focused viewport, ignores input/disabled controls and cleans up its keyboard listener', () => {
+    const viewport = document.createElement('section'), input = document.createElement('input')
+    viewport.setAttribute('aria-label','3D viewer'); viewport.tabIndex = 0
+    viewport.append(mocks.domElement,input); document.body.append(viewport)
+    vi.spyOn(mocks.camera.position,'add')
+    const view = render(<ViewerCameraControls extent={20} />)
+    const controls = mocks.instances[0]
+    vi.spyOn(controls.target,'add')
+    fireEvent.keyDown(viewport,{key:'w'})
+    expect(mocks.camera.position.add).not.toHaveBeenCalled()
+    viewport.focus(); fireEvent.keyDown(viewport,{key:'ArrowUp'})
+    expect(mocks.camera.position.add).not.toHaveBeenCalled()
+    mocks.frame({},1/60)
+    expect(mocks.camera.position.add).toHaveBeenCalledOnce()
+    expect(controls.target.add).toHaveBeenCalledWith(mocks.camera.position.add.mock.calls[0][0])
+    expect(mocks.camera.position.add.mock.calls[0][0].z).toBeLessThan(0)
+    input.focus(); fireEvent.keyDown(input,{key:'w'})
+    mocks.frame({},1/60)
+    expect(mocks.camera.position.add).toHaveBeenCalledOnce()
+    view.rerender(<ViewerCameraControls extent={20} enabled={false} />)
+    viewport.focus(); fireEvent.keyDown(viewport,{key:'d'})
+    mocks.frame({},1/60)
+    expect(mocks.camera.position.add).toHaveBeenCalledOnce()
+    view.unmount(); fireEvent.keyDown(viewport,{key:'a'})
+    mocks.frame({},1/60)
+    expect(mocks.camera.position.add).toHaveBeenCalledOnce()
+    viewport.remove()
+  })
   it('enables orbit, pan, and zoom, resets deterministically, and disposes listeners', () => {
     const controlsRef = { current: null }
     const onReady = vi.fn()
-    const view = render(<ViewerCameraControls ref={controlsRef} onReady={onReady} />)
+    const view = render(<ViewerCameraControls ref={controlsRef} onReady={onReady} freeFly={false} />)
     const controls = mocks.instances[0]
 
     expect(controls.camera).toBe(mocks.camera)
@@ -67,6 +101,61 @@ describe('3D camera controls', () => {
     expect(controls.removeEventListener).toHaveBeenCalledWith('change', mocks.invalidate)
     expect(controls.dispose).toHaveBeenCalledOnce()
     expect(onReady).toHaveBeenCalledWith(false)
+  })
+
+  it('holds keys across frames, ignores OS repeats, sprints, releases and stops on window blur', () => {
+    const viewport = document.createElement('section')
+    viewport.setAttribute('aria-label','3D viewer'); viewport.tabIndex=0
+    viewport.append(mocks.domElement); document.body.append(viewport)
+    const ref = {current:null}
+    const view = render(<ViewerCameraControls ref={ref} extent={20} />)
+    viewport.focus()
+    fireEvent.keyDown(viewport,{key:'w'})
+    mocks.frame({},1/60)
+    const first = mocks.camera.position.clone()
+    fireEvent.keyDown(viewport,{key:'w',repeat:true})
+    mocks.frame({},1/60)
+    expect(first.distanceTo(mocks.camera.position)).toBeGreaterThan(0)
+    ref.current.reset()
+    const start = mocks.camera.position.clone()
+    fireEvent.keyDown(viewport,{key:'w',shiftKey:true})
+    mocks.frame({},1/60)
+    const sprint = start.distanceTo(mocks.camera.position)
+    ref.current.reset()
+    const ordinaryStart = mocks.camera.position.clone()
+    fireEvent.keyDown(viewport,{key:'w'})
+    mocks.frame({},1/60)
+    expect(sprint/ordinaryStart.distanceTo(mocks.camera.position)).toBeCloseTo(3)
+    fireEvent.keyUp(window,{key:'w'})
+    for(let i=0;i<120;i++) mocks.frame({},1/60)
+    const stopped = mocks.camera.position.clone(), invalidations = mocks.invalidate.mock.calls.length
+    mocks.frame({},1/60)
+    expect(mocks.camera.position).toEqual(stopped)
+    expect(mocks.invalidate).toHaveBeenCalledTimes(invalidations)
+    fireEvent.keyDown(viewport,{key:'w'}); fireEvent.blur(window)
+    mocks.frame({},1/60)
+    expect(mocks.camera.position).toEqual(stopped)
+    view.rerender(<ViewerCameraControls ref={ref} extent={20} freeFly={false} />)
+    fireEvent.keyDown(viewport,{key:'w'}); mocks.frame({},1/60)
+    expect(mocks.camera.position).toEqual(stopped)
+    expect(mocks.instances[0].enableRotate).toBe(true)
+    view.unmount(); viewport.remove()
+  })
+
+  it('right-drag turns the spectator in place and does not orbit or move devices', () => {
+    const view = render(<ViewerCameraControls extent={20} />)
+    const position = mocks.camera.position.clone(), facing = mocks.camera.quaternion.clone()
+    const dispatch = (type, x, y) => mocks.domElement.dispatchEvent(new MouseEvent(type,{button:2,clientX:x,clientY:y,bubbles:true,cancelable:true}))
+    dispatch('pointerdown',20,20); dispatch('pointermove',70,35); dispatch('pointerup',70,35)
+    expect(mocks.camera.position).toEqual(position)
+    expect(mocks.camera.quaternion).not.toEqual(facing)
+    expect(mocks.instances[0].enableRotate).toBe(false)
+    const turned = mocks.camera.quaternion.clone()
+    dispatch('pointermove',90,80)
+    expect(mocks.camera.quaternion).toEqual(turned)
+    view.unmount()
+    dispatch('pointerdown',20,20); dispatch('pointermove',70,35)
+    expect(mocks.camera.quaternion).toEqual(turned)
   })
 
   it('leaves no duplicate active controls through StrictMode setup and cleanup', () => {

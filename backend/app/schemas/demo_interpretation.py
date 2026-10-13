@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, model_validator, model_serializer
 
 from app.ai.floor_plan_interpretation import FloorPlanInterpretationCandidate
 
@@ -32,6 +32,17 @@ class DemoWallReview(DemoSchema):
     disposition: ReviewDisposition
     start: DemoPoint
     end: DemoPoint
+    estimated_thickness_pixels: Positive | None = None
+    thickness_meters: Positive | None = None
+    height_meters: Positive | None = None
+
+    @model_serializer(mode='wrap')
+    def optional_width(self,handler):
+        value=handler(self)
+        if self.estimated_thickness_pixels is None:value.pop('estimated_thickness_pixels',None)
+        for key in ('thickness_meters','height_meters'):
+            if getattr(self,key) is None:value.pop(key,None)
+        return value
 
     @model_validator(mode="after")
     def nonzero(self):
@@ -52,6 +63,16 @@ class DemoSymbolReview(DemoSchema):
     disposition: ReviewDisposition
     center: DemoPoint
     symbol_legend_id: Annotated[StrictInt, Field(gt=0)] | None = None
+    custom_unit_price: Annotated[StrictInt | StrictFloat, Field(ge=0, le=1_000_000_000, allow_inf_nan=False)] | None = None
+    mounting_height_meters: Annotated[StrictInt | StrictFloat, Field(ge=0, le=100, allow_inf_nan=False)] | None = None
+    mounting_wall_id: EntityId | None = None
+    gang_count_confirmed: StrictBool = False
+
+    @model_serializer(mode='wrap')
+    def omit_unset_gang_confirmation(self, handler):
+        value=handler(self)
+        if not self.gang_count_confirmed:value.pop('gang_count_confirmed',None)
+        return value
 
 
 class DemoOpeningReview(DemoSchema):
@@ -76,12 +97,74 @@ class DemoScaleEvidenceReview(DemoSchema):
     real_world_meters: Annotated[StrictInt | StrictFloat, Field(gt=0, le=10_000)]
 
 
+class DemoDeviceAttachment(DemoSchema):
+    symbol_id: EntityId
+    point_index: Annotated[StrictInt, Field(ge=0, le=2047)]
+    provenance: Literal['designer_attachment', 'source_supported_proposal'] = 'designer_attachment'
+    source_connection_id: Annotated[str, Field(pattern=r'^connection-[0-9]{4,}$')] | None = None
+    source_candidate_run_id: Annotated[str, Field(pattern=r'^[0-9a-f]{32}$')] | None = None
+    evidence_kind: Literal['boundary_contact', 'symbol_occlusion', 'inline_device'] | None = None
+    observed_anchor: DemoPoint | None = None
+    geometry_version: Literal['center_replace_v0','source_preserving_v1'] = 'center_replace_v0'
+
+    @model_validator(mode='after')
+    def source_contact(self):
+        if self.provenance == 'source_supported_proposal' and any(value is None for value in (
+            self.source_connection_id,self.source_candidate_run_id,self.evidence_kind,self.observed_anchor)):
+            raise ValueError('Source proposals require retained run, contact and anchor evidence.')
+        return self
+
+    @model_serializer
+    def serialize_attachment(self):
+        result=dict(symbol_id=self.symbol_id,point_index=self.point_index)
+        if self.provenance == 'source_supported_proposal':
+            result.update(provenance=self.provenance,source_connection_id=self.source_connection_id,
+                source_candidate_run_id=self.source_candidate_run_id,evidence_kind=self.evidence_kind,
+                observed_anchor=self.observed_anchor.model_dump())
+            if self.geometry_version != 'center_replace_v0':result['geometry_version']=self.geometry_version
+        return result
+
+
 class DemoObservedWiringReview(DemoSchema):
     id: EntityId
     disposition: ReviewDisposition
     points: Annotated[list[DemoPoint], Field(min_length=2, max_length=2048)]
     completeness: Literal["complete", "partial", "unreadable"]
     elevation_meters: Annotated[StrictInt | StrictFloat, Field(ge=-1000, le=10000, allow_inf_nan=False)] | None = None
+    line_style: Literal["solid", "dashed", "unknown"] = "unknown"
+    installation_method: Literal["concealed_under_floor", "concealed_in_ceiling", "unknown"] = "unknown"
+    wiring_legend_id: Annotated[StrictInt, Field(gt=0)] | None = None
+    wiring_legend_name: Annotated[str, Field(max_length=255)] | None = None
+    device_attachments: Annotated[list[DemoDeviceAttachment], Field(max_length=512)] = []
+    source_evidence_required: StrictBool = False
+    auto_connect_disabled_endpoints: Annotated[list[Annotated[StrictInt, Field(ge=0, le=2047)]], Field(max_length=512)] = []
+
+    @model_validator(mode="after")
+    def endpoint_attachments(self):
+        indices = [a.point_index for a in self.device_attachments]
+        if len(indices) != len(set(indices)) or any(i >= len(self.points) for i in indices):
+            raise ValueError('Attachments require distinct wire vertices.')
+        disabled = self.auto_connect_disabled_endpoints
+        if len(disabled) != len(set(disabled)) or any(i >= len(self.points) for i in disabled) or set(disabled) & set(indices):
+            raise ValueError('Disabled automatic contacts require unattached vertices.')
+        return self
+
+
+class DemoGeneratedWiringReview(DemoObservedWiringReview):
+    """Editable, unmeasured routing draft; never an observed or approved circuit."""
+    algorithm: Literal["astar"]
+    source_device_id: EntityId
+    target_id: EntityId
+    target_kind: Literal["visible_trace", "device"]
+    suppression_reason: Literal["redundant_observed_connection"] | None = None
+
+    @model_validator(mode="after")
+    def generated_identity(self):
+        if not self.id.startswith("manual-route-"):
+            raise ValueError("Generated draft wiring requires its own identity.")
+        if any(a == b for a,b in zip(self.points,self.points[1:])):
+            raise ValueError("Consecutive wiring points must differ.")
+        return self
 
 
 class DemoCompletenessChecklist(DemoSchema):
@@ -129,6 +212,7 @@ class DemoReviewRequest(DemoSchema):
     panels: Annotated[list[DemoPanelReview], Field(max_length=2048)] = []
     scale_evidence: Annotated[list[DemoScaleEvidenceReview], Field(max_length=2048)] = []
     observed_wiring: Annotated[list[DemoObservedWiringReview], Field(max_length=2048)] = []
+    generated_wiring: Annotated[list[DemoGeneratedWiringReview], Field(max_length=2048)] = []
     checklist: DemoCompletenessChecklist | None = None
     dataset_approval: DemoDatasetApprovalDecision | None = None
 
@@ -164,9 +248,15 @@ class DemoReviewResponse(DemoSchema):
     panels: list[DemoPanelReview] = []
     scale_evidence: list[DemoScaleEvidenceReview] = []
     observed_wiring: list[DemoObservedWiringReview] = []
+    generated_wiring: list[DemoGeneratedWiringReview] = []
     checklist: DemoCompletenessChecklist | None = None
     dataset_approval: DemoDatasetApprovalDecision | None = None
     created_at: datetime
+
+
+class DemoRoutingContext(DemoSchema):
+    pixels_per_meter: Annotated[StrictInt | StrictFloat, Field(gt=0, le=1_000_000, allow_inf_nan=False)] | None = None
+    floor_elevation_meters: Annotated[float, Field(ge=-10000, le=10000, allow_inf_nan=False)] | None = None
 
 
 class DemoInterpretationResponse(DemoSchema):
@@ -176,6 +266,12 @@ class DemoInterpretationResponse(DemoSchema):
     floor_plan_page_id: int
     candidate: FloorPlanInterpretationCandidate
     review: DemoReviewResponse | None
+    observed_wiring: list[DemoObservedWiringReview] = []
+    generated_wiring: list[DemoGeneratedWiringReview] = []
+    draft_wiring_limitations: list[str] = []
+    draft_walls: list[DemoWallReview] | None = None
+    draft_review: dict | None = None
+    routing_context: DemoRoutingContext = DemoRoutingContext()
 
 
 class DemoLayoutSaveRequest(DemoSchema):

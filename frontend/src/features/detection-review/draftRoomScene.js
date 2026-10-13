@@ -1,5 +1,7 @@
 // Advisory display adapter only. Both views use the same source-pixel room draft.
 // Its relative units and boundary extrusions must never enter canonical saves.
+import { draftWiringScene } from './draftWiringScene.js'
+import {sceneWallTopology} from '../../geometry/wallTopology.js'
 function isSimpleBoundary(points) {
   const cross = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
   let area = 0
@@ -22,8 +24,9 @@ export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8, 
     throw new Error('Invalid preview dimensions.')
   }
   const scale = 10 / Math.max(width, height)
-  const longSideMeters = preview.longSideMeters ?? 40
-  if (!Number.isFinite(longSideMeters) || longSideMeters < 5 || longSideMeters > 500) throw new Error('Preview plan length must be between 5 and 500 m.')
+  const measured=Number.isFinite(preview.pixelsPerMeter)&&preview.pixelsPerMeter>0
+  const longSideMeters = measured ? Math.max(width,height)/preview.pixelsPerMeter : preview.longSideMeters ?? 40
+  if (!Number.isFinite(longSideMeters) || longSideMeters <= 0 || !measured&&(longSideMeters < 5 || longSideMeters > 500)) throw new Error('Preview plan length must be between 5 and 500 m.')
   const unitsPerMeter = 10 / longSideMeters
   const wallThickness = (preview.wallThicknessMeters ?? 0.18) * unitsPerMeter
   if (!Number.isFinite(wallThickness) || wallThickness <= 0) throw new Error('Invalid preview wall thickness.')
@@ -35,7 +38,7 @@ export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8, 
     return { id: room.id, boundary: room.boundary.map(({ x, y }) => ({ x: x * scale, y: y * scale })) }
   })
   const acceptedWalls = (draft.walls || []).filter((wall) => wall.disposition !== 'rejected')
-  const walls = acceptedWalls.length > 0
+  const wallBoxes = acceptedWalls.length > 0
     ? acceptedWalls.flatMap((wall) => {
       const sx = wall.start.x * scale
       const sy = wall.start.y * scale
@@ -43,29 +46,32 @@ export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8, 
       const ey = wall.end.y * scale
       const length = Math.hypot(ex - sx, ey - sy)
       if (!length || !relativeHeight) return []
-      const thickness = wallThickness
+      const height=Number.isFinite(wall.height_meters)?wall.height_meters*unitsPerMeter:relativeHeight
+      const thickness = Number.isFinite(wall.thickness_meters) ? wall.thickness_meters*unitsPerMeter : Number.isFinite(wall.estimated_thickness_pixels) ? wall.estimated_thickness_pixels*scale : wallThickness
       return [{
         id: wall.id,
-        position: [(sx + ex) / 2, relativeHeight / 2, (sy + ey) / 2],
-        size: [length, relativeHeight, thickness],
+        position: [(sx + ex) / 2, height / 2, (sy + ey) / 2],
+        size: [length, height, thickness],
         rotation: [0, -Math.atan2(ey - sy, ex - sx), 0],
       }]
     })
-    : rooms.flatMap((room) => room.boundary.flatMap((start, i) => {
-      const end = room.boundary[(i + 1) % room.boundary.length]
-      const length = Math.hypot(end.x - start.x, end.y - start.y)
-      if (!length || !relativeHeight) return []
-      return [{ id: `${room.id}-edge-${i}`, position: [(start.x + end.x) / 2, relativeHeight / 2, (start.y + end.y) / 2],
-        size: [length, relativeHeight, wallThickness], rotation: [0, -Math.atan2(end.y - start.y, end.x - start.x), 0] }]
-    }))
+    : [] // Room boundaries are not detected architectural walls.
+  const topology=sceneWallTopology(wallBoxes),walls=topology.walls
   const symbols = (draft.symbols || []).filter((symbol) => symbol.disposition !== 'rejected' && symbol.center
     && [symbol.center.x, symbol.center.y].every(Number.isFinite)
     && symbol.center.x >= 0 && symbol.center.y >= 0 && symbol.center.x <= width && symbol.center.y <= height)
     .map((symbol) => ({ id: symbol.id, status: symbol.disposition,
+      ...(Number.isFinite(symbol.mounting_height_meters) ? {installation:{provenance:'designer_supplied_planning',
+        elevation_meters:symbol.mounting_height_meters,wall_id:symbol.mounting_wall_id}} : {}),
       position: [symbol.center.x * scale, 0, symbol.center.y * scale], presentation: presentations[symbol.id] }))
-  return { width: width * scale, depth: height * scale, elevation: 0, sourceScale: scale,
+  const scene = { width: width * scale, depth: height * scale, elevation: 0, sourceScale: scale,
     unitsPerMeter, ceilingElevation: relativeHeight, mountingWalls: walls,
+    floorElevationMeters: preview.floorElevationMeters,
+    planningMountingHeights: preview.planningMountingHeights,
     target: [width * scale / 2, 0, height * scale / 2], extent: 10,
-    rooms, walls, symbols, previewOnly: true, unit: 'relative',
+    rooms, walls, wallJunctions:topology.junctions, symbols, previewOnly: true, unit: 'relative',
     invalidSymbolCount: (draft.symbols || []).filter((symbol) => symbol.disposition !== 'rejected').length - symbols.length }
+  const draftWires = draftWiringScene(draft.wirings, scene)
+  return { ...scene, draftWires,
+    invalidWiringCount: (draft.wirings || []).filter(wire => wire.disposition !== 'rejected').length - draftWires.length }
 }

@@ -61,6 +61,56 @@ def test_explicit_multipage_selection_persists_skipped_pages_and_order():
         engine.dispose()
 
 
+def test_four_durable_pages_can_advance_with_monotonic_leases_without_spending_failed_retry_budget():
+    from uuid import uuid4
+    from app.models import FloorPlanInterpretationRun, ProcessingArtifact
+    from app.services.processing_execution_service import claim_processing_job, finish_processing_attempt
+    engine,session,job=_session_with_pages(4)
+    try:
+        rows=configure_page_outcomes(session,processing_job=job,page_numbers=[1,2,3,4]);session.commit()
+        for index,row in enumerate(rows):
+            claim=claim_processing_job(session,job_id=job.id,worker_identity='four-page-test',lease_seconds=30)
+            assert claim.attempt_number==index+1
+            assert next_selected_page(session,processing_job_id=job.id).id==row.id
+            artifact=ProcessingArtifact(processing_job_id=job.id,floor_plan_page_id=row.floor_plan_page_id,
+                artifact_kind='normalized_image',relative_path=f'test-page-{index}.png',mime_type='image/png',
+                byte_size=1,sha256='b'*64,pixel_width=1,pixel_height=1)
+            session.add(artifact);session.flush()
+            run=FloorPlanInterpretationRun(candidate_run_id=uuid4().hex,processing_job_id=job.id,
+                floor_plan_id=job.floor_plan_id,floor_plan_page_id=row.floor_plan_page_id,
+                source_artifact_id=artifact.id,provider='demo_cv_baseline',candidate_sha256='c'*64,candidate_json='{}')
+            session.add(run);session.flush()
+            row.status='completed';row.progress=100;row.candidate_run_id=run.candidate_run_id
+            session.flush()
+            finish_processing_attempt(session,attempt_id=claim.attempt_id,worker_identity='four-page-test',
+                outcome='succeeded',complete_job=index==3)
+        session.refresh(job)
+        assert job.status=='completed' and job.progress==100
+        assert len(session.scalars(select(FloorPlanInterpretationRun)).all())==4
+    finally:
+        session.close();engine.dispose()
+
+
+def test_page_continuation_requires_persisted_same_job_same_page_candidate_and_successful_lease():
+    from app.models import ProcessingJobAttempt
+    from datetime import datetime,timedelta
+    from app.services.processing_execution_service import claim_processing_job, ProcessingExecutionError
+    engine,session,job=_session_with_pages(2)
+    try:
+        rows=configure_page_outcomes(session,processing_job=job,page_numbers=[1,2])
+        job.status='processing';rows[0].status='completed';rows[0].candidate_run_id='d'*32
+        session.add(ProcessingJobAttempt(processing_job_id=job.id,attempt_number=1,
+            worker_identity='previous-worker',status='succeeded',stage='completed',
+            active_marker=None,heartbeat_at=datetime.now(),lease_expires_at=datetime.now()+timedelta(seconds=30)))
+        session.commit()
+        # A completed flag without its actual candidate is not recovery authority.
+        try:claim_processing_job(session,job_id=job.id,worker_identity='new-worker',lease_seconds=30)
+        except ProcessingExecutionError as error:assert error.code=='LEGACY_PROCESSING_JOB_REQUIRES_RECOVERY'
+        else:raise AssertionError('Unbacked completed page bypassed recovery')
+    finally:
+        session.close();engine.dispose()
+
+
 def test_selection_rejects_duplicates_unknown_pages_and_rewrite():
     engine, session, job = _session_with_pages(2)
     try:

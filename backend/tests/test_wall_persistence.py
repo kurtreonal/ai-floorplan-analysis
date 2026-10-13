@@ -30,6 +30,7 @@ from app.ai.wall_detection.detector import (
     WallLineCandidate,
 )
 from app.core.database import get_engine
+from app.core.config import get_upload_directory
 from app.geometry.walls import normalize_wall_coordinates
 from app.models import (
     Base,
@@ -103,7 +104,9 @@ class WallPersistenceTests(unittest.TestCase):
         if "walls" not in cls.inspector.get_table_names():
             raise RuntimeError("Run the development schema initializer before H3 tests.")
 
-        cls.storage_root = Path(__file__).resolve().parents[2] / "storage"
+        # Honor the isolated runner's temporary storage, not live development
+        # logs/corpus files that unrelated server reloads can legitimately alter.
+        cls.storage_root = get_upload_directory().parent
         cls.storage_hashes = file_hashes(cls.storage_root)
         with Session(cls.engine) as session:
             cls.baseline_counts = {
@@ -359,10 +362,10 @@ class WallPersistenceTests(unittest.TestCase):
                 "estimates",
                 "material_prices",
                 "processing_jobs",
+                "processing_drawing_selections",
                 "processing_job_attempts",
                 "processing_job_cancellations",
                 "processing_artifacts",
-                "processing_drawing_selections",
                 "floor_elevation_settings",
                 "page_scale_settings",
                 "walls",
@@ -628,7 +631,7 @@ class WallPersistenceTests(unittest.TestCase):
             for method in methods
             if method.casefold() in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 43)  # Includes four implemented estimate operations.
+        self.assertEqual(operations, 49)  # Includes draft BOM CSV as well as material import.
 
 
 if __name__ == "__main__":

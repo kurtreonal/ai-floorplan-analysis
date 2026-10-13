@@ -5,7 +5,7 @@ const profiles = {
   'linear-light': { size: [0.12, 0.08, 1.2], mount: 'ceiling' },
   'round-light': { size: [0.2, 0.06, 0.2], mount: 'ceiling' },
   detector: { size: [0.1, 0.04, 0.1], mount: 'ceiling' },
-  outlet: { size: [0.07, 0.115, 0.018], mount: 'wall', height: 0.3 },
+  outlet: { size: [0.12, 0.075, 0.018], mount: 'wall', height: 0.3 },
   switch: { size: [0.07, 0.115, 0.018], mount: 'wall', height: 1.2 },
   panel: { size: [0.45, 0.6, 0.15], mount: 'wall', height: 1.5 },
   'pull-station': { size: [0.09, 0.14, 0.04], mount: 'wall', height: 1.2 },
@@ -21,12 +21,28 @@ export function sceneCeiling(scene) {
     : scene.elevation + 3 * (scene.unitsPerMeter ?? 1))
 }
 
+// Display terminal inside the rear housing, never the room-facing faceplate.
+// Mount geometry uses local +Z as the wall-device front and +Y as fixture top.
+export function deviceConnector(placement) {
+  const point = [...placement.position]
+  if (placement.mount === 'ceiling') point[1] += placement.size[1] / 2
+  else if (placement.mount === 'wall') {
+    const inset = placement.size[2] * .35
+    point[0] -= Math.sin(placement.rotation) * inset
+    point[2] -= Math.cos(placement.rotation) * inset
+  }
+  return point
+}
+
 export function devicePlacement(symbol, scene, family) {
   const profile = profiles[family] || profiles.unknown
   const unit = scene.unitsPerMeter ?? 1
-  const size = profile.size.map((value) => value * unit)
+  const label = symbol.presentation?.label || symbol.classification?.name || ''
+  const singleTube = family === 'linear-light' && /\b1\s*[x×]\s*40\b|single/.test(label.toLowerCase())
+  const size = (singleTube ? [0.075, 0.08, 1.2] : profile.size).map((value) => value * unit)
   const position = [...symbol.position]
   let rotation = 0
+  let mountedWallId = null
   let nearest = null
   const installation = symbol.installation?.provenance === 'designer_supplied_planning'
     && Number.isFinite(symbol.installation.elevation_meters) ? symbol.installation : null
@@ -44,9 +60,10 @@ export function devicePlacement(symbol, scene, family) {
   if (profile.mount === 'ceiling') position[1] = (installation ? installation.elevation_meters * unit : ceiling) - size[1] / 2
   else if (profile.mount === 'wall') {
     position[1] = installation ? installation.elevation_meters * unit
-      : scene.elevation + Math.min(profile.height * unit, Math.max(size[1] / 2, ceiling - scene.elevation - size[1] / 2))
+      : scene.elevation + Math.min((scene.planningMountingHeights?.[family] ?? profile.height) * unit, Math.max(size[1] / 2, ceiling - scene.elevation - size[1] / 2))
     // Only mount to a nearby wall; never teleport an uncertain device across a room.
     if (nearest && nearest.distance <= 0.6 * unit + nearest.wall.size[2] / 2) {
+      mountedWallId = nearest.wall.id
       let nx = -nearest.dz, nz = nearest.dx
       const side = (position[0] - nearest.x) * nx + (position[2] - nearest.z) * nz
       const facing = Math.abs(side) > 1e-7 ? side
@@ -58,6 +75,6 @@ export function devicePlacement(symbol, scene, family) {
       rotation = Math.atan2(nx, nz)
     }
   } else position[1] = installation ? installation.elevation_meters * unit : scene.elevation + size[1] / 2 + 0.002 * unit
-  return { position, size, rotation, mount: profile.mount,
+  return { position, size, rotation, mount: profile.mount, mountedWallId,
     anchorOffset: [position[0] - symbol.position[0], position[2] - symbol.position[2]] }
 }

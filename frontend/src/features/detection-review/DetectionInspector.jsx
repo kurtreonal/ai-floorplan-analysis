@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { orderNamed } from '../../utils/listOrder.js'
+import { isWiringLegend } from '../../api/symbolLegends.js'
+import { groupLegendChoices } from '../../api/legendChoices.js'
 
 import {
   detectedSelectionKey,
@@ -40,7 +43,7 @@ function ClassificationControls({
         <>
           <select id="symbol-legend-select" value={legendId} disabled={classificationStatus === 'saving'} onChange={(event) => setLegendId(event.target.value)}>
             <option value="">Choose an approved class</option>
-            {legends.map((legend) => <option key={legend.id} value={legend.id}>{legend.class_id} — {legend.name}</option>)}
+            {groupLegendChoices(legends, { selectedId: Number(legendId) }).map((legend) => <option key={legend.id} value={legend.id} disabled={isWiringLegend(legend)}>{legend.class_id} — {legend.displayName}{isWiringLegend(legend) ? ' — Wiring reference, not a device' : ''}</option>)}
           </select>
           <button className="btn btn-dark" type="button" disabled={!chosenLegend || unchanged || classificationStatus === 'saving'} onClick={() => onClassification(chosenLegend.id)}>Save corrected class</button>
         </>
@@ -76,7 +79,7 @@ export function DetectionInspector({
           <table>
             <thead><tr><th>Class</th><th>Machine status</th><th>Designer decision</th><th>Confidence</th><th>Threshold</th><th>Center</th></tr></thead>
             <tbody>
-              {symbols.map((symbol) => (
+              {orderNamed(symbols, symbol => symbol.authoritative_class.name).map((symbol) => (
                 <tr key={symbol.id} className={detectedSelectionKey(symbol.id) === selectedKey ? 'is-selected' : undefined}>
                   <td><button type="button" onClick={() => onSelect(detectedSelectionKey(symbol.id))}>{symbol.authoritative_class.name}</button></td>
                   <td>{STATUS_PRESENTATION[symbol.status].label}</td>
@@ -98,7 +101,7 @@ export function DetectionInspector({
           <table>
             <thead><tr><th>Class</th><th>Status</th><th>Center</th><th>Created</th></tr></thead>
             <tbody>
-              {manualSymbols.map((symbol) => (
+              {orderNamed(manualSymbols, symbol => symbol.authoritative_class.name).map((symbol) => (
                 <tr key={symbol.id} className={manualSelectionKey(symbol.id) === selectedKey ? 'is-selected' : undefined}>
                   <td><button type="button" onClick={() => onSelect(manualSelectionKey(symbol.id))}>{symbol.authoritative_class.name}</button></td>
                   <td>{MANUAL_PRESENTATION.label}</td>
@@ -149,8 +152,9 @@ export function DetectionInspector({
               classificationStatus={classificationStatus}
             />
             <div className="detection-review-actions" aria-label="Review selected detection">
-              <button className="btn btn-dark" type="button" disabled={reviewStatus === 'saving'} onClick={() => onReview('confirmed')}>Confirm detection</button>
-              <button className="btn detection-reject-button" type="button" disabled={reviewStatus === 'saving'} onClick={() => onReview('deleted')}>Reject detection</button>
+              {selected.review?.decision === 'deleted'
+                ? <button className="btn btn-dark" type="button" disabled={reviewStatus === 'saving'} onClick={() => onReview('confirmed')}>Restore device</button>
+                : <button className="btn detection-reject-button" type="button" disabled={reviewStatus === 'saving'} onClick={() => onReview('deleted')}>Remove device</button>}
             </div>
           </>
         )}

@@ -14,6 +14,106 @@ from app.models import Base, Role, SymbolLegend, SymbolLegendHistory, User
 
 
 class SymbolLegendAdminApiTests(unittest.TestCase):
+    def test_pdf_import_includes_all_sources_without_weights_and_preserves_prior_decisions(self):
+        names = tuple(f"Fixture [pdf-76f411c60b6d:p1:L{i:02d}]" for i in range(1, 41))
+        original = self.create().json()
+        before = self.session.scalar(select(func.count()).select_from(SymbolLegendHistory))
+        with patch("app.ai.floor_plan_interpretation.multiclass_symbol_detector.verify_artifacts",
+                   side_effect=AssertionError("Catalog must not load weights")), \
+             patch("app.services.pdf_legend_catalog.approved_pdf_catalog_names", return_value=names):
+            first = self.client.post(f"{self.path}/import-trained?catalog=approved-pdf")
+            self.assertEqual(first.status_code, 200, first.text)
+            rows = first.json()
+            self.assertEqual([r["name"] for r in rows], list(names))
+            self.assertEqual(len(rows), 40)
+            self.assertEqual(len({r["class_id"] for r in rows}), 40)
+            self.assertEqual(self.client.post(f"{self.path}/import-trained?catalog=approved-pdf").json(), rows)
+            self.assertEqual(self.session.scalar(select(func.count()).select_from(SymbolLegendHistory)), before + 40)
+            self.client.put(f"{self.path}/{rows[0]['id']}", json={
+                "class_id": rows[0]["class_id"], "name": rows[0]["name"], "is_active": False})
+            again = self.client.post(f"{self.path}/import-trained?catalog=approved-pdf").json()
+            self.assertFalse(again[0]["is_active"])
+        public_names = {r["name"] for r in self.client.get("/api/symbol-legends").json()}
+        self.assertTrue(set(names[1:]).issubset(public_names))
+        self.assertNotIn(names[0], public_names)
+        self.assertIn(original["name"], public_names)
+
+    def test_pdf_import_denies_wrong_authority_environment_and_changed_artifacts(self):
+        from types import SimpleNamespace
+        query = f"{self.path}/import-trained?catalog=approved-pdf"
+        before = self.session.scalar(select(func.count()).select_from(SymbolLegend))
+        self.app.dependency_overrides[get_current_user] = lambda: self.designer
+        self.assertEqual(self.client.post(query).status_code, 403)
+        self.app.dependency_overrides.pop(get_current_user)
+        self.assertEqual(self.client.post(query).status_code, 401)
+        self.app.dependency_overrides[get_current_user] = lambda: self.admin
+        with patch("app.services.symbol_legend_service.get_settings", return_value=SimpleNamespace(app_env="production")):
+            self.assertEqual(self.client.post(query).status_code, 403)
+        with patch("app.services.pdf_legend_catalog.approved_pdf_catalog_names", side_effect=ValueError("hash changed")):
+            self.assertEqual(self.client.post(query).status_code, 503)
+        self.assertEqual(self.client.post(f"{self.path}/import-trained?catalog=arbitrary").status_code, 422)
+        self.assertEqual(self.session.scalar(select(func.count()).select_from(SymbolLegend)), before)
+
+    def test_trained_import_keeps_all_drawing_identities_without_overwriting_or_reactivating(self):
+        original = self.create().json()
+        classes = {i: ("Reviewed downlight", f"sheet-{i + 1:02d}:L01") for i in range(56)}
+        with patch("app.ai.floor_plan_interpretation.multiclass_symbol_detector.verify_artifacts", return_value=classes):
+            first = self.client.post(f"{self.path}/import-trained")
+            self.assertEqual(first.status_code, 200, first.text)
+            entries = first.json()
+            self.assertEqual(len(entries), 56)
+            self.assertEqual(len({row["id"] for row in entries}), 56)
+            self.assertEqual(len({row["class_id"] for row in entries}), 56)
+            self.assertEqual(entries[0]["name"], "Reviewed downlight [sheet-01:L01]")
+            self.assertTrue(all(row["class_id"] > original["class_id"] for row in entries))
+            counts = self.session.scalar(select(func.count()).select_from(SymbolLegendHistory))
+            second = self.client.post(f"{self.path}/import-trained")
+            self.assertEqual(second.json(), entries)
+            self.assertEqual(self.session.scalar(select(func.count()).select_from(SymbolLegendHistory)), counts)
+            self.client.put(f"{self.path}/{entries[0]['id']}", json={
+                "class_id": entries[0]["class_id"], "name": entries[0]["name"], "is_active": False})
+            self.assertFalse(self.client.post(f"{self.path}/import-trained").json()[0]["is_active"])
+        histories = tuple(self.session.scalars(select(SymbolLegendHistory).where(
+            SymbolLegendHistory.symbol_legend_id.in_([row["id"] for row in entries]))))
+        self.assertTrue(all(row.actor_user_id == self.admin.id for row in histories))
+        self.assertIn(original, self.client.get(self.path).json())
+
+    def test_trained_import_requires_admin_development_and_verified_artifacts(self):
+        from types import SimpleNamespace
+        from app.ai.floor_plan_interpretation.experimental_symbol_detector import ExperimentalDetectorUnavailable
+        self.app.dependency_overrides[get_current_user] = lambda: self.designer
+        self.assertEqual(self.client.post(f"{self.path}/import-trained").status_code, 403)
+        self.app.dependency_overrides.pop(get_current_user)
+        self.assertEqual(self.client.post(f"{self.path}/import-trained").status_code, 401)
+        self.app.dependency_overrides[get_current_user] = lambda: self.admin
+        before = self.session.scalar(select(func.count()).select_from(SymbolLegend))
+        with patch("app.services.symbol_legend_service.get_settings", return_value=SimpleNamespace(app_env="production")):
+            self.assertEqual(self.client.post(f"{self.path}/import-trained").status_code, 403)
+        with patch("app.ai.floor_plan_interpretation.multiclass_symbol_detector.verify_artifacts",
+                   side_effect=ExperimentalDetectorUnavailable("MULTICLASS_MODEL_INTEGRITY_FAILED")):
+            response = self.client.post(f"{self.path}/import-trained")
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.json()["detail"]["error"]["code"], "TRAINED_LEGENDS_UNAVAILABLE")
+        self.assertEqual(self.session.scalar(select(func.count()).select_from(SymbolLegend)), before)
+
+    def test_trained_import_rolls_back_partial_catalog_and_history_on_failure(self):
+        before = self.session.scalar(select(func.count()).select_from(SymbolLegend))
+        histories = self.session.scalar(select(func.count()).select_from(SymbolLegendHistory))
+        from app.services import symbol_legend_service as service
+        original = service._history
+        calls = []
+        def fail_second(**kwargs):
+            calls.append(kwargs)
+            if len(calls) == 2:
+                raise SQLAlchemyError("synthetic write failure")
+            return original(**kwargs)
+        with patch("app.ai.floor_plan_interpretation.multiclass_symbol_detector.verify_artifacts",
+                   return_value={i: ("Fixture", f"sheet-{i}:L1") for i in range(56)}), \
+             patch.object(service, "_history", side_effect=fail_second):
+            self.assertEqual(self.client.post(f"{self.path}/import-trained").status_code, 503)
+        self.assertEqual(self.session.scalar(select(func.count()).select_from(SymbolLegend)), before)
+        self.assertEqual(self.session.scalar(select(func.count()).select_from(SymbolLegendHistory)), histories)
+
     def setUp(self):
         self.connection = get_engine().connect()
         self.transaction = self.connection.begin()
@@ -184,11 +284,12 @@ class SymbolLegendAdminApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 43)
+        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
         self.assertTrue({
             (self.path, "get"),
             (self.path, "post"),
             (self.path + "/{legend_id}", "put"),
+            (self.path + "/import-trained", "post"),
         }.issubset(operations))
 
 

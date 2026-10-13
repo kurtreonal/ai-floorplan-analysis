@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from app.services.symbol_legend_service import (
     retrieve_active_symbol_legends,
     retrieve_all_symbol_legends,
     update_symbol_legend,
+    import_trained_symbol_legends,
 )
 
 
@@ -34,6 +35,8 @@ def _retrieval_error(error: SymbolLegendServiceError) -> HTTPException:
         status_code = status.HTTP_404_NOT_FOUND
     elif error.code == "SYMBOL_LEGEND_CONFLICT":
         status_code = status.HTTP_409_CONFLICT
+    elif error.code in {"TRAINED_LEGENDS_DEVELOPMENT_ONLY", "SYMBOL_LEGEND_AUTHORITY_REQUIRED"}:
+        status_code = status.HTTP_403_FORBIDDEN
     return HTTPException(
         status_code=status_code,
         detail={
@@ -132,5 +135,18 @@ def put_symbol_legend(
                 data=data,
             )
         )
+    except SymbolLegendServiceError as error:
+        raise _retrieval_error(error) from None
+
+
+@admin_router.post("/import-trained", response_model=list[SymbolLegendAdminResponse])
+def post_trained_symbol_legends(
+    catalog: Literal["trained", "approved-pdf"] = "trained",
+    current_user: User = Depends(require_roles("ADMIN")),
+    database_session: Session = Depends(get_db),
+) -> list[SymbolLegendAdminResponse]:
+    try:
+        return [_admin_response(row) for row in import_trained_symbol_legends(
+            database_session, current_user=current_user, catalog=catalog)]
     except SymbolLegendServiceError as error:
         raise _retrieval_error(error) from None

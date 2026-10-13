@@ -7,7 +7,7 @@ describe('relative draft room preview', () => {
     const before = JSON.stringify(draft)
     const scene = buildDraftRoomScene(draft, 100, 60)
     expect(scene.rooms[0].boundary[0]).toEqual({ x: 2, y: 1 })
-    expect(scene.walls).toHaveLength(4)
+    expect(scene.walls).toHaveLength(0) // a room box is not wall evidence
     expect(scene.previewOnly).toBe(true)
     expect(scene.unit).toBe('relative')
     expect(scene.symbols).toEqual([])

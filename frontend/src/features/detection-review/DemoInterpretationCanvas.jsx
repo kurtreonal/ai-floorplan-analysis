@@ -3,14 +3,19 @@ import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } fr
 
 import { fitCanvas } from './detectionCanvasGeometry.js'
 import { DeviceGlyph } from './DeviceGlyph.jsx'
+import { wiringAppearance } from './wiringAppearance.js'
+import { snapWiringPoint } from './wireDrawing.js'
+import { findDeviceWireSnap, findWireDeviceSnap } from './deviceConnections.js'
 import { clampDevicePoint } from './devicePresentation.js'
 import { drawingRegionFromPoints } from './drawingRegion.js'
+import {buildWallTopology} from '../../geometry/wallTopology.js'
+import { wallPointerTarget } from './wallDrawing.js'
+import { WALL_APPEARANCE as wallStyle } from './wallAppearance.js'
+import { wallMeasurements, formatWallMeasure } from './wallMeasurements.js'
 import {
   constrainPoint,
   findSnapPoint,
-  formatWallDimension,
   wallMidpoint,
-  wallTextRotation,
 } from './wallEditorUtils.js'
 
 function roomPoints(boundary) {
@@ -29,14 +34,19 @@ export function DemoInterpretationCanvas({
   onToolChange,
   onAddWall,
   onAddWire,
+  drawingWireMethod = 'concealed_in_ceiling',
+  onMoveWirePoint,
   editingSession = 0,
   onUpdateWall,
   onDeleteWall,
   onUpdateRoom,
   onUpdateSymbol,
+  onPlaceDevice,
+  placementPresentation = null,
   onDeleteSymbol,
   presentations = {},
   scaleMeters = null,
+  wallUnit = 'm',
   blueprintOpacity = 1.0,
   analysisRegion = null,
   onAnalysisRegionChange,
@@ -57,7 +67,11 @@ export function DemoInterpretationCanvas({
 
   const [userTransform, setUserTransform] = useState(null)
   const stageTransform = userTransform || defaultFit
+  const wallFootprints=useMemo(()=>new Map(buildWallTopology(draft.walls.map(w=>({...w,
+    thickness:scaleMeters>0&&w.thickness_meters ? w.thickness_meters*scaleMeters : w.estimated_thickness_pixels||w.thickness_pixels||12}))).walls.map(w=>[w.id,w])),[draft.walls,scaleMeters])
   const [drawingAnchor, setDrawingAnchor] = useState(null)
+  const [hoveredWall, setHoveredWall] = useState(null)
+  const wallLabels=useMemo(()=>wallMeasurements(draft.walls,w=>scaleMeters>0&&w.thickness_meters ? w.thickness_meters*scaleMeters : w.estimated_thickness_pixels??12),[draft.walls,scaleMeters])
   const drawingStart = drawingAnchor?.tool === tool && drawingAnchor.session === editingSession ? drawingAnchor.point : null
   const [regionStart, setRegionStart] = useState(null)
   const regionAnchor = regionStart?.session === regionSession ? regionStart.point : null
@@ -65,6 +79,11 @@ export function DemoInterpretationCanvas({
   const [isShiftHeld, setIsShiftHeld] = useState(false)
   const [isSpaceHeld, setIsSpaceHeld] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [placementPointer, setPlacementPointer] = useState(null)
+  const [deviceSnap, setDeviceSnap] = useState(null)
+  const [wireDeviceSnap, setWireDeviceSnap] = useState(null)
+  const wireDrag = useRef(null)
+  const drawingGesture=useRef(null)
 
   // Measure container dimensions
   useEffect(() => {
@@ -88,15 +107,34 @@ export function DemoInterpretationCanvas({
   // Keyboard handlers: Escape to cancel drawing, Delete/Backspace to delete wall, Shift constraint, Space to pan
   useEffect(() => {
     function handleKeyDown(event) {
+      if(event.key==='Escape'&&tool==='draw') {
+        setDrawingAnchor(null);onToolChange?.('move');return
+      }
+      if (event.key === 'Escape' && tool === 'place-device') {
+        setPlacementPointer(null)
+        onToolChange?.('select')
+        return
+      }
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName)) return
       if (event.key === 'Shift') setIsShiftHeld(true)
       if (event.code === 'Space') { event.preventDefault(); setIsSpaceHeld(true) }
       if (event.key === 'Escape') {
+        if (wireDrag.current) {
+          const drag = wireDrag.current
+          drag.cancelled = true
+          drag.target.stopDrag?.()
+          drag.target.position(drag.point)
+          setWireDeviceSnap(null)
+          return
+        }
         if (regionAnchor) {
           setRegionStart(null)
         } else if (drawingStart) {
           setDrawingAnchor(null)
+          if (tool === 'draw') onToolChange?.('move')
         } else if (tool !== 'move') {
+          setPlacementPointer(null)
+          setDeviceSnap(null)
           onToolChange?.('move')
         }
       } else if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -129,9 +167,10 @@ export function DemoInterpretationCanvas({
     if (!pointer) return null
     const transform = stage.getAbsoluteTransform().copy().invert()
     const p = transform.point(pointer)
+    if (['place-device','draw','wire'].includes(tool) && (p.x < 0 || p.y < 0 || p.x > width || p.y > height)) return null
     return {
-      x: Math.max(0, Math.min(width, Math.round(p.x))),
-      y: Math.max(0, Math.min(height, Math.round(p.y))),
+      x: Math.max(0, Math.min(width, p.x)),
+      y: Math.max(0, Math.min(height, p.y)),
     }
   }
 
@@ -171,12 +210,15 @@ export function DemoInterpretationCanvas({
   // Snap candidate calculation
   const snapThreshold = 14 / stageTransform.scale
   const snap = useMemo(() => {
+    if (tool === 'wire') return snapWiringPoint(isShiftHeld && drawingStart
+      ? constrainPoint(drawingStart,mousePos,true) : mousePos,draft,presentations,snapThreshold)
     if (tool !== 'draw' && tool !== 'move') return { x: 0, y: 0, snapped: false }
-    return findSnapPoint(mousePos, draft.walls, {
-      threshold: snapThreshold,
-      excludeWallId: selected?.kind === 'wall' ? selected.id : null,
-    })
-  }, [mousePos, draft.walls, snapThreshold, tool, selected])
+    if(tool==='move')return findSnapPoint(mousePos,draft.walls,{threshold:10/stageTransform.scale,
+      excludeWallId:selected?.kind==='wall'?selected.id:null})
+    const target=wallPointerTarget(mousePos,draft.walls,{scale:stageTransform.scale,anchor:drawingStart,
+      excludeWallId:tool==='move'&&selected?.kind==='wall'?selected.id:null,shift:isShiftHeld})
+    return {...target.point,snapped:target.snapped,guides:target.guides}
+  }, [mousePos, draft, presentations, snapThreshold, tool, selected, isShiftHeld, drawingStart,stageTransform.scale])
 
   // Current effective point (with snap and shift constraint)
   const effectivePoint = useMemo(() => {
@@ -188,14 +230,25 @@ export function DemoInterpretationCanvas({
   }, [snap, isShiftHeld, drawingStart, mousePos])
 
   // Mouse move on stage
-  function handleMouseMove() {
-    const stage = stageRef.current
+  function handleMouseMove(event) {
+    const stage = event?.target?.getStage?.() ?? stageRef.current
+    const pointer=stage?.getPointerPosition()
+    if(pointer&&drawingGesture.current?.down&&Math.hypot(pointer.x-drawingGesture.current.start.x,pointer.y-drawingGesture.current.start.y)>3) drawingGesture.current.moved=true
     const point = getSourcePoint(stage)
     if (point) setMousePos(point)
+    if (tool === 'place-device') setPlacementPointer(point)
   }
 
   // Stage click (for drawing walls or clearing selection)
   function handleStageClick(event) {
+    if(event.evt?.button!=null&&event.evt.button!==0)return
+    if(['draw','wire'].includes(tool)&&drawingGesture.current?.moved){drawingGesture.current=null;return}
+    if (tool === 'place-device') {
+      if (isSpaceHeld || !placementPresentation) return
+      const point = getSourcePoint(event.target.getStage())
+      if (point) { onPlaceDevice?.(point); setPlacementPointer(null) }
+      return
+    }
     if (tool === 'region') {
       if (isSpaceHeld) return
       const point = getSourcePoint(event.target.getStage())
@@ -212,9 +265,9 @@ export function DemoInterpretationCanvas({
       if (isSpaceHeld) return
       const clicked = getSourcePoint(event.target.getStage())
       if (!clicked) return
-      const clickedSnap = tool === 'draw' ? findSnapPoint(clicked, draft.walls, {
-        threshold: snapThreshold, excludeWallId: selected?.kind === 'wall' ? selected.id : null,
-      }) : null
+      const target=tool==='draw'?wallPointerTarget(clicked,draft.walls,{scale:stageTransform.scale,anchor:drawingStart,shift:isShiftHeld}):null
+      const clickedSnap = target ? {...target.point,snapped:target.snapped} : snapWiringPoint(isShiftHeld && drawingStart ? constrainPoint(drawingStart,clicked,true) : clicked,
+        draft,presentations,snapThreshold)
       const endpoint = clickedSnap?.snapped ? { x: clickedSnap.x, y: clickedSnap.y }
         : isShiftHeld && drawingStart ? constrainPoint(drawingStart, clicked, true) : clicked
       if (!drawingStart) {
@@ -223,14 +276,20 @@ export function DemoInterpretationCanvas({
         const length = Math.hypot(endpoint.x - drawingStart.x, endpoint.y - drawingStart.y)
         if (length >= 5 && tool === 'wire') {
           onAddWire?.([drawingStart, endpoint])
-        } else if (length >= 5 && onAddWall) {
-          onAddWall({
+        } else if (length >= 2/stageTransform.scale && onAddWall) {
+          const committed=onAddWall({
             start: drawingStart,
             end: endpoint,
-            estimated_thickness_pixels: 12,
+            // Reference's 10 cm is a configurable manual-design default, not
+            // inferred scale. Uncalibrated pages retain source-pixel thickness.
+            estimated_thickness_pixels: scaleMeters>0 ? .1*scaleMeters : 12,
+            ...(scaleMeters>0 ? {thickness_meters:.1} : {}),
           })
+          if(committed===false)return
+          const joined=findSnapPoint(endpoint,draft.walls,{threshold:1e-6}).snapped
+          if(joined){setDrawingAnchor(null);onToolChange?.('move');return}
         }
-        setDrawingAnchor(null)
+        if (length >= (tool==='draw'?2/stageTransform.scale:5)) setDrawingAnchor(tool === 'draw' ? { tool, session: editingSession, point: endpoint } : null)
       }
       return
     }
@@ -273,6 +332,8 @@ export function DemoInterpretationCanvas({
           draggable={isSpaceHeld || tool === 'pan'}
           onWheel={handleWheel}
           onMouseMove={handleMouseMove}
+          onMouseDown={event=>{const p=event.target.getStage().getPointerPosition();drawingGesture.current=p?{start:p,down:true,moved:false}:null}}
+          onMouseUp={()=>{if(drawingGesture.current)drawingGesture.current.down=false}}
           onTouchMove={handleMouseMove}
           onClick={handleStageClick}
           onTap={handleStageClick}
@@ -296,13 +357,6 @@ export function DemoInterpretationCanvas({
           </Layer>
 
           {/* Rooms Layer */}
-          <Layer listening={false}>
-            {layers.wirings && (draft.wirings || []).filter((wire) => wire.disposition !== 'rejected').map((wire) => (
-              <Line key={wire.id} name={`observed-wiring-${wire.id}`} points={roomPoints(wire.points)}
-                stroke="#7c3aed" strokeWidth={2 / stageTransform.scale}
-                dash={[6 / stageTransform.scale, 4 / stageTransform.scale]} />
-            ))}
-          </Layer>
           <Layer>
             {layers.rooms && draft.rooms.map((room) => (
               <Line
@@ -330,33 +384,40 @@ export function DemoInterpretationCanvas({
             {layers.walls && draft.walls.map((wall) => {
               const isSelected = selected?.kind === 'wall' && selected?.id === wall.id
               const isRejected = wall.disposition === 'rejected'
-              const thickness = wall.estimated_thickness_pixels || wall.thickness_pixels || 12
               const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y)
-              const mid = wallMidpoint(wall.start, wall.end)
-              const rot = wallTextRotation(wall.start, wall.end)
-              const dimText = formatWallDimension(length, scaleMeters)
+              const label=wallLabels.get(wall.id)
+              const mid = label?.center || wallMidpoint(wall.start, wall.end)
+              const dimText = `${formatWallMeasure(label?.length??length,scaleMeters,wallUnit)}${label?.basis==='interior'?'':' · centerline'}`
+              const highlighted=isSelected||hoveredWall===wall.id
 
               return (
                 <Group
                   key={wall.id}
                   draggable={tool === 'move' && !isSpaceHeld}
+                  onMouseEnter={()=>setHoveredWall(wall.id)}
+                  onMouseLeave={()=>setHoveredWall(null)}
                   onDragEnd={(e) => {
                     e.cancelBubble = true
-                    const dx = e.target.x()
-                    const dy = e.target.y()
+                    let dx = e.target.x()
+                    let dy = e.target.y()
+                    if(!e.evt?.altKey) {
+                      const raw={x:wall.start.x+dx,y:wall.start.y+dy}
+                      const target=wallPointerTarget(raw,draft.walls,{scale:stageTransform.scale,excludeWallId:wall.id})
+                      if(target.snapped){dx=target.point.x-wall.start.x;dy=target.point.y-wall.start.y}
+                    }
                     e.target.position({ x: 0, y: 0 })
                     if (onUpdateWall) {
                       onUpdateWall({
                         ...wall,
                         start: {
-                          x: Math.max(0, Math.min(width, Math.round(wall.start.x + dx))),
-                          y: Math.max(0, Math.min(height, Math.round(wall.start.y + dy))),
+                          x: wall.start.x + dx,
+                          y: wall.start.y + dy,
                         },
                         end: {
-                          x: Math.max(0, Math.min(width, Math.round(wall.end.x + dx))),
-                          y: Math.max(0, Math.min(height, Math.round(wall.end.y + dy))),
+                          x: wall.end.x + dx,
+                          y: wall.end.y + dy,
                         },
-                      })
+                      },{detach:Boolean(e.evt?.altKey)})
                     }
                   }}
                   onClick={(e) => {
@@ -376,48 +437,46 @@ export function DemoInterpretationCanvas({
                     }
                   }}
                 >
-                  {/* Outer Wall Body with estimated thickness */}
-                  <Line
-                    points={[wall.start.x, wall.start.y, wall.end.x, wall.end.y]}
-                    stroke={isSelected ? '#3b82f6' : isRejected ? '#ef4444' : '#334155'}
-                    strokeWidth={thickness}
-                    lineCap="butt"
-                    lineJoin="miter"
-                    opacity={isRejected ? 0.35 : 0.85}
-                  />
-
-                  {/* Wall Outline/Borders for crisp CAD look */}
-                  <Line
-                    points={[wall.start.x, wall.start.y, wall.end.x, wall.end.y]}
-                    stroke={isSelected ? '#1d4ed8' : isRejected ? '#b91c1c' : '#1e293b'}
-                    strokeWidth={thickness}
-                    lineCap="square"
-                    lineJoin="miter"
-                    opacity={isRejected ? 0.4 : 0.95}
-                  />
+                  {!isRejected && layers.wallFootprints && <>
+                    {(wallFootprints.get(wall.id)?.footprints||[]).map((poly,i)=><Line key={`body-${i}`}
+                      points={roomPoints(poly)} closed fill={highlighted?wallStyle.active:wallStyle.normal}
+                      strokeWidth={0} hitStrokeWidth={12/stageTransform.scale} />)}
+                    {(wallFootprints.get(wall.id)?.boundary||[]).map((edge,i)=><Line key={`edge-${i}`}
+                      points={roomPoints(edge)} stroke={highlighted?wallStyle.active:wallStyle.edge}
+                      strokeWidth={1/stageTransform.scale} listening={false} />)}
+                  </>}
+                  {!isRejected && !layers.wallFootprints && ['draw','move','delete'].includes(tool) &&
+                    (wallFootprints.get(wall.id)?.boundary||[]).map((edge,i)=><Line key={`outline-${i}`}
+                      points={roomPoints(edge)} stroke={highlighted?wallStyle.active:wallStyle.edge}
+                      strokeWidth={wallStyle.edgeWidth/stageTransform.scale} listening={false} />)}
 
                   {/* Inner Centerline */}
                   <Line
                     points={[wall.start.x, wall.start.y, wall.end.x, wall.end.y]}
-                    stroke={isSelected ? '#ffffff' : '#94a3b8'}
-                    strokeWidth={1.5 / stageTransform.scale}
-                    dash={isRejected ? [4 / stageTransform.scale, 4 / stageTransform.scale] : [6 / stageTransform.scale, 4 / stageTransform.scale]}
+                    name={`wall-centerline-${wall.id}`}
+                    stroke={isRejected||highlighted&&tool==='delete' ? wallStyle.delete : highlighted ? wallStyle.active : wallStyle.normal}
+                    strokeWidth={(highlighted ? wallStyle.activeWidth : wallStyle.width) / stageTransform.scale}
+                    hitStrokeWidth={12 / stageTransform.scale}
+                    lineCap="butt"
+                    dash={isRejected ? [4 / stageTransform.scale, 4 / stageTransform.scale] : []}
                   />
 
                   {/* Dimension Text along Wall */}
-                  {!isRejected && length > 25 && (layers.dimensions || isSelected) && (
+                  {!isRejected && length > 25 && (layers.dimensions || isSelected || ['draw','move','delete'].includes(tool)) && (
                     <Text
                       x={mid.x}
                       y={mid.y}
                       text={dimText}
-                      fontSize={Math.max(10, Math.min(13, 11 / stageTransform.scale))}
-                      fontStyle="bold"
-                      fontFamily="system-ui, sans-serif"
-                      fill={isSelected ? '#1d4ed8' : '#0f172a'}
-                      rotation={rot}
-                      offsetX={dimText.length * 3}
-                      offsetY={thickness / 2 + (12 / stageTransform.scale)}
+                      fontSize={wallStyle.fontSize / stageTransform.scale}
+                      fontFamily={wallStyle.fontFamily}
+                      fill="#000000"
+                      rotation={0}
+                      offsetX={dimText.length * 3 / stageTransform.scale}
+                      offsetY={6 / stageTransform.scale}
                       align="center"
+                      stroke="#ffffff"
+                      strokeWidth={4/stageTransform.scale}
+                      fillAfterStrokeEnabled
                       shadowColor="#ffffff"
                       shadowBlur={3}
                       shadowOpacity={0.9}
@@ -430,7 +489,7 @@ export function DemoInterpretationCanvas({
 
           {/* Wall Endpoint Handles Layer (when a wall is selected in Move mode) */}
           <Layer>
-            {layers.walls && selected?.kind === 'wall' && tool === 'move' && draft.walls
+            {layers.walls && selected?.kind === 'wall' && draft.walls
               .filter((wall) => wall.id === selected.id && wall.disposition !== 'rejected')
               .map((wall) => (
                 <Group key={`handles-${wall.id}`}>
@@ -439,20 +498,16 @@ export function DemoInterpretationCanvas({
                     x={wall.start.x}
                     y={wall.start.y}
                     radius={7 / stageTransform.scale}
-                    fill="#2563eb"
+                    fill={wallStyle.active}
                     stroke="#ffffff"
                     strokeWidth={2 / stageTransform.scale}
-                    draggable
+                    draggable={tool === 'move'}
                     onDragMove={(e) => {
                       e.cancelBubble = true
                       const stage = stageRef.current
                       const point = getSourcePoint(stage)
                       if (!point) return
-                      const snapped = findSnapPoint(point, draft.walls, {
-                        threshold: snapThreshold,
-                        excludeWallId: wall.id,
-                      })
-                      const next = snapped.snapped ? snapped : point
+                      const next = wallPointerTarget(point,draft.walls,{scale:stageTransform.scale,anchor:wall.end,excludeWallId:wall.id,shift:isShiftHeld}).point
                       e.target.position(next)
                     }}
                     onDragEnd={(e) => {
@@ -460,16 +515,12 @@ export function DemoInterpretationCanvas({
                       const stage = stageRef.current
                       const point = getSourcePoint(stage)
                       if (!point || !onUpdateWall) return
-                      const snapped = findSnapPoint(point, draft.walls, {
-                        threshold: snapThreshold,
-                        excludeWallId: wall.id,
-                      })
-                      let next = snapped.snapped ? snapped : point
+                      let next = wallPointerTarget(point,draft.walls,{scale:stageTransform.scale,anchor:wall.end,excludeWallId:wall.id,shift:isShiftHeld}).point
                       if (isShiftHeld) {
                         next = constrainPoint(wall.end, next, true)
                       }
                       e.target.position(next)
-                      onUpdateWall({ ...wall, start: next })
+                      onUpdateWall({ ...wall, start: next },{detach:Boolean(e.evt?.altKey)})
                     }}
                   />
 
@@ -478,20 +529,16 @@ export function DemoInterpretationCanvas({
                     x={wall.end.x}
                     y={wall.end.y}
                     radius={7 / stageTransform.scale}
-                    fill="#2563eb"
+                    fill={wallStyle.active}
                     stroke="#ffffff"
                     strokeWidth={2 / stageTransform.scale}
-                    draggable
+                    draggable={tool === 'move'}
                     onDragMove={(e) => {
                       e.cancelBubble = true
                       const stage = stageRef.current
                       const point = getSourcePoint(stage)
                       if (!point) return
-                      const snapped = findSnapPoint(point, draft.walls, {
-                        threshold: snapThreshold,
-                        excludeWallId: wall.id,
-                      })
-                      const next = snapped.snapped ? snapped : point
+                      const next = wallPointerTarget(point,draft.walls,{scale:stageTransform.scale,anchor:wall.start,excludeWallId:wall.id,shift:isShiftHeld}).point
                       e.target.position(next)
                     }}
                     onDragEnd={(e) => {
@@ -499,16 +546,12 @@ export function DemoInterpretationCanvas({
                       const stage = stageRef.current
                       const point = getSourcePoint(stage)
                       if (!point || !onUpdateWall) return
-                      const snapped = findSnapPoint(point, draft.walls, {
-                        threshold: snapThreshold,
-                        excludeWallId: wall.id,
-                      })
-                      let next = snapped.snapped ? snapped : point
+                      let next = wallPointerTarget(point,draft.walls,{scale:stageTransform.scale,anchor:wall.start,excludeWallId:wall.id,shift:isShiftHeld}).point
                       if (isShiftHeld) {
                         next = constrainPoint(wall.start, next, true)
                       }
                       e.target.position(next)
-                      onUpdateWall({ ...wall, end: next })
+                      onUpdateWall({ ...wall, end: next },{detach:Boolean(e.evt?.altKey)})
                     }}
                   />
                 </Group>
@@ -517,28 +560,29 @@ export function DemoInterpretationCanvas({
 
           {/* Drawing Wall Live Preview Layer */}
           <Layer listening={false}>
+            {tool==='draw' && snap.guides?.map((guide,index)=><Line key={`alignment-${index}`}
+              points={roomPoints([guide.from,effectivePoint])} stroke={wallStyle.active}
+              dash={[4/stageTransform.scale,4/stageTransform.scale]} strokeWidth={1/stageTransform.scale} />)}
             {tool === 'draw' && drawingStart && (
               <Group>
                 {/* Live Wall Preview */}
                 <Line
                   points={[drawingStart.x, drawingStart.y, effectivePoint.x, effectivePoint.y]}
-                  stroke="#0284c7"
-                  strokeWidth={12}
-                  lineCap="square"
-                  opacity={0.6}
-                  dash={[6 / stageTransform.scale, 4 / stageTransform.scale]}
+                  stroke={wallStyle.active}
+                  strokeWidth={wallStyle.activeWidth / stageTransform.scale}
+                  lineCap="butt"
                 />
                 <Line
                   points={[drawingStart.x, drawingStart.y, effectivePoint.x, effectivePoint.y]}
-                  stroke="#0369a1"
-                  strokeWidth={1.5 / stageTransform.scale}
+                  stroke={wallStyle.active}
+                  strokeWidth={wallStyle.activeWidth / stageTransform.scale}
                 />
                 {/* Start Point Dot */}
                 <Circle
                   x={drawingStart.x}
                   y={drawingStart.y}
-                  radius={6 / stageTransform.scale}
-                  fill="#0284c7"
+                  radius={wallStyle.cornerRadius / stageTransform.scale}
+                  fill={wallStyle.active}
                   stroke="#ffffff"
                   strokeWidth={2 / stageTransform.scale}
                 />
@@ -547,15 +591,20 @@ export function DemoInterpretationCanvas({
                   <Text
                     x={(drawingStart.x + effectivePoint.x) / 2}
                     y={(drawingStart.y + effectivePoint.y) / 2}
-                    text={formatWallDimension(
+                    text={`${formatWallMeasure(
                       Math.hypot(effectivePoint.x - drawingStart.x, effectivePoint.y - drawingStart.y),
                       scaleMeters,
-                    )}
-                    fontSize={11 / stageTransform.scale}
-                    fontStyle="bold"
-                    fill="#0284c7"
-                    rotation={wallTextRotation(drawingStart, effectivePoint)}
+                      wallUnit,
+                    )} · centerline`}
+                    fontSize={wallStyle.fontSize / stageTransform.scale}
+                    fontFamily={wallStyle.fontFamily}
+                    fill="#000000"
+                    rotation={0}
+                    offsetX={35/stageTransform.scale}
                     offsetY={16 / stageTransform.scale}
+                    stroke="#ffffff"
+                    strokeWidth={4/stageTransform.scale}
+                    fillAfterStrokeEnabled
                     shadowColor="#ffffff"
                     shadowBlur={4}
                   />
@@ -568,10 +617,10 @@ export function DemoInterpretationCanvas({
               <Circle
                 x={snap.x}
                 y={snap.y}
-                radius={8 / stageTransform.scale}
-                stroke="#0284c7"
+                radius={wallStyle.cornerRadius / stageTransform.scale}
+                stroke={wallStyle.active}
                 strokeWidth={2.5 / stageTransform.scale}
-                fill="rgba(2, 132, 199, 0.2)"
+                fill={wallStyle.active}
               />
             )}
           </Layer>
@@ -584,13 +633,19 @@ export function DemoInterpretationCanvas({
                 name={`device-${symbol.id}`}
                 x={symbol.center.x}
                 y={symbol.center.y}
-                draggable={Boolean(onUpdateSymbol) && ['select', 'move'].includes(tool) && !isSpaceHeld}
+                draggable={Boolean(onUpdateSymbol) && tool === 'select' && !isSpaceHeld}
                 onDragStart={(event) => { event.cancelBubble = true; onSelect?.({ kind: 'symbol', id: symbol.id }) }}
+                onDragMove={(event) => {
+                  const point = {x: event.target.x(), y: event.target.y()}
+                  setDeviceSnap(findDeviceWireSnap(point, symbol.id, draft.wirings, 12 / stageTransform.scale))
+                }}
                 onDragEnd={(event) => {
                   event.cancelBubble = true
                   const center = clampDevicePoint({ x: event.target.x(), y: event.target.y() }, width, height)
-                  event.target.position(center || symbol.center)
-                  if (center) onUpdateSymbol?.({ ...symbol, center })
+                  const candidate = center ? findDeviceWireSnap(center, symbol.id, draft.wirings, 12 / stageTransform.scale) : null
+                  event.target.position(candidate?.point || center || symbol.center)
+                  if (center && onUpdateSymbol?.({ ...symbol, center }, candidate) === false) event.target.position(symbol.center)
+                  setDeviceSnap(null)
                 }}
                 onClick={(e) => {
                   e.cancelBubble = true
@@ -601,10 +656,11 @@ export function DemoInterpretationCanvas({
                   onSelect?.({ kind: 'symbol', id: symbol.id })
                 }}
               >
-                <Circle radius={14 / stageTransform.scale} fill="#ff6a3d18"
-                  stroke={selected?.kind === 'symbol' && selected.id === symbol.id ? '#ff6a3d' : '#c94e28'}
-                  strokeWidth={1.5 / stageTransform.scale} dash={presentations[symbol.id]?.mapped ? undefined : [3 / stageTransform.scale, 3 / stageTransform.scale]} />
-                <DeviceGlyph family={presentations[symbol.id]?.family || 'unknown'} color="#c94e28" scale={stageTransform.scale} />
+                <Circle radius={17 / stageTransform.scale} fill={selected?.kind === 'symbol' && selected.id === symbol.id ? '#2563eb16' : 'transparent'}
+                  stroke={selected?.kind === 'symbol' && selected.id === symbol.id ? '#2563eb' : undefined}
+                  strokeWidth={1.5 / stageTransform.scale} />
+                <DeviceGlyph family={presentations[symbol.id]?.family || 'unknown'}
+                  label={presentations[symbol.id]?.label} color={selected?.kind === 'symbol' && selected.id === symbol.id ? '#2563eb' : '#af5837'} scale={stageTransform.scale} />
                 {(layers.names !== false || selected?.id === symbol.id) && <Text x={18 / stageTransform.scale} y={-6 / stageTransform.scale}
                   text={presentations[symbol.id]?.label || 'Unclassified device · proposal'} fontSize={11 / stageTransform.scale}
                   fontFamily="IBM Plex Sans, sans-serif" fill="#0f2030" shadowColor="#fdfcf8" shadowBlur={3} listening={false} />}
@@ -612,6 +668,48 @@ export function DemoInterpretationCanvas({
             ))}
           </Layer>
 
+          {/* Wiring sits above room fills so its click targets remain reachable. */}
+          <Layer listening={['move', 'select'].includes(tool) && !isSpaceHeld}>
+            {layers.wirings && (draft.wirings || []).filter((wire) => wire.disposition !== 'rejected').map((wire) => (
+              <Group key={wire.id} listening={['move', 'select'].includes(tool) && !isSpaceHeld}>
+              <Line points={roomPoints(wire.points)} stroke="#fffdf8" strokeWidth={5 / stageTransform.scale} opacity={.8} listening={false} lineCap="round" lineJoin="round" />
+              <Line name={`observed-wiring-${wire.id}`} points={roomPoints(wire.points)}
+                stroke={wiringAppearance(wire,selected?.kind === 'wiring' && selected.id === wire.id).color} strokeWidth={1.8 / stageTransform.scale}
+                hitStrokeWidth={12 / stageTransform.scale}
+                lineCap="round" lineJoin="round"
+                onClick={(event) => { event.cancelBubble = true; onSelect?.({ kind: 'wiring', id: wire.id }) }}
+                onTap={(event) => { event.cancelBubble = true; onSelect?.({ kind: 'wiring', id: wire.id }) }}
+                dash={wiringAppearance(wire).dash?.map(value => value / stageTransform.scale)} />
+              </Group>
+            ))}
+            {layers.wirings && selected?.kind === 'wiring' && (draft.wirings || []).find(wire => wire.id === selected.id && wire.disposition !== 'rejected')?.points.map((point,index) => (
+              <Circle key={index} name={`wiring-point-${index}`} x={point.x} y={point.y} radius={5 / stageTransform.scale}
+                fill="#2563eb" stroke="white" strokeWidth={1 / stageTransform.scale}
+                hitStrokeWidth={6 / stageTransform.scale} draggable={Boolean(onMoveWirePoint)}
+                onMouseDown={event => { event.cancelBubble = true }}
+                onTouchStart={event => { event.cancelBubble = true }}
+                onClick={(event) => { event.cancelBubble = true }}
+                onDragStart={(event) => { event.cancelBubble = true; wireDrag.current = {target: event.target, point, cancelled: false} }}
+                onDragMove={(event) => {
+                  if (wireDrag.current?.cancelled) return
+                  const next = {x: event.target.x(), y: event.target.y()}
+                  const target = findWireDeviceSnap(next, selected.id, index, draft, presentations, snapThreshold)
+                  setWireDeviceSnap(target)
+                  if (target) event.target.position(target.point)
+                }}
+                onDragEnd={(event) => {
+                  const cancelled = wireDrag.current?.cancelled
+                  wireDrag.current = null
+                  setWireDeviceSnap(null)
+                  const next = { x: event.target.x(), y: event.target.y() }
+                  const target = cancelled ? null : findWireDeviceSnap(next, selected.id, index, draft, presentations, snapThreshold)
+                  event.target.position(point)
+                  if (cancelled) return
+                  if (target) onMoveWirePoint?.(selected.id,index,target.point,target)
+                  else onMoveWirePoint?.(selected.id,index,next)
+                }} />
+            ))}
+          </Layer>
           {/* Room Handles (when room selected) */}
           <Layer>
             {layers.rooms && selected?.kind === 'room' && onUpdateRoom && draft.rooms
@@ -642,12 +740,40 @@ export function DemoInterpretationCanvas({
           </Layer>
           {/* Top hit surface prevents ROI selection from changing review items. */}
           <Layer>
+            {wireDeviceSnap && <Group listening={false}>
+              <Circle name="wire-device-magnet" x={wireDeviceSnap.point.x} y={wireDeviceSnap.point.y}
+                radius={12 / stageTransform.scale} stroke="#13816c" fill="#13816c20" strokeWidth={2 / stageTransform.scale} />
+              <Text x={wireDeviceSnap.point.x+16/stageTransform.scale} y={wireDeviceSnap.point.y-20/stageTransform.scale}
+                text="Release to connect device" fill="#13816c" fontSize={12/stageTransform.scale} />
+            </Group>}
+            {tool === 'place-device' && <Rect name="device-place-hit" x={0} y={0} width={width} height={height}
+              fill="rgba(0,0,0,0.001)" onMouseLeave={() => setPlacementPointer(null)} />}
+            {tool === 'place-device' && placementPresentation && placementPointer && <Group name="device-placement-preview"
+              x={placementPointer.x} y={placementPointer.y} opacity={.7} listening={false}>
+              <DeviceGlyph family={placementPresentation.family} label={placementPresentation.name} color="#13816c" scale={stageTransform.scale} />
+            </Group>}
+            {tool === 'select' && deviceSnap && <Group listening={false}>
+              <Circle name="device-wire-snap-preview" x={deviceSnap.point.x} y={deviceSnap.point.y}
+                radius={10 / stageTransform.scale} stroke="#13816c" strokeWidth={2 / stageTransform.scale} />
+              <Text x={deviceSnap.point.x+14/stageTransform.scale} y={deviceSnap.point.y-20/stageTransform.scale}
+                text="Release to attach to wire endpoint" fill="#13816c" fontSize={12/stageTransform.scale} />
+            </Group>}
+            {tool === 'draw' && <Rect name="wall-draw-hit" x={0} y={0} width={width} height={height}
+              fill="rgba(0,0,0,0.001)" />}
             {tool === 'wire' && <Rect name="wiring-draw-hit" x={0} y={0} width={width} height={height}
               fill="rgba(0,0,0,0.001)" />}
             {tool === 'wire' && drawingStart && <Line name="wiring-draw-preview"
               points={[drawingStart.x, drawingStart.y, effectivePoint.x, effectivePoint.y]}
-              listening={false} stroke="#7c3aed" strokeWidth={2 / stageTransform.scale}
-              dash={[6 / stageTransform.scale, 4 / stageTransform.scale]} />}
+              listening={false} stroke={wiringAppearance({ installation_method: drawingWireMethod }).color}
+              strokeWidth={2 / stageTransform.scale}
+              dash={drawingWireMethod === 'concealed_under_floor' ? [8 / stageTransform.scale, 5 / stageTransform.scale] : undefined} />}
+            {tool === 'wire' && snap.snapped && <>
+              <Circle name="wiring-magnet" x={snap.x} y={snap.y} radius={8 / stageTransform.scale}
+                stroke="#13816c" fill="#13816c20" strokeWidth={2 / stageTransform.scale} listening={false} />
+              <Text x={snap.x+12/stageTransform.scale} y={snap.y-18/stageTransform.scale}
+                text={snap.kind === 'device' ? 'Device snap' : 'Wire snap'} fontSize={11/stageTransform.scale}
+                fill="#116c5c" listening={false} />
+            </>}
             {tool === 'region' && <Rect name="drawing-region-hit" x={0} y={0} width={width} height={height}
               fill="rgba(0,0,0,0.001)" />}
             {(analysisRegion || (tool === 'region' && regionAnchor)) && (() => {
@@ -683,7 +809,7 @@ export function DemoInterpretationCanvas({
         {showHelp && <div className="studio-canvas-help" role="note">Select &amp; drag devices · Space + drag to pan · wheel to zoom · Delete removes the selection · Ctrl+Z undo · Shift locks wall angles · Esc exits drawing.</div>}
       </div>
       <p className="detection-canvas-note">
-        Walls are rendered as centerlines with estimated thickness. Select a wall to drag its endpoints or body. Hold Shift for 90° constraint.
+        Walls use screen-space strokes; physical thickness is unchanged. Closed-room labels measure interior faces; open walls and previews measure centerlines. Enable Wall footprints to inspect thickness. Shared junctions stay attached. Hold Shift for 90° constraint; Alt-drag moves a wall independently. Openings and uncertain gaps remain editable.
       </p>
     </section>
   )

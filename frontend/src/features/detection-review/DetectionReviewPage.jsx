@@ -12,7 +12,8 @@ import {
   ManualSymbolApiError,
   postManualSymbol,
 } from '../../api/manualSymbols.js'
-import { fetchSymbolLegends, SymbolLegendApiError } from '../../api/symbolLegends.js'
+import { fetchSymbolLegends, isWiringLegend, SymbolLegendApiError } from '../../api/symbolLegends.js'
+import { groupLegendChoices } from '../../api/legendChoices.js'
 import { getProjectHref } from '../../routes/projectRoutes.js'
 import { DetectionInspector } from './DetectionInspector.jsx'
 import { DetectionReviewCanvas } from './DetectionReviewCanvas.jsx'
@@ -311,7 +312,7 @@ export function DetectionReviewPage({ projectId, floorPlanId, processingJobId })
                 <label htmlFor="manual-symbol-legend">Approved class for manual symbol</label>
                 <select id="manual-symbol-legend" value={manualLegendId} disabled={placement.status === 'saving'} onChange={(event) => setManualLegendId(event.target.value)}>
                   <option value="">Choose an approved class</option>
-                  {state.legends.map((legend) => <option key={legend.id} value={legend.id}>{legend.class_id} — {legend.name}</option>)}
+                  {groupLegendChoices(state.legends).map((legend) => <option key={legend.id} value={legend.id} disabled={isWiringLegend(legend)}>{legend.class_id} — {legend.displayName}{isWiringLegend(legend) ? ' — Wiring reference, not a device' : ''}</option>)}
                 </select>
                 {!placement.mode ? (
                   <button className="btn btn-dark" type="button" disabled={!manualLegendId} onClick={beginPlacement}>Add missing symbol</button>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { orderNamed } from '../../utils/listOrder.js'
 import { fetchCurrentLayout } from '../../api/layouts.js'
 import { buildCanonicalScene } from './canonicalScene.js'
 import { bindCircuitMounting } from './circuitMounting.js'
@@ -105,7 +106,7 @@ function SavedViewer({ projectId, projectFloorId }) {
       <aside className="studio-viewer-inspector"><span className="project-kicker mono">SAVED SNAPSHOT</span><h2>Geometry & provenance</h2>
       {layoutState.status === 'ready' && <>
         <label className="studio-field">Inspect device<select value={selectedSymbolId || ''} onChange={(event) => setSelectedSymbolId(event.target.value || null)}>
-          <option value="">Select a device</option>{layoutState.scene.symbols.map((symbol) => <option key={symbol.id} value={symbol.id}>{symbol.classification.name} · {symbol.id}</option>)}
+          <option value="">Select a device</option>{orderNamed(layoutState.scene.symbols, symbol => symbol.classification.name).map((symbol) => <option key={symbol.id} value={symbol.id}>{symbol.classification.name} · {symbol.id}</option>)}
         </select></label>
         {displayScene.symbols.filter((symbol) => symbol.id === selectedSymbolId).map((symbol) => <div key={symbol.id}>
           <h3>{symbol.classification.name}</h3><p>X {symbol.position[0]} m · Y {symbol.position[2]} m<br />{symbol.status} · {symbol.id}</p>
@@ -123,7 +124,7 @@ function SavedViewer({ projectId, projectFloorId }) {
       {layoutState.status === 'ready' && <p>Saved version {layoutState.layout.version_number}: {layoutState.scene.rooms.length} rooms, {layoutState.scene.walls.length} verified walls, {layoutState.scene.symbols.length} symbols.</p>}
       {layoutState.status === 'ready' && <details>
         <summary>Reviewed electrical symbols ({layoutState.scene.symbols.length})</summary>
-        <ul>{layoutState.scene.symbols.map((symbol) => <li key={symbol.id}>
+        <ul>{orderNamed(layoutState.scene.symbols, symbol => symbol.classification.name).map((symbol) => <li key={symbol.id}>
           {symbol.classification.name} (class {symbol.classification.id}) — {symbol.id}; {symbol.status === 'manually_added' ? 'manually added' : 'confirmed'}; x {symbol.position[0]} m, y {symbol.position[2]} m.
         </li>)}</ul>
       </details>}

@@ -1,13 +1,39 @@
 // Observations stay in source pixels; they are not generated circuits or heights.
 export function initialWiringDraft(record) {
-  const saved = structuredClone(record.review?.observed_wiring || [])
+  const saved = structuredClone(record.observed_wiring ?? record.review?.observed_wiring ?? [])
   const identities = new Set(saved.map((wire) => wire.id))
   const missing = (record.candidate?.payload.observed_routes?.segments || [])
     .filter((segment) => !identities.has(segment.id)).map((segment) => ({
     id: segment.id, disposition: 'unresolved', points: structuredClone(segment.points),
     completeness: 'partial', elevation_meters: null,
+    line_style: segment.line_style ?? 'unknown',
   }))
-  return [...saved, ...missing]
+  // The service may append paths for newly added/classified devices. Saved
+  // geometry/tombstones still win for existing identities, never stale copies.
+  const persisted = new Map((record.review?.generated_wiring ?? []).map(wire => [wire.id,wire]))
+  const generated = (record.generated_wiring ?? record.review?.generated_wiring ?? []).map(wire => {
+    const saved = persisted.get(wire.id)
+    if (wire.suppression_reason === 'redundant_observed_connection' && saved?.disposition === 'unresolved') return wire
+    if (saved && wire.installation_method && wire.installation_method !== 'unknown'
+      && (!saved.installation_method || saved.installation_method === 'unknown')) {
+      return {...saved, installation_method:wire.installation_method, line_style:wire.line_style,
+        wiring_legend_id:wire.wiring_legend_id, wiring_legend_name:wire.wiring_legend_name}
+    }
+    return saved ?? wire
+  })
+  for (const [id,wire] of persisted) if (!generated.some(item => item.id===id)) generated.push(wire)
+  return [...saved, ...missing, ...structuredClone(generated).map(wire => ({ ...wire, origin: 'generated' }))]
+}
+
+export function wiringSavePayload(wires) {
+  return {
+    observed_wiring: wires.filter(w => w.origin !== 'generated'),
+    generated_wiring: wires.filter(w => w.origin === 'generated').map(wire => {
+      const saved = { ...wire }
+      delete saved.origin
+      return saved
+    }),
+  }
 }
 
 export function parseWiringPoints(text, width, height) {

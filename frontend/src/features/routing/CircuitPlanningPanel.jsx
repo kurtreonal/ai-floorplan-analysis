@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { orderNamed } from '../../utils/listOrder.js'
 import { previewCircuit, saveCircuit } from '../../api/routing.js'
 import { Button } from '../../components/ui/button.jsx'
 import { CanonicalLayoutCanvas } from '../editor-2d/CanonicalLayoutCanvas.jsx'
@@ -142,7 +143,7 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
     } finally { if (!controller.signal.aborted) setBusy(false) }
   }
 
-  const walls = layout.geometry.walls.filter((wall) => wall.status === 'verified')
+  const walls = orderNamed(layout.geometry.walls.filter((wall) => wall.status === 'verified'), wall => wall.id)
   const savedTargets = new Map(initialConfiguration?.targets.map((target) => [target.symbol_id, target]) ?? [])
   const savedFields = initialConfiguration ? {
     panelX: initialConfiguration.panel.x, panelY: initialConfiguration.panel.y,
@@ -169,7 +170,7 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
           {[['panelX', 'Circuit panel x (m)'], ['panelY', 'Circuit panel y (m)'], ['panelHeight', 'Circuit panel elevation (m)'], ['service', 'Circuit service elevation (m)']].map(([name, label]) => <label className="studio-field" key={name}>{label}<input name={name} type="number" step="any" required defaultValue={savedFields[name] ?? ''} /></label>)}
           <label className="studio-field">Circuit panel wall<select name="panelWall" defaultValue={initialConfiguration?.panel.wall_id ?? ''}>{wallOptions}</select></label>
           <label className="studio-field">Circuit graph spacing (m)<input name="step" type="number" min="0.1" max="5" step="0.1" defaultValue={initialConfiguration?.grid_step_meters ?? '0.5'} required /></label>
-          <div className="circuit-preview-members">{layout.geometry.symbols.map((symbol) => <fieldset key={symbol.id}>
+          <div className="circuit-preview-members">{orderNamed(layout.geometry.symbols, symbol => symbol.class.name).map((symbol) => <fieldset key={symbol.id}>
             <legend>{symbol.class.name} · {symbol.id}</legend>
             <label><input type="checkbox" checked={selected.includes(symbol.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, symbol.id] : current.filter((id) => id !== symbol.id))} />Include {symbol.class.name} · {symbol.id}</label>
             <label className="studio-field">Elevation for {symbol.id} (m)<input name={`height:${symbol.id}`} type="number" step="any" disabled={!selected.includes(symbol.id)} required={selected.includes(symbol.id)} defaultValue={savedTargets.get(symbol.id)?.elevation_meters ?? ''} /></label>

@@ -90,14 +90,14 @@ export function DrawingRegionPanel({ record, region, onRegionChange, onSelectReg
       </label>)}
     </fieldset>
     <label><input type="checkbox" checked={acknowledged} disabled={busy || Boolean(state.job)}
-      onChange={(event) => setAcknowledged(event.target.checked)} /> Save this draft first if needed. The new job does not carry corrections forward; earlier reviews/layouts remain stored. Opening its result leaves unsaved edits.</label>
+      onChange={(event) => setAcknowledged(event.target.checked)} /> Save this draft first if needed. Saved manual replacement drawings carry forward only on the same source page and drawing region; other corrections remain in earlier reviews/layouts. Opening its result leaves unsaved edits.</label>
     <Button disabled={busy || Boolean(state.job) || !validRegion || !acknowledged} onClick={start}>
       {busy ? 'Starting…' : locked ? 'Retry identical request' : 'Process selected drawing'}
     </Button>
     {state.job && <p role="status">Job #{jobId}: {jobStatus}. {state.job.error_message || ''}</p>}
     {state.message && <p role={state.status === 'error' ? 'alert' : 'status'}>{state.message}</p>}
     {state.job && ['queued', 'processing'].includes(jobStatus) && <Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh status</Button>}
-    {jobStatus === 'completed' && <a href={getDemoInterpretationHref(projectId, projectFloorId, floorPlanId, jobId)}>Open new proposals for correction</a>}
+    {jobStatus === 'completed' && <a href={getDemoInterpretationHref(projectId, projectFloorId, floorPlanId, jobId)}>Open plan editor</a>}
     {['failed', 'cancelled'].includes(jobStatus) && <Button variant="outline" onClick={() => {
       requestRef.current = null
       onFreezeRegion?.(null)

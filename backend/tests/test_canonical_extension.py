@@ -75,6 +75,22 @@ UNSUPPORTED_PATH = FIXTURES_DIR / "canonical_extension_v2_unsupported.json"
 
 
 class CanonicalExtensionTests(unittest.TestCase):
+    def test_version_four_device_anchors_preserve_old_snapshots_and_validate_links(self):
+        base=json.loads(BASE_FIXTURE_PATH.read_text(encoding='utf-8'))
+        symbol=base['symbols'][0];point=base['routes'][0]['points'][-1]
+        value=json.loads(EXT_V2_PATH.read_text(encoding='utf-8'))
+        value['extension_schema_version']=4
+        value['symbol_details'][0]['installation']={'elevation_meters':0,'wall_id':None}
+        for detail in value['route_details']:
+            detail['device_connections']=[dict(symbol_id=symbol['id'],point_index=1,
+                anchor={k:point[k] for k in ('x','y','elevation_meters')})]
+        document=canonical_geometry_from_dict(base)
+        self.assertEqual(canonical_extension_from_dict(value,document).to_dict(),value)
+        bad=copy.deepcopy(value);bad['route_details'][0]['device_connections'][0]['symbol_id']='detected:999999'
+        with self.assertRaises(CanonicalGeometryError):canonical_extension_from_dict(bad,document)
+        bad=copy.deepcopy(value);bad['route_details'][0]['device_connections'][0]['anchor']['elevation_meters']=.1
+        with self.assertRaises(CanonicalGeometryError):canonical_extension_from_dict(bad,document)
+
     def test_explicit_installation_requires_version_three_and_valid_wall_identity(self):
         base=json.loads(BASE_FIXTURE_PATH.read_text(encoding='utf-8'))
         document=canonical_geometry_from_dict(base)

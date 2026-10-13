@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from math import hypot
 
 import cv2
@@ -25,13 +25,16 @@ from app.ai.floor_plan_interpretation.candidate import (
 )
 from app.ai.wall_detection.config import WallDetectionParameters
 from app.ai.wall_detection.detector import detect_wall_lines
+from app.ai.floor_plan_interpretation.chromatic_walls import CONFIGURATION as CHROMATIC_CONFIGURATION
+from app.ai.wall_detection.paired_boundaries import CONFIGURATION as PAIRED_CONFIGURATION
+from app.ai.floor_plan_interpretation.fixture_wiring import CONFIGURATION as FIXTURE_WIRING_CONFIGURATION
 
 
 MAXIMUM_IMAGE_EDGE = 4096
 MAXIMUM_IMAGE_PIXELS = 60_000_000
 SAFE_ERROR_MESSAGE = "The local demo floor-plan interpretation failed."
 # Bump when preprocessing/structural evidence changes; independent of symbol weights.
-EVIDENCE_VERSION = "cv-stable-drawing-scope-v8"
+EVIDENCE_VERSION = "cv-paired-partition-switch-proposals-v15"
 
 
 class DemoCVError(RuntimeError):
@@ -63,6 +66,26 @@ class DemoCVParameters:
             raise DemoCVError("INVALID_CONFIGURATION")
 
 
+def wall_parameters(width, height, maximum_walls=300):
+    return WallDetectionParameters(
+        hough_vote_threshold=max(20, round(min(width, height) * 0.012)),
+        minimum_line_length=max(24, min(width, height) * 0.02),
+        maximum_line_gap=max(6, min(width, height) * 0.004),
+        maximum_candidates=maximum_walls, structural_mode=True)
+
+
+def preprocessing_configuration(width, height):
+    """Actual source-pixel configuration, not a paper-size/DPI assumption."""
+    return dict(version=EVIDENCE_VERSION, color='RGB-to-gray', resize='none',
+                threshold='adaptive-gaussian', block_size=max(31, round(min(width, height)*.09)) | 1,
+                threshold_c=12, continuity_c=8, parameters=asdict(DemoCVParameters()),
+                walls=asdict(wall_parameters(width, height)),
+                chromatic_walls=CHROMATIC_CONFIGURATION.copy(), paired_wall_boundaries=PAIRED_CONFIGURATION.copy(), switch_gang_policy='provisional-switch-gang-count-v1', wall_band_geometry='qualified-band-centres-v2',
+                wall_junctions='source-supported-overshoot-trim-dedup-v3',
+                fixture_wiring=FIXTURE_WIRING_CONFIGURATION.copy(),
+                opencv=cv2.__version__, numpy=np.__version__)
+
+
 def _validate_image(source: object) -> np.ndarray:
     if (
         not isinstance(source, np.ndarray)
@@ -82,8 +105,53 @@ def _validate_image(source: object) -> np.ndarray:
     return source
 
 
+def _column_frame_bounds(ink):
+    """A repeated architectural-column frame can separate drawing from titles.
+
+    Require a broad four-column top row and two opposing lower columns over a
+    substantial page area. Compact device glyphs alone cannot establish scope.
+    Never applies to an explicitly selected drawing region.
+    """
+    height,width=ink.shape
+    size=max(3,round(min(width,height)*.01))|1
+    core=cv2.erode(ink,np.ones((size,size),np.uint8))
+    contours,_=cv2.findContours(core,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    boxes=[cv2.boundingRect(c) for c in contours]
+    boxes=[b for b in boxes if min(b[2:])>=size*.85 and max(b[2:])<=size*5
+           and .65<=b[2]/b[3]<=1.55]
+    if not 8<=len(boxes)<=256:
+        return None
+    rows=[]
+    for box in sorted(boxes,key=lambda b:b[1]+b[3]/2):
+        cy=box[1]+box[3]/2
+        if not rows or abs(cy-np.mean([b[1]+b[3]/2 for b in rows[-1]]))>size*2:
+            rows.append([])
+        rows[-1].append(box)
+    frames=[]
+    for top in rows:
+        if len(top)<4:
+            continue
+        left=min(b[0] for b in top); right=max(b[0]+b[2] for b in top)
+        y=min(b[1] for b in top)
+        for bottom in rows:
+            low=min(b[0] for b in bottom); high=max(b[0]+b[2] for b in bottom)
+            end=max(b[1]+b[3] for b in bottom)
+            if (len(bottom)<2 or end-y<height*.4 or right-left<width*.25
+                    or (right-left)*(end-y)<width*height*.2
+                    or abs(low-left)>size*5 or abs(high-right)>size*5):
+                continue
+            padding=size*2
+            x0=max(0,min(left,low)-padding); y0=max(0,y-padding)
+            x1=min(width,max(right,high)+padding); y1=min(height,end+padding)
+            frames.append((x0,y0,x1-x0,y1-y0))
+    return max(frames,key=lambda b:b[2]*b[3]) if frames else None
+
+
 def _plan_bounds(ink: np.ndarray) -> tuple[int, int, int, int]:
     height, width = ink.shape
+    column_frame=_column_frame_bounds(ink)
+    if column_frame is not None:
+        return column_frame
     working = ink.copy()
     margin = max(2, round(min(width, height) * 0.015))
     working[:margin, :] = 0
@@ -318,13 +386,7 @@ def interpret_floor_plan_demo(
         wall_result = detect_wall_lines(
             masked_binary,
             continuity_source=masked_continuity,
-            parameters=WallDetectionParameters(
-                hough_vote_threshold=max(20, round(min(width, height) * 0.012)),
-                minimum_line_length=max(24, min(width, height) * 0.02),
-                maximum_line_gap=max(6, min(width, height) * 0.004),
-                maximum_candidates=selected.maximum_walls,
-                structural_mode=True,
-            ),
+            parameters=wall_parameters(width, height, selected.maximum_walls),
         )
         # Room proposals share structural evidence with walls. Raw lighting grids
         # must not independently partition free space into fictitious rooms.
@@ -344,6 +406,7 @@ def interpret_floor_plan_demo(
             id=f"wall-{index:04d}",
             start=PixelPoint(x=item.start.x, y=item.start.y),
             end=PixelPoint(x=item.end.x, y=item.end.y),
+            estimated_thickness_pixels=item.estimated_thickness_pixels,
             evidence_refs=evidence_ref,
             ambiguity="ambiguous",
         )

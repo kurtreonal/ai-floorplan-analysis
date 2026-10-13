@@ -1,5 +1,9 @@
 import { normalizeCanonicalGeometry } from '../../geometry/canonicalGeometry.js'
 import { normalizeCanonicalExtension } from '../../geometry/canonicalExtension.js'
+import { devicePlacement,deviceConnector } from './devicePlacement.js'
+import { deviceFamily } from '../detection-review/devicePresentation.js'
+import { connectionLead } from './connectionGeometry.js'
+import {sceneWallTopology} from '../../geometry/wallTopology.js'
 
 export function canonicalPointToWorld(point, elevation) {
   if (![point.x, point.y, elevation].every(Number.isFinite)) throw new Error('Invalid metric position.')
@@ -46,11 +50,11 @@ export function buildCanonicalScene(document, extension = null) {
       end: canonicalPointToWorld(end, end.elevation_meters),
     }]
   }))
-  return {
+  const scene = {
     width, depth, elevation,
     target: [width / 2, elevation, depth / 2],
     extent: Math.max(width, depth, ...walls.map((wall) => wall.size[1]), 1),
-    walls,
+    walls:sceneWallTopology(walls).walls,
     routeSegments, omittedRouteSegmentCount,
     omittedWallCount: geometry.walls.length - walls.length,
     rooms: geometry.rooms.map((room) => ({ id: room.id, boundary: room.boundary })),
@@ -60,4 +64,35 @@ export function buildCanonicalScene(document, extension = null) {
       ...(installations.has(symbol.id) ? {installation:installations.get(symbol.id)} : {}),
     })),
   }
+  if (normalizedExtension?.extension_schema_version===4) {
+    const contacts = new Map(details.map(d => [d.route_id,d.device_connections]))
+    const replacement=[]
+    for (const segment of scene.routeSegments) {
+      const bindings=contacts.get(segment.routeId) || []
+      let projected=false
+      for (const contact of bindings) {
+        const index=contact.point_index
+        const atStart=index===segment.segmentIndex, atEnd=index===segment.segmentIndex+1
+        const terminal=atStart ? segment.start : atEnd ? segment.end : null
+        // Only the stored mounting-level termination is adjusted. Service
+        // contacts remain service contacts; no second drop is inferred here.
+        if (!terminal || terminal[1]!==contact.anchor.elevation_meters) continue
+        const symbol=scene.symbols.find(s => s.id===contact.symbol_id)
+        if (!symbol?.installation) continue
+        const connector=deviceConnector(devicePlacement(symbol,scene,deviceFamily(symbol.classification.name)))
+        const service=atEnd ? segment.start : segment.end
+        const lead=connectionLead(service,connector)
+        // A measured canonical vertical branch gets one wall-aligned display
+        // rise/drop. Its small housing offset never changes measured geometry.
+        if (service[0]===terminal[0] && service[2]===terminal[2] && service[1]!==terminal[1]) {
+          replacement.push(...(atEnd ? lead : lead.slice().reverse().map(s => ({...s,start:s.end,end:s.start})))
+            .map(s => ({...segment,start:s.start,end:s.end,displayAttachment:true,connectionAnchors:[service,connector]})))
+        } else replacement.push({...segment,start:atStart ? connector : segment.start,end:atEnd ? connector : segment.end,connectionAnchors:[connector]})
+        projected=true;break
+      }
+      if (!projected)replacement.push(segment)
+    }
+    scene.routeSegments=replacement
+  }
+  return scene
 }

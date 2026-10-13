@@ -4,8 +4,10 @@ import { listProjects, ProjectApiError } from '../../api/projects.js'
 import { getProjectHref } from '../../routes/projectRoutes.js'
 import { CreateProjectForm } from './CreateProjectForm.jsx'
 import { AdminLegendPanel } from '../admin/AdminLegendPanel.jsx'
+import { AdminMaterialImport } from '../admin/AdminMaterialImport.jsx'
 import { Search, FolderOpen, SlidersHorizontal } from 'lucide-react'
 import { Input } from '../../components/ui/input.jsx'
+import { compareLabels } from '../../utils/listOrder.js'
 
 
 function formatStatus(status) {
@@ -40,12 +42,12 @@ export function ProjectDashboardPage({ session }) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [sort, setSort] = useState('updated')
+  const [sort, setSort] = useState('name')
   const isDesigner = session.user.role === 'DESIGNER'
   const filteredProjects = projects.filter((project) =>
     (statusFilter === 'all' || project.status === statusFilter)
     && [project.name, project.client_name, project.location, String(project.id)].filter(Boolean).join(' ').toLowerCase().includes(search.trim().toLowerCase()),
-  ).sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : new Date(b.updated_at) - new Date(a.updated_at))
+  ).sort((a, b) => (sort === 'name' ? compareLabels(a.name,b.name) : new Date(b.updated_at) - new Date(a.updated_at)) || compareLabels(a.id,b.id))
 
   useEffect(() => {
     const controller = new AbortController()
@@ -89,6 +91,7 @@ export function ProjectDashboardPage({ session }) {
       </section>
 
       {session.user.role === 'ADMIN' && <AdminLegendPanel />}
+      {session.user.role === 'ADMIN' && <AdminMaterialImport />}
       {isDesigner && <details className="studio-create-project" open><summary><FolderOpen size={18} aria-hidden="true" />Create a project<span>Start with an original floor plan</span></summary><CreateProjectForm onCreated={handleCreated} /></details>}
 
       <section className="project-list-panel" aria-labelledby="project-list-title">

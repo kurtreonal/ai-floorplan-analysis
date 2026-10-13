@@ -39,11 +39,13 @@ def _error(error: DemoInterpretationError) -> HTTPException:
         "METRIC_INPUTS_UNRESOLVED": status.HTTP_409_CONFLICT,
         "SCALE_REFERENCE_MISMATCH": status.HTTP_409_CONFLICT,
         "SYMBOL_MAPPING_REQUIRED": status.HTTP_409_CONFLICT,
+        "PROVISIONAL_SWITCH_COUNT_REQUIRES_CORRECTION": status.HTTP_409_CONFLICT,
         "LAYOUT_REVIEW_NOT_APPROVED": status.HTTP_409_CONFLICT,
         "OBSERVED_WIRING_INCOMPLETE": status.HTTP_409_CONFLICT,
         "OBSERVED_WIRING_ELEVATION_REQUIRED": status.HTTP_409_CONFLICT,
     }.get(error.code, status.HTTP_422_UNPROCESSABLE_CONTENT)
     public_codes = {
+        "INVALID_DEVICE_ATTACHMENT", "DEVICE_MOUNTING_HEIGHT_REQUIRED", "DEVICE_NOT_ON_MOUNTING_WALL",
         "AUTHORIZATION_DENIED",
         "DATASET_APPROVER_AUTHORITY_INVALID",
         "DATASET_APPROVER_SELF_APPROVAL_DENIED",
@@ -60,6 +62,7 @@ def _error(error: DemoInterpretationError) -> HTTPException:
         "DUPLICATE_ROOM_IDENTITY",
         "DUPLICATE_SYMBOL_IDENTITY",
         "SYMBOL_MAPPING_REQUIRED",
+        "PROVISIONAL_SWITCH_COUNT_REQUIRES_CORRECTION",
         "APPROVED_GEOMETRY_EMPTY",
         "LAYOUT_REVIEW_NOT_APPROVED",
         "METRIC_INPUTS_UNRESOLVED",
@@ -108,6 +111,12 @@ def _response(record: DemoInterpretationRecord) -> DemoInterpretationResponse:
         floor_plan_page_id=record.run.floor_plan_page_id,
         candidate=record.candidate,
         review=_review(record),
+        observed_wiring=record.observed_wiring or [],
+        generated_wiring=record.generated_wiring or [],
+        draft_wiring_limitations=record.draft_wiring_limitations or [],
+        draft_walls=record.draft_walls,
+        draft_review=record.draft_review,
+        routing_context=record.routing_context or {},
     )
 
 

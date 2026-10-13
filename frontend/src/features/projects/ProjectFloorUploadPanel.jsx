@@ -14,6 +14,7 @@ import { CreateProjectFloorForm } from './CreateProjectFloorForm.jsx'
 import { FloorPlanUploadForm } from './FloorPlanUploadForm.jsx'
 import { ProcessingJobPanel } from './ProcessingJobPanel.jsx'
 import { AnalysisSettingsPanel } from './AnalysisSettingsPanel.jsx'
+import { orderFloors, orderNamed } from '../../utils/listOrder.js'
 
 
 function getFloorListError(error) {
@@ -170,7 +171,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
       <div className="project-section-heading">
         <span className="project-kicker mono">FLOOR PLANS</span>
         <h2 id="project-floor-panel-title">Project floor plans</h2>
-        <p>1. Create or select a floor. 2. Upload a JPEG, PNG, or PDF. 3. Start processing on its card below. 4. Open “Review floor-plan proposals” for the room-first 2D / 3D preview.</p>
+        <p>Create a floor, upload a JPEG, PNG or PDF, then analyze and open the plan editor.</p>
         <p>Saved layout links open approved results only. For an unfinished preview, use the completed floor-plan processing card.</p>
       </div>
 
@@ -208,12 +209,12 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
               <p>Floor-plan uploads require a Designer account.</p>
               {floors.length > 0 && <label>Settings floor
                 <select value={selectedFloorId} onChange={(event) => setSelectedFloorId(event.target.value)}>
-                  {floors.map((floor) => <option key={floor.id} value={floor.id}>{floor.name}</option>)}
+                  {orderFloors(floors).map((floor) => <option key={floor.id} value={floor.id}>{floor.name}</option>)}
                 </select>
               </label>}
               {floors.length > 0 && (
                 <ul>
-                  {floors.map((floor) => (
+                  {orderFloors(floors).map((floor) => (
                     <li key={floor.id}>
                       <span>
                         <strong>{floor.name}</strong>
@@ -251,7 +252,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                       disabled={isUploading}
                       onChange={(event) => setSelectedFloorId(event.target.value)}
                     >
-                      {floors.map((floor) => (
+                      {orderFloors(floors).map((floor) => (
                         <option key={floor.id} value={floor.id}>{floor.name}</option>
                       ))}
                     </select>
@@ -318,7 +319,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
             <section className="session-upload-section" aria-labelledby="persisted-plan-title">
               <h3 id="persisted-plan-title">Saved floor plans</h3>
               <div className="session-upload-grid">
-                {visiblePlans.map((upload) => (
+                {orderNamed(visiblePlans, plan => plan.original_filename).map((upload) => (
                   <article className="session-upload-card" key={upload.id}>
                     <strong>{upload.original_filename}</strong>
                     <dl>

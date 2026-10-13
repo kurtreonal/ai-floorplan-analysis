@@ -198,7 +198,8 @@ def create_manual_symbol(
             database_session,
             symbol_legend_id=symbol_legend_id,
         )
-        if legend is None or not legend.is_active:
+        from app.services.pdf_legend_catalog import is_wiring_legend
+        if legend is None or not legend.is_active or is_wiring_legend(legend.name):
             raise ManualSymbolServiceError("SYMBOL_LEGEND_UNAVAILABLE")
         if x < 0 or y < 0 or x > review_image.width or y > review_image.height:
             raise ManualSymbolServiceError("INVALID_MANUAL_SYMBOL_POSITION")

@@ -776,7 +776,7 @@ class DetectionResultsApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 43)
+        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
 
     def test_schema_and_storage_remain_stable(self) -> None:
         self.assertEqual(tuple(sorted(Wall.metadata.tables)), TABLES)

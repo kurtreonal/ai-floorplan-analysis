@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Canvas } from '@react-three/fiber'
@@ -31,5 +31,13 @@ describe('3D canvas foundation', () => {
       }),
       undefined,
     )
+  })
+  it('starts in spectator mode and keeps orbit navigation available', () => {
+    render(<Viewer3DCanvas controlsRef={{current:null}} />)
+    expect(screen.getByRole('button',{name:'Free fly'}).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByText(/Shift sprint/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button',{name:'Free fly'}))
+    expect(screen.getByRole('button',{name:'Orbit'}).getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByText(/Drag to orbit/)).toBeTruthy()
   })
 })

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { orderList } from '../../utils/listOrder.js'
 
 import { fetchAnalysisSettings, saveFloorElevation, savePageScale } from '../../api/analysisSettings.js'
 
@@ -106,7 +107,7 @@ export function AnalysisSettingsPanel({ projectId, floorId, canEdit }) {
             if (!options.signal.aborted) setData((current) => ({ ...current, elevation }))
           }} />
         {data.pages.length === 0 && <p>No source pages available. Upload a floor plan to review its scale.</p>}
-        {data.pages.map((page) => <section key={page.floor_plan_page_id} aria-label={`Plan ${page.floor_plan_id}, page ${page.page_number}`}>
+        {orderList(data.pages, page => page.floor_plan_id, page => page.page_number).map((page) => <section key={page.floor_plan_page_id} aria-label={`Plan ${page.floor_plan_id}, page ${page.page_number}`}>
           <h3>Plan #{page.floor_plan_id}, page {page.page_number}</h3>
           <ApprovalForm key={`scale-${page.scale.revision_id}`} record={page.scale} scale canEdit={canEdit}
             onSave={async (body, options) => {

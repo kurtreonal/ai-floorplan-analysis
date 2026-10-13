@@ -267,7 +267,9 @@ def test_selected_candidate_draft_edits_reload_without_replacing_historical_run_
     assert old.run.id == c['run'].id
     assert old.candidate.model_dump_json() == historical[0]
     assert old.review.id == c['review'].id
-    assert old.review_document == json.loads(historical[2])
+    # Runtime wiring views are additive; immutable persisted review bytes below
+    # remain the historical authority, not the derived empty wiring arrays.
+    assert old.review_document == {**json.loads(historical[2]),'observed_wiring':[],'generated_wiring':[]}
     data = dict(candidate_run_id=run.candidate_run_id,expected_revision_number=None,
         review_complete=False,approved_for_layout=False,wall_thickness_meters=None,wall_height_meters=None,
         evidence_notes='Incomplete selected drawing draft; no approval or mapping implied.',

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { orderNamed } from '../../utils/listOrder.js'
 import { routingRequest } from '../../api/routing.js'
 import { RoutingObstacles } from './RoutingObstacles.jsx'
 import { obstacleRows, routingObstaclesFromRows } from './routeObstacles.js'
@@ -75,8 +76,8 @@ function RoutingForm({ layout, record, onSaved, initialObstacles, obstaclesBlock
         <fieldset disabled={busy || obstaclesBlocked}><legend>Panel and service configuration</legend>
           {[['panelX', 'Panel x (m)'], ['panelY', 'Panel y (m)'], ['panelHeight', 'Panel elevation (m)'], ['service', 'Service elevation (m)'], ['targetHeight', 'Target elevation (m)']].map(([name, label]) => <label key={name}>{label}<input name={name} type="number" step="any" required /></label>)}
           <label>Grid spacing (m)<input name="step" type="number" min="0.1" max="5" step="0.1" defaultValue="0.5" required /></label>
-          <label>Target symbol<select name="symbol" required>{layout.geometry.symbols.map((s) => <option key={s.id} value={s.id}>{s.class.name} — {s.id}</option>)}</select></label>
-          {['panelWall', 'targetWall'].map((name) => <label key={name}>{name === 'panelWall' ? 'Panel wall' : 'Target wall'}<select name={name}><option value="">At service elevation (no wall attachment)</option>{layout.geometry.walls.filter((w) => w.status === 'verified').map((w) => <option key={w.id} value={w.id}>Wall {w.id}</option>)}</select></label>)}
+          <label>Target symbol<select name="symbol" required>{orderNamed(layout.geometry.symbols, s => s.class.name).map((s) => <option key={s.id} value={s.id}>{s.class.name} — {s.id}</option>)}</select></label>
+          {['panelWall', 'targetWall'].map((name) => <label key={name}>{name === 'panelWall' ? 'Panel wall' : 'Target wall'}<select name={name}><option value="">At service elevation (no wall attachment)</option>{orderNamed(layout.geometry.walls.filter((w) => w.status === 'verified'), w => w.id).map((w) => <option key={w.id} value={w.id}>Wall {w.id}</option>)}</select></label>)}
           <RoutingObstacles rows={obstacles} onChange={setObstacles} disabled={busy} scope="Route" />
           <label><input type="checkbox" required />I confirm these coordinates and service elevations for planning.</label>
           <button type="submit" disabled={!layout.geometry.symbols.length}>Calculate and save route</button>

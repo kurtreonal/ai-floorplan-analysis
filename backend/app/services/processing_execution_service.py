@@ -20,6 +20,8 @@ from app.repositories.processing_execution_repository import (
     lock_attempt,
     lock_processing_job,
     maximum_attempt_number,
+    failed_attempt_count,
+    has_trusted_page_continuation,
 )
 from app.repositories.processing_job_repository import find_processing_job_by_id_and_owner
 
@@ -125,7 +127,8 @@ def _expire_active_attempt(
     attempt.active_marker = None
     attempt.finished_at = now
     attempt.failure_code = "LEASE_EXPIRED"
-    if attempt.attempt_number >= MAXIMUM_ATTEMPTS:
+    database_session.flush()
+    if failed_attempt_count(database_session, job_id=job.id) >= MAXIMUM_ATTEMPTS:
         job.status = "failed"
         job.error_message = SAFE_RETRY_EXHAUSTED_MESSAGE
     else:
@@ -155,7 +158,7 @@ def claim_processing_job(
             if attempt.lease_expires_at > now:
                 _fail("PROCESSING_JOB_ALREADY_CLAIMED")
             _expire_active_attempt(database_session, job=job, attempt=attempt, now=now)
-        elif job.status == "processing":
+        elif job.status == "processing" and not has_trusted_page_continuation(database_session, job_id=job.id):
             _fail("LEGACY_PROCESSING_JOB_REQUIRES_RECOVERY")
         if job.status in TERMINAL_JOB_STATUSES:
             database_session.commit()
@@ -166,7 +169,7 @@ def claim_processing_job(
             database_session.commit()
             _fail("PROCESSING_JOB_CANCELLED")
         attempt_number = maximum_attempt_number(database_session, job_id=job.id) + 1
-        if attempt_number > MAXIMUM_ATTEMPTS:
+        if failed_attempt_count(database_session, job_id=job.id) >= MAXIMUM_ATTEMPTS:
             job.status = "failed"
             job.error_message = SAFE_RETRY_EXHAUSTED_MESSAGE
             database_session.flush()
@@ -284,6 +287,7 @@ def finish_processing_attempt(
         attempt.active_marker = None
         attempt.finished_at = now
         attempt.failure_code = failure_code if outcome == "failed" else None
+        database_session.flush()
         if outcome == "succeeded" and complete_job:
             attempt.stage = "completed"
             job.status = "completed"
@@ -297,7 +301,7 @@ def finish_processing_attempt(
         elif outcome == "cancelled":
             job.status = "cancelled"
             cancellation.resolved_at = now
-        elif outcome == "failed" and attempt.attempt_number < MAXIMUM_ATTEMPTS:
+        elif outcome == "failed" and failed_attempt_count(database_session, job_id=job.id) < MAXIMUM_ATTEMPTS:
             job.status = "queued"
             job.error_message = None
         elif outcome == "failed":

@@ -24,6 +24,7 @@ from app.ai.symbol_detection.inference import (
     SymbolPrediction,
 )
 from app.core.database import get_engine
+from app.core.config import get_upload_directory
 from app.models import (
     Base,
     DetectedSymbol,
@@ -103,7 +104,7 @@ class SymbolPersistenceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.engine = get_engine()
-        cls.storage_root = Path(__file__).resolve().parents[2] / "storage"
+        cls.storage_root = get_upload_directory().parent
         cls.storage_hashes = file_hashes(cls.storage_root)
         cls.marker = uuid4().hex
         cls.created_ids: dict[str, object] = {}
@@ -884,7 +885,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             if method.casefold()
             in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 43)
+        self.assertEqual(operations, 49)  # Includes draft BOM CSV as well as material import.
 
 
 if __name__ == "__main__":
