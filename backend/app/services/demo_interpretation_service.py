@@ -555,6 +555,10 @@ def save_approved_interpretation_layout(
             floor_id=project_floor_id,
         )
         candidate = _candidate(run)
+        if any(w.code=='separate_source_views' for w in candidate.payload.warnings):
+            # One project floor cannot silently accept ground/mezzanine sheet coordinates
+            # as one physical floor. Unfinished reviews are still freely saveable.
+            _fail('SOURCE_VIEW_ASSIGNMENT_REQUIRED')
         elevation, pixels_per_meter = require_approved_metric_inputs(
             settings,
             page_id=run.floor_plan_page_id,

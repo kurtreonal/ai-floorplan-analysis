@@ -14,9 +14,9 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.ai.floor_plan_interpretation.candidate import CandidateHostProvenance, InferenceParameter, build_candidate_envelope
+from app.ai.floor_plan_interpretation.candidate import CandidateHostProvenance, CandidateWarning, InferenceParameter, build_candidate_envelope
 from app.ai.floor_plan_interpretation import interpret_floor_plan_demo
-from app.ai.floor_plan_interpretation.demo_cv import EVIDENCE_VERSION as CV_EVIDENCE_VERSION, preprocessing_configuration
+from app.ai.floor_plan_interpretation.demo_cv import EVIDENCE_VERSION as CV_EVIDENCE_VERSION, preprocessing_configuration,DemoCVError
 from app.ai.floor_plan_interpretation.chromatic_walls import with_chromatic_wall_evidence
 from app.ai.floor_plan_interpretation.switch_semantics import with_switch_gang_proposals
 from app.ai.floor_plan_interpretation.automatic_wiring import (
@@ -103,6 +103,10 @@ from app.services.source_identity import resolve_stored_original
 from app.services.drawing_selection_service import (
     DrawingSelectionError, load_drawing_selection, selection_region, trusted_selection_source,
 )
+from app.services.pdf_source_evidence_service import prepare_pdf_source_evidence
+from app.ai.floor_plan_interpretation.pdf_evidence import PdfEvidenceError, PrimitiveIndex
+from app.ai.floor_plan_interpretation.pdf_wall_evidence import with_pdf_wall_evidence, VERSION as PDF_WALL_VERSION
+from app.ai.floor_plan_interpretation.scoped_analysis import merge_view_payloads,failed_geometry_payload,failed_wiring_payload
 
 
 # This path currently executes deterministic OpenCV, not a model gateway.
@@ -112,6 +116,51 @@ LOCAL_PROVIDER = "local_vlm_gateway"
 LEASE_SECONDS = 300
 SAFE_ERROR_MESSAGE = "The interpretation processing job could not be completed."
 _GATEWAY_CACHE: dict[tuple[object, ...], LocalModelGateway] = {}
+
+
+def _interpret_cv_scope(rgb, *, region, experimental, trained, general, linked, pdf_index=None):
+    """Run ALL evidence stages under one view identity before any merging."""
+    def geometry(image,**kwargs):
+        try:return interpret_floor_plan_demo(image,**kwargs)
+        except DemoCVError as error:
+            if error.code!='INFERENCE_FAILED':raise
+            return failed_geometry_payload(image.shape[1],image.shape[0])
+    payload = (interpret_drawing_region(rgb, region=region,
+               interpreter=lambda image: geometry(image,selected_drawing=True))
+               if region is not None else geometry(rgb))
+    if experimental:
+        try:
+            payload = with_pull_station_proposals(payload, locate(rgb, LOCAL_SOURCE))
+        except ExperimentalLocatorUnavailable as error:
+            raise InterpretationProcessingError(str(error)) from None
+    if trained:
+        try:
+            if general:
+                detector_rgb = (rgb[region.y:region.y + region.height, region.x:region.x + region.width].copy()
+                                if region is not None else rgb)
+                proposals, truncated = multiclass.locate(detector_rgb)
+                if region is not None:
+                    proposals = restore_region_predictions(proposals, region=region,source_plane=payload.source_plane)
+                payload = multiclass.with_proposals(payload, proposals, truncated)
+            else:
+                proposals, truncated = locate_trained_symbols(rgb, linked=True) if linked else locate_trained_symbols(rgb)
+                payload = with_trained_symbol_proposals(payload, proposals, truncated, linked=True) if linked else with_trained_symbol_proposals(payload, proposals, truncated)
+        except ExperimentalDetectorUnavailable as error:
+            raise InterpretationProcessingError(str(error)) from None
+    if region is not None:
+        # Trained score/overview evidence stays intact; retain the view identity too.
+        plan_refs=tuple(f'region:{r.id}' for r in payload.regions if r.kind=='plan_region')
+        symbols=tuple(s.model_copy(update={'evidence_refs':tuple(sorted(set(s.evidence_refs+plan_refs)))})
+                      for s in payload.symbols.items)
+        payload=type(payload).model_validate(payload.model_copy(update={
+            'symbols':payload.symbols.model_copy(update={'items':symbols})}).model_dump())
+    payload = with_switch_gang_proposals(payload)
+    payload = with_chromatic_wall_evidence(payload, rgb)
+    payload = with_fixture_wall_conflicts(payload)
+    if pdf_index is not None:
+        payload=with_pdf_wall_evidence(payload,rgb,pdf_index)
+    try:return with_automatic_wiring(payload, rgb)
+    except (ValueError,RuntimeError,cv2.error):return failed_wiring_payload(payload)
 
 
 class InterpretationProcessingError(RuntimeError):
@@ -587,33 +636,60 @@ def process_interpretation_job(
                 # detector when its local gateway is unavailable or fenced.
                 raise InterpretationProcessingError("MODEL_UNAVAILABLE")
             provider = pinned_configuration.provider
-            payload = (interpret_drawing_region(rgb, region=region,
-                       interpreter=lambda image: interpret_floor_plan_demo(image, selected_drawing=True))
-                       if region is not None else interpret_floor_plan_demo(rgb))
-            if experimental:
+            pdf_parameters=()
+            views=()
+            pdf_warning=None
+            pdf_index=None
+            if getattr(floor_plan,'mime_type',None)=='application/pdf' and provider in (PROVIDER,multiclass.PROVIDER):
+                # Preserve source primitives before running raster interpretation.
+                # Explicit human scopes take priority over automatic view proposals.
                 try:
-                    payload = with_pull_station_proposals(payload, locate(rgb, LOCAL_SOURCE))
-                except ExperimentalLocatorUnavailable as error:
-                    raise InterpretationProcessingError(str(error)) from None
-            if trained:
-                try:
-                    if general:
-                        detector_rgb = (rgb[region.y:region.y + region.height, region.x:region.x + region.width].copy()
-                                        if region is not None else rgb)
-                        proposals, truncated = multiclass.locate(detector_rgb)
-                        if region is not None:
-                            proposals = restore_region_predictions(proposals, region=region,
-                                                                   source_plane=payload.source_plane)
-                        payload = multiclass.with_proposals(payload, proposals, truncated)
-                    else:
-                        proposals, truncated = locate_trained_symbols(rgb, linked=True) if linked else locate_trained_symbols(rgb)
-                        payload = with_trained_symbol_proposals(payload, proposals, truncated, linked=True) if linked else with_trained_symbol_proposals(payload, proposals, truncated)
-                except ExperimentalDetectorUnavailable as error:
-                    raise InterpretationProcessingError(str(error)) from None
-            payload = with_switch_gang_proposals(payload)
-            payload = with_chromatic_wall_evidence(payload, rgb)
-            payload = with_fixture_wall_conflicts(payload)
-            payload = with_automatic_wiring(payload, rgb)
+                    evidence,views,pdf_parameters=prepare_pdf_source_evidence(floor_plan=floor_plan,
+                        source_manifest=source_manifest,page=page,artifact=artifact,settings=settings)
+                    pdf_index=PrimitiveIndex(evidence)
+                    pdf_parameters+=(InferenceParameter(name='pdf-wall-evidence-version',value=PDF_WALL_VERSION),)
+                except PdfEvidenceError as error:
+                    if str(error)=='ORIGINAL_INTEGRITY_FAILED':
+                        raise InterpretationProcessingError('ORIGINAL_INTEGRITY_FAILED') from None
+                    pdf_warning=CandidateWarning(code='pdf_evidence_unavailable',severity='warning',
+                        message='PDF vector evidence was unavailable or exceeded its bounded budget. '
+                                'Raster proposals remain reviewable; separate views and line semantics are unresolved.')
+                    pdf_parameters=(InferenceParameter(name='pdf-source-capability',value='unavailable'),)
+                if region is not None:views=()
+            scopes=[v['region'] for v in views] if views else [region]
+            payloads=[]
+            for scope in scopes:
+                if views:
+                    # Stages describe the coordinated job, not each crop. The
+                    # worker already reached symbol_evidence; repeating an older
+                    # geometry stage would violate the PRE9 monotonic fence.
+                    _heartbeat(session,attempt_id=claim.attempt_id,worker_identity=worker_identity,
+                               stage='symbol_evidence')
+                payloads.append(_interpret_cv_scope(rgb,region=scope,experimental=experimental,
+                    trained=trained,general=general,linked=linked,pdf_index=pdf_index))
+            payload=merge_view_payloads(payloads) if views else payloads[0]
+            if views:
+                plan_regions=[r for r in payload.regions if r.kind=='plan_region']
+                summaries=[];outcomes=[]
+                for view,scope_result,plan_region in zip(views,payloads,plan_regions):
+                    summaries.append(dict(label=view['label'],region=view['region'].model_dump(),
+                        state=view['state'],region_id=plan_region.id))
+                    outcomes.append(dict(region_id=plan_region.id,walls=scope_result.walls.state,
+                        symbols=scope_result.symbols.state,wiring=scope_result.observed_routes.state))
+                    # Geometry runs on the native crop; wiring/chromatic stages
+                    # use the scoped full-page plane. Record BOTH configurations.
+                    pdf_parameters+=(InferenceParameter(name=f'preprocessing-view-{plan_region.id}',
+                        value=json.dumps(preprocessing_configuration(view['region'].width,view['region'].height),
+                                         sort_keys=True,separators=(',',':'))),)
+                pdf_parameters=tuple(p for p in pdf_parameters if p.name!='source-view-regions')+(
+                    InferenceParameter(name='source-view-regions',value=json.dumps(summaries,separators=(',',':'))),
+                    InferenceParameter(name='source-view-outcomes',value=json.dumps(outcomes,separators=(',',':'))))
+            if getattr(floor_plan,'mime_type',None)=='application/pdf':
+                warning=pdf_warning or CandidateWarning(code='drawing_legend_required',severity='warning',
+                    message='PDF line styles are preserved, not electrical meanings. Review this drawing\'s '
+                            'legend before assigning installation types; floor/view heights are not inferred.')
+                payload=type(payload).model_validate(payload.model_copy(update={
+                    'document_state':'partial','warnings':payload.warnings+(warning,)}).model_dump())
             candidate = build_candidate_envelope(
                 payload,
                 CandidateHostProvenance(
@@ -637,7 +713,7 @@ def process_interpretation_job(
                                     "partial-label-symbol-detector-v1" if trained else
                                     "pull-template-v1" if experimental else "demo-cv-room-v2"),
                     runtime_version=("ultralytics-local-cpu-v1" if trained else f"opencv-{cv2.__version__}"),
-                    inference_parameters=tuple(sorted(selection_parameters + (
+                    inference_parameters=tuple(sorted(selection_parameters + pdf_parameters + (
                         InferenceParameter(name="preprocessing-configuration", value=json.dumps(
                             preprocessing_configuration(
                                 region.width if region else rgb.shape[1],

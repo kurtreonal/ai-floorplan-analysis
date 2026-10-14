@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import warnings
+import re
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
 from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 
 FORMAT_BY_EXTENSION = {
@@ -115,9 +117,36 @@ def _validate_image(content: bytes, expected_format: str) -> tuple[int, int]:
     return width, height
 
 
+def _strict_pdf_reader(content: bytes):
+    """Recover duplicate viewer preferences only in an ephemeral validation copy.
+
+    Do not enable globally lenient parsing, repair xrefs, or rewrite originals.
+    Equal-length unknown keys retain all byte offsets. PageMode/PageLayout do
+    not define page geometry, content streams, permissions or encryption.
+    """
+    working=content
+    for recovery in range(5):
+        try:
+            reader=PdfReader(BytesIO(working),strict=True)
+            if not reader.is_encrypted:
+                reader.trailer['/Root'].get_object() # Catalog is lazy; parse it inside this guard.
+            return reader
+        except PdfReadError as error:
+            match=re.fullmatch(r'Multiple definitions in dictionary at byte (0x[0-9a-fA-F]+) for key /(PageMode|PageLayout)',str(error))
+            if match is None:raise
+            offset=int(match[1],16)
+            key=('/'+match[2]).encode('ascii')
+            location=working.rfind(key,max(0,offset-64),offset)
+            if location<0:raise
+            if not re.fullmatch(re.escape(key)+rb'\s*/[A-Za-z]{1,32}\s*',working[location:offset]):raise
+            replacement=(f'/VedM{recovery:04d}' if key==b'/PageMode' else f'/VedL{recovery:06d}').encode('ascii')
+            working=working[:location]+replacement+working[location+len(key):]
+    raise PdfReadError('Duplicate viewer preferences exceed validation budget.')
+
+
 def _validate_pdf(content: bytes) -> int:
     try:
-        reader = PdfReader(BytesIO(content), strict=True)
+        reader = _strict_pdf_reader(content)
         if reader.is_encrypted:
             raise _validation_error("UPLOAD_PDF_ENCRYPTED")
 

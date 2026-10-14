@@ -273,7 +273,7 @@ export function ProcessingJobPanel({
 
       {canStart && import.meta.env.DEV && !isActive && viewState !== 'starting' && (
         <div className="processing-detector-selection">
-          <p role="note">Automatic development analysis with all 56 eligible legend entries. Edit results in the plan editor; draft saving needs no per-item confirmation. Independent accuracy remains unverified.</p>
+          <p role="note">Automatic development analysis using the configured trained legend detector. Edit results in the plan editor; draft saving needs no per-item confirmation. Independent accuracy remains unverified.</p>
           <label>Page selection (blank processes all uploaded pages)
             <input type="number" min="1" max="50" step="1" value={pageNumber}
               onChange={(event) => setPageNumber(event.target.value)} />

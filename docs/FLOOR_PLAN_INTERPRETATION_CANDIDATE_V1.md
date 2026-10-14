@@ -84,3 +84,43 @@ U2 does not implement that adapter or alter K1 v1.
 This contract contains no Konva nodes, Three.js meshes, generated routing,
 electrical sizing, cost data, model download, inference code, persistence, API
 operation, or human approval mechanism.
+
+## Vector-aware PDF source/view processing
+
+The PDF-aware worker reads bounded primitives before raster interpretation.
+Its immutable JSON sidecar is separate from PNG `ProcessingArtifact` records;
+no new artifact kind, table, or K1 geometry keys are introduced. The run records
+the sidecar's relative reference/SHA256, original source SHA256, page number,
+PDFium/binding runtime, PDF evidence/view/hatch/orchestration versions, model
+checkpoint and both full-plane and per-view preprocessing configurations.
+Originals are unchanged. Duplicate non-geometric `/PageMode`/`PageLayout`
+preferences are tolerated only in an ephemeral validation copy; strict parsing
+continues to reject ambiguous structural dictionaries and encrypted/corrupt PDFs.
+The sidecar retains commands (including Bezier controls), transforms, native
+clip coordinates/container references, pen widths, dash state, colors, fills,
+text and image bounds. PDF pen width is not physical wall thickness. PDF paths
+are drawing primitives, not CAD layers, installed-device counts or circuits.
+
+Caption-and-image-bank scopes are **partial proposals**, not verified floor
+boundaries. Unsupported single-column/uncaptioned/native-vector-only sheets
+retain raster fallback and require review; they are not silently separated.
+Each source view runs geometry, trained symbols and observed-wiring extraction
+independently. Fusion remaps entity/evidence/connection identities without
+cross-view circuit joins. `source-view-regions` maps labels/rectangles to region
+IDs; `source-view-outcomes` reports wall/symbol/wiring collection states. Model
+runtime failure still fails its job rather than selecting an unpinned fallback.
+Recoverable geometry/wiring failures remain explicit failed layer states.
+
+The multi-view 2D draft can be saved without heights or individual approvals.
+Measured K1 publication requires a single drawing view assigned to its project
+floor (`SOURCE_VIEW_ASSIGNMENT_REQUIRED` otherwise); the existing hash-bound
+region-job workflow creates a new proposal version. It does not overwrite an
+earlier review/layout. Source-supported contact anchors translate with their
+route points when crops are restored. Rendering, drops and takeoff continue to
+use reviewed canonical geometry and stored measurements, never PDF primitives.
+
+PDF line-style observations do not inherit a universal dashed/solid conduit
+meaning. `drawing_legend_required` leaves installation types unresolved unless
+an explicit active catalog mapping is selected. Automated full legend matching,
+arbitrary curve connectivity, complete wall recovery and robust symbol recall
+on unseen sheets are **not proven by this checkpoint**.

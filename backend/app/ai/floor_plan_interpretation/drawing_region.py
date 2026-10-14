@@ -72,6 +72,10 @@ def restore_region_payload(payload, *, region: DrawingRegion, source_plane: Sour
             item["center"], item["bounds"] = point(item["center"]), bounds(item["bounds"])
     for item in result["observed_routes"]["segments"]:
         item["points"] = [point(value) for value in item["points"]]
+    for item in result["observed_routes"]["connections"]:
+        for key in ("path_anchor", "device_anchor"):
+            if item.get(key) is not None:
+                item[key] = point(item[key])
     result["source_plane"] = source_plane.model_dump(mode="json")
     # The rest of the sheet was not processed, not verified empty background.
     if result["document_state"] != "failed":

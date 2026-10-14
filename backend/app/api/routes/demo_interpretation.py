@@ -43,9 +43,11 @@ def _error(error: DemoInterpretationError) -> HTTPException:
         "LAYOUT_REVIEW_NOT_APPROVED": status.HTTP_409_CONFLICT,
         "OBSERVED_WIRING_INCOMPLETE": status.HTTP_409_CONFLICT,
         "OBSERVED_WIRING_ELEVATION_REQUIRED": status.HTTP_409_CONFLICT,
+        "SOURCE_VIEW_ASSIGNMENT_REQUIRED": status.HTTP_409_CONFLICT,
     }.get(error.code, status.HTTP_422_UNPROCESSABLE_CONTENT)
     public_codes = {
         "INVALID_DEVICE_ATTACHMENT", "DEVICE_MOUNTING_HEIGHT_REQUIRED", "DEVICE_NOT_ON_MOUNTING_WALL",
+        "SOURCE_VIEW_ASSIGNMENT_REQUIRED",
         "AUTHORIZATION_DENIED",
         "DATASET_APPROVER_AUTHORITY_INVALID",
         "DATASET_APPROVER_SELF_APPROVAL_DENIED",
@@ -79,7 +81,10 @@ def _error(error: DemoInterpretationError) -> HTTPException:
         detail={
             "error": {
                 "code": code,
-                "message": "The demo interpretation operation could not be completed.",
+                "message": ("Assign one drawing view to this floor before measured canonical publication. "
+                            "The multi-view 2D draft can still be saved."
+                            if error.code=='SOURCE_VIEW_ASSIGNMENT_REQUIRED' else
+                            "The demo interpretation operation could not be completed."),
                 "details": {},
             }
         },

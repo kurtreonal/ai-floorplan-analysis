@@ -113,10 +113,11 @@ describe('processing job panel', () => {
     })
   })
 
-  it('describes all 56 entries without claiming accuracy or auto-approval', async () => {
+  it('describes the configured detector without inventing a class count or claiming accuracy', async () => {
     startFloorPlanProcessing.mockResolvedValueOnce({ job_id: JOB_ID, status: 'queued' })
     renderPanel()
-    expect(screen.getByText(/all 56 eligible legend entries/i)).toBeTruthy()
+    expect(screen.getByText(/configured trained legend detector/i)).toBeTruthy()
+    expect(screen.queryByText(/all 56 eligible legend entries/i)).toBeNull()
     expect(screen.getByText(/Independent accuracy remains unverified/i)).toBeTruthy()
     expect(screen.getByText(/draft saving needs no per-item confirmation/i)).toBeTruthy()
     fireEvent.change(screen.getByLabelText(/Page selection/), { target: { value: '3' } })

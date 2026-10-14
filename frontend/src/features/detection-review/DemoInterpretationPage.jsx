@@ -16,6 +16,7 @@ import {
   getViewer3dHref,
 } from '../../routes/projectRoutes.js'
 import { DemoInterpretationCanvas } from './DemoInterpretationCanvas.jsx'
+import { SourceViewsPanel } from './SourceViewsPanel.jsx'
 import { ObservedWiringPanel } from './ObservedWiringPanel.jsx'
 import { WireDeviceConnections } from './WireDeviceConnections.jsx'
 import { BOMPanel } from '../estimation/BOMPanel.jsx'
@@ -160,6 +161,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const [placementLegendId, setPlacementLegendId] = useState('')
   const [drawingWireMethod, setDrawingWireMethod] = useState('concealed_in_ceiling')
   const [editingSession, setEditingSession] = useState(0)
+  const [analysisRegion, setAnalysisRegion] = useState(null)
   const [blueprintOpacity, setBlueprintOpacity] = useState(1.0)
   const [history, setHistory] = useState([])
   const [historyIndex, setHistoryIndex] = useState(-1)
@@ -482,6 +484,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   )
   const activeWallsCount = draft.walls.filter((item) => item.disposition !== 'rejected').length
   const activeRoomsCount = draft.rooms.filter((item) => item.disposition !== 'rejected').length
+  const activeSymbols = draft.symbols.filter(item => item.disposition !== 'rejected')
+  const annotationCount = activeSymbols.filter(item => presentations[item.id]?.family === 'annotation').length
 
   return (
     <article className="detection-review-page demo-review-page studio-review-page">
@@ -511,12 +515,16 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       {state.record.draft_wiring_limitations?.length > 0 && <details><summary>Wiring connectivity</summary>{state.record.draft_wiring_limitations.map(note => <p key={note}>{note}</p>)}</details>}
       {state.legends.length === 0 && <details><summary>Do I need a symbol legend?</summary><p>Not for wall review or 3D preview. Electrical-symbol approval requires an approved VED legend.</p></details>}
 
+      <SourceViewsPanel key={state.record.candidate_run_id} record={state.record} region={analysisRegion}
+        onRegionChange={setAnalysisRegion} onSelectRegion={() => { setView('2d'); setTool('region') }}
+        onFreezeRegion={() => setTool('select')}
+        projectId={projectId} projectFloorId={projectFloorId} floorPlanId={floorPlanId} />
       <div className="studio-review-headerbar">
         <div className="studio-review-mode" role="group" aria-label="Preview mode">
           <Button variant={view === '2d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '2d'} aria-label="2D · Review rooms" onClick={() => setView('2d')}><Layers3 aria-hidden="true" />Edit 2D</Button>
           <Button variant={view === '3d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '3d'} aria-label="3D · Draft preview" onClick={() => { setView('3d'); setTool('select') }}><Box aria-hidden="true" />View 3D</Button>
         </div>
-        <span className="mono studio-draft-status">SHARED DRAFT · {draft.symbols.filter((item) => item.disposition !== 'rejected').length} DEVICES</span>
+        <span className="mono studio-draft-status">SHARED DRAFT · {activeSymbols.length - annotationCount} DEVICE PROPOSALS{annotationCount > 0 && <> · {annotationCount} ANNOTATIONS</>}</span>
         <Button variant="ghost" size="icon" aria-label="Undo" disabled={historyIndex <= 0} onClick={handleUndo}><Undo2 aria-hidden="true" /></Button>
         <Button variant="ghost" size="icon" aria-label="Redo" disabled={historyIndex >= history.length - 1} onClick={handleRedo}><Redo2 aria-hidden="true" /></Button>
         <Button size="sm" disabled={saveState.status === 'saving'} aria-label="Save unfinished draft" onClick={() => saveReview({ draftOnly: true })}><Save aria-hidden="true" />Save draft</Button>
@@ -565,6 +573,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               layers={layers}
               tool={tool}
               editingSession={editingSession}
+              {...(state.record.candidate.payload.warnings?.some(w => w.code === 'separate_source_views')
+                ? { analysisRegion, onAnalysisRegionChange: setAnalysisRegion } : {})}
               onToolChange={setTool}
               onAddWall={handleAddWall}
               onUpdateWall={handleUpdateWall}

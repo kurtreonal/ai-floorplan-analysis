@@ -9,6 +9,47 @@ class InterpretationProcessingDatabaseTests(fixture.DemoProcessingWorkerTests):
     assert_page_outcome = True
 
 
+class MultiviewLeaseProgressDatabaseTests(InterpretationProcessingDatabaseTests):
+    """Exercise the real lease/persistence fence; view discovery is synthetic."""
+
+    def process(self, session, **kwargs):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from app.ai.floor_plan_interpretation.drawing_region import DrawingRegion
+        from app.services import interpretation_processing_service as service
+        context, registered = service._context, service._registered_artifact
+
+        def pdf_context(*args, **values):
+            job, plan, source, page = context(*args, **values)
+            return job, SimpleNamespace(id=plan.id, mime_type='application/pdf'), source, page
+
+        def raster_artifact(*args, **values):
+            # The shared fixture is a PNG. Keep real source/artifact validation,
+            # while exercising only the multi-view orchestration branch here.
+            values['floor_plan'] = session.get(fixture.FloorPlan, values['floor_plan'].id)
+            return registered(*args, **values)
+
+        def view_evidence(**values):
+            record = values['artifact'].record
+            width, height = record.pixel_width, record.pixel_height
+            views = tuple(dict(label=label, state='proposed_partial',
+                region=DrawingRegion(x=x,y=0,width=width//2,height=height))
+                for label,x in [('GROUND FLOOR',0),('MEZZANINE',width//2)])
+            return {'objects':[]}, views, ()
+
+        with patch.object(service,'_context',pdf_context), \
+             patch.object(service,'_registered_artifact',raster_artifact), \
+             patch.object(service,'prepare_pdf_source_evidence',view_evidence):
+            result = service.process_interpretation_job(session, **kwargs)
+        from app.ai.floor_plan_interpretation.candidate import FloorPlanInterpretationCandidate
+        candidate = FloorPlanInterpretationCandidate.model_validate_json(result.candidate_json)
+        parameters = {p.name:p.value for p in candidate.provenance.inference_parameters}
+        self.assertIn('source-view-outcomes',parameters)
+        self.assertEqual(len([p for p in parameters if p.startswith('preprocessing-view-')]),2)
+        self.assertTrue(any(w.code=='separate_source_views' for w in candidate.payload.warnings))
+        return result
+
+
 class InterpretationArtifactCollisionDatabaseTests(InterpretationProcessingDatabaseTests):
     """Reset IDs or interrupted writes cannot overwrite/reuse unregistered pixels."""
 

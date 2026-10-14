@@ -87,6 +87,18 @@ afterEach(() => {
 
 
 describe('unified demo interpretation review', () => {
+  it('counts circuit annotations separately from physical device proposals', async () => {
+    const source = structuredClone(record)
+    source.candidate.payload.symbols.items = [
+      { id: 'symbol-0001', center: { x: 50, y: 50 }, observed_label: 'Duplex outlet' },
+      { id: 'symbol-0002', center: { x: 80, y: 50 }, observed_label: 'Circuit home-run notation' },
+    ]
+    fetchDemoInterpretation.mockResolvedValue(source)
+    render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
+    expect(await screen.findByText(/SHARED DRAFT · 1 DEVICE PROPOSALS · 1 ANNOTATIONS/)).toBeTruthy()
+    expect(saveDemoReview).not.toHaveBeenCalled()
+  })
+
   it('numeric wall dimensions update joined corners, undo/redo and survive draft save/reload',async()=>{
     const source=structuredClone(record)
     source.routing_context={pixels_per_meter:100}

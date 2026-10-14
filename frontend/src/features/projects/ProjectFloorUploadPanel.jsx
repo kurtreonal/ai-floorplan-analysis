@@ -53,6 +53,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
   const [isUploading, setIsUploading] = useState(false)
   const [sessionUploads, setSessionUploads] = useState([])
   const [persistedPlans, setPersistedPlans] = useState([])
+  const [persistedPlanScope, setPersistedPlanScope] = useState(null)
   const [planLoadState, setPlanLoadState] = useState('idle')
   const [planError, setPlanError] = useState(null)
   const [planRefreshKey, setPlanRefreshKey] = useState(0)
@@ -115,6 +116,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
           latest_job: histories[index][0] || null,
         }))
         setPersistedPlans(records)
+        setPersistedPlanScope(`${projectId}:${selectedFloorId}`)
         setSessionUploads((uploads) => uploads.filter(
           (upload) => !records.some((record) => record.id === upload.id),
         ))
@@ -155,11 +157,16 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
     setPlanRefreshKey((key) => key + 1)
   }
 
+  // A floor switch renders before its effect starts. Never relabel old cards
+  // or build new-floor editor links from the previous request's records.
+  const currentPersistedPlans = persistedPlanScope === `${projectId}:${selectedFloorId}`
+    ? persistedPlans.filter((plan) => String(plan.project_floor_id) === String(selectedFloorId))
+    : []
   const visiblePlans = [
-    ...persistedPlans,
+    ...currentPersistedPlans,
     ...sessionUploads.filter(
       (upload) => String(upload.project_floor_id) === String(selectedFloorId)
-        && !persistedPlans.some((plan) => plan.id === upload.id),
+        && !currentPersistedPlans.some((plan) => plan.id === upload.id),
     ),
   ]
   const selectedFloorName = floors.find(

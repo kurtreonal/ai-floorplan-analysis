@@ -118,6 +118,25 @@ afterEach(() => {
 })
 
 describe('project floor upload panel', () => {
+  it('hides old floor cards immediately and ignores a late superseded floor response', async () => {
+    let resolveSecond
+    listProjectFloors.mockResolvedValue(FLOORS)
+    listFloorPlans.mockImplementation((_projectId, { projectFloorId }) => {
+      if (String(projectFloorId) === '19') return new Promise(resolve => { resolveSecond = resolve })
+      return Promise.resolve([UPLOAD])
+    })
+    render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
+    expect(await screen.findByText(UPLOAD.original_filename)).toBeTruthy()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project floor' }), { target: { value: '19' } })
+    expect(screen.queryByText(UPLOAD.original_filename)).toBeNull()
+    expect(screen.getByText('Loading persisted floor plans...')).toBeTruthy()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Project floor' }), { target: { value: '12' } })
+    expect(await screen.findByText(UPLOAD.original_filename)).toBeTruthy()
+    await act(async () => resolveSecond([{ ...UPLOAD, id: 43, project_floor_id: 19, original_filename: 'second.pdf' }]))
+    expect(screen.queryByText('second.pdf')).toBeNull()
+    expect(screen.getByText(UPLOAD.original_filename)).toBeTruthy()
+  })
+
   it('shows persisted-plan loading and empty states', async () => {
     let resolvePlans
     listProjectFloors.mockResolvedValue(FLOORS)

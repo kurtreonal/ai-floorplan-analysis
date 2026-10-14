@@ -170,7 +170,12 @@ def verify_artifacts():
 
 
 def configuration_sha256():
+    from app.ai.floor_plan_interpretation.pdf_evidence import VERSION as pdf_version
+    from app.ai.floor_plan_interpretation.pdf_views import VERSION as view_version
+    from app.ai.floor_plan_interpretation.pdf_wall_evidence import VERSION as wall_version
+    from app.ai.floor_plan_interpretation.scoped_analysis import VERSION as pipeline_version
     return sha256(json.dumps({"provider": PROVIDER, "profile": PROFILE, "class_count":CLASS_COUNT,
+        "pdf_pipeline": {"source_evidence":pdf_version,"view_scopes":view_version,"wall_evidence":wall_version,"orchestration":pipeline_version},
         "checkpoint": CHECKPOINT_SHA256,
         "dataset": DATASET_SHA256,
         **({"training_dataset": TRAINING_DATASET_SHA256} if PROFILE == 'power80' else {}),

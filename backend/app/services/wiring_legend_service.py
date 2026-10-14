@@ -26,6 +26,7 @@ def annotate_wiring(session, candidate, review=None, *, drawing_name=None):
     title=' '.join([drawing_name or '', *(item.text for item in candidate.payload.ocr.items)])
     lighting=bool(re.search(r'lighting|light[\s_-]*layout',title,re.I))
     source={w.id:w for w in candidate.payload.observed_routes.segments}
+    drawing_specific=any(w.code=='drawing_legend_required' for w in candidate.payload.warnings)
     document=deepcopy(review) if review is not None else {}
     if "observed_wiring" not in document:
         document["observed_wiring"]=[dict(id=w.id, disposition="unresolved",
@@ -40,7 +41,7 @@ def annotate_wiring(session, candidate, review=None, *, drawing_name=None):
         # Never silently replace a drawing-specific mapping whose catalog
         # entry became inactive/unavailable with a generic different entry.
         automatic=wire.get('disposition','unresolved')=='unresolved'
-        legend=legends.get(explicit_id) if explicit_id is not None else patterns.get(
+        legend=legends.get(explicit_id) if explicit_id is not None else None if drawing_specific else patterns.get(
             'solid' if lighting and automatic and style in ('solid','dashed') else style)
         wire.update(line_style=style, wiring_legend_id=legend.id if legend else None,
                     wiring_legend_name=legend.name if legend else None,
@@ -50,7 +51,7 @@ def annotate_wiring(session, candidate, review=None, *, drawing_name=None):
     # copies cannot inject catalog names or arbitrary engineering meanings.
     for wire in document.get("generated_wiring",[]):
         explicit_id=wire.get('wiring_legend_id')
-        legend=legends.get(explicit_id) if explicit_id is not None else (
+        legend=legends.get(explicit_id) if explicit_id is not None else None if drawing_specific else (
             patterns.get('solid') if lighting and wire.get('disposition')=='unresolved' else None)
         wire.update(wiring_legend_id=legend.id if legend else None,
                     wiring_legend_name=legend.name if legend else None,
