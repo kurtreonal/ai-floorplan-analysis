@@ -38,9 +38,12 @@ def requested_configuration(settings) -> tuple[str, str, str]:
         from app.ai.floor_plan_interpretation.pdf_evidence import VERSION as pdf_version
         from app.ai.floor_plan_interpretation.pdf_views import VERSION as view_version
         from app.ai.floor_plan_interpretation.pdf_wall_evidence import VERSION as wall_version
+        from app.ai.floor_plan_interpretation.pdf_wall_recognition import VERSION as native_wall_version
+        from app.ai.floor_plan_interpretation.pdf_observed_wiring import VERSION as native_wiring_version
         from app.ai.floor_plan_interpretation.scoped_analysis import VERSION as pipeline_version
         values = {"provider": provider, "release": release,
-                  "pdf_pipeline": {"source_evidence":pdf_version,"view_scopes":view_version,"wall_evidence":wall_version,"orchestration":pipeline_version}}
+                  "pdf_pipeline": {"source_evidence":pdf_version,"view_scopes":view_version,"wall_evidence":wall_version,
+                                   "wall_recognition":native_wall_version,"wiring_recognition":native_wiring_version,"orchestration":pipeline_version}}
     else:
         provider = LOCAL_PROVIDER
         release = _safe_release(

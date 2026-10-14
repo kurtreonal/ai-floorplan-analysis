@@ -106,6 +106,8 @@ from app.services.drawing_selection_service import (
 from app.services.pdf_source_evidence_service import prepare_pdf_source_evidence
 from app.ai.floor_plan_interpretation.pdf_evidence import PdfEvidenceError, PrimitiveIndex
 from app.ai.floor_plan_interpretation.pdf_wall_evidence import with_pdf_wall_evidence, VERSION as PDF_WALL_VERSION
+from app.ai.floor_plan_interpretation.pdf_wall_recognition import with_pdf_wall_recognition, VERSION as PDF_WALL_RECOGNITION_VERSION
+from app.ai.floor_plan_interpretation.pdf_observed_wiring import with_pdf_observed_wiring, VERSION as PDF_WIRING_RECOGNITION_VERSION
 from app.ai.floor_plan_interpretation.scoped_analysis import merge_view_payloads,failed_geometry_payload,failed_wiring_payload
 
 
@@ -159,8 +161,10 @@ def _interpret_cv_scope(rgb, *, region, experimental, trained, general, linked, 
     payload = with_fixture_wall_conflicts(payload)
     if pdf_index is not None:
         payload=with_pdf_wall_evidence(payload,rgb,pdf_index)
-    try:return with_automatic_wiring(payload, rgb)
-    except (ValueError,RuntimeError,cv2.error):return failed_wiring_payload(payload)
+        payload=with_pdf_wall_recognition(payload,rgb,pdf_index)
+    try:payload=with_automatic_wiring(payload, rgb)
+    except (ValueError,RuntimeError,cv2.error):payload=failed_wiring_payload(payload)
+    return with_pdf_observed_wiring(payload,rgb,pdf_index) if pdf_index is not None else payload
 
 
 class InterpretationProcessingError(RuntimeError):
@@ -648,6 +652,8 @@ def process_interpretation_job(
                         source_manifest=source_manifest,page=page,artifact=artifact,settings=settings)
                     pdf_index=PrimitiveIndex(evidence)
                     pdf_parameters+=(InferenceParameter(name='pdf-wall-evidence-version',value=PDF_WALL_VERSION),)
+                    pdf_parameters+=(InferenceParameter(name='pdf-wall-recognition-version',value=PDF_WALL_RECOGNITION_VERSION),
+                                     InferenceParameter(name='pdf-wiring-recognition-version',value=PDF_WIRING_RECOGNITION_VERSION))
                 except PdfEvidenceError as error:
                     if str(error)=='ORIGINAL_INTEGRITY_FAILED':
                         raise InterpretationProcessingError('ORIGINAL_INTEGRITY_FAILED') from None

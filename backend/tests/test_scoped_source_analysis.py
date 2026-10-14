@@ -60,6 +60,33 @@ def test_scope_is_shared_by_geometry_symbols_and_postprocessing(monkeypatch):
     np.testing.assert_array_equal(rgb,before)
 
 
+def test_native_recognition_uses_restored_source_frame_and_preserves_reviewable_connections(monkeypatch):
+    rgb=np.full((400,800,3),255,np.uint8)
+    image,local=source(inline=True)
+    local=with_device_contact_evidence(local,image)
+    rgb[100:300,400:720]=image
+    original=local.model_dump_json()
+    index=object(); stages=[]
+    monkeypatch.setattr(worker,'interpret_floor_plan_demo',lambda *_a,**_kw:local)
+    for name in ('with_switch_gang_proposals','with_chromatic_wall_evidence','with_fixture_wall_conflicts'):
+        monkeypatch.setattr(worker,name,lambda p,*_:p)
+    for name in ('with_pdf_wall_evidence','with_pdf_wall_recognition','with_automatic_wiring','with_pdf_observed_wiring'):
+        def observe(p,pixels,*args,_name=name):
+            assert pixels is rgb
+            assert p.source_plane.width_pixels==800 and p.source_plane.height_pixels==400
+            assert p.regions[0].bounds.model_dump()==dict(x=400,y=100,width=320,height=200)
+            if _name!='with_automatic_wiring':assert args==(index,)
+            stages.append(_name)
+            return p
+        monkeypatch.setattr(worker,name,observe)
+    result=worker._interpret_cv_scope(rgb,region=DrawingRegion(x=400,y=100,width=320,height=200),
+        experimental=False,trained=False,general=False,linked=False,pdf_index=index)
+    assert stages==['with_pdf_wall_evidence','with_pdf_wall_recognition','with_automatic_wiring','with_pdf_observed_wiring']
+    assert result.observed_routes.connections
+    assert FloorPlanInterpretationPayload.model_validate_json(result.model_dump_json())==result
+    assert local.model_dump_json()==original
+
+
 def test_pdf_legend_warning_disables_universal_dash_meaning_but_retains_explicit_selection():
     _,payload=source()
     payload=payload.model_copy(update={'warnings':payload.warnings+(CandidateWarning(
