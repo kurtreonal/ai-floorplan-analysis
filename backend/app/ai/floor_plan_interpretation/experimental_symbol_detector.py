@@ -97,7 +97,10 @@ def verify_linked_artifacts() -> None:
 
 
 def configuration_sha256() -> str:
+    from app.ai.floor_plan_interpretation.scoped_analysis import raster_configuration_versions, native_configuration_versions
     values = {"provider": PROVIDER, "checkpoint": CHECKPOINT_SHA256,
+              "raster_pipeline": raster_configuration_versions(),
+              "pdf_pipeline": native_configuration_versions(),
               "dataset": DATASET_SHA256, "classes": CLASSES,
               "threshold": THRESHOLD, "tile": TILE_SIZE, "stride": TILE_STRIDE,
               "nms_iou": NMS_IOU, "max_tiles": MAX_TILES,
@@ -106,7 +109,10 @@ def configuration_sha256() -> str:
 
 
 def linked_configuration_sha256() -> str:
+    from app.ai.floor_plan_interpretation.scoped_analysis import raster_configuration_versions, native_configuration_versions
     values = {"provider": LINKED_PROVIDER, "checkpoint": LINKED_CHECKPOINT_SHA256,
+              "raster_pipeline": raster_configuration_versions(),
+              "pdf_pipeline": native_configuration_versions(),
               "dataset": LINKED_DATASET_SHA256, "classes": LINKED_CLASSES,
               "threshold": THRESHOLD, "tile": TILE_SIZE, "stride": TILE_STRIDE,
               "nms_iou": NMS_IOU, "max_tiles": MAX_TILES,

@@ -13,7 +13,7 @@ from app.ai.floor_plan_interpretation.candidate import (
     ObservedRouteSegment, PixelPoint,
 )
 
-EVIDENCE_VERSION = "raw-source-device-port-evidence-v8"
+EVIDENCE_VERSION = "raw-source-device-port-evidence-v9"
 
 
 def with_fixture_wall_conflicts(payload):
@@ -84,30 +84,69 @@ def _regular_dash_evidence(samples, maximum_gap):
     states = samples[transitions[:-1]]
     gaps = lengths[~states]
     strokes = lengths[states]
-    if len(gaps)<2 or len(strokes)<3 or not .35<=float(samples.mean())<.95:
+    # Three arbitrary strokes provide only one interior sample, so their
+    # apparent regularity cannot distinguish furniture/hatch crossings from
+    # a repeated line pattern. Require independently comparable periods.
+    if len(gaps)<3 or len(strokes)<4 or not .35<=float(samples.mean())<.95:
         return False
     # Endpoint clipping may shorten the first/last dash; compare interior ink.
     interior = strokes[1:-1] if len(strokes)>2 else strokes
     return bool(min(gaps)>=2 and max(gaps)<=maximum_gap
                 and max(gaps)<=min(gaps)*2.5 and min(interior)>=4
-                and max(interior)<=min(interior)*3)
+                and max(interior)<=min(interior)*3
+                # Clipping can shorten endpoint dashes, not turn the last
+                # dash into an arbitrarily long continuous furniture edge.
+                and max(strokes[0],strokes[-1])<=max(interior)*1.5)
 
 
 def _dash_span(samples, maximum_gap):
     """Keep the longest supported dash sequence, excluding border/text tails."""
     edges=np.flatnonzero(np.r_[True,samples[1:]!=samples[:-1],True])
     strokes=[(int(a),int(b)) for a,b in zip(edges,edges[1:]) if samples[a]]
-    if not 3<=len(strokes)<=64:
+    if not 4<=len(strokes)<=64:
         return None
     best=None
-    for i in range(len(strokes)-2):
-        for j in range(i+2,len(strokes)):
+    for i in range(len(strokes)-3):
+        for j in range(i+3,len(strokes)):
             a,b=strokes[i][0],strokes[j][1]
             if best is not None and b-a<=best[1]-best[0]:
                 continue
             if _regular_dash_evidence(samples[a:b],maximum_gap):
                 best=(a,b)
     return best
+
+
+def _dash_direction_evidence(a, b, samples, ink):
+    """Require repeated strokes along the path, not periodic crossings.
+
+    A scan through diagonal hatching or furniture can have perfectly regular
+    black/white runs. Check the actual ink's dominant local direction in the
+    interior dashes. Crossings are not joined or erased; endpoint glyphs are
+    excluded and inconclusive evidence stays unresolved.
+    """
+    a, b = np.asarray(a, float), np.asarray(b, float)
+    axis = b-a
+    axis /= np.linalg.norm(axis)
+    edges = np.flatnonzero(np.r_[True, samples[1:] != samples[:-1], True])
+    strokes = [(int(lo), int(hi)) for lo, hi in zip(edges, edges[1:]) if samples[lo]]
+    interiors = strokes[1:-1]
+    supported = 0
+    for lo, hi in interiors:
+        center = a + (b-a)*((lo+hi-1)/2/(len(samples)-1))
+        radius = max(3, min(8, (hi-lo)*.35))
+        x, y = np.rint(center).astype(int)
+        r = math.ceil(radius)
+        left, top = max(0,x-r), max(0,y-r)
+        right, bottom = min(ink.shape[1],x+r+1), min(ink.shape[0],y+r+1)
+        yy, xx = np.mgrid[top:bottom,left:right]
+        local = (ink[top:bottom,left:right]>0) & ((xx-center[0])**2+(yy-center[1])**2<=radius**2)
+        points = np.column_stack((xx[local],yy[local]))
+        if len(points)<4:
+            continue
+        values, vectors = np.linalg.eigh(np.cov(points, rowvar=False))
+        if values[-1] > max(.5, values[0]*1.8) and abs(float(vectors[:,-1]@axis))>=math.cos(math.radians(25)):
+            supported += 1
+    return len(interiors)>=2 and supported>=max(2, math.ceil(len(interiors)*.65))
 
 
 def _near_box(point, bounds, tolerance):
@@ -251,7 +290,14 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
                 anchors_a={s.id for s in symbols if _near_box(a,s.bounds,anchor_tolerance)}
                 anchors_b={s.id for s in symbols if _near_box(b,s.bounds,anchor_tolerance)}
                 pairs={tuple(sorted((left,right))) for left in anchors_a for right in anchors_b if left!=right}
-                regular_dashes=True
+                # The clipped integer endpoints define the stored geometry.
+                # Resample that exact line; a slice of a differently rounded
+                # Hough line is not proof of these new source coordinates.
+                count=math.ceil(math.dist(a,b))+1
+                xs=np.rint(np.linspace(a[0],b[0],count)).astype(int)
+                ys=np.rint(np.linspace(a[1],b[1],count)).astype(int)
+                samples=support[ys,xs]>0
+                regular_dashes=_regular_dash_evidence(samples,dash_gap)
         if math.dist(a,b)<max(24,minimum*2):
             continue
         if samples.all() and math.dist(a,b)<32:
@@ -260,6 +306,8 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
             continue
         # A single gap or irregular missing span cannot become a connection.
         if not samples.all() and not regular_dashes:
+            continue
+        if regular_dashes and not _dash_direction_evidence(a,b,samples,search):
             continue
         direction=(b[0]-a[0],b[1]-a[1])
         anchors_a={s.id for s in symbols if _near_port(a,s,direction,anchor_tolerance)}
@@ -284,7 +332,6 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
             parents[i]=parents[parents[i]]
             i=parents[i]
         return i
-    turns=[]
     for i,(a,b,_,regular,_) in enumerate(selected):
         for j,(c,d,_,other_regular,other_anchors) in enumerate(selected[:i]):
             turn=_dash_corner(a,b,c,d,dash_gap) if regular or other_regular else None
@@ -292,7 +339,6 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
                 parents[root(i)]=root(j)
             if turn:
                 parents[root(i)]=root(j)
-                turns.append((i,j,turn))
     anchors={}
     for i,(_,_,_,_,ids) in enumerate(selected):
         anchors.setdefault(root(i),set()).update(ids)
@@ -300,13 +346,11 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
     eligible={i for i,(_,_,pairs,_,_) in enumerate(selected)
               if pairs or (selected[i][3] and root(i) in dashed_groups and len(anchors[root(i)])>=2)
               or (selected[i][3] and selected[i][4])}
-    endpoints={i:[row[0],row[1]] for i,row in enumerate(selected)}
-    for i,j,(a_end,b_end,corner) in turns:
-        if i in eligible and j in eligible:
-            endpoints[i][a_end]=corner
-            endpoints[j][b_end]=corner
-    selected=[(*endpoints[i],row[2],root(i) in dashed_groups) for i,row in enumerate(selected) if i in eligible
-              and endpoints[i][0]!=endpoints[i][1]]
+    # A geometric corner is eligibility context, not observed ink. Leave the
+    # supported fragment endpoints unchanged: closing a gap would invent a
+    # stroke, and crossing/group membership cannot change a solid line style.
+    selected=[(row[0],row[1],row[2],row[3]) for i,row in enumerate(selected) if i in eligible
+              and row[0]!=row[1]]
     fixture_rows, fixture_truncated = fixture_axis_traces(
         payload, image_rgb, scope, dash_validator=_regular_dash_evidence)
     if fixture_rows is not None:

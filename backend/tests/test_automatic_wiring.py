@@ -1,9 +1,13 @@
 import unittest
+from unittest.mock import patch
 
 import cv2
 import numpy as np
 
-from app.ai.floor_plan_interpretation.automatic_wiring import with_automatic_wiring, with_fixture_wall_conflicts, _near_port
+from app.ai.floor_plan_interpretation.automatic_wiring import (
+    with_automatic_wiring, with_fixture_wall_conflicts, _near_port,
+    _regular_dash_evidence, _dash_direction_evidence,
+)
 from app.ai.floor_plan_interpretation.candidate import FloorPlanInterpretationPayload
 from app.ai.floor_plan_interpretation.demo_cv import interpret_floor_plan_demo
 
@@ -32,6 +36,101 @@ def example(*, gap=False, wall=False):
 
 
 class AutomaticWiringTests(unittest.TestCase):
+    def test_three_repeated_furniture_fragments_are_insufficient_dash_evidence(self):
+        for scale in (1,2,3):
+            with self.subTest(scale=scale):
+                three=np.tile(np.r_[np.ones(10*scale,bool),np.zeros(6*scale,bool)],3)
+                four=np.tile(np.r_[np.ones(10*scale,bool),np.zeros(6*scale,bool)],4)
+                self.assertFalse(_regular_dash_evidence(three,24*scale))
+                self.assertTrue(_regular_dash_evidence(four,24*scale))
+
+    def test_periodic_prefix_cannot_license_a_long_continuous_furniture_tail(self):
+        for scale in (1,2,3):
+            with self.subTest(scale=scale):
+                tail=np.r_[np.tile(np.r_[np.ones(10*scale,bool),np.zeros(6*scale,bool)],3),np.ones(100*scale,bool)]
+                clipped=np.r_[np.ones(3*scale,bool),np.zeros(6*scale,bool),
+                    np.tile(np.r_[np.ones(10*scale,bool),np.zeros(6*scale,bool)],3),np.ones(2*scale,bool)]
+                self.assertFalse(_regular_dash_evidence(tail,24*scale))
+                self.assertTrue(_regular_dash_evidence(clipped,24*scale))
+
+    def test_periodic_crossing_ink_does_not_supply_axial_dashes_at_rotated_scales(self):
+        for scale in (1,2):
+            for angle in (0,45,90):
+                with self.subTest(scale=scale,angle=angle):
+                    radians=np.deg2rad(angle)
+                    axis=np.array([np.cos(radians),np.sin(radians)])
+                    normal=np.array([-axis[1],axis[0]])
+                    a=np.array([150.,150.])*scale
+                    samples=np.tile(np.r_[np.ones(12*scale,bool),np.zeros(8*scale,bool)],5)
+                    b=a+axis*(len(samples)-1)
+                    axial=np.zeros((400*scale,400*scale),np.uint8)
+                    crossing=axial.copy()
+                    for start in range(0,len(samples),20*scale):
+                        first=a+axis*start; last=first+axis*(12*scale-1)
+                        center=(first+last)/2
+                        cv2.line(axial,tuple(np.rint(first).astype(int)),tuple(np.rint(last).astype(int)),255,2*scale)
+                        cv2.line(crossing,tuple(np.rint(center-normal*12*scale).astype(int)),
+                                 tuple(np.rint(center+normal*12*scale).astype(int)),255,2*scale)
+                    self.assertTrue(_dash_direction_evidence(a,b,samples,axial))
+                    self.assertFalse(_dash_direction_evidence(a,b,samples,crossing))
+
+    def test_dashed_corner_keeps_unsupported_gap_and_observed_endpoints(self):
+        image,payload=example();image[:]=255
+        value=payload.model_dump(mode='json')
+        value['symbols']['items'][1].update(center={'x':220,'y':190},
+                                           bounds={'x':212,'y':182,'width':16,'height':16})
+        payload=FloorPlanInterpretationPayload.model_validate(value)
+        for x in range(69,213,20):
+            cv2.line(image,(x,100),(min(x+12,212),100),(0,0,0),2)
+        for y in range(108,182,16):
+            cv2.line(image,(220,y),(220,min(y+8,181)),(0,0,0),2)
+        result=with_automatic_wiring(payload,image)
+        self.assertGreaterEqual(len(result.observed_routes.segments),2)
+        self.assertFalse(any(p.x==220 and p.y==100 for s in result.observed_routes.segments for p in s.points))
+        self.assertFalse(any(c.to_ref.startswith('segment:') for c in result.observed_routes.connections))
+
+    def test_solid_arm_does_not_become_dashed_when_grouped_with_dashed_arm(self):
+        image,payload=example()
+        value=payload.model_dump(mode='json')
+        extra=dict(value['symbols']['items'][0])
+        extra.update(id='symbol-0003',center={'x':100,'y':190},
+                     bounds={'x':92,'y':182,'width':16,'height':16})
+        value['symbols']['items'].append(extra)
+        payload=FloorPlanInterpretationPayload.model_validate(value)
+        for y in range(107,182,20):
+            cv2.line(image,(100,y),(100,min(y+12,181)),(0,0,0),2)
+        rows=np.array([[[74,100,247,100]],[[100,107,100,177]]],np.int32)
+        with patch('app.ai.floor_plan_interpretation.automatic_wiring.cv2.HoughLinesP',return_value=rows):
+            result=with_automatic_wiring(payload,image)
+        self.assertEqual({s.line_style for s in result.observed_routes.segments},{'solid','dashed'})
+
+    def test_hatch_crossings_between_device_boxes_are_not_observed_dashes(self):
+        image,payload=example();image[:]=255
+        for x in range(65,265,20):
+            cv2.line(image,(x-16,84),(x+16,116),(0,0,0),2)
+        rows=np.array([[[74,100,247,100]]],np.int32)
+        with patch('app.ai.floor_plan_interpretation.automatic_wiring.cv2.HoughLinesP',return_value=rows):
+            result=with_automatic_wiring(payload,image)
+        self.assertFalse(result.observed_routes.segments)
+        self.assertFalse(result.observed_routes.connections)
+
+    def test_crossing_strokes_remain_separate_without_junction_connections(self):
+        image,payload=example()
+        value=payload.model_dump(mode='json')
+        for i,y in enumerate((30,180),3):
+            extra=dict(value['symbols']['items'][0])
+            extra.update(id=f'symbol-{i:04d}',center={'x':160,'y':y},
+                         bounds={'x':152,'y':y-8,'width':16,'height':16})
+            value['symbols']['items'].append(extra)
+        cv2.line(image,(160,38),(160,172),(0,0,0),2)
+        payload=FloorPlanInterpretationPayload.model_validate(value)
+        rows=np.array([[[74,100,247,100]],[[160,42,160,168]]],np.int32)
+        with patch('app.ai.floor_plan_interpretation.automatic_wiring.cv2.HoughLinesP',return_value=rows):
+            result=with_automatic_wiring(payload,image)
+        self.assertEqual(len(result.observed_routes.segments),2)
+        self.assertEqual(len(result.observed_routes.connections),4)
+        self.assertTrue(all(c.to_ref.startswith('symbol:') for c in result.observed_routes.connections))
+
     def test_fixture_ports_reject_nearby_grid_tips_but_keep_centre_axes(self):
         _,payload=example()
         value=payload.model_dump()

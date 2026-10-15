@@ -14,8 +14,9 @@ import numpy as np
 from app.ai.floor_plan_interpretation.candidate import (
     CandidateWarning, FloorPlanInterpretationPayload, ObservedRouteSegment, PixelPoint,
 )
+from app.ai.floor_plan_interpretation.device_contact_evidence import with_device_contact_evidence
 
-VERSION = 'native-periodic-and-context-curves-v3'
+VERSION = 'native-periodic-and-context-curves-v4'
 MAXIMUM_OBJECTS_PER_VIEW = 24_000
 MAXIMUM_LINES_PER_VIEW = 8_000
 MAXIMUM_TRACES = 32
@@ -359,5 +360,10 @@ def with_pdf_observed_wiring(payload,image_rgb,index):
         return payload
     routes=payload.observed_routes.model_copy(update={'segments':tuple(segments),'state':'partial',
         'failure_reason':None,'truncated':payload.observed_routes.truncated or bool(diagnostics)})
-    return type(payload).model_validate(payload.model_copy(update={
+    result=type(payload).model_validate(payload.model_copy(update={
         'observed_routes':routes,'warnings':tuple(warnings),'document_state':'partial'}).model_dump())
+    # Native strokes arrive after raster extraction's contact pass. Evaluate
+    # the merged candidate against the same untouched source so those newly
+    # observed routes can have evidence-backed ports too. This creates machine
+    # proposals, never approval, and does not alter any observed route vertices.
+    return with_device_contact_evidence(result,image_rgb) if len(segments)>len(payload.observed_routes.segments) else result

@@ -48,14 +48,19 @@ def scene(*,marker=True,uniform=False,missing=False,scale=1):
     return image,payload,objects
 
 
-def test_native_dash_dot_is_observed_proposal_with_primitive_provenance_no_connections():
+def test_native_dash_dot_preserves_ink_and_proposes_source_supported_endpoint_contact():
     image,payload,objects=scene();before=payload.model_dump_json();pixels=image.copy()
     result=with_pdf_observed_wiring(payload,image,PrimitiveIndex(dict(objects=objects)))
     assert len(result.observed_routes.segments)==1
     route=result.observed_routes.segments[0]
     assert route.line_style=='dashed' and route.route_kind=='observed'
     assert route.points[0].x==70 and route.points[-1].x==202
-    assert result.observed_routes.connections==()
+    assert len(result.observed_routes.connections)==1
+    connection=result.observed_routes.connections[0]
+    assert connection.from_ref==f'segment:{route.id}'
+    assert connection.to_ref=='symbol:symbol-0001'
+    assert connection.evidence_kind=='symbol_occlusion'
+    assert connection.path_anchor==route.points[0]
     assert route.ambiguity=='ambiguous'
     assert any(w.code=='pdf_periodic_observed_trace' and 'primitive_ids' in w.message for w in result.warnings)
     assert payload.model_dump_json()==before
@@ -124,7 +129,7 @@ def curve_scene(*, marker=True, pen_width=1, closed=False, periodic=True):
     return image,payload,objects,ink
 
 
-def test_observed_curve_preserves_source_bend_and_marker_context_without_connection():
+def test_observed_curve_preserves_source_bend_and_uses_its_evidenced_terminal():
     image,payload,objects,ink=curve_scene()
     result=with_pdf_observed_wiring(payload,image,PrimitiveIndex(dict(objects=objects)))
     curves=[s for s in result.observed_routes.segments if s.line_style=='solid']
@@ -139,10 +144,52 @@ def test_observed_curve_preserves_source_bend_and_marker_context_without_connect
         nearest=points[:-1]+fraction[:,None]*delta
         distances.append(np.linalg.norm(nearest-point,axis=1).min())
     assert max(distances)<=.5
-    assert result.observed_routes.connections==()
+    contacts=[c for c in result.observed_routes.connections if c.from_ref==f'segment:{curves[0].id}']
+    assert len(contacts)==1 and contacts[0].to_ref=='symbol:symbol-0001'
+    assert contacts[0].path_anchor.model_dump()==dict(x=59.,y=92.)
+    assert contacts[0].evidence_kind=='symbol_occlusion'
     assert any(w.code=='pdf_native_open_curve_trace' and '100' in w.message for w in result.warnings)
     assert with_pdf_observed_wiring(result,image,PrimitiveIndex(dict(objects=objects)))==result
     assert FloorPlanInterpretationPayload.model_validate_json(result.model_dump_json())==result
+
+
+def test_native_endpoint_duplicate_ports_remain_ambiguous_not_nearest_wins():
+    image,payload,objects=scene()
+    value=payload.model_dump()
+    extra=dict(value['symbols']['items'][0]);extra['id']='symbol-0003'
+    value['symbols']['items']=list(value['symbols']['items'])+[extra]
+    payload=FloorPlanInterpretationPayload.model_validate(value)
+    result=with_pdf_observed_wiring(payload,image,PrimitiveIndex(dict(objects=objects)))
+    assert len(result.observed_routes.connections)==2
+    assert {c.to_ref for c in result.observed_routes.connections}=={'symbol:symbol-0001','symbol:symbol-0003'}
+    assert all(c.ambiguity=='ambiguous' for c in result.observed_routes.connections)
+    assert any(w.code=='ambiguous_device_contacts' for w in result.warnings)
+    assert with_pdf_observed_wiring(result,image,PrimitiveIndex(dict(objects=objects)))==result
+
+
+def test_native_inline_port_has_two_source_approaches_without_crossing_junction():
+    image,payload,objects=scene()
+    value=payload.model_dump()
+    extra=dict(value['symbols']['items'][0])
+    extra.update(id='symbol-0003',center={'x':120,'y':100},
+                 bounds={'x':115,'y':94,'width':10,'height':12})
+    value['symbols']['items']=list(value['symbols']['items'])+[extra]
+    cv2.rectangle(image,(115,94),(125,106),(0,0,0),1)
+    payload=FloorPlanInterpretationPayload.model_validate(value)
+    result=with_pdf_observed_wiring(payload,image,PrimitiveIndex(dict(objects=objects)))
+    inline=[c for c in result.observed_routes.connections if c.to_ref=='symbol:symbol-0003']
+    assert len(inline)==1 and inline[0].evidence_kind=='inline_device'
+    assert all(c.to_ref.startswith('symbol:') for c in result.observed_routes.connections)
+
+
+def test_native_noop_does_not_recompute_or_replace_existing_contacts(monkeypatch):
+    image,payload,objects=scene()
+    index=PrimitiveIndex(dict(objects=objects))
+    result=with_pdf_observed_wiring(payload,image,index)
+    def forbidden(*args,**kwargs):
+        raise AssertionError('No newly observed routes: preserve the existing proposal.')
+    monkeypatch.setattr(module,'with_device_contact_evidence',forbidden)
+    assert with_pdf_observed_wiring(result,image,index)==result
 
 
 @pytest.mark.parametrize('options',[dict(marker=False),dict(pen_width=.1),dict(closed=True),dict(periodic=False)])

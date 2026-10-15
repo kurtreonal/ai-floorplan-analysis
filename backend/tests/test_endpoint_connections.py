@@ -1,5 +1,6 @@
 from copy import deepcopy
 from types import SimpleNamespace as NS
+import pytest
 
 from app.routing.endpoint_connections import connect_touching_endpoints
 
@@ -52,3 +53,18 @@ def test_multiple_contacting_runs_keep_identity_but_known_circuit_conflicts_do_n
     for index,wire in enumerate(value['observed_wiring']): wire['circuit_id']=index+1
     result=connect_touching_endpoints(source(),value)
     assert not result['observed_wiring'][1].get('device_attachments')
+
+
+@pytest.mark.parametrize('revision',['7','8','9','10','99','future'])
+def test_new_source_versions_cannot_fall_back_to_proximity_during_review_conversion(revision):
+    candidate=source();value=document();original=deepcopy(value)
+    points=[NS(x=p['x'],y=p['y'],model_dump=lambda p=p:dict(p))
+            for p in value['observed_wiring'][0]['points']]
+    candidate.payload.observed_routes=NS(connections=[],segments=[NS(id='segment-0001',points=points)])
+    candidate.provenance=NS(inference_parameters=[NS(name='wiring-evidence-version',
+        value='raw-source-device-port-evidence-v'+revision)])
+    result=connect_touching_endpoints(candidate,value)
+    assert result['observed_wiring'][0]['source_evidence_required'] is True
+    assert not result['observed_wiring'][0].get('device_attachments')
+    assert result['observed_wiring'][0]['points']==original['observed_wiring'][0]['points']
+    assert value==original

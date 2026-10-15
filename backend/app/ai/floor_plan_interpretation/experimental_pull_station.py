@@ -40,7 +40,10 @@ LOCAL_SOURCE = REPOSITORY_ROOT / "models/vlm/pull-station-template-v1/source-she
 
 
 def configuration_sha256() -> str:
+    from app.ai.floor_plan_interpretation.scoped_analysis import raster_configuration_versions, native_configuration_versions
     values = {"provider": PROVIDER, "source_sha256": SOURCE_SHA256,
+              "raster_pipeline": raster_configuration_versions(),
+              "pdf_pipeline": native_configuration_versions(),
               "templates": TEMPLATES, "threshold": THRESHOLD,
               "scales": SCALES, "scale_selection_interior_margin": SCALE_SELECTION_INTERIOR_MARGIN,
               "peak_window": PEAK_WINDOW, "nms_center": NMS_CENTER_PIXELS,

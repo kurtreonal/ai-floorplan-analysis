@@ -16,8 +16,12 @@ def apply_source_contacts(candidate, document, *, preserve_source=True):
     saved_symbols = {s['id']:s for s in result.get('symbols', [])}
     source_routes = {w.id:w for w in observed.segments}
     parameters = getattr(getattr(candidate,'provenance',None),'inference_parameters', ())
-    strict = any(p.name == 'wiring-evidence-version' and p.value in (
-        'raw-source-device-port-evidence-v7','raw-source-device-port-evidence-v8') for p in parameters)
+    # The strict source-evidence contract began at v7. New algorithm revisions
+    # must not silently re-enable the historical proximity-only adapter.
+    legacy_versions = {f'raw-source-device-port-evidence-v{n}' for n in range(1,7)}
+    strict = any(p.name == 'wiring-evidence-version'
+        and p.value.startswith('raw-source-device-port-evidence-v')
+        and p.value not in legacy_versions for p in parameters)
     for wire in result.get('observed_wiring', []):
         source = source_routes.get(wire['id'])
         if strict:wire['source_evidence_required'] = source is not None

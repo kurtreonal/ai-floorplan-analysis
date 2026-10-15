@@ -87,3 +87,81 @@ def test_overlapping_devices_are_ambiguous_and_missing_ink_is_not_a_lead():
     image[:,72:120]=255
     result=with_device_contact_evidence(payload,image)
     assert not any(c.to_ref=='symbol:symbol-0001' for c in result.observed_routes.connections)
+
+
+def dashed_terminal_source(*, gap=8, nearby=False, crossing=False):
+    image,payload=source();image[:,69:252]=255
+    # Repeated six-pixel axial dashes, not arbitrary interrupted solid wire.
+    for x in range(76,240,12):
+        cv2.line(image,(x,100),(x+5,100),(0,0,0),1)
+    row=payload.model_dump(mode='json')
+    row['observed_routes']['segments'][0].update(line_style='dashed',
+        points=[dict(x=76,y=100),dict(x=237,y=100)])
+    symbol=row['symbols']['items'][0]
+    symbol['center']['x']=76-gap-8;symbol['bounds']['x']=76-gap-16
+    if nearby:
+        symbol['center']['y']=116;symbol['bounds']['y']=104
+    if crossing:
+        image[:,69:252]=255
+        for x in range(76,240,12):cv2.line(image,(x,95),(x,105),(0,0,0),1)
+    return image,FloorPlanInterpretationPayload.model_validate(row)
+
+
+def test_repeated_dashes_do_not_license_a_blank_terminal_gap():
+    image,payload=dashed_terminal_source()
+    result=with_device_contact_evidence(payload,image)
+    assert not any(c.to_ref=='symbol:symbol-0001' for c in result.observed_routes.connections)
+    assert result.observed_routes.segments==payload.observed_routes.segments
+    assert with_device_contact_evidence(result,image)==result
+
+
+def test_visible_terminal_tail_beyond_mask_margin_keeps_its_observed_edge_anchor():
+    image,payload=dashed_terminal_source(gap=10)
+    cv2.line(image,(67,100),(75,100),(0,0,0),1)
+    result=with_device_contact_evidence(payload,image)
+    assert any(c.to_ref=='symbol:symbol-0001' and c.path_anchor.x==76
+               for c in result.observed_routes.connections)
+    assert result.observed_routes.segments==payload.observed_routes.segments
+    assert any(w.code=='source_supported_terminal_lead' for w in result.warnings)
+    assert with_device_contact_evidence(result,image)==result
+
+
+def test_contact_support_follows_observed_bends_instead_of_extrapolating_a_tangent():
+    image,payload=source();image[:,69:252]=255
+    points=[(72,100),(90,100),(90,150),(220,150),(220,100),(248,100)]
+    cv2.polylines(image,[np.array(points,dtype=np.int32)],False,(0,0,0),2)
+    value=payload.model_dump(mode='json')
+    value['observed_routes']['segments'][0]['points']=[dict(x=x,y=y) for x,y in points]
+    payload=FloorPlanInterpretationPayload.model_validate(value)
+    result=with_device_contact_evidence(payload,image)
+    assert len(result.observed_routes.connections)==2
+    assert result.observed_routes.segments==payload.observed_routes.segments
+    assert with_device_contact_evidence(result,image)==result
+
+
+def test_short_inline_approach_is_explicitly_unresolved_without_borrowing_pixels_beyond_route():
+    image,payload=source(inline=True);value=payload.model_dump(mode='json')
+    value['observed_routes']['segments'][0]['points']=[dict(x=72,y=100),dict(x=174,y=100)]
+    payload=FloorPlanInterpretationPayload.model_validate(value)
+    result=with_device_contact_evidence(payload,image)
+    assert not any(c.to_ref=='symbol:symbol-0003' for c in result.observed_routes.connections)
+    assert any(w.code=='device_contact_approach_unresolved' and 'symbol:symbol-0003' in w.entity_refs
+               for w in result.warnings)
+    assert with_device_contact_evidence(result,image)==result
+
+
+def test_dense_curve_vertices_do_not_inflate_short_source_pixel_evidence():
+    image,payload=source();value=payload.model_dump(mode='json')
+    value['observed_routes']['segments'][0]['points']=[dict(x=float(x),y=100.)
+        for x in np.linspace(72,82,101)]
+    payload=FloorPlanInterpretationPayload.model_validate(value)
+    result=with_device_contact_evidence(payload,image)
+    assert not result.observed_routes.connections  # Eleven independent pixels.
+    assert result.observed_routes.segments==payload.observed_routes.segments
+
+
+@pytest.mark.parametrize('options',[dict(gap=24),dict(nearby=True),dict(crossing=True)])
+def test_dash_phase_is_not_a_large_nearest_device_radius(options):
+    image,payload=dashed_terminal_source(**options)
+    result=with_device_contact_evidence(payload,image)
+    assert not any(c.to_ref=='symbol:symbol-0001' for c in result.observed_routes.connections)

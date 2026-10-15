@@ -14,6 +14,28 @@ PREFIXES=dict(ocr='ocr',scales='scale',walls='wall',rooms='room',openings='openi
               symbols='symbol',panels='panel',segments='segment',connections='connection',regions='region')
 
 
+def raster_configuration_versions():
+    """Pin geometry/contact algorithms, not only the detector checkpoint."""
+    from app.ai.floor_plan_interpretation.demo_cv import EVIDENCE_VERSION as cv_version
+    from app.ai.floor_plan_interpretation.automatic_wiring import EVIDENCE_VERSION as wire_version
+    from app.ai.floor_plan_interpretation.device_contact_evidence import EVIDENCE_VERSION as contact_version
+    from app.ai.floor_plan_interpretation.fixture_wiring import CONFIGURATION as fixture_configuration
+    return dict(geometry=cv_version, observed_wiring=wire_version, device_contacts=contact_version,
+                fixture_axis=dict(fixture_configuration))
+
+
+def native_configuration_versions():
+    """Pin native evidence and view orchestration for every CV provider."""
+    from app.ai.floor_plan_interpretation.pdf_evidence import VERSION as pdf_version
+    from app.ai.floor_plan_interpretation.pdf_views import VERSION as view_version
+    from app.ai.floor_plan_interpretation.pdf_wall_evidence import VERSION as wall_version
+    from app.ai.floor_plan_interpretation.pdf_wall_recognition import VERSION as native_wall_version
+    from app.ai.floor_plan_interpretation.pdf_observed_wiring import VERSION as native_wire_version
+    return dict(source_evidence=pdf_version, view_scopes=view_version,
+                wall_evidence=wall_version, wall_recognition=native_wall_version,
+                wiring_recognition=native_wire_version, orchestration=VERSION)
+
+
 def failed_geometry_payload(width,height):
     """Allow independent trained-symbol evidence, without claiming CV success."""
     unavailable=CandidateCollection(state='unavailable')

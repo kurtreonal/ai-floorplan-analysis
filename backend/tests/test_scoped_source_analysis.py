@@ -15,6 +15,62 @@ from tests.test_device_contact_evidence import source
 from tests.test_wiring_legend_service import catalog
 
 
+def test_all_cv_provider_fingerprints_pin_raster_geometry_and_contact_revisions(monkeypatch):
+    from app.ai.floor_plan_interpretation import automatic_wiring, demo_cv, device_contact_evidence
+    from app.ai.floor_plan_interpretation import multiclass_symbol_detector, experimental_symbol_detector, experimental_pull_station
+    from app.services.interpretation_job_configuration_service import requested_configuration
+    fingerprints = [multiclass_symbol_detector.configuration_sha256,
+        experimental_symbol_detector.configuration_sha256,
+        experimental_symbol_detector.linked_configuration_sha256,
+        experimental_pull_station.configuration_sha256,
+        lambda: requested_configuration(NS())[2]]
+    for module in (automatic_wiring, demo_cv, device_contact_evidence):
+        before = [fn() for fn in fingerprints]
+        assert before == [fn() for fn in fingerprints]
+        with monkeypatch.context() as scoped:
+            scoped.setattr(module, 'EVIDENCE_VERSION', 'source-algorithm-fixture-revision')
+            assert all(fn() != value for fn, value in zip(fingerprints, before))
+        assert before == [fn() for fn in fingerprints]
+
+    from app.ai.floor_plan_interpretation.fixture_wiring import CONFIGURATION
+    before = [fn() for fn in fingerprints]
+    with monkeypatch.context() as scoped:
+        scoped.setitem(CONFIGURATION, 'version', 'fixture-axis-regression-version')
+        assert all(fn() != value for fn, value in zip(fingerprints, before))
+    assert before == [fn() for fn in fingerprints]
+
+
+@pytest.mark.parametrize('module_name, key', [
+    ('pdf_evidence', 'source_evidence'),
+    ('pdf_views', 'view_scopes'),
+    ('pdf_wall_evidence', 'wall_evidence'),
+    ('pdf_wall_recognition', 'wall_recognition'),
+    ('pdf_observed_wiring', 'wiring_recognition'),
+    ('scoped_analysis', 'orchestration'),
+])
+def test_all_cv_provider_fingerprints_pin_native_pipeline_revisions(monkeypatch, module_name, key):
+    from importlib import import_module
+    from app.ai.floor_plan_interpretation import multiclass_symbol_detector, experimental_symbol_detector, experimental_pull_station
+    from app.ai.floor_plan_interpretation.scoped_analysis import native_configuration_versions
+    from app.services.interpretation_job_configuration_service import requested_configuration
+    module = import_module('app.ai.floor_plan_interpretation.' + module_name)
+    fingerprints = [multiclass_symbol_detector.configuration_sha256,
+        experimental_symbol_detector.configuration_sha256,
+        experimental_symbol_detector.linked_configuration_sha256,
+        experimental_pull_station.configuration_sha256,
+        lambda: requested_configuration(NS())[2]]
+    versions = native_configuration_versions()
+    before = [fn() for fn in fingerprints]
+    assert versions[key] == module.VERSION
+    assert before == [fn() for fn in fingerprints]
+    with monkeypatch.context() as scoped:
+        scoped.setattr(module, 'VERSION', 'native-algorithm-fixture-revision')
+        assert native_configuration_versions()[key] == 'native-algorithm-fixture-revision'
+        assert all(fn() != value for fn, value in zip(fingerprints, before))
+    assert native_configuration_versions() == versions
+    assert before == [fn() for fn in fingerprints]
+
+
 def test_two_view_contacts_remain_separate_and_survive_json_reload():
     image,local=source(inline=True,crossing=True)
     local=with_device_contact_evidence(local,image)
