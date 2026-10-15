@@ -12,6 +12,8 @@ import { EstimatePage } from '../estimation/EstimatePage.jsx'
 import { Viewer3DErrorBoundary } from '../viewer-3d/Viewer3DErrorBoundary.jsx'
 import '../projects/projects.css'
 import '../../components/workspace.css'
+import { UserPreferencesProvider } from '../settings/UserPreferences.jsx'
+import { UserSettingsPage } from '../settings/UserSettingsPage.jsx'
 
 const Viewer3DPage = lazy(() => import('../viewer-3d/Viewer3DPage.jsx'))
 
@@ -54,6 +56,7 @@ export function ProtectedAppPage({ route, session }) {
   const projectRoute = parseProjectRoute(route)
 
   return (
+    <UserPreferencesProvider key={session.user.id ?? session.user.email ?? 'session'} userId={session.user.id ?? session.user.email ?? 'session'}>
     <div className="project-app studio-shell">
       <WorkspaceSidebar projectRoute={projectRoute} session={session} navigationBlocked={navigationBlocked} />
       <div className="studio-content">
@@ -66,6 +69,7 @@ export function ProtectedAppPage({ route, session }) {
       )}
 
       <main className="project-app-main">
+        {projectRoute.view === 'settings' && <UserSettingsPage />}
         {projectRoute.view === 'dashboard' && <ProjectDashboardPage session={session} />}
         {projectRoute.view === 'project' && (
           <ProjectDetailPage projectId={projectRoute.projectId} session={session} />
@@ -117,5 +121,6 @@ export function ProtectedAppPage({ route, session }) {
       </main>
       </div>
     </div>
+    </UserPreferencesProvider>
   )
 }

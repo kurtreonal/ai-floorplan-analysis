@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { useUserPreferences } from '../settings/useUserPreferences.js'
 
 import {
   DemoInterpretationApiError,
@@ -156,7 +157,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const [savedLayout, setSavedLayout] = useState(null)
   const [view, setView] = useState('2d')
   // Default to wall-focused view with rooms hidden
-  const [layers, setLayers] = useState({ walls: true, rooms: false, symbols: true, names: false, dimensions: false, wirings: true, source: true })
+  const { preferences } = useUserPreferences()
+  const [layers, setLayers] = useState(() => ({ walls: preferences.walls, rooms: false, symbols: preferences.symbols, names: false, dimensions: false, wirings: preferences.wiring, source: preferences.blueprint }))
   const [tool, setTool] = useState('select')
   const [placementLegendId, setPlacementLegendId] = useState('')
   const [drawingWireMethod, setDrawingWireMethod] = useState('concealed_in_ceiling')

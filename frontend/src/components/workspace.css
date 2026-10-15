@@ -1,4 +1,33 @@
 /* Authenticated workspace only. Keep the landing-page identity and VED tokens. */
+.studio-preferences-root { color: var(--ink); background: var(--paper); }
+.studio-preferences-root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #101722; --paper-line: #3c4c60; --white: #192331;
+  --ink: #ecf1f7; --ink-soft: #b5c4d5;
+}
+.studio-preferences-root[data-theme="light"] { color-scheme: light; }
+.studio-preferences-root[data-theme="dark"] :is(.studio-sidebar, .studio-sheet-content, .project-dashboard-hero, .studio-mode-active) { --white: #fdfcf8; }
+.studio-preferences-root[data-theme="dark"] :is(.project-create-panel, .project-list-panel, .project-detail, .project-detail-error) { background: var(--white); }
+.studio-preferences-root[data-theme="dark"] .btn-accent { color: #151515; }
+.studio-preferences-root[data-theme="dark"] .studio-navigation a[aria-current="page"] { color: #151515; }
+.studio-preferences-root[data-theme="dark"] .studio-sign-out { color: #151515; }
+.studio-project-context { flex-direction: column; align-items: flex-start !important; }
+.studio-project-context small { color: var(--line-cyan); font-size: 10px; }
+.studio-project-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.studio-project-table th, .studio-project-table td { padding: 16px 12px; border-bottom: 1px solid var(--paper-line); vertical-align: middle; }
+.studio-project-table thead { background: var(--paper); color: var(--ink-soft); font-size: 11px; }
+.studio-project-table h3 { font-size: 16px; min-width: 160px; }
+.studio-project-table small { color: var(--ink-soft); font-size: 10px; font-weight: 400; }
+.studio-project-table .project-open-link { white-space: nowrap; margin: 0; }
+.studio-project-table tbody tr:hover { background: var(--paper); }
+.studio-settings { max-width: 780px; }
+.studio-settings h1 { font-size: 32px; margin: 8px 0; }
+.studio-settings > p, .studio-settings small { color: var(--ink-soft); }
+.studio-settings fieldset { border: 1px solid var(--paper-line); border-radius: 8px; padding: 20px; margin-top: 24px; }
+.studio-settings legend { font-weight: 600; padding: 0 8px; }
+.studio-settings fieldset > label:not(.studio-field) { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
+.studio-settings input { width: 18px; height: 18px; accent-color: var(--accent-dim); }
+.studio-settings :is(p, small) { font-size: 13px; }
 .studio-shell { display: grid; grid-template-columns: 244px minmax(0, 1fr); background: var(--paper); }
 .studio-sidebar, .studio-sheet-content { display: flex; flex-direction: column; gap: 18px; background: var(--navy); color: var(--white); padding: 26px 18px 18px; }
 .studio-sidebar { position: sticky; top: 0; height: 100dvh; overflow-y: auto; border-right: 1px solid var(--line-cyan-dim); }

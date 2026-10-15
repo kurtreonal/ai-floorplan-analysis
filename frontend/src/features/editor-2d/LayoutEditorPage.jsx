@@ -15,6 +15,8 @@ import { projectRoute } from '../routing/routeProjection.js'
 import { CircuitPlanningPanel } from '../routing/CircuitPlanningPanel.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, Save } from 'lucide-react'
+import { useUserPreferences } from '../settings/useUserPreferences.js'
+import { formatDisplayLength } from '../settings/userPreferences.js'
 
 const INITIAL_VISIBILITY = Object.freeze({
   blueprint: true, walls: true, wallFootprints: false, rooms: true, symbols: true, routes: true,
@@ -61,12 +63,15 @@ function saveFailure(error) {
 }
 
 export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyChange = NOOP }) {
+  const { preferences } = useUserPreferences()
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState({
     status: 'loading', serverLayout: null, draft: null,
     image: null, blueprintWarning: null, error: null,
   })
-  const [visibility, setVisibility] = useState({ ...INITIAL_VISIBILITY })
+  const [visibility, setVisibility] = useState(() => ({ ...INITIAL_VISIBILITY,
+    blueprint: preferences.blueprint, walls: preferences.walls, symbols: preferences.symbols, routes: preferences.wiring,
+  }))
   const [route, setRoute] = useSavedRoute(projectId, state.serverLayout?.id)
   const [circuitPreview, setCircuitPreview] = useState(null)
   const [selectedSymbolId, setSelectedSymbolId] = useState(null)
@@ -293,10 +298,10 @@ export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyCh
       <dl className="layout-metadata">
         <div><dt>Project ID</dt><dd>{serverLayout.project_id}</dd></div>
         <div><dt>Floor ID</dt><dd>{serverLayout.project_floor_id}</dd></div>
-        <div><dt>Elevation</dt><dd>{geometry.floor.elevation_meters} m</dd></div>
+        <div><dt>Elevation</dt><dd>{formatDisplayLength(geometry.floor.elevation_meters, preferences.units)}</dd></div>
         <div><dt>Source floor-plan ID</dt><dd>{serverLayout.floor_plan_id}</dd></div>
       </dl>
-      {route && <p>Generated route version {route.version_number}: {route.result.total_meters.toFixed(3)} m (backend total). {route.stale || dirty ? 'Layout changed — route overlay hidden until saved and recalculated.' : 'Saved route overlay shown.'}</p>}
+      {route && <p>Generated route version {route.version_number}: {formatDisplayLength(route.result.total_meters, preferences.units)} (backend total). {route.stale || dirty ? 'Layout changed — route overlay hidden until saved and recalculated.' : 'Saved route overlay shown.'}</p>}
 
       {state.blueprintWarning && <p className="layout-blueprint-warning" role="status">{state.blueprintWarning}</p>}
 

@@ -128,24 +128,26 @@ export function ProjectDashboardPage({ session }) {
           </div>
         )}
         {loadState === 'ready' && projects.length > 0 && (
-          <div className="project-grid studio-project-grid">
+          <div className="studio-table-scroll">
+          <table className="studio-project-table">
+            <caption className="sr-only">Projects — open a project to manage its floors and plans</caption>
+            <thead><tr><th scope="col">Project</th><th scope="col">Client</th><th scope="col">Location</th><th scope="col">Status</th><th scope="col">Updated</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+            <tbody>
             {filteredProjects.map((project) => (
-              <article className="project-card" key={project.id}>
-                <div className="project-card-topline">
-                  <span className="project-status mono">{formatStatus(project.status)}</span>
-                  <span className="project-number mono">PRJ-{String(project.id).padStart(4, '0')}</span>
-                </div>
-                <h3>{project.name}</h3>
-                <dl>
-                  <div><dt>Client</dt><dd>{project.client_name || 'Not specified'}</dd></div>
-                  <div><dt>Location</dt><dd>{project.location || 'Not specified'}</dd></div>
-                  <div><dt>Updated</dt><dd>{formatTimestamp(project.updated_at)}</dd></div>
-                </dl>
+              <tr key={project.id}>
+                <th scope="row"><h3>{project.name}</h3><small className="mono">PRJ-{String(project.id).padStart(4, '0')}</small></th>
+                <td>{project.client_name || 'Not specified'}</td><td>{project.location || 'Not specified'}</td>
+                <td><span className="project-status mono">{formatStatus(project.status)}</span></td>
+                <td>{formatTimestamp(project.updated_at)}</td>
+                <td>
                 <a className="project-open-link" href={getProjectHref(project.id)} aria-label={`Open ${project.name}`}>
                   Open project <span aria-hidden="true">→</span>
                 </a>
-              </article>
+                </td>
+              </tr>
             ))}
+            </tbody>
+          </table>
           </div>
         )}
         {loadState === 'ready' && projects.length > 0 && filteredProjects.length === 0 && <div className="project-empty-state"><h3>No matching projects.</h3><p>Try another search or status filter.</p></div>}

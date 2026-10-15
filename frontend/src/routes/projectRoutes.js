@@ -1,5 +1,6 @@
 export function parseProjectRoute(route) {
-  if (route === '/app') {
+  if (route === '/app/settings') return { view: 'settings', projectId: null }
+  if (route === '/app' || route === '/app/projects') {
     return { view: 'dashboard', projectId: null }
   }
 

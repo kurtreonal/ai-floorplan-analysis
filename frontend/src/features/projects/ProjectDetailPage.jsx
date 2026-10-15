@@ -89,7 +89,7 @@ export function ProjectDetailPage({ projectId, session }) {
 
   return (
     <article className="project-detail" aria-labelledby="project-detail-title">
-      <a className="project-back-link" href="#/app">← Back to dashboard</a>
+      <a className="project-back-link" href="#/app">← All projects</a>
       <div className="project-detail-heading">
         <div>
           <span className="project-kicker mono">PROJECT METADATA</span>

@@ -101,7 +101,7 @@ describe('project dashboard', () => {
     expect(await screen.findByRole('heading', { name: PROJECT.name })).toBeTruthy()
     expect(screen.getByText(PROJECT.client_name)).toBeTruthy()
     expect(screen.getByText(PROJECT.location)).toBeTruthy()
-    expect(within(screen.getByRole('heading', { name: PROJECT.name }).closest('article')).getByText('needs review')).toBeTruthy()
+    expect(within(screen.getByRole('heading', { name: PROJECT.name }).closest('tr')).getByText('needs review')).toBeTruthy()
     expect(screen.getByRole('link', { name: `Open ${PROJECT.name}` }).getAttribute('href')).toBe(
       '#/app/projects/129',
     )
@@ -174,7 +174,7 @@ describe('project dashboard', () => {
       },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     )
-    expect(within(screen.getByRole('heading', { name: PROJECT.name }).closest('article')).getByText('needs review')).toBeTruthy()
+    expect(within(screen.getByRole('heading', { name: PROJECT.name }).closest('tr')).getByText('needs review')).toBeTruthy()
   })
 })
 
@@ -231,7 +231,7 @@ describe('project detail', () => {
     expect(screen.getByText('needs review')).toBeTruthy()
     expect(screen.getByText(PROJECT.client_name)).toBeTruthy()
     expect(screen.getByText(PROJECT.location)).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Back to dashboard/ }).getAttribute('href')).toBe('#/app')
+    expect(screen.getByRole('link', { name: /All projects/ }).getAttribute('href')).toBe('#/app')
     expect(screen.getByText(/upload original floor-plan files/i)).toBeTruthy()
     expect(screen.queryByText(/AI results/i)).toBeNull()
   })

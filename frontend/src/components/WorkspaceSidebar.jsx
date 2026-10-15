@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Calculator, FolderOpen, Layers3, LayoutDashboard, LogOut, Menu, ScanLine, ShieldCheck } from 'lucide-react'
+import { Box, Calculator, Layers3, LayoutDashboard, LogOut, Menu, ScanLine, Settings, ShieldCheck } from 'lucide-react'
 import vedLogo from '../assets/ved-logo.png'
 import { getEstimateHref, getLayoutHref, getProjectHref, getViewer3dHref } from '../routes/projectRoutes.js'
 import { Button } from './ui/button.jsx'
@@ -8,13 +8,13 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from 
 function Navigation({ projectRoute, session, onNavigate }) {
   const { projectId, projectFloorId, view } = projectRoute
   const links = [
-    { label: 'Projects', icon: LayoutDashboard, href: '#/app', active: view === 'dashboard' },
+    { label: 'Projects', icon: LayoutDashboard, href: '#/app', active: view === 'dashboard' || view === 'project' },
     ...(projectId ? [
-      { label: 'Project workspace', icon: FolderOpen, href: getProjectHref(projectId), active: view === 'project' },
       { label: '2D editor', icon: Layers3, href: projectFloorId ? getLayoutHref(projectId, projectFloorId) : null, active: view === 'layout' },
       { label: '3D viewer', icon: Box, href: projectFloorId ? getViewer3dHref(projectId, projectFloorId) : null, active: view === 'viewer-3d' },
       { label: 'Cost estimation', icon: Calculator, href: getEstimateHref(projectId), active: view === 'estimates' },
     ] : []),
+    { label: 'User settings', icon: Settings, href: '#/app/settings', active: view === 'settings' },
   ]
   return <>
     <a className="studio-brand" href="#/app" onClick={onNavigate} aria-label="VED project dashboard">
@@ -22,6 +22,7 @@ function Navigation({ projectRoute, session, onNavigate }) {
     </a>
     <nav className="studio-navigation" aria-label="Workspace navigation">
       <p className="mono">WORKSPACE</p>
+      {projectId && <a className="studio-project-context" href={getProjectHref(projectId)} onClick={onNavigate}>Project {projectId}<small>Floors &amp; plans</small></a>}
       {links.map(({ label, icon: Icon, href, active }) => href
         ? <a key={label} href={href} onClick={onNavigate} aria-current={active ? 'page' : undefined}><Icon aria-hidden="true" /><span>{label}</span></a>
         : <span key={label} className="studio-nav-unavailable"><Icon aria-hidden="true" /><span>{label}<small>Choose a floor in the project</small></span></span>)}
