@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useUserPreferences } from '../settings/useUserPreferences.js'
+import { ViewportFrame } from '../../components/ViewportFrame.jsx'
+import { WorkspacePanel } from '../../components/WorkspacePanel.jsx'
 
 import {
   DemoInterpretationApiError,
@@ -156,6 +158,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const [saveState, setSaveState] = useState({ status: 'idle', message: null })
   const [savedLayout, setSavedLayout] = useState(null)
   const [view, setView] = useState('2d')
+  const [opened3d, setOpened3d] = useState(false)
   // Default to wall-focused view with rooms hidden
   const { preferences } = useUserPreferences()
   const [layers, setLayers] = useState(() => ({ walls: preferences.walls, rooms: false, symbols: preferences.symbols, names: false, dimensions: false, wirings: preferences.wiring, source: preferences.blueprint }))
@@ -504,7 +507,6 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         </div>
         <p>{activeWallsCount} wall segments · {activeRoomsCount} rooms</p>
       </header>
-      <p>Edit devices, walls and wiring, then save. No per-item confirmation.</p>
       <details className="demo-detection-details"><summary>Detection details and limitations</summary>
       <p role="note">
         Automatic detection can mistake wiring, grids and dimensions for walls. All draft items are editable; saving does not certify the design.
@@ -521,10 +523,11 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         onRegionChange={setAnalysisRegion} onSelectRegion={() => { setView('2d'); setTool('region') }}
         onFreezeRegion={() => setTool('select')}
         projectId={projectId} projectFloorId={projectFloorId} floorPlanId={floorPlanId} />
+      <ViewportFrame title="Plan workspace" status={saveState.message || 'Shared editable draft · save before leaving'}>
       <div className="studio-review-headerbar">
         <div className="studio-review-mode" role="group" aria-label="Preview mode">
           <Button variant={view === '2d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '2d'} aria-label="2D · Review rooms" onClick={() => setView('2d')}><Layers3 aria-hidden="true" />Edit 2D</Button>
-          <Button variant={view === '3d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '3d'} aria-label="3D · Draft preview" onClick={() => { setView('3d'); setTool('select') }}><Box aria-hidden="true" />View 3D</Button>
+          <Button variant={view === '3d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '3d'} aria-label="3D · Draft preview" onClick={() => { setOpened3d(true); setView('3d'); setTool('select') }}><Box aria-hidden="true" />View 3D</Button>
         </div>
         <span className="mono studio-draft-status">SHARED DRAFT · {activeSymbols.length - annotationCount} DEVICE PROPOSALS{annotationCount > 0 && <> · {annotationCount} ANNOTATIONS</>}</span>
         <Button variant="ghost" size="icon" aria-label="Undo" disabled={historyIndex <= 0} onClick={handleUndo}><Undo2 aria-hidden="true" /></Button>
@@ -532,6 +535,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         <Button size="sm" disabled={saveState.status === 'saving'} aria-label="Save unfinished draft" onClick={() => saveReview({ draftOnly: true })}><Save aria-hidden="true" />Save draft</Button>
       </div>
       <div className="studio-review-workbench studio-device-workbench">
+      <WorkspacePanel title="Plan tools" className="studio-review-tools-panel">
       <ReviewToolRail view={view} tool={tool} onToolChange={(nextTool) => {
         setTool(nextTool); setEditingSession((value) => value + 1)
         if (nextTool === 'wire') setSelected(null)
@@ -551,6 +555,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             view={view} visible={Boolean(layers.wirings)} onVisibilityChange={(visible) => setLayers((current) => ({ ...current, wirings: visible }))}
             onChange={(wirings) => { if (saveState.status !== 'saving') pushDraft({ ...draft, wirings }) }} />
         </>} />
+      </WorkspacePanel>
       <section className="demo-preview-workspace" aria-label="Wall-first workspace">
 
         <p className="demo-next-step">
@@ -559,8 +564,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             : 'Click a wire and drag its blue points. Devices and wiring share the same 2D/3D draft.'}
         </p>
 
-        {view === '2d' ? (
-          <>
+        <div hidden={view !== '2d'}>
 
             {draft.walls.length === 0 && (
               <p role="status">No walls detected. Click &quot;Draw Walls&quot; above to draw walls directly over the blueprint.</p>
@@ -582,6 +586,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               onUpdateWall={handleUpdateWall}
               onDeleteWall={handleDeleteWall}
               scaleMeters={state.record.routing_context?.pixels_per_meter??null}
+              wallUnit={preferences.units === 'imperial' ? 'ft' : 'm'}
               onUpdateRoom={updateRoom}
               onUpdateSymbol={updateSymbol}
               placementPresentation={placementLegendId ? describeReviewSymbol({id:'placement', symbol_legend_id:Number(placementLegendId), center:{x:0,y:0}},state.record,state.legends) : null}
@@ -603,15 +608,15 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
                 setLayers((current) => ({ ...current, wirings: true }))
               }}
             />
-          </>
-        ) : (
+        </div>
+        {(opened3d || view === '3d') && <div hidden={view !== '3d'}>
           <Suspense fallback={<p role="status">Opening draft 3D preview…</p>}>
             <DraftRoomPreview draft={draft} layers={layers} width={plane.width_pixels} height={plane.height_pixels} projectId={projectId}
               routingContext={state.record.routing_context}
               presentations={presentations} selected={selected} onSelect={setSelected} onUpdateSymbol={updateSymbol}
               onMoveWirePoint={moveWirePoint} navigationMode={tool} />
           </Suspense>
-        )}
+        </div>}
         {staleRoomsWarning && (
           <div className="demo-stale-rooms-banner" role="alert">
             <span>Wall edits invalidate automatic room boundaries. Review room corners or proceed with a walls-only layout.</span>
@@ -621,7 +626,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         {saveState.message && <p role={saveState.status === 'error' ? 'alert' : 'status'}>{saveState.message}</p>}
       </section>
 
-      <section className="demo-review-tools" aria-labelledby="demo-tools-title">
+      <WorkspacePanel title="Item inspector" className="demo-review-tools" labelledBy="demo-tools-title">
         {tool === 'place-device' && <fieldset><legend>Add device</legend>
           <label>Device to place<select aria-label="Device to place" value={placementLegendId} onChange={event => setPlacementLegendId(event.target.value)}>
             <option value="">Choose a device</option>{groupLegendChoices(state.legends).filter(l => l.is_active !== false && !isWiringLegend(l) && deviceFamily(l.displayName) !== 'annotation').map(l => <option key={l.id} value={l.id}>{l.displayName}</option>)}
@@ -729,9 +734,10 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           </>}
         </div>}
         {!selectedEntity && <p className="studio-inspector-empty">Select a named device in the canvas or list to move, classify or remove it. Changes stay in the shared draft until saved.</p>}
-      </section>
+      </WorkspacePanel>
 
       </div>
+      </ViewportFrame>
       <details className="demo-approval-panel"><summary>Measured layout &amp; estimates (optional)</summary>
       <section aria-labelledby="demo-approval-title">
         <h2 id="demo-approval-title">Optional: approve a measured, saved layout</h2>

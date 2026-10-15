@@ -5,8 +5,10 @@ import { buildDraftRoomScene } from './draftRoomScene.js'
 import { Button } from '../../components/ui/button.jsx'
 import { clampDevicePoint } from './devicePresentation.js'
 import { findWireDeviceSnap } from './deviceConnections.js'
+import { useUserPreferences } from '../settings/useUserPreferences.js'
 
 export function DraftRoomPreview({ draft, layers, width, height, projectId, presentations, selected, onSelect, onUpdateSymbol, onMoveWirePoint, navigationMode, routingContext }) {
+  const { preferences } = useUserPreferences()
   const controlsRef = useRef(null)
   const [ready, setReady] = useState(false)
   const [wallHeight, setWallHeight] = useState(3)
@@ -49,7 +51,7 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
           selectedWireId={selected?.kind === 'wiring' ? selected.id : null}
           onSelectWire={(id) => onSelect?.({ kind: 'wiring', id })}
           onFindWireDeviceSnap={(id,index,point,distanceToSymbol,threshold) =>
-            findWireDeviceSnap(point,id,index,draft,presentations,threshold,distanceToSymbol)}
+            preferences.snapping ? findWireDeviceSnap(point,id,index,draft,presentations,threshold,distanceToSymbol) : null}
           onMoveWirePoint={navigationMode === 'pan' || !onMoveWirePoint ? undefined : (id,index,point,snap) => {
             const sourcePoint = { x: point.x / result.scene.sourceScale, y: point.y / result.scene.sourceScale }
             if (snap) onMoveWirePoint(id,index,snap.point,snap)

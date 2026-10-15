@@ -25,4 +25,3 @@ export function UserPreferencesProvider({ userId, children }) {
     <div className="studio-preferences-root" data-theme={theme}>{children}</div>
   </PreferencesContext.Provider>
 }
-

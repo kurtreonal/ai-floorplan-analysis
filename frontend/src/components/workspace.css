@@ -1,4 +1,31 @@
 /* Authenticated workspace only. Keep the landing-page identity and VED tokens. */
+.studio-viewport-frame { min-width: 0; border: 1px solid var(--paper-line); border-radius: 8px; background: var(--paper); }
+.studio-viewport-frame:fullscreen, .studio-viewport-frame.is-expanded { width: 100%; height: 100dvh; overflow: auto; padding: 14px; background: var(--paper); color: var(--ink); }
+.studio-viewport-frame.is-expanded { position: fixed; inset: 0; z-index: 45; }
+.studio-viewport-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 10px 12px; background: var(--white); border-bottom: 1px solid var(--paper-line); font-size: 12px; }
+.studio-viewport-heading > button { margin-left: auto; }
+.studio-viewport-heading [role="status"] { color: var(--ink-soft); }
+.studio-collapsible-panel { min-width: 0; }
+.studio-collapsible-panel > button { max-width: 100%; height: auto; min-height: 36px; white-space: normal; margin-bottom: 8px; }
+.studio-collapsible-panel [hidden], .studio-viewport-frame [hidden] { display: none !important; }
+.studio-review-tools-panel { background: var(--white); border-right: 1px solid var(--paper-line); }
+.studio-review-tools-panel .studio-review-rail { border: 0; }
+.studio-collapsible-panel[data-collapsed="true"] { padding: 6px !important; }
+.studio-collapsible-panel[data-collapsed="true"] > button { margin: 0; }
+.studio-viewer-tools > div { display: grid; gap: 10px; }
+.studio-editor-workbench:has(> .studio-editor-layers[data-collapsed="true"]) { grid-template-columns: 84px minmax(0, 1fr) 300px; }
+.studio-editor-workbench:has(> .studio-editor-inspector[data-collapsed="true"]) { grid-template-columns: 160px minmax(0, 1fr) 84px; }
+.studio-editor-workbench:has(> .studio-editor-layers[data-collapsed="true"]):has(> .studio-editor-inspector[data-collapsed="true"]) { grid-template-columns: 84px minmax(0, 1fr) 84px; }
+.studio-viewer-workbench:has(> .studio-viewer-tools[data-collapsed="true"]) { grid-template-columns: 84px minmax(0, 1fr) 270px; }
+.studio-viewer-workbench:has(> .studio-viewer-inspector[data-collapsed="true"]) { grid-template-columns: 180px minmax(0, 1fr) 84px; }
+.studio-viewer-workbench:has(> .studio-viewer-tools[data-collapsed="true"]):has(> .studio-viewer-inspector[data-collapsed="true"]) { grid-template-columns: 84px minmax(0, 1fr) 84px; }
+.studio-device-workbench:has(> .studio-review-tools-panel[data-collapsed="true"]) { grid-template-columns: 84px minmax(0, 1fr) 280px; }
+.studio-device-workbench:has(> .demo-review-tools[data-collapsed="true"]) { grid-template-columns: 160px minmax(0, 1fr) 84px; }
+.studio-device-workbench:has(> .studio-review-tools-panel[data-collapsed="true"]):has(> .demo-review-tools[data-collapsed="true"]) { grid-template-columns: 84px minmax(0, 1fr) 84px; }
+@media (max-width: 1050px) {
+  .studio-shell :is(.studio-editor-workbench, .studio-viewer-workbench, .studio-device-workbench):has(> .studio-collapsible-panel) { grid-template-columns: minmax(0, 1fr); }
+  .studio-collapsible-panel { grid-column: auto !important; }
+}
 .studio-preferences-root { color: var(--ink); background: var(--paper); }
 .studio-preferences-root[data-theme="dark"] {
   color-scheme: dark;
@@ -250,7 +277,7 @@
 .studio-device-provenance .mono { font-size: 9px; }
 .studio-remove-device { width: 100%; color: var(--accent-dim); margin-top: 18px; border-color: #c94e2840; }
 .studio-device-workbench .demo-canvas-card { position: relative; }
-.studio-device-workbench .demo-canvas-viewport-controls { position: absolute; z-index: 5; top: 14px; left: 50%; transform: translateX(-50%); border: 1px solid var(--paper-line); border-radius: 7px; padding: 6px; box-shadow: 0 5px 18px #0f203015; background: var(--white); white-space: nowrap; }
+.studio-device-workbench .demo-canvas-viewport-controls { position: absolute; z-index: 5; top: 14px; left: 14px; flex-direction: column; border: 1px solid var(--paper-line); border-radius: 7px; padding: 6px; box-shadow: 0 5px 18px #0f203015; background: var(--white); white-space: nowrap; }
 .studio-device-workbench .btn-canvas-mini { border: 0; background: var(--white); color: var(--ink); min-width: 32px; min-height: 32px; }
 .studio-device-workbench .demo-canvas-grid-wrap { border: 0; border-radius: 0; background-color: var(--paper); height: min(70dvh, 780px); min-height: 560px; }
 .studio-device-workbench .detection-canvas-note { padding: 12px 15px; font-size: 10px; background: var(--white); border-top: 1px solid var(--paper-line); margin: 0; }

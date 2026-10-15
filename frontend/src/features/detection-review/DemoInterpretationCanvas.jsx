@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useUserPreferences } from '../settings/useUserPreferences.js'
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva'
 
 import { fitCanvas } from './detectionCanvasGeometry.js'
@@ -53,6 +54,7 @@ export function DemoInterpretationCanvas({
   regionSession = 0,
 }) {
   const containerRef = useRef(null)
+  const { preferences } = useUserPreferences()
   const stageRef = useRef(null)
   const [containerSize, setContainerSize] = useState({ width: 900, height: 600 })
   const defaultFit = useMemo(() => {
@@ -210,6 +212,7 @@ export function DemoInterpretationCanvas({
   // Snap candidate calculation
   const snapThreshold = 14 / stageTransform.scale
   const snap = useMemo(() => {
+    if (!preferences.snapping) return { x: mousePos.x, y: mousePos.y, snapped: false }
     if (tool === 'wire') return snapWiringPoint(isShiftHeld && drawingStart
       ? constrainPoint(drawingStart,mousePos,true) : mousePos,draft,presentations,snapThreshold)
     if (tool !== 'draw' && tool !== 'move') return { x: 0, y: 0, snapped: false }
@@ -218,7 +221,7 @@ export function DemoInterpretationCanvas({
     const target=wallPointerTarget(mousePos,draft.walls,{scale:stageTransform.scale,anchor:drawingStart,
       excludeWallId:tool==='move'&&selected?.kind==='wall'?selected.id:null,shift:isShiftHeld})
     return {...target.point,snapped:target.snapped,guides:target.guides}
-  }, [mousePos, draft, presentations, snapThreshold, tool, selected, isShiftHeld, drawingStart,stageTransform.scale])
+  }, [mousePos, draft, presentations, snapThreshold, tool, selected, isShiftHeld, drawingStart,stageTransform.scale,preferences.snapping])
 
   // Current effective point (with snap and shift constraint)
   const effectivePoint = useMemo(() => {
@@ -265,8 +268,8 @@ export function DemoInterpretationCanvas({
       if (isSpaceHeld) return
       const clicked = getSourcePoint(event.target.getStage())
       if (!clicked) return
-      const target=tool==='draw'?wallPointerTarget(clicked,draft.walls,{scale:stageTransform.scale,anchor:drawingStart,shift:isShiftHeld}):null
-      const clickedSnap = target ? {...target.point,snapped:target.snapped} : snapWiringPoint(isShiftHeld && drawingStart ? constrainPoint(drawingStart,clicked,true) : clicked,
+      const target=tool==='draw'&&preferences.snapping?wallPointerTarget(clicked,draft.walls,{scale:stageTransform.scale,anchor:drawingStart,shift:isShiftHeld}):null
+      const clickedSnap = !preferences.snapping ? null : target ? {...target.point,snapped:target.snapped} : snapWiringPoint(isShiftHeld && drawingStart ? constrainPoint(drawingStart,clicked,true) : clicked,
         draft,presentations,snapThreshold)
       const endpoint = clickedSnap?.snapped ? { x: clickedSnap.x, y: clickedSnap.y }
         : isShiftHeld && drawingStart ? constrainPoint(drawingStart, clicked, true) : clicked
@@ -400,7 +403,7 @@ export function DemoInterpretationCanvas({
                     e.cancelBubble = true
                     let dx = e.target.x()
                     let dy = e.target.y()
-                    if(!e.evt?.altKey) {
+                    if(preferences.snapping&&!e.evt?.altKey) {
                       const raw={x:wall.start.x+dx,y:wall.start.y+dy}
                       const target=wallPointerTarget(raw,draft.walls,{scale:stageTransform.scale,excludeWallId:wall.id})
                       if(target.snapped){dx=target.point.x-wall.start.x;dy=target.point.y-wall.start.y}
@@ -637,12 +640,12 @@ export function DemoInterpretationCanvas({
                 onDragStart={(event) => { event.cancelBubble = true; onSelect?.({ kind: 'symbol', id: symbol.id }) }}
                 onDragMove={(event) => {
                   const point = {x: event.target.x(), y: event.target.y()}
-                  setDeviceSnap(findDeviceWireSnap(point, symbol.id, draft.wirings, 12 / stageTransform.scale))
+                  setDeviceSnap(preferences.snapping ? findDeviceWireSnap(point, symbol.id, draft.wirings, 12 / stageTransform.scale) : null)
                 }}
                 onDragEnd={(event) => {
                   event.cancelBubble = true
                   const center = clampDevicePoint({ x: event.target.x(), y: event.target.y() }, width, height)
-                  const candidate = center ? findDeviceWireSnap(center, symbol.id, draft.wirings, 12 / stageTransform.scale) : null
+                  const candidate = center && preferences.snapping ? findDeviceWireSnap(center, symbol.id, draft.wirings, 12 / stageTransform.scale) : null
                   event.target.position(candidate?.point || center || symbol.center)
                   if (center && onUpdateSymbol?.({ ...symbol, center }, candidate) === false) event.target.position(symbol.center)
                   setDeviceSnap(null)
@@ -693,7 +696,7 @@ export function DemoInterpretationCanvas({
                 onDragMove={(event) => {
                   if (wireDrag.current?.cancelled) return
                   const next = {x: event.target.x(), y: event.target.y()}
-                  const target = findWireDeviceSnap(next, selected.id, index, draft, presentations, snapThreshold)
+                  const target = preferences.snapping ? findWireDeviceSnap(next, selected.id, index, draft, presentations, snapThreshold) : null
                   setWireDeviceSnap(target)
                   if (target) event.target.position(target.point)
                 }}
@@ -702,7 +705,7 @@ export function DemoInterpretationCanvas({
                   wireDrag.current = null
                   setWireDeviceSnap(null)
                   const next = { x: event.target.x(), y: event.target.y() }
-                  const target = cancelled ? null : findWireDeviceSnap(next, selected.id, index, draft, presentations, snapThreshold)
+                  const target = cancelled || !preferences.snapping ? null : findWireDeviceSnap(next, selected.id, index, draft, presentations, snapThreshold)
                   event.target.position(point)
                   if (cancelled) return
                   if (target) onMoveWirePoint?.(selected.id,index,target.point,target)

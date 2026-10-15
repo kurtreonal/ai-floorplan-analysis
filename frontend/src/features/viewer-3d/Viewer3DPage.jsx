@@ -14,6 +14,8 @@ import { Viewer3DErrorBoundary } from './Viewer3DErrorBoundary.jsx'
 import './viewer3d.css'
 import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, RotateCcw, RefreshCw, Scan, Move3D } from 'lucide-react'
+import { ViewportFrame } from '../../components/ViewportFrame.jsx'
+import { WorkspacePanel } from '../../components/WorkspacePanel.jsx'
 
 
 export default function Viewer3DPage({ projectId, projectFloorId }) {
@@ -84,8 +86,9 @@ function SavedViewer({ projectId, projectFloorId }) {
       <p className="viewer-3d-scope-note" role="note">
         Devices use illustrative sizes. Configured circuit devices use entered planning elevations; others use visual mounting defaults. Neither is electrical approval. Reload after saving 2D changes.
       </p>
+      <ViewportFrame title="3D viewer" status={layoutState.status === 'error' ? layoutState.message : 'Saved planning geometry'}>
       <div className="studio-viewer-workbench">
-      <aside className="studio-viewer-tools" aria-label="3D view tools"><span className="project-kicker mono">CAMERA</span><Button variant="outline" disabled={!controlsReady} onClick={resetCamera}><RotateCcw aria-hidden="true" />Reset view</Button><Button variant="outline" disabled={!controlsReady} onClick={() => controlsRef.current?.top()}><Scan aria-hidden="true" />Top view</Button><Button variant="outline" disabled={!controlsReady} onClick={resetCamera}><Move3D aria-hidden="true" />Perspective view</Button><Button variant="outline" disabled={layoutState.status === 'loading'} onClick={reloadLayout}><RefreshCw aria-hidden="true" />Reload saved layout</Button><p>Orbit, pan and zoom change your view—not saved coordinates.</p></aside>
+      <WorkspacePanel title="3D view tools" className="studio-viewer-tools"><span className="project-kicker mono">CAMERA</span><Button variant="outline" disabled={!controlsReady} onClick={resetCamera}><RotateCcw aria-hidden="true" />Reset view</Button><Button variant="outline" disabled={!controlsReady} onClick={() => controlsRef.current?.top()}><Scan aria-hidden="true" />Top view</Button><Button variant="outline" disabled={!controlsReady} onClick={resetCamera}><Move3D aria-hidden="true" />Perspective view</Button><Button variant="outline" disabled={layoutState.status === 'loading'} onClick={reloadLayout}><RefreshCw aria-hidden="true" />Reload saved layout</Button></WorkspacePanel>
       <div className="studio-viewer-scene">
       <Button variant="outline" size="sm" aria-pressed={showRoof} onClick={() => setShowRoof((value) => !value)}>{showRoof ? 'Hide roof' : 'Show roof'}</Button>
       {displayRoutes.some((segment) => segment.kind.startsWith('underground')) && <label>
@@ -103,7 +106,7 @@ function SavedViewer({ projectId, projectFloorId }) {
           selectedSymbolId={selectedSymbolId} onSelectSymbol={setSelectedSymbolId} />
       </Viewer3DErrorBoundary>}
       </div>
-      <aside className="studio-viewer-inspector"><span className="project-kicker mono">SAVED SNAPSHOT</span><h2>Geometry & provenance</h2>
+      <WorkspacePanel title="3D inspector" className="studio-viewer-inspector"><span className="project-kicker mono">SAVED SNAPSHOT</span><h2>Geometry & provenance</h2>
       {layoutState.status === 'ready' && <>
         <label className="studio-field">Inspect device<select value={selectedSymbolId || ''} onChange={(event) => setSelectedSymbolId(event.target.value || null)}>
           <option value="">Select a device</option>{orderNamed(layoutState.scene.symbols, symbol => symbol.classification.name).map((symbol) => <option key={symbol.id} value={symbol.id}>{symbol.classification.name} · {symbol.id}</option>)}
@@ -128,8 +131,9 @@ function SavedViewer({ projectId, projectFloorId }) {
           {symbol.classification.name} (class {symbol.classification.id}) — {symbol.id}; {symbol.status === 'manually_added' ? 'manually added' : 'confirmed'}; x {symbol.position[0]} m, y {symbol.position[2]} m.
         </li>)}</ul>
       </details>}
-      </aside>
+      </WorkspacePanel>
       </div>
+      </ViewportFrame>
       {layoutState.status === 'ready' && <RoutingPanel key={layoutState.layout.id} layout={layoutState.layout} record={route} onSaved={(saved) => { setCircuitPreview(null); setRoute(saved) }} />}
       {layoutState.status === 'ready' && <CircuitPlanningPanel key={`circuit:${layoutState.layout.id}`} layout={layoutState.layout} record={route} onPreview={setCircuitPreview} onSaved={setRoute} />}
 

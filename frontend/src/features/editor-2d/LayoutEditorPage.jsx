@@ -17,6 +17,8 @@ import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, Save } from 'lucide-react'
 import { useUserPreferences } from '../settings/useUserPreferences.js'
 import { formatDisplayLength } from '../settings/userPreferences.js'
+import { ViewportFrame } from '../../components/ViewportFrame.jsx'
+import { WorkspacePanel } from '../../components/WorkspacePanel.jsx'
 
 const INITIAL_VISIBILITY = Object.freeze({
   blueprint: true, walls: true, wallFootprints: false, rooms: true, symbols: true, routes: true,
@@ -321,8 +323,9 @@ export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyCh
       {saveState.error && <p className="layout-save-error" role="alert">{saveState.error}</p>}
 
       <p className="sr-only" aria-live="polite">{announcement}</p>
+      <ViewportFrame title="2D editor" status={saveState.error || (dirty ? 'Unsaved position changes' : `Saved version ${serverLayout.version_number}`)}>
       <div className="studio-editor-workbench">
-      <aside className="studio-editor-layers"><span className="project-kicker mono">DISPLAY LAYERS</span><LayoutLayerControls visibility={visibility} onChange={toggleLayer} /><p>Display switches do not delete saved data. Use the inspector for exact coordinates.</p></aside>
+      <WorkspacePanel title="Layers" className="studio-editor-layers"><LayoutLayerControls visibility={visibility} onChange={toggleLayer} /></WorkspacePanel>
       <CanonicalLayoutCanvas
         routeSegments={dirty ? [] : projectRoute(circuitPreview ?? route, serverLayout)}
         geometry={geometry}
@@ -335,15 +338,16 @@ export function LayoutEditorPage({ projectId, projectFloorId, session, onDirtyCh
         onMoveSymbol={moveSymbol}
       />
 
-      <LayoutSymbolEditor
+      <WorkspacePanel title="Device inspector" className="studio-editor-inspector"><LayoutSymbolEditor
         geometry={geometry}
         selectedSymbolId={selectedSymbolId}
         canEdit={canEdit}
         disabled={editBlocked}
         onSelectSymbol={selectSymbol}
         onGeometryChange={replaceDraft}
-      />
+      /></WorkspacePanel>
       </div>
+      </ViewportFrame>
 
       {roleAllowsEditing && !dirty && !busy && saveState.status === 'idle' && (
         <CircuitPlanningPanel key={`circuit:${serverLayout.id}`} layout={serverLayout} record={route}
