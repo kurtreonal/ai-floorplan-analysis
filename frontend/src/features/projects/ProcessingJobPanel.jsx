@@ -43,6 +43,7 @@ export function ProcessingJobPanel({
   originalFilename,
   initialJob = null,
   canStart = true,
+  compact = false,
 }) {
   const [viewState, setViewState] = useState(initialJob?.status || 'ready')
   const [job, setJob] = useState(initialJob)
@@ -260,32 +261,33 @@ export function ProcessingJobPanel({
 
   return (
     <section
-      className={`processing-job-panel processing-job-${viewState}`}
+      className={`processing-job-panel processing-job-${viewState}${compact ? ' is-compact' : ''}`}
       aria-label={`Processing controls for ${originalFilename}`}
     >
-      <div className="processing-job-heading">
+      {!compact && <div className="processing-job-heading">
         <div>
           <span className="mono">AI PROCESSING</span>
           <h4>Floor-plan analysis</h4>
         </div>
         {job && <span className="processing-job-id mono">JOB #{job.job_id}</span>}
-      </div>
+      </div>}
 
       {canStart && import.meta.env.DEV && !isActive && viewState !== 'starting' && (
-        <div className="processing-detector-selection">
-          <p role="note">Automatic development analysis using the configured trained legend detector. Edit results in the plan editor; draft saving needs no per-item confirmation. Independent accuracy remains unverified.</p>
+        <details className="processing-detector-selection"><summary>Analysis options</summary>
+          {!compact && <p role="note">Automatic development analysis using the configured trained legend detector. Edit results in the plan editor; draft saving needs no per-item confirmation. Independent accuracy remains unverified.</p>}
           <label>Page selection (blank processes all uploaded pages)
             <input type="number" min="1" max="50" step="1" value={pageNumber}
               onChange={(event) => setPageNumber(event.target.value)} />
           </label>
-        </div>
+        </details>
       )}
 
       {viewState === 'ready' && (
         <>
-          <p>{canStart
+          {compact && !canStart && <p>No analysis yet.</p>}
+          {!compact && <p>{canStart
             ? 'Ready to create a processing job for this uploaded floor plan.'
-            : 'No processing jobs have been recorded for this floor plan.'}</p>
+            : 'No processing jobs have been recorded for this floor plan.'}</p>}
           {canStart && (
             <button className="btn btn-dark" type="button" onClick={startProcessing}>
               Start processing
@@ -326,11 +328,11 @@ export function ProcessingJobPanel({
       {viewState === 'completed' && (
         <div className="processing-job-result processing-job-success" role="status">
           <strong>Processing completed.</strong>
-          <p>Next: open the room workspace to explore 2D and unfinished 3D. No symbol legend or dimension approval is needed for the draft preview.</p>
+          {!compact && <p>Next: open the room workspace to explore 2D and unfinished 3D. No symbol legend or dimension approval is needed for the draft preview.</p>}
           <a className="btn btn-outline-dark" href={getDemoInterpretationHref(projectId, projectFloorId, floorPlanId, job.job_id)}>
             Open plan editor
           </a>
-          <p>Edit devices, walls and wiring directly in 2D or 3D.</p>
+          {!compact && <p>Edit devices, walls and wiring directly in 2D or 3D.</p>}
           {canStart && <button className="btn btn-outline-dark" type="button" onClick={startProcessing}>Re-analyze room geometry</button>}
           <details><summary>Advanced symbol review</summary><a className="btn btn-outline-dark" href={getDetectionReviewHref(projectId, floorPlanId, job.job_id)}>
             Review detections

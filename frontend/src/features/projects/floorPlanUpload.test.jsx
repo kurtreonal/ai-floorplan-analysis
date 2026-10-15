@@ -167,7 +167,7 @@ describe('project floor upload panel', () => {
     listFloorPlans.mockResolvedValue([UPLOAD])
     listProcessingJobs.mockResolvedValue([])
     render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={ADMIN_SESSION} />)
-    expect(await screen.findByText('No processing jobs have been recorded for this floor plan.')).toBeTruthy()
+    expect(await screen.findByText('No analysis yet.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Start processing' })).toBeNull()
   })
 
@@ -479,6 +479,9 @@ describe('floor plan upload form', () => {
     submitUpload()
 
     expect(await screen.findByRole('heading', { name: 'Saved floor plans' })).toBeTruthy()
+    expect(screen.getByRole('table', { name: 'Saved floor plans for Ground Floor' })).toBeTruthy()
+    expect(screen.queryByText('AI PROCESSING')).toBeNull()
+    expect(screen.queryByText(/Automatic development analysis/)).toBeNull()
     expect(screen.getByText(UPLOAD.original_filename)).toBeTruthy()
     expect(screen.getByText(UPLOAD.processing_status)).toBeTruthy()
     expect(screen.getAllByText('Ground Floor')).toHaveLength(2)

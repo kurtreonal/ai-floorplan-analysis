@@ -47,6 +47,21 @@
 .studio-project-table small { color: var(--ink-soft); font-size: 10px; font-weight: 400; }
 .studio-project-table .project-open-link { white-space: nowrap; margin: 0; }
 .studio-project-table tbody tr:hover { background: var(--paper); }
+.studio-floorplan-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; text-align: left; }
+.studio-floorplan-table th, .studio-floorplan-table td { padding: 16px 12px; border-bottom: 1px solid var(--paper-line); vertical-align: top; }
+.studio-floorplan-table thead { background: var(--paper); color: var(--ink-soft); }
+.studio-floorplan-table th[scope="row"] { width: 28%; min-width: 180px; overflow-wrap: anywhere; font-size: 14px; }
+.studio-floorplan-table td:last-child { min-width: 125px; }
+.studio-floorplan-table summary { cursor: pointer; }
+.studio-floorplan-table dl { display: grid; gap: 8px; margin-top: 14px; }
+.studio-floorplan-table dt { font-size: 10px; color: var(--ink-soft); }
+.studio-floorplan-table dd { margin: 0; overflow-wrap: anywhere; }
+.studio-floorplan-table .processing-job-panel.is-compact { padding: 0; margin: 0; border: 0; background: transparent; min-width: 240px; }
+.studio-floorplan-table .processing-job-result { padding: 0; border: 0; background: transparent; }
+.studio-floorplan-table .processing-job-result > strong { display: block; margin: 0 0 8px; }
+.studio-floorplan-table .btn { font-size: 11px; padding: 7px 10px; min-height: 34px; margin: 3px 4px 3px 0; }
+.studio-floorplan-table .processing-detector-selection { font-size: 11px; margin-bottom: 8px; }
+.studio-floorplan-table .processing-detector-selection label { display: grid; margin-top: 8px; }
 .studio-settings { max-width: 780px; }
 .studio-settings h1 { font-size: 32px; margin: 8px 0; }
 .studio-settings > p, .studio-settings small { color: var(--ink-soft); }

@@ -179,7 +179,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
         <span className="project-kicker mono">FLOOR PLANS</span>
         <h2 id="project-floor-panel-title">Project floor plans</h2>
         <p>Create a floor, upload a JPEG, PNG or PDF, then analyze and open the plan editor.</p>
-        <p>Saved layout links open approved results only. For an unfinished preview, use the completed floor-plan processing card.</p>
+        <p>Use Open plan editor for drafts; saved layout links require approved geometry.</p>
       </div>
 
       {loadState === 'loading' && (
@@ -325,20 +325,19 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
           {visiblePlans.length > 0 && (
             <section className="session-upload-section" aria-labelledby="persisted-plan-title">
               <h3 id="persisted-plan-title">Saved floor plans</h3>
-              <div className="session-upload-grid">
+              <div className="studio-table-scroll">
+              <table className="studio-floorplan-table">
+                <caption className="sr-only">Saved floor plans for {selectedFloorName}</caption>
+                <thead><tr><th scope="col">Floor plan</th><th scope="col">Upload status</th><th scope="col">Analysis &amp; actions</th><th scope="col">Details</th></tr></thead>
+                <tbody>
                 {orderNamed(visiblePlans, plan => plan.original_filename).map((upload) => (
-                  <article className="session-upload-card" key={upload.id}>
-                    <strong>{upload.original_filename}</strong>
-                    <dl>
-                      <div><dt>Floor</dt><dd>{upload.floor_name || selectedFloorName}</dd></div>
-                      <div><dt>MIME type</dt><dd>{upload.mime_type}</dd></div>
-                      <div><dt>File size</dt><dd>{upload.file_size.toLocaleString()} bytes</dd></div>
-                      <div><dt>Status</dt><dd>{upload.processing_status}</dd></div>
-                      <div><dt>Floor-plan ID</dt><dd>{upload.id}</dd></div>
-                      <div><dt>Job history</dt><dd>{upload.history.length}</dd></div>
-                    </dl>
+                  <tr key={upload.id}>
+                    <th scope="row">{upload.original_filename}</th>
+                    <td>{upload.processing_status}</td>
+                    <td>
                     <ProcessingJobPanel
                       key={`${upload.id}-${upload.latest_job?.job_id || 'none'}-${upload.latest_job?.updated_at || 'none'}`}
+                      compact
                       projectId={projectId}
                       projectFloorId={Number(selectedFloorId)}
                       floorPlanId={upload.id}
@@ -346,8 +345,18 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                       initialJob={upload.latest_job}
                       canStart={isDesigner}
                     />
-                  </article>
+                    </td>
+                    <td><details><summary>File details</summary><dl>
+                      <div><dt>Floor</dt><dd>{upload.floor_name || selectedFloorName}</dd></div>
+                      <div><dt>MIME type</dt><dd>{upload.mime_type}</dd></div>
+                      <div><dt>File size</dt><dd>{upload.file_size.toLocaleString()} bytes</dd></div>
+                      <div><dt>Floor-plan ID</dt><dd>{upload.id}</dd></div>
+                      <div><dt>Job history</dt><dd>{upload.history.length}</dd></div>
+                    </dl></details></td>
+                  </tr>
                 ))}
+                </tbody>
+              </table>
               </div>
             </section>
           )}
