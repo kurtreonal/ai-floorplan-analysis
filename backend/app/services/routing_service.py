@@ -4,6 +4,7 @@ from app.routing.graph import RoutingError
 from app.services.layout_service import retrieve_accessible_current_layout
 from app.services.project_service import get_accessible_project
 from app.routing.circuit import plan_circuit
+from app.routing.missing_devices import plan_missing_devices
 
 
 def response(session, record, lock=False):
@@ -25,15 +26,17 @@ def preview_circuit(session, user, project_id, request):
     if user.role.name != 'DESIGNER':
         raise RoutingError('AUTHORIZATION_DENIED')
     get_accessible_project(session, current_user=user, project_id=project_id)
-    documents, versions = {}, {}
+    documents, versions, extensions = {}, {}, {}
     for config in request.floors:
         record = retrieve_accessible_current_layout(session, current_user=user,
                     project_id=project_id, project_floor_id=config.floor_id)
         if record.version_number != config.expected_layout_version:
             raise RoutingError('STALE_LAYOUT_VERSION')
         documents[config.floor_id] = record.geometry
+        extensions[config.floor_id] = record.extension
         versions[str(config.floor_id)] = record.id
-    generated = plan_circuit(request, documents)
+    generated = (plan_missing_devices(request, documents, extensions, latest_route(session, project_id), versions)
+                 if request.routing_mode == 'missing_devices' else plan_circuit(request, documents))
     # MySQL REPEATABLE READ can keep a nonlocking recheck on its old snapshot.
     # Use the canonical save lock order/current read, without publishing data.
     lock_context(session, project_id, sorted(documents))
@@ -84,6 +87,7 @@ def save_circuit(session, user, project_id, request):
         stored = dict(record.configuration)
         if stored.get('installation_method') == 'ceiling_service':
             stored.setdefault('floor_passages_confirmed', False)
+        stored.setdefault('routing_mode', 'shared_circuit')
         if stored != configuration:
             raise RoutingError('CIRCUIT_RETRY_CONFLICT')
         payload = response(session, record, lock=True)
@@ -94,15 +98,20 @@ def save_circuit(session, user, project_id, request):
     if previous_retry:
         lock_context(session, project_id, sorted(int(key) for key in previous_retry.layout_versions))
         return replay(circuit_retry(session, project_id, request.request_id, lock=True))
-    documents, versions = {}, {}
+    documents, versions, extensions = {}, {}, {}
     for config in request.floors:
         record = retrieve_accessible_current_layout(session, current_user=user,
                     project_id=project_id, project_floor_id=config.floor_id)
         if record.version_number != config.expected_layout_version:
             raise RoutingError('STALE_LAYOUT_VERSION')
         documents[config.floor_id] = record.geometry
+        extensions[config.floor_id] = record.extension
         versions[str(config.floor_id)] = record.id
-    generated = plan_circuit(request, documents).model_dump(mode='json')
+    planned = (plan_missing_devices(request, documents, extensions, latest_route(session, project_id), versions)
+               if request.routing_mode == 'missing_devices' else plan_circuit(request, documents))
+    if not planned.segments:
+        raise RoutingError('NO_NEW_ROUTE_TO_SAVE')
+    generated = planned.model_dump(mode='json')
     generated['status'] = 'saved_planning'
     lock_context(session, project_id, sorted(documents))
     retry = circuit_retry(session, project_id, request.request_id, lock=True)

@@ -22,6 +22,17 @@ function fill() {
   fireEvent.submit(screen.getByRole('button', { name: 'Preview shared circuit' }).closest('form'))
 }
 
+it('defers missing device elevations without inventing them or blocking other assignments', async () => {
+  const second = { id: 'detected:2', class: { name: 'Outlet' }, position: { x: 3, y: 1 } }
+  previewCircuit.mockResolvedValue(record)
+  render(<CircuitPlanningPanel layout={{ ...layout, geometry: { ...layout.geometry, symbols: [...layout.geometry.symbols, second] } }} onPreview={vi.fn()} />)
+  fireEvent.click(screen.getByLabelText('Include Outlet · detected:2'))
+  fill()
+  await waitFor(() => expect(previewCircuit).toHaveBeenCalled())
+  expect(previewCircuit.mock.calls[0][1].targets.map((target) => target.symbol_id)).toEqual(['detected:1'])
+  expect(screen.getByText(/Mounting elevation still needed: detected:2/)).toBeTruthy()
+})
+
 it('sends underground planning only with entered depth and explicit floor passages, then restores those inputs', async () => {
   previewCircuit.mockResolvedValue(record)
   const onPreview = vi.fn()
@@ -56,6 +67,7 @@ it('selects named saved devices with explicit heights, shares 2D coordinates and
   fill()
   await waitFor(() => expect(onPreview).toHaveBeenCalledWith(record))
   expect(previewCircuit.mock.calls[0][1]).toMatchObject({ circuit_id: 'C-LGT', installation_method: 'ceiling_service',
+    routing_mode: 'missing_devices',
     targets: [{ symbol_id: 'detected:1', x: 2, y: 1, elevation_meters: 3 }], floors: [{ expected_layout_version: 3 }] })
   expect(screen.getByText(/Not saved; no estimate/)).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Compare circuit in 2D' }))

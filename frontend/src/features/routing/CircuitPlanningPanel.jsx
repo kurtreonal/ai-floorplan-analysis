@@ -7,6 +7,12 @@ import { projectRoute } from './routeProjection.js'
 import { RoutingObstacles } from './RoutingObstacles.jsx'
 import { normalizeRouteObstacles, obstacleRows, routingObstaclesFromRows } from './routeObstacles.js'
 
+function routingFailure(failure) {
+  if (failure.message === 'EXISTING_ROUTE_REVIEW_REQUIRED') return 'Existing saved wiring uses different assignments, constraints or a layout version. Review it before completion; no route was replaced.'
+  if (failure.message === 'NO_NEW_ROUTE_TO_SAVE') return 'No eligible generated route to save. Existing connections remain unchanged.'
+  return failure.message
+}
+
 export function CircuitPlanningPanel({ layout, record = null, onPreview, onSaved }) {
   const configuration = savedConfiguration(record, layout)
   // A saved snapshot arriving after mount restores once. Stable record identity
@@ -48,11 +54,13 @@ function savedConfiguration(record, layout) {
 function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved }) {
   const [selected, setSelected] = useState(() => initialConfiguration?.targets.map((target) => target.symbol_id) ?? [])
   const [installation, setInstallation] = useState(initialConfiguration?.installation_method ?? '')
+  const [missingOnly, setMissingOnly] = useState(initialConfiguration?.routing_mode !== 'shared_circuit')
   const [obstacles, setObstacles] = useState(() => obstacleRows(initialConfiguration?.obstacles, layout.project_floor_id))
   const [preview, setPreview] = useState(null)
   const [show2D, setShow2D] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [deferred, setDeferred] = useState([])
   const errorRef = useRef(null)
   const requestRef = useRef(null)
   const retryRef = useRef(null)
@@ -91,7 +99,7 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
       clearPreview(); onSaved(saved)
     } catch (failure) {
       if (!controller.signal.aborted) {
-        setError(failure.message)
+        setError(routingFailure(failure))
         if (failure.status && failure.status < 500) retryRef.current = null
       }
     } finally { if (!controller.signal.aborted) setBusy(false) }
@@ -108,18 +116,24 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
     }
     const wall = (name) => form.get(name) ? number(name) : null
     setError('')
+    setDeferred([])
     clearPreview()
     let configuration
     try {
       if (!selected.length || selected.length > 32) throw new Error('Select between 1 and 32 devices for this circuit.')
+      const missingHeights = missingOnly ? selected.filter((id) => !String(form.get(`height:${id}`) ?? '').trim()) : []
+      setDeferred(missingHeights)
+      const targets = layout.geometry.symbols.filter((symbol) => selected.includes(symbol.id) && !missingHeights.includes(symbol.id))
+      if (!targets.length) throw new Error('No eligible devices: enter mounting elevations for at least one assigned device. The 2D draft remains available.')
       configuration = {
+        routing_mode: missingOnly ? 'missing_devices' : 'shared_circuit',
         circuit_id: form.get('circuit').trim(), installation_method: form.get('installation'),
         floor_passages_confirmed: form.get('installation') === 'underground' && form.get('floorPassages') === 'on',
         floors: [{ floor_id: layout.project_floor_id, expected_layout_version: layout.version_number,
           service_elevation_meters: number('service'), offset_x: 0, offset_y: 0 }],
         panel: { floor_id: layout.project_floor_id, x: number('panelX'), y: number('panelY'),
           elevation_meters: number('panelHeight'), wall_id: wall('panelWall') },
-        targets: layout.geometry.symbols.filter((symbol) => selected.includes(symbol.id)).map((symbol) => ({
+        targets: targets.map((symbol) => ({
           floor_id: layout.project_floor_id, symbol_id: symbol.id, ...symbol.position,
           elevation_meters: number(`height:${symbol.id}`), wall_id: wall(`wall:${symbol.id}`),
         })),
@@ -139,7 +153,7 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
       previewRef.current = result
       onPreview(result)
     } catch (failure) {
-      if (!controller.signal.aborted) setError(failure.message)
+      if (!controller.signal.aborted) setError(routingFailure(failure))
     } finally { if (!controller.signal.aborted) setBusy(false) }
   }
 
@@ -158,9 +172,12 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
     {initialConfiguration && <p role="note">Saved circuit inputs restored. Confirm them before recalculating.</p>}
     {record?.result.status === 'saved_planning' && !initialConfiguration && <p role="note">Saved circuit inputs do not match this editable floor snapshot. Enter current inputs to recalculate; saved values have not been applied.</p>}
     <p>Assign saved devices to one circuit. Routes share a planning path; wall connections use your entered elevations and verified wall attachments.</p>
+    <p>Existing drawing connections take priority. Completion never assigns a device to a nearby circuit. Missing scale or elevations require review; the 2D draft remains saveable.</p>
+    {deferred.length > 0 && <p role="note">Mounting elevation still needed: {deferred.join(', ')}. These devices are deferred; other valid assignments can proceed.</p>}
     <details><summary>Configure circuit preview</summary>
       <form onSubmit={submit} onChange={clearPreview}>
         <fieldset disabled={busy}><legend>Circuit and panel</legend>
+          <label><input type="checkbox" checked={missingOnly} onChange={(event) => setMissingOnly(event.target.checked)} />Propose only missing device routes</label>
           <label className="studio-field">Circuit identifier<input name="circuit" maxLength={80} required defaultValue={initialConfiguration?.circuit_id ?? ''} /></label>
           <label className="studio-field">Installation method<select name="installation" required value={installation} onChange={(event) => setInstallation(event.target.value)}><option value="">Choose explicitly</option><option value="ceiling_service">Ceiling/service with verified wall drops</option><option value="underground">Underground with explicit floor passages</option></select></label>
           {installation === 'underground' && <>
@@ -173,7 +190,7 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
           <div className="circuit-preview-members">{orderNamed(layout.geometry.symbols, symbol => symbol.class.name).map((symbol) => <fieldset key={symbol.id}>
             <legend>{symbol.class.name} · {symbol.id}</legend>
             <label><input type="checkbox" checked={selected.includes(symbol.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, symbol.id] : current.filter((id) => id !== symbol.id))} />Include {symbol.class.name} · {symbol.id}</label>
-            <label className="studio-field">Elevation for {symbol.id} (m)<input name={`height:${symbol.id}`} type="number" step="any" disabled={!selected.includes(symbol.id)} required={selected.includes(symbol.id)} defaultValue={savedTargets.get(symbol.id)?.elevation_meters ?? ''} /></label>
+            <label className="studio-field">Elevation for {symbol.id} (m)<input name={`height:${symbol.id}`} type="number" step="any" disabled={!selected.includes(symbol.id)} required={!missingOnly && selected.includes(symbol.id)} defaultValue={savedTargets.get(symbol.id)?.elevation_meters ?? ''} /></label>
             <label className="studio-field">Wall for {symbol.id}<select name={`wall:${symbol.id}`} disabled={!selected.includes(symbol.id)} defaultValue={savedTargets.get(symbol.id)?.wall_id ?? ''}>{wallOptions}</select></label>
           </fieldset>)}</div>
           <p>{selected.length}/32 devices selected. Coordinates come from the saved canonical layout; membership and elevations are not inferred.</p>
@@ -187,7 +204,9 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
     {preview && <>
       <p role="status">Preview only: {preview.result.branches.length} devices; {preview.result.total_meters.toFixed(3)} m unique path ({preview.result.horizontal_meters.toFixed(3)} m horizontal + {preview.result.vertical_meters.toFixed(3)} m vertical). Not saved; no estimate or conductor quantities changed.</p>
       <p>Entered device elevations are shared with 3D for this snapshot. Equipment dimensions remain illustrative. Saving does not approve electrical design or publish material quantities.</p>
-      <Button disabled={busy} onClick={save}>Save planning circuit</Button>
+      {preview.result.skipped_targets?.length > 0 && <p role="note">Existing canonical connections preserved: {preview.result.skipped_targets.map((item) => item.symbol_id).join(', ')}.</p>}
+      {preview.result.unresolved_targets?.length > 0 && <ul aria-label="Unresolved device routes">{preview.result.unresolved_targets.map((item) => <li key={`${item.floor_id}:${item.symbol_id}`}>{item.symbol_id}: {item.reason.replaceAll('_', ' ').toLowerCase()}</li>)}</ul>}
+      <Button disabled={busy || !preview.result.segments.length} onClick={save}>Save planning circuit</Button>
       <Button variant="outline" aria-pressed={show2D} onClick={() => setShow2D((value) => !value)}>{show2D ? 'Hide circuit 2D preview' : 'Compare circuit in 2D'}</Button>
       <Button variant="ghost" disabled={busy} onClick={clearPreview}>Discard circuit preview</Button>
       {show2D && <CanonicalLayoutCanvas geometry={layout.geometry} routeSegments={projectRoute(preview, layout)} visibility={{ blueprint: false, walls: true, rooms: true, symbols: true, routes: true }} />}

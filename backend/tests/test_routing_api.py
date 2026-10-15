@@ -147,6 +147,78 @@ def test_circuit_preview_pins_snapshot_and_cannot_replace_saved_route_or_quantit
     assert client.post(url, json=preview_request).status_code == 409
 
 
+def test_missing_device_completion_preserves_routes_save_reload_retry_and_assignments(context):
+    client, url, payload, session, snapshot, *_ = context
+    original = deepcopy(snapshot.geometry_document)
+    data = circuit_save_payload(payload)
+    data['routing_mode'] = 'missing_devices'
+    first = client.post(url, json=data)
+    assert first.status_code == 201, first.text
+    saved = first.json()
+    assert saved['result']['algorithm'] == 'assigned_missing_device_astar_v1'
+    assert client.get(url).json() == saved
+    assert client.post(url, json=data).json() == saved
+    stale = client.post(url, json={**data, 'request_id': str(uuid4()), 'expected_route_version': 0})
+    assert stale.status_code == 409, stale.text
+    assert client.get(url).json() == saved
+    additional = deepcopy(data)
+    additional.update(request_id=str(uuid4()), expected_route_version=1)
+    target = snapshot.geometry_document['symbols'][1]
+    additional['targets'].append(dict(floor_id=snapshot.project_floor_id, symbol_id=target['id'],
+                                      **target['position'], elevation_meters=3))
+    completed = client.post(url, json=additional)
+    assert completed.status_code == 201, completed.text
+    complete = completed.json()
+    assert len(complete['result']['branches']) == 2
+    assert complete['result']['branches'][0]['points'][-1] == saved['result']['branches'][0]['points'][-1]
+    assert client.get(url).json() == complete
+    assert client.post(url, json=additional).json() == complete
+    changed_circuit = {**additional, 'request_id': str(uuid4()), 'expected_route_version': 2, 'circuit_id': 'UNRELATED'}
+    refused = client.post(url, json=changed_circuit)
+    assert refused.status_code == 422
+    assert refused.json()['detail']['error']['code'] == 'EXISTING_ROUTE_REVIEW_REQUIRED'
+    assert client.get(url).json() == complete
+    assert len(session.scalars(select(GeneratedRouteVersion)).all()) == 2
+    assert snapshot.geometry_document == original
+
+
+def test_missing_completion_reads_real_canonical_connections_without_mutating_them(context):
+    from app.geometry import canonical_geometry_from_dict
+    from app.geometry.canonical_extension import canonical_extension_from_dict
+    from app.services.canonical_extension_storage import save_canonical_extension
+    client, url, payload, session, snapshot, *_ = context
+    raw = deepcopy(snapshot.geometry_document)
+    floor_id = snapshot.project_floor_id
+    target = payload['target']
+    raw['routes'] = [dict(id=1, points=[
+        dict(project_floor_id=floor_id, x=1, y=target['y'], elevation_meters=3),
+        dict(project_floor_id=floor_id, x=target['x'], y=target['y'], elevation_meters=3)])]
+    snapshot.geometry_document = raw
+    session.commit()
+    extension = dict(extension_schema_version=4, base_schema_version=1,
+        source_plane_reference=dict(floor_plan_page_id=snapshot.floor_plan_id, source_artifact_id=103,
+                                    width_pixels=640, height_pixels=480),
+        openings=[], panels=[], symbol_details=[dict(symbol_id=target['symbol_id'], orientation_degrees=None,
+            bounds=None, provenance='reviewed:synthetic', installation=dict(elevation_meters=3, wall_id=None))],
+        route_details=[dict(route_id=1, route_kind='observed',
+            provenance_ref='reviewed:synthetic', device_connections=[dict(symbol_id=target['symbol_id'], point_index=1,
+                anchor=dict(x=target['x'], y=target['y'], elevation_meters=3))])])
+    validated = canonical_extension_from_dict(extension, canonical_geometry_from_dict(raw))
+    save_canonical_extension(snapshot.id, validated)
+    request = circuit_save_payload(payload)
+    for key in ('intent', 'expected_route_version', 'request_id'):
+        request.pop(key)
+    request['routing_mode'] = 'missing_devices'
+    preview = client.post(url, json=request)
+    assert preview.status_code == 200, preview.text
+    result = preview.json()['result']
+    assert result['branches'] == result['segments'] == []
+    assert result['skipped_targets'] == [dict(floor_id=floor_id, symbol_id=target['symbol_id'], reason='EXISTING_CANONICAL_CONNECTION')]
+    assert result['total_meters'] == 0
+    assert snapshot.geometry_document == raw
+    assert client.get(url).json() is None
+
+
 def test_circuit_preview_enforces_owner_roles_and_explicit_supported_installation(context):
     client, url, payload, session, snapshot, app, other, admin = context
     data = {key: value for key, value in payload.items() if key != 'target'}

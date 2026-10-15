@@ -4,12 +4,16 @@ export function bindCircuitMounting(scene, record, layout) {
     || record.layout_versions?.[String(layout.project_floor_id)] !== layout.id
     || !record.result) return scene
   const circuit = ['preview_not_saved', 'saved_planning'].includes(record.result.status)
-    && record.result.algorithm === 'greedy_shared_service_tree_v1'
+    && ['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1'].includes(record.result.algorithm)
   const singleRoute = record.result.algorithm == null && record.id != null
     && record.configuration?.purpose === 'planning' && Array.isArray(record.result.segments)
   if (!circuit && !singleRoute) return scene
-  const targets = circuit ? record.configuration?.targets : [record.configuration?.target].filter(Boolean)
+  let targets = circuit ? record.configuration?.targets : [record.configuration?.target].filter(Boolean)
   if (!Array.isArray(targets)) return scene
+  if (record.result.algorithm === 'assigned_missing_device_astar_v1') {
+    const routed = new Set(record.result.branches.map((branch) => `${branch.floor_id}:${branch.symbol_id}`))
+    targets = targets.filter((target) => routed.has(`${target.floor_id}:${target.symbol_id}`))
+  }
   const positions = new Map(layout.geometry.symbols.map((symbol) => [symbol.id, symbol.position]))
   const walls = new Set(scene.walls.map((wall) => wall.id))
   const endpoints = [...targets,record.configuration?.panel].filter(target => target?.symbol_id)

@@ -21,6 +21,7 @@ from app.routing.graph import RoutingError
 
 
 class CircuitPlanningRequest(Contract):
+    routing_mode: Literal['shared_circuit', 'missing_devices'] = 'shared_circuit'
     circuit_id: Annotated[str, Field(min_length=1, max_length=80, strict=True)]
     installation_method: Literal['ceiling_service', 'underground']
     floor_passages_confirmed: Annotated[bool, Field(strict=True)] = False
@@ -63,6 +64,12 @@ class CircuitBranch(Contract):
     total_meters: Number
 
 
+class CircuitTargetIssue(Contract):
+    floor_id: int
+    symbol_id: str
+    reason: str
+
+
 class CircuitSaveRequest(CircuitPlanningRequest):
     intent: Literal['save_planning_circuit']
     expected_route_version: Annotated[int, Field(strict=True, ge=0)]
@@ -73,11 +80,13 @@ class CircuitPlanningResult(Contract):
     circuit_id: str
     installation_method: Literal['ceiling_service', 'underground']
     provenance: Literal['generated'] = 'generated'
-    algorithm: Literal['greedy_shared_service_tree_v1'] = 'greedy_shared_service_tree_v1'
+    algorithm: Literal['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1'] = 'greedy_shared_service_tree_v1'
     optimality: Literal['graph_heuristic_not_global_optimum'] = 'graph_heuristic_not_global_optimum'
     status: Literal['preview_not_saved'] = 'preview_not_saved'
     segments: list[Segment]
     branches: list[CircuitBranch]
+    skipped_targets: list[CircuitTargetIssue] = []
+    unresolved_targets: list[CircuitTargetIssue] = []
     # Unique physical path length, NOT a conductor count or material takeoff.
     horizontal_meters: Number
     vertical_meters: Number

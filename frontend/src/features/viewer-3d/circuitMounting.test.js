@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { bindCircuitMounting } from './circuitMounting.js'
 import { devicePlacement } from './devicePlacement.js'
+import { projectRoute, routeWorldPositions } from '../routing/routeProjection.js'
 
 const scene = { elevation: 0, width: 10, depth: 10, walls: [], symbols: [{ id: 's', position: [2, 0, 1] }] }
 const layout = { id: 5, project_id: 1, project_floor_id: 2, geometry: { symbols: [{ id: 's', position: { x: 2, y: 1 } }] } }
@@ -35,4 +36,30 @@ it('also binds a saved single-target A* route to its explicit installation', () 
   const single = { ...record, configuration: { purpose: 'planning',target: record.configuration.targets[0] },result: { segments: [] } }
   expect(bindCircuitMounting(scene,single,layout).symbols[0].installation).toMatchObject({ elevation_meters: 2.7,state: 'saved_planning' })
   expect(bindCircuitMounting(scene,{ ...single,result: { segments: [],algorithm: 'unknown' } },layout)).toBe(scene)
+})
+
+it('binds only actual missing-device branches, never overriding a skipped source connection', () => {
+  const pending = { ...record, result: { ...record.result, algorithm: 'assigned_missing_device_astar_v1', branches: [] } }
+  expect(bindCircuitMounting(scene, pending, layout).symbols[0]).toBe(scene.symbols[0])
+  pending.result.branches = [{ floor_id: 2, symbol_id: 's' }]
+  const bound = bindCircuitMounting(scene, pending, layout)
+  expect(devicePlacement(bound.symbols[0], bound, 'switch').position).toEqual([2, 2.7, 1])
+})
+
+it('projects a missing-device drop from one saved route record into 2D and 3D unchanged', () => {
+  const drop = { kind: 'wall_drop', start: { floor_id: 2, x: 2, y: 1, elevation_meters: 3 },
+    end: { floor_id: 2, x: 2, y: 1, elevation_meters: 1.2 } }
+  const saved = { ...record, configuration: { ...record.configuration,
+    floors: [{ floor_id: 2, offset_x: 0, offset_y: 0 }],
+    targets: [{ ...record.configuration.targets[0], elevation_meters: 1.2 }] },
+    result: { ...record.result, algorithm: 'assigned_missing_device_astar_v1', segments: [drop],
+      branches: [{ floor_id: 2, symbol_id: 's' }] } }
+  const before = structuredClone(saved)
+  const projected = projectRoute(saved, layout)
+  expect(projected).toEqual([drop])
+  expect(routeWorldPositions(projected[0])).toEqual([2, 3, 1, 2, 1.2, 1])
+  const bound = bindCircuitMounting(scene, saved, layout)
+  expect(devicePlacement(bound.symbols[0], bound, 'switch').position).toEqual([2, 1.2, 1])
+  expect(saved).toEqual(before)
+  expect(projectRoute({ ...saved, stale: true }, layout)).toEqual([])
 })

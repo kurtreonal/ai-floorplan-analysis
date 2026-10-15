@@ -22,6 +22,23 @@ it('sends explicit preview inputs and abort signal without publishing a saved ro
     credentials: 'include', method: 'POST', signal, body: JSON.stringify(configuration),
   }))
 })
+
+it('validates partial missing-device results and rejects duplicated or omitted coverage', async () => {
+  const record = response()
+  record.configuration.routing_mode = 'missing_devices'
+  record.result.algorithm = 'assigned_missing_device_astar_v1'
+  record.result.branches = []
+  record.result.segments = []
+  record.result.horizontal_meters = record.result.vertical_meters = record.result.total_meters = 0
+  record.result.skipped_targets = [{ floor_id: 2, symbol_id: 'detected:1', reason: 'EXISTING_CANONICAL_CONNECTION' }]
+  record.result.unresolved_targets = []
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => record }))
+  expect(await previewCircuit(1, record.configuration)).toEqual(record)
+  record.result.unresolved_targets = [...record.result.skipped_targets]
+  await expect(previewCircuit(1, record.configuration)).rejects.toThrow('Invalid circuit preview response.')
+  record.result.skipped_targets = record.result.unresolved_targets = []
+  await expect(previewCircuit(1, record.configuration)).rejects.toThrow('Invalid circuit preview response.')
+})
 it.each(['saved', 'branch', 'nan', 'kind', 'length'])('rejects malformed or misleading %s previews', async (mutation) => {
   const record = response()
   if (mutation === 'saved') record.result.status = 'saved'

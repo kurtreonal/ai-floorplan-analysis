@@ -13,7 +13,7 @@ export async function routingRequest(projectId, { configuration, signal } = {}) 
   }
   const record = await response.json()
   if (record === null) return null
-  if (record.result?.algorithm === 'greedy_shared_service_tree_v1') {
+  if (['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1'].includes(record.result?.algorithm)) {
     validateCircuit(record, projectId, record.configuration, 'saved_planning')
     return record
   }
@@ -62,6 +62,14 @@ function validateCircuit(record, projectId, configuration, status) {
   const lengths = (value) => value && ['horizontal_meters', 'vertical_meters', 'total_meters'].every((key) => metric(value[key]))
     && Math.abs(value.total_meters - value.horizontal_meters - value.vertical_meters) < 1e-6
   const expected = new Set(configuration.targets.map((target) => `${target.floor_id}:${target.symbol_id}`))
+  const missing = result?.algorithm === 'assigned_missing_device_astar_v1'
+  if (!Array.isArray(result?.branches)
+    || (result.skipped_targets != null && !Array.isArray(result.skipped_targets))
+    || (result.unresolved_targets != null && !Array.isArray(result.unresolved_targets))) {
+    throw new Error('Invalid circuit preview response.')
+  }
+  const issues = [...(result?.skipped_targets ?? []), ...(result?.unresolved_targets ?? [])]
+  const covered = [...(result?.branches ?? []), ...issues].map((item) => `${item.floor_id}:${item.symbol_id}`)
   if (record?.project_id !== projectId || typeof record.stale !== 'boolean'
     || (status === 'preview_not_saved' && record.stale)
     || (status === 'saved_planning' && (!Number.isSafeInteger(record.id) || record.id <= 0
@@ -75,14 +83,18 @@ function validateCircuit(record, projectId, configuration, status) {
     || (result.installation_method === 'underground' && (configuration.floor_passages_confirmed !== true
       || record.configuration.floor_passages_confirmed !== true))
     || result.provenance !== 'generated' || result.status !== status
-    || result.algorithm !== 'greedy_shared_service_tree_v1' || result.optimality !== 'graph_heuristic_not_global_optimum'
-    || !lengths(result) || !Array.isArray(result.segments) || !result.segments.length
+    || !['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1'].includes(result.algorithm) || result.optimality !== 'graph_heuristic_not_global_optimum'
+    || (missing && configuration.routing_mode !== 'missing_devices')
+    || !lengths(result) || !Array.isArray(result.segments) || (!missing && !result.segments.length)
     || result.segments.some((segment) => !point(segment.start) || !point(segment.end)
       || !['ceiling_service', 'wall_rise', 'wall_drop', 'riser', 'underground', 'underground_rise', 'underground_drop'].includes(segment.kind)
       || (segment.kind.startsWith('underground') && result.installation_method !== 'underground')
       || !metric(segment.horizontal_meters) || !metric(segment.vertical_meters))
-    || !Array.isArray(result.branches) || result.branches.length !== expected.size
-    || new Set(result.branches.map((branch) => `${branch.floor_id}:${branch.symbol_id}`)).size !== expected.size
+    || !Array.isArray(result.branches) || covered.length !== expected.size || new Set(covered).size !== expected.size
+    || covered.some((identity) => !expected.has(identity))
+    || (!missing && issues.length > 0)
+    || issues.some((issue) => !Number.isSafeInteger(issue.floor_id) || typeof issue.symbol_id !== 'string'
+      || typeof issue.reason !== 'string' || !/^[A-Z_]+$/.test(issue.reason))
     || result.branches.some((branch) => !expected.has(`${branch.floor_id}:${branch.symbol_id}`) || !lengths(branch)
       || !Array.isArray(branch.points) || !branch.points.length || branch.points.some((p) => !point(p))
       || !Array.isArray(branch.segment_indices) || branch.segment_indices.some((index) => !Number.isSafeInteger(index)
