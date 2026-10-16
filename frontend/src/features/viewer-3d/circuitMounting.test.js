@@ -38,21 +38,21 @@ it('also binds a saved single-target A* route to its explicit installation', () 
   expect(bindCircuitMounting(scene,{ ...single,result: { segments: [],algorithm: 'unknown' } },layout)).toBe(scene)
 })
 
-it('binds only actual missing-device branches, never overriding a skipped source connection', () => {
-  const pending = { ...record, result: { ...record.result, algorithm: 'assigned_missing_device_astar_v1', branches: [] } }
+it.each(['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2'])('binds only actual missing-device branches for %s, never overriding a skipped source connection', (algorithm) => {
+  const pending = { ...record, result: { ...record.result, algorithm, branches: [] } }
   expect(bindCircuitMounting(scene, pending, layout).symbols[0]).toBe(scene.symbols[0])
   pending.result.branches = [{ floor_id: 2, symbol_id: 's' }]
   const bound = bindCircuitMounting(scene, pending, layout)
   expect(devicePlacement(bound.symbols[0], bound, 'switch').position).toEqual([2, 2.7, 1])
 })
 
-it('projects a missing-device drop from one saved route record into 2D and 3D unchanged', () => {
+it.each(['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2'])('projects a missing-device drop for %s from one saved route record into 2D and 3D unchanged', (algorithm) => {
   const drop = { kind: 'wall_drop', start: { floor_id: 2, x: 2, y: 1, elevation_meters: 3 },
     end: { floor_id: 2, x: 2, y: 1, elevation_meters: 1.2 } }
   const saved = { ...record, configuration: { ...record.configuration,
     floors: [{ floor_id: 2, offset_x: 0, offset_y: 0 }],
     targets: [{ ...record.configuration.targets[0], elevation_meters: 1.2 }] },
-    result: { ...record.result, algorithm: 'assigned_missing_device_astar_v1', segments: [drop],
+    result: { ...record.result, algorithm, segments: [drop],
       branches: [{ floor_id: 2, symbol_id: 's' }] } }
   const before = structuredClone(saved)
   const projected = projectRoute(saved, layout)

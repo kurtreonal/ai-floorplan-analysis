@@ -155,7 +155,7 @@ def test_missing_device_completion_preserves_routes_save_reload_retry_and_assign
     first = client.post(url, json=data)
     assert first.status_code == 201, first.text
     saved = first.json()
-    assert saved['result']['algorithm'] == 'assigned_missing_device_astar_v1'
+    assert saved['result']['algorithm'] == 'assigned_missing_device_astar_v2'
     assert client.get(url).json() == saved
     assert client.post(url, json=data).json() == saved
     stale = client.post(url, json={**data, 'request_id': str(uuid4()), 'expected_route_version': 0})
@@ -180,6 +180,34 @@ def test_missing_device_completion_preserves_routes_save_reload_retry_and_assign
     assert client.get(url).json() == complete
     assert len(session.scalars(select(GeneratedRouteVersion)).all()) == 2
     assert snapshot.geometry_document == original
+
+
+def test_missing_device_binding_on_same_generated_tree_saves_and_reloads_without_new_segment(context):
+    client, url, payload, session, snapshot, *_ = context
+    original = deepcopy(snapshot.geometry_document)
+    updated = deepcopy(original)
+    updated['symbols'][1]['position'] = dict(x=2, y=1.5)
+    snapshot.geometry_document = updated
+    session.commit()
+    data = circuit_save_payload(payload)
+    data['routing_mode'] = 'missing_devices'
+    first = client.post(url, json=data)
+    assert first.status_code == 201, first.text
+    saved = first.json()
+    target = updated['symbols'][1]
+    additional = deepcopy(data)
+    additional.update(request_id=str(uuid4()), expected_route_version=1)
+    additional['targets'].append(dict(floor_id=snapshot.project_floor_id, symbol_id=target['id'],
+                                     **target['position'], elevation_meters=3))
+    reply = client.post(url, json=additional)
+    assert reply.status_code == 201, reply.text
+    complete = reply.json()
+    binding = next(b for b in complete['result']['branches'] if b['symbol_id'] == target['id'])
+    assert len(binding['points']) == 1 and binding['segment_indices'] == []
+    assert complete['result']['total_meters'] == saved['result']['total_meters']
+    assert client.get(url).json() == complete
+    assert client.post(url, json=additional).json() == complete
+    assert snapshot.geometry_document == updated
 
 
 def test_missing_completion_reads_real_canonical_connections_without_mutating_them(context):

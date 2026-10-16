@@ -1,7 +1,7 @@
 import math
 
-from app.routing.astar import astar
-from app.routing.contracts import Point, RouteResult, Segment
+from app.routing.astar import astar, astar_to_any
+from app.routing.contracts import Endpoint, Point, RouteResult, Segment
 from app.routing.graph import RoutingError, floor_graph, intersects, structural_boxes
 
 
@@ -130,13 +130,23 @@ def world_point(node, configs):
                  elevation_meters=config.service_elevation_meters)
 
 
-def generate_route(request, documents):
+def generate_route(request, documents, *, service_sources=()):
     validate_target(request, documents)
     validate_service_elevations(request, documents)
     configs = {c.floor_id: c for c in request.floors}
     panel = attachment(request.panel, configs[request.panel.floor_id], documents[request.panel.floor_id], request.obstacles, request.installation_method)
     target = attachment(request.target, configs[request.target.floor_id], documents[request.target.floor_id], request.obstacles, request.installation_method)
-    graph, connector_edges, configs = service_graph(request, documents, (request.panel, request.target))
+    # Only the caller's version-matched SAME-circuit generated tree may supply
+    # these anchors. Never discover circuit membership by nearest source ink.
+    sources = tuple(sorted(set(service_sources), key=lambda p: (p.floor_id, p.x, p.y, p.elevation_meters)))
+    anchors = []
+    for point in sources:
+        config = configs.get(point.floor_id)
+        if config is None or point.elevation_meters != config.service_elevation_meters:
+            raise RoutingError('INVALID_SERVICE_ATTACHMENT')
+        anchors.append(Endpoint(floor_id=point.floor_id, x=point.x-config.offset_x,
+                               y=point.y-config.offset_y, elevation_meters=point.elevation_meters))
+    graph, connector_edges, configs = service_graph(request, documents, (request.panel, request.target, *anchors))
     def world(node):
         return world_point(node, configs)
     def heuristic(a, b):
@@ -144,14 +154,27 @@ def generate_route(request, documents):
         return abs(a.x-b.x) + abs(a.y-b.y) + abs(a.elevation_meters-b.elevation_meters)
     start = (request.panel.floor_id, request.panel.x, request.panel.y)
     end = (request.target.floor_id, request.target.x, request.target.y)
-    path = astar(graph, start, end, heuristic)
+    if anchors:
+        eligible = {(p.floor_id, p.x, p.y) for p in anchors} & graph.keys()
+        if start in graph:
+            eligible.add(start)
+        # Reverse search finds the least NEW permitted length to this assigned
+        # tree; zero heuristic is admissible for multiple targets/floors.
+        path = list(reversed(astar_to_any(graph, end, eligible)))
+    else:
+        path = astar(graph, start, end, heuristic)
     points = [world(node) for node in path]
     segments = [segment(points[i], points[i+1], "riser" if a[0] != b[0] else request.installation_method,
                         connector_edges.get((a, b))) for i, (a, b) in enumerate(zip(path, path[1:]))]
-    if panel:
+    if panel and path[0] == start and not anchors:
         segments = endpoint_segments(panel, points[0], request.installation_method,
                                     documents[panel.floor_id].floor.elevation_meters) + segments
     if target:
         segments.extend(endpoint_segments(points[-1], target, request.installation_method,
                                           documents[target.floor_id].floor.elevation_meters))
+    if not segments and anchors:
+        # Explicit same-circuit assignment at an existing service-tree vertex:
+        # persist the device binding, not an artificial zero-length cylinder.
+        return RouteResult(points=points, segments=[], horizontal_meters=0,
+                           vertical_meters=0, total_meters=0)
     return result(segments)

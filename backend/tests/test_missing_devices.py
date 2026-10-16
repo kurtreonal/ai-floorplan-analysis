@@ -30,7 +30,7 @@ def test_missing_routes_use_astar_preserve_source_and_repeat_exactly():
     raw, request = inputs()
     before = deepcopy(raw)
     result = run(raw, request)
-    assert result.algorithm == 'assigned_missing_device_astar_v1'
+    assert result.algorithm == 'assigned_missing_device_astar_v2'
     assert len(result.branches) == 2
     assert result == run(raw, request)
     assert raw == before
@@ -110,3 +110,46 @@ def test_same_circuit_replay_retains_branches_without_duplicate_segments():
 
 def replace_record(record, **changes):
     return SimpleNamespace(**{**vars(record), **changes})
+
+
+def test_missing_device_reuses_assigned_generated_tree_instead_of_panel_star():
+    raw, request = inputs()
+    # First route is a straight service run. The second has a one-metre branch
+    # onto it, rather than another full independent route from the panel.
+    raw['symbols'][0]['position'] = dict(x=4, y=1)
+    raw['symbols'][1]['position'] = dict(x=3, y=2)
+    targets = [target.model_copy(update=raw['symbols'][i]['position']) for i, target in enumerate(request.targets)]
+    request = request.model_copy(update={'targets': targets})
+    result = run(raw, request)
+    assert result.total_meters == 4
+    branches = {branch.symbol_id: branch for branch in result.branches}
+    assert branches['manual:601'].total_meters == 1
+    assert (branches['manual:601'].points[0].x, branches['manual:601'].points[0].y) == (3, 1)
+    assert result == run(raw, request.model_copy(update={'targets': list(reversed(targets))}))
+
+
+def test_old_saved_algorithm_is_readable_and_reused_without_rewriting_history():
+    raw, request = inputs()
+    result = run(raw, request)
+    stored = result.model_dump(mode='json')
+    stored.update(status='saved_planning', algorithm='assigned_missing_device_astar_v1')
+    previous = SimpleNamespace(configuration=request.model_dump(mode='json'), result=stored, layout_versions={'2': 5})
+    assert run(raw, request, previous=previous).segments == result.segments
+    assert previous.result['algorithm'] == 'assigned_missing_device_astar_v1'
+
+
+def test_assigned_device_on_generated_tree_has_persisted_binding_without_new_wire():
+    raw, request = inputs()
+    raw['symbols'][0]['position'] = dict(x=4, y=1)
+    raw['symbols'][1]['position'] = dict(x=3, y=1)
+    targets = [target.model_copy(update=raw['symbols'][i]['position']) for i, target in enumerate(request.targets)]
+    request = request.model_copy(update={'targets': targets})
+    result = run(raw, request)
+    assert len(result.branches) == 2 and result.total_meters == 3
+    branch = result.branches[1]
+    assert branch.symbol_id == 'manual:601' and len(branch.points) == 1
+    assert branch.segment_indices == [] and branch.total_meters == 0
+    stored = result.model_dump(mode='json')
+    stored['status'] = 'saved_planning'
+    previous = SimpleNamespace(configuration=request.model_dump(mode='json'), result=stored, layout_versions={'2': 5})
+    assert run(raw, request, previous=previous) == result

@@ -80,7 +80,8 @@ class CircuitPlanningResult(Contract):
     circuit_id: str
     installation_method: Literal['ceiling_service', 'underground']
     provenance: Literal['generated'] = 'generated'
-    algorithm: Literal['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1'] = 'greedy_shared_service_tree_v1'
+    algorithm: Literal['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1',
+                       'assigned_missing_device_astar_v2'] = 'greedy_shared_service_tree_v1'
     optimality: Literal['graph_heuristic_not_global_optimum'] = 'graph_heuristic_not_global_optimum'
     status: Literal['preview_not_saved'] = 'preview_not_saved'
     segments: list[Segment]

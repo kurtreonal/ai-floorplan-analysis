@@ -95,6 +95,8 @@ def _combine(paths):
     segments, identities, branches = [], {}, []
     for target, path in paths:
         ordered, indices = [], []
+        if not path.segments:
+            ordered = list(path.points)
         for original in path.segments:
             a, b = original.start, original.end
             values_a, values_b = (a.x, a.y, a.elevation_meters), (b.x, b.y, b.elevation_meters)
@@ -132,6 +134,16 @@ def plan_missing_devices(request, documents, extensions, previous, versions):
     retained = {(branch['floor_id'], branch['symbol_id']): branch for branch in _retained(request, previous, versions)}
     connected = {floor: _connected(document, extensions.get(floor)) for floor, document in documents.items()}
     paths, skipped, unresolved = [], [], []
+    # Expand the already validated saved tree before considering new targets,
+    # independent of lexical device order. Its layout/configuration/assignments
+    # were checked by _retained; no observed circuit identity is guessed.
+    configs = {config.floor_id: config for config in request.floors}
+    service_sources = set()
+    for branch in retained.values():
+        for raw in branch['points']:
+            point = Point.model_validate(raw)
+            if point.elevation_meters == configs[point.floor_id].service_elevation_meters:
+                service_sources.add(point)
     for target in sorted(request.targets, key=lambda item: (item.floor_id, item.symbol_id)):
         identity = (target.floor_id, target.symbol_id)
         issue = dict(floor_id=target.floor_id, symbol_id=target.symbol_id)
@@ -150,8 +162,10 @@ def plan_missing_devices(request, documents, extensions, previous, versions):
             unresolved.append(CircuitTargetIssue(**issue, reason='SOURCE_ATTACHMENT_REVIEW_REQUIRED'))
             continue
         try:
-            generated = generate_route(request.single_target(target), documents)
+            generated = generate_route(request.single_target(target), documents, service_sources=service_sources)
             paths.append((target, generated))
+            service_sources.update(point for point in generated.points
+                if point.elevation_meters == configs[point.floor_id].service_elevation_meters)
         except RoutingError as error:
             if str(error) not in {'NO_ROUTE', 'WALL_ATTACHMENT_REQUIRED', 'ENDPOINT_NOT_ON_WALL',
                                  'ENDPOINT_OUTSIDE_WALL_HEIGHT', 'ZERO_LENGTH_ROUTE'}:
@@ -161,6 +175,6 @@ def plan_missing_devices(request, documents, extensions, previous, versions):
     horizontal = sum(item.horizontal_meters for item in segments)
     vertical = sum(item.vertical_meters for item in segments)
     return CircuitPlanningResult(circuit_id=request.circuit_id, installation_method=request.installation_method,
-        algorithm='assigned_missing_device_astar_v1', segments=segments, branches=branches,
+        algorithm='assigned_missing_device_astar_v2', segments=segments, branches=branches,
         skipped_targets=skipped, unresolved_targets=unresolved,
         horizontal_meters=horizontal, vertical_meters=vertical, total_meters=horizontal+vertical)

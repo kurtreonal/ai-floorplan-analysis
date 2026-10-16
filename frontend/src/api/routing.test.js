@@ -23,10 +23,10 @@ it('sends explicit preview inputs and abort signal without publishing a saved ro
   }))
 })
 
-it('validates partial missing-device results and rejects duplicated or omitted coverage', async () => {
+it.each(['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2'])('validates partial %s results and rejects duplicated or omitted coverage', async (algorithm) => {
   const record = response()
   record.configuration.routing_mode = 'missing_devices'
-  record.result.algorithm = 'assigned_missing_device_astar_v1'
+  record.result.algorithm = algorithm
   record.result.branches = []
   record.result.segments = []
   record.result.horizontal_meters = record.result.vertical_meters = record.result.total_meters = 0
@@ -38,6 +38,16 @@ it('validates partial missing-device results and rejects duplicated or omitted c
   await expect(previewCircuit(1, record.configuration)).rejects.toThrow('Invalid circuit preview response.')
   record.result.skipped_targets = record.result.unresolved_targets = []
   await expect(previewCircuit(1, record.configuration)).rejects.toThrow('Invalid circuit preview response.')
+})
+
+it('accepts an explicit v2 device binding at its assigned tree without a duplicate zero-length wire', async () => {
+  const record = response()
+  record.configuration.routing_mode = 'missing_devices'
+  record.result.algorithm = 'assigned_missing_device_astar_v2'
+  Object.assign(record.result.branches[0], { points: [record.result.segments[0].end],
+    segment_indices: [], horizontal_meters: 0, vertical_meters: 0, total_meters: 0 })
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => record }))
+  expect(await previewCircuit(1, record.configuration)).toEqual(record)
 })
 it.each(['saved', 'branch', 'nan', 'kind', 'length'])('rejects malformed or misleading %s previews', async (mutation) => {
   const record = response()

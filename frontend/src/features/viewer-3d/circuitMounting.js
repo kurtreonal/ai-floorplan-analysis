@@ -1,16 +1,17 @@
 // Version-bound planning inputs, not approval or a second geometry model.
+const missingAlgorithms = ['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2']
 export function bindCircuitMounting(scene, record, layout) {
   if (!record || record.stale || record.project_id !== layout.project_id
     || record.layout_versions?.[String(layout.project_floor_id)] !== layout.id
     || !record.result) return scene
   const circuit = ['preview_not_saved', 'saved_planning'].includes(record.result.status)
-    && ['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1'].includes(record.result.algorithm)
+    && ['greedy_shared_service_tree_v1', ...missingAlgorithms].includes(record.result.algorithm)
   const singleRoute = record.result.algorithm == null && record.id != null
     && record.configuration?.purpose === 'planning' && Array.isArray(record.result.segments)
   if (!circuit && !singleRoute) return scene
   let targets = circuit ? record.configuration?.targets : [record.configuration?.target].filter(Boolean)
   if (!Array.isArray(targets)) return scene
-  if (record.result.algorithm === 'assigned_missing_device_astar_v1') {
+  if (missingAlgorithms.includes(record.result.algorithm)) {
     const routed = new Set(record.result.branches.map((branch) => `${branch.floor_id}:${branch.symbol_id}`))
     targets = targets.filter((target) => routed.has(`${target.floor_id}:${target.symbol_id}`))
   }

@@ -7,6 +7,7 @@ from pathlib import Path
 from app.geometry import canonical_geometry_from_dict
 from app.routing.graph import floor_graph, RoutingError
 from app.routing.astar import astar
+from app.routing.astar import astar_to_any
 from app.routing.engine import generate_route
 
 
@@ -69,6 +70,13 @@ def test_astar_known_shortest_path_and_disconnected_graph():
     assert astar(graph, 'a', 'a') == ['a']
     with pytest.raises(RoutingError, match='NO_ROUTE'):
         astar(graph, 'a', 'e')
+
+
+def test_multi_target_astar_uses_graph_cost_not_euclidean_nearness():
+    graph = {'start': [('near', 8), ('via', 1)], 'via': [('far', 1)], 'near': [], 'far': []}
+    assert astar_to_any(graph, 'start', {'near', 'far'}) == ['start', 'via', 'far']
+    with pytest.raises(RoutingError, match='NO_ROUTE'):
+        astar_to_any(graph, 'start', set())
 
 
 def test_astar_detours_around_obstacle_without_diagonal_shortcut():

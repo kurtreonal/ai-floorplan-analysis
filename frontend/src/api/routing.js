@@ -1,5 +1,8 @@
 import { API_BASE_URL } from './auth.js'
 
+const missingAlgorithms = ['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2']
+const circuitAlgorithms = ['greedy_shared_service_tree_v1', ...missingAlgorithms]
+
 export async function routingRequest(projectId, { configuration, signal } = {}) {
   const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/routes`, {
     method: configuration ? 'POST' : 'GET', credentials: 'include', signal,
@@ -13,7 +16,7 @@ export async function routingRequest(projectId, { configuration, signal } = {}) 
   }
   const record = await response.json()
   if (record === null) return null
-  if (['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1'].includes(record.result?.algorithm)) {
+  if (circuitAlgorithms.includes(record.result?.algorithm)) {
     validateCircuit(record, projectId, record.configuration, 'saved_planning')
     return record
   }
@@ -62,7 +65,7 @@ function validateCircuit(record, projectId, configuration, status) {
   const lengths = (value) => value && ['horizontal_meters', 'vertical_meters', 'total_meters'].every((key) => metric(value[key]))
     && Math.abs(value.total_meters - value.horizontal_meters - value.vertical_meters) < 1e-6
   const expected = new Set(configuration.targets.map((target) => `${target.floor_id}:${target.symbol_id}`))
-  const missing = result?.algorithm === 'assigned_missing_device_astar_v1'
+  const missing = missingAlgorithms.includes(result?.algorithm)
   if (!Array.isArray(result?.branches)
     || (result.skipped_targets != null && !Array.isArray(result.skipped_targets))
     || (result.unresolved_targets != null && !Array.isArray(result.unresolved_targets))) {
@@ -83,7 +86,7 @@ function validateCircuit(record, projectId, configuration, status) {
     || (result.installation_method === 'underground' && (configuration.floor_passages_confirmed !== true
       || record.configuration.floor_passages_confirmed !== true))
     || result.provenance !== 'generated' || result.status !== status
-    || !['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1'].includes(result.algorithm) || result.optimality !== 'graph_heuristic_not_global_optimum'
+    || !circuitAlgorithms.includes(result.algorithm) || result.optimality !== 'graph_heuristic_not_global_optimum'
     || (missing && configuration.routing_mode !== 'missing_devices')
     || !lengths(result) || !Array.isArray(result.segments) || (!missing && !result.segments.length)
     || result.segments.some((segment) => !point(segment.start) || !point(segment.end)
