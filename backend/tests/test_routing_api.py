@@ -264,12 +264,15 @@ def test_reviewed_observed_network_assignment_saves_reloads_and_retries_without_
     source_file, source_hash = save_canonical_extension(snapshot.id, extension)
     source_bytes = source_file.read_bytes()
     data = circuit_save_payload(payload)
-    data.update(routing_mode='missing_devices', observed_route_assignments=[dict(floor_id=floor_id, route_id=7)])
+    data.update(routing_mode='missing_devices', observed_route_assignments=[dict(floor_id=floor_id, route_id=7)],conductor_count=3)
     reply = client.post(url, json=data)
     assert reply.status_code == 201, reply.text
     saved = reply.json()
     assert saved['result']['algorithm'] == 'assigned_missing_device_astar_v3'
     assert saved['result']['total_meters'] == .5
+    assert saved['result']['planning_takeoff']['conduit_meters'] == 2.5
+    assert saved['result']['planning_takeoff']['one_conductor_meters'] == 2.5
+    assert saved['result']['planning_takeoff']['total_conductor_meters'] == 7.5
     assert saved['result']['reused_observed_routes'] == data['observed_route_assignments']
     assert saved['result']['branches'][0]['points'][0] == dict(floor_id=floor_id, x=2.5, y=1, elevation_meters=3)
     assert client.get(url).json() == saved

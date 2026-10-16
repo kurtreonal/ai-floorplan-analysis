@@ -36,6 +36,7 @@ class CircuitPlanningRequest(Contract):
     connectors: Annotated[list[Connector], Field(max_length=32)] = []
     obstacles: Annotated[list[Obstacle], Field(max_length=128)] = []
     observed_route_assignments: Annotated[list[ObservedRouteAssignment], Field(max_length=32)] = []
+    conductor_count: Annotated[int, Field(strict=True, ge=1, le=1000)] | None = None
     grid_step_meters: Annotated[float, Field(ge=0.1, le=5, allow_inf_nan=False)]
     alignment_confirmed: Literal[True]
     purpose: Literal['planning'] = 'planning'
@@ -93,6 +94,18 @@ class CircuitSaveRequest(CircuitPlanningRequest):
     request_id: UUID
 
 
+class CircuitMaterialPreview(Contract):
+    basis: Literal['selected_network_uniform_conductors_planning_only'] = 'selected_network_uniform_conductors_planning_only'
+    observed_meters: Number
+    generated_meters: Number
+    horizontal_meters: Number
+    vertical_meters: Number
+    conduit_meters: Number
+    conductor_count: int | None
+    one_conductor_meters: Number | None
+    total_conductor_meters: Number | None
+
+
 class CircuitPlanningResult(Contract):
     circuit_id: str
     installation_method: Literal['ceiling_service', 'underground']
@@ -106,6 +119,7 @@ class CircuitPlanningResult(Contract):
     skipped_targets: list[CircuitTargetIssue] = []
     unresolved_targets: list[CircuitTargetIssue] = []
     reused_observed_routes: list[ObservedRouteAssignment] = []
+    planning_takeoff: CircuitMaterialPreview | None = None
     # Unique physical path length, NOT a conductor count or material takeoff.
     horizontal_meters: Number
     vertical_meters: Number

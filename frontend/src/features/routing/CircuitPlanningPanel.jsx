@@ -152,6 +152,7 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
         connectors: [], obstacles: routingObstaclesFromRows(obstacles, layout.project_floor_id),
         grid_step_meters: number('step'), alignment_confirmed: true, purpose: 'planning',
         observed_route_assignments: missingOnly ? observedRoutes.map(route_id => ({ floor_id: layout.project_floor_id, route_id })) : [],
+        conductor_count: String(form.get('conductors') ?? '').trim() ? number('conductors') : null,
       }
     } catch (failure) { setError(failure.message); return }
     requestRef.current?.abort()
@@ -200,6 +201,8 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
             {observedChoices.length === 0 && <p>No reviewed observed paths in this saved layout. No circuit assignment is inferred from nearby drawing lines.</p>}
           </fieldset>
           <label className="studio-field">Circuit identifier<input name="circuit" maxLength={80} required defaultValue={initialConfiguration?.circuit_id ?? ''} /></label>
+          <label className="studio-field">Uniform conductors along selected network (optional)<input name="conductors" type="number" min="1" max="1000" step="1" defaultValue={initialConfiguration?.conductor_count ?? ''} /></label>
+          <p>Enter a count only when circuit configuration specifies the same conductors along every selected span. Otherwise leave blank. No gauge, count, allowance or purchase quantity is inferred.</p>
           <label className="studio-field">Installation method<select name="installation" required value={installation} onChange={(event) => setInstallation(event.target.value)}><option value="">Choose explicitly</option><option value="ceiling_service">Ceiling/service with verified wall drops</option><option value="underground">Underground with explicit floor passages</option></select></label>
           {installation === 'underground' && <>
             <p>Enter an absolute service elevation below this saved floor ({layout.geometry.floor.elevation_meters} m). Route depth is measured from that floor; passage locations use the panel and selected device coordinates.</p>
@@ -225,6 +228,11 @@ function CircuitForm({ layout, record, initialConfiguration, onPreview, onSaved 
     {preview && <>
       <p role="status">Preview only: {preview.result.branches.length} devices; {preview.result.total_meters.toFixed(3)} m unique path ({preview.result.horizontal_meters.toFixed(3)} m horizontal + {preview.result.vertical_meters.toFixed(3)} m vertical). Not saved; no estimate or conductor quantities changed.</p>
       {preview.result.reused_observed_routes?.length > 0 && <p role="note">Reusing {preview.result.reused_observed_routes.length} explicitly assigned observed paths. Lengths above count new generated geometry only; existing paths are not duplicated or included again.</p>}
+      {preview.result.planning_takeoff && <section aria-label="Selected network quantities"><h3>Selected network quantities</h3>
+        <p>{preview.result.planning_takeoff.conduit_meters.toFixed(3)} m unique route/conduit path, including {preview.result.planning_takeoff.vertical_meters.toFixed(3)} m vertical. Scope: selected observed paths plus generated branches; not all wiring in the project.</p>
+        {preview.result.planning_takeoff.conductor_count == null ? <p>Conductor length unavailable: no explicit uniform circuit count.</p>
+          : <p>{preview.result.planning_takeoff.one_conductor_meters.toFixed(3)} m per conductor × {preview.result.planning_takeoff.conductor_count} configured conductors = {preview.result.planning_takeoff.total_conductor_meters.toFixed(3)} conductor-m. Planning only; no purchase allowance, material sizing or electrical approval.</p>}
+      </section>}
       <p>Entered device elevations are shared with 3D for this snapshot. Equipment dimensions remain illustrative. Saving does not approve electrical design or publish material quantities.</p>
       {preview.result.skipped_targets?.length > 0 && <p role="note">Existing canonical connections preserved: {preview.result.skipped_targets.map((item) => item.symbol_id).join(', ')}.</p>}
       {preview.result.unresolved_targets?.length > 0 && <ul aria-label="Unresolved device routes">{preview.result.unresolved_targets.map((item) => <li key={`${item.floor_id}:${item.symbol_id}`}>{item.symbol_id}: {item.reason.replaceAll('_', ' ').toLowerCase()}</li>)}</ul>}

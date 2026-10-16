@@ -12,8 +12,9 @@ from app.routing.endpoint_connections import connect_touching_endpoints
 from app.repositories.floor_plan_interpretation_repository import find_latest_review, find_latest_previous_review
 from app.services.demo_interpretation_service import _candidate, _review_document
 from app.services.wiring_legend_service import annotate_wiring
-from app.ai.floor_plan_interpretation.reviewed_reference import inherit_manual_reference
-from app.geometry.path_lengths import unique_polyline_length
+from app.ai.floor_plan_interpretation.reviewed_reference import inherit_review_draft
+from app.geometry.path_lengths import unique_paths_length
+from app.geometry.wire_network import takeoff_path_groups
 
 
 def material_key(name):
@@ -133,43 +134,37 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
     rows = list(groups.values())
     symbols = {s['id']: s for s in document.get('symbols', []) if s.get('disposition') != 'rejected'}
     drops = set()
-    for category in ('observed_wiring', 'generated_wiring'):
-        seen = set()
-        for wire in document.get(category, []):
-            if wire['id'] in seen:
-                raise ValueError('Duplicate draft path identity.')
-            seen.add(wire['id'])
-            if wire.get('disposition') == 'rejected' or wire.get('suppression_reason'):
+    for group in takeoff_path_groups(document):
+        wire = group[0]
+        length = unique_paths_length([w['points'] for w in group])
+        if not math.isfinite(length) or length <= 0:
+            raise ValueError('Invalid draft path length.')
+        measured = scale is not None
+        vertical, missing = 0, []
+        for attachment in (a for w in group for a in w.get('device_attachments', [])):
+            symbol = symbols.get(attachment['symbol_id'])
+            if symbol is None:
+                missing.append('attached device unavailable')
                 continue
-            points = wire['points']
-            length = unique_polyline_length(points)
-            if not math.isfinite(length) or length <= 0:
-                raise ValueError('Invalid draft path length.')
-            measured = scale is not None
-            vertical, missing = 0, []
-            for attachment in wire.get('device_attachments', []):
-                symbol = symbols.get(attachment['symbol_id'])
-                if symbol is None:
-                    missing.append('attached device unavailable')
-                    continue
-                height, service = symbol.get('mounting_height_meters'), wire.get('elevation_meters')
-                if not measured or floor_elevation is None or height is None or service is None:
-                    missing.append(f"{symbol['id']}: scale, floor elevation, wire elevation and device mounting height are required for the drop/rise")
-                    continue
-                key = (symbol['id'], service)
-                if key not in drops:
-                    vertical += abs(service - (floor_elevation + height))
-                    drops.add(key)
-            horizontal = length / scale if measured else None
-            quantity = Decimal(str(horizontal + vertical if measured else length)).quantize(Decimal('.0001'), rounding=ROUND_HALF_UP)
-            rows.append(dict(kind='path', name=wire.get('wiring_legend_name') or 'Wiring path — type not specified',
-                path_id=wire['id'], installation_method=wire.get('installation_method', 'unknown'),
-                origin='observed' if category == 'observed_wiring' else 'generated',
-                quantity=quantity, unit='meter' if measured else 'source pixel',
-                horizontal_meters=horizontal, vertical_meters=vertical if measured else None,
-                missing_vertical_inputs=missing,
-                basis='Unique collinear centerline spans within this logical path / source pixels per meter + attached device drops/rises from saved absolute wire elevation minus (floor elevation + device mounting height). Separate paths are not merged without network identity. Shared device drops at the same service elevation counted once. No inferred conductors, waste or display offsets.'
-                    + (' INCOMPLETE: unmeasured drops/rises excluded.' if missing else '')))
+            height, service = symbol.get('mounting_height_meters'), wire.get('elevation_meters')
+            if not measured or floor_elevation is None or height is None or service is None:
+                missing.append(f"{symbol['id']}: scale, floor elevation, wire elevation and device mounting height are required for the drop/rise")
+                continue
+            key = (symbol['id'], service)
+            if key not in drops:
+                vertical += abs(service - (floor_elevation + height))
+                drops.add(key)
+        horizontal = length / scale if measured else None
+        quantity = Decimal(str(horizontal + vertical if measured else length)).quantize(Decimal('.0001'), rounding=ROUND_HALF_UP)
+        rows.append(dict(kind='path', name='Wiring network — conflicting material mappings' if wire.get('takeoff_material_conflict') else wire.get('wiring_legend_name') or 'Wiring path — type not specified',
+            material_conflict=bool(wire.get('takeoff_material_conflict')),
+            path_id=wire['id'], path_ids=[w['id'] for w in group], circuit_id=wire.get('circuit_id'),
+            installation_method=wire.get('installation_method', 'unknown'), origin=wire['origin'],
+            quantity=quantity, unit='meter' if measured else 'source pixel',
+            horizontal_meters=horizontal, vertical_meters=vertical if measured else None,
+            missing_vertical_inputs=missing,
+            basis='Unique collinear centerline spans within this explicit junction-connected network and material/installation group / source pixels per meter + attached device drops/rises from saved absolute wire elevation minus (floor elevation + device mounting height). Separate or merely same-named circuits are not merged. Shared device drops at the same service elevation counted once. No inferred conductors, waste or display offsets.'
+                + (' INCOMPLETE: unmeasured drops/rises excluded.' if missing else '')))
     return rows
 
 
@@ -207,7 +202,9 @@ def price_rows(rows, materials):
             material = dict(matches[0])
             material.update(unit='meter',unit_price=Decimal(str(material['unit_price'])) / Decimal(str(row['wire_meters_per_unit'])))
             matches = [material]
-        if row['kind'] == 'device' and row.get('class_id') is None:
+        if row.get('material_conflict'):
+            row['pricing_state'] = 'network_material_review_required'
+        elif row['kind'] == 'device' and row.get('class_id') is None:
             row['pricing_state'] = 'classification_required'
         elif row['unit'] == 'source pixel':
             row['pricing_state'] = 'scale_required'
@@ -226,7 +223,7 @@ def price_rows(rows, materials):
                 row['line_total'] = Decimal(str(row['quantity'])) * Decimal(str(material['unit_price']))
                 totals[material['currency']] = totals.get(material['currency'], Decimal(0)) + row['line_total']
         custom = row.get('custom_unit_price') if row['kind'] == 'device' else row.get('custom_wire_price_per_meter') if row.get('material_kind') == 'wire' and row['unit'] == 'meter' else None
-        if custom is not None:
+        if custom is not None and not row.get('material_conflict'):
             amount = Decimal(str(custom))
             if not amount.is_finite() or not 0 <= amount <= 1_000_000_000:
                 raise ValueError('Invalid custom device price.')
@@ -241,7 +238,7 @@ def price_rows(rows, materials):
     return dict(items=rows, priced_subtotals=totals, unpriced_items=sum(r['line_total'] is None for r in rows),
                 basis=[
                     'Devices: count active saved symbols, including unresolved draft detections; exclude removed items and circuit notations.',
-                    'Paths: sum each stored polyline edge. Use measured page scale or an explicitly labelled full-paper 1:100 assumption; display-only 3D spacing is excluded.',
+                    'Paths: unique centerline spans within explicit junction-connected material/installation groups. Independent paths remain separate. Use measured scale or an explicitly labelled full-paper 1:100 assumption; display-only 3D spacing is excluded.',
                     'Costs: quantity × current database unit price imported by Admin from Excel, unless explicitly overridden by a saved draft device price or calculator-only wire PHP/metre price. Catalog prices are unchanged.',
                     'Attached drops/rises use saved elevations only. Missing drop measurements are flagged and excluded; illustrative 3D offsets, cable gauge, conductor count and allowances are not inferred. Subtotals exclude unpriced items.',
                     'Read-only planning BOM; no per-item confirmation, layout approval or training approval is created. Saved estimate prices remain fixed.'
@@ -309,6 +306,16 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
     rows = [dict(kind='device', name=r['name'], class_id=r['class_id'], quantity=r['quantity'], unit='piece',
         floor_id=r['floor_id'], symbol_ids=r['symbol_ids'], canonical=True, basis='Current saved canonical layout; one unit per symbol.')
         for r in components if r['floor_id'] in verified_floors]
+    from app.geometry.canonical import canonical_geometry_from_dict
+    from app.geometry.canonical_takeoff import canonical_path_rows
+    from app.models import LayoutVersion
+    from app.services.canonical_extension_storage import retrieve_canonical_extension
+    for layout in eligible_layouts:
+        saved = session.get(LayoutVersion, layout['layout_version_id'])
+        geometry = canonical_geometry_from_dict(saved.geometry_document)
+        extension = retrieve_canonical_extension(saved.id, geometry)
+        rows.extend(dict(row,floor_id=layout['floor_id'],floor_plan_id=layout['floor_plan_id'],canonical=True)
+                    for row in canonical_path_rows(geometry, extension))
     sources = [dict(floor_id=l['floor_id'], floor_plan_id=l['floor_plan_id'], layout_version_id=l['layout_version_id'], state='canonical')
                for l in eligible_layouts]
     # Latest successful candidate for EACH source page, not one arbitrary PDF page.
@@ -334,7 +341,7 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
         if not review:
             previous = find_latest_previous_review(session, run=run)
             if previous:
-                document = inherit_manual_reference(candidate, _candidate(previous[0]), _review_document(previous[1]))
+                document = inherit_review_draft(candidate, _candidate(previous[0]), _review_document(previous[1]))
         if 'symbols' not in document:
             document['symbols'] = [dict(id=s.id, disposition='unresolved', symbol_legend_id=None)
                                    for s in candidate.payload.symbols.items]

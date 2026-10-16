@@ -29,6 +29,15 @@ def test_explicit_v5_junction_roundtrip_does_not_change_base_or_legacy():
     assert canonical_extension_from_dict(old,base).to_dict()==old
 
 
+def test_canonical_paths_remain_in_bom_with_shared_metric_junctions_and_no_fabricated_material():
+    from app.geometry.canonical_takeoff import canonical_path_rows
+    base,ext=fixture()
+    rows=canonical_path_rows(base,canonical_extension_from_dict(ext,base))
+    assert len(rows)==1 and rows[0]['quantity']==2
+    assert rows[0]['path_ids']==[1,2] and rows[0]['origin']=='observed'
+    assert 'material unassigned' in rows[0]['name']
+
+
 @pytest.mark.parametrize('case',['orphan','position','height','index','circuit','identity'])
 def test_invalid_canonical_junction_is_rejected(case):
     base,ext=fixture();row=ext['route_details'][1];contact=row['junction_connections'][0]

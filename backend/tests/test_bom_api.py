@@ -20,6 +20,26 @@ def test_bom_without_route_is_reviewed_and_access_checked(context):
     assert client.get(url).status_code == 401
 
 
+def test_canonical_wiring_and_vertical_length_remain_visible_in_bom_and_csv(context):
+    from copy import deepcopy
+    client,_,_,session,layout,*_=context
+    raw=deepcopy(layout.geometry_document)
+    raw['routes']=[dict(id=7,points=[dict(project_floor_id=layout.project_floor_id,x=x,y=1,elevation_meters=z)
+                                    for x,z in [(1,3),(3,3),(3,1.2)]])]
+    layout.geometry_document=raw;session.commit()
+    url=f'/api/projects/{layout.project_id}/bom'
+    response=client.get(url)
+    assert response.status_code==200,response.text
+    paths=[row for row in response.json()['planning']['items'] if row['kind']=='path']
+    assert len(paths)==1 and Decimal(paths[0]['quantity'])==Decimal('3.8')
+    assert paths[0]['vertical_meters']==1.8 and paths[0]['origin']=='unresolved'
+    assert paths[0]['line_total'] is None
+    assert 'Saved canonical metric centerlines' in paths[0]['basis']
+    csv=client.get(url+'.csv')
+    assert csv.status_code==200 and '3.8000' in csv.text
+    assert layout.geometry_document==raw
+
+
 def test_draft_calculator_rejects_invalid_choices_and_does_not_replace_saved_snapshot(estimate_context):
     context, request, materials = estimate_context
     client, _, _, session, layout, _, _, _ = context

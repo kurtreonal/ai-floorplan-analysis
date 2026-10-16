@@ -74,6 +74,7 @@ function validateCircuit(record, projectId, configuration, status) {
   const issues = [...(result?.skipped_targets ?? []), ...(result?.unresolved_targets ?? [])]
   const assignments = configuration.observed_route_assignments ?? []
   const reused = result?.reused_observed_routes ?? []
+  const takeoff = result?.planning_takeoff
   const assignmentKey = item => `${item.floor_id}:${item.route_id}`
   const covered = [...(result?.branches ?? []), ...issues].map((item) => `${item.floor_id}:${item.symbol_id}`)
   if (record?.project_id !== projectId || typeof record.stale !== 'boolean'
@@ -89,6 +90,15 @@ function validateCircuit(record, projectId, configuration, status) {
     || (result.installation_method === 'underground' && (configuration.floor_passages_confirmed !== true
       || record.configuration.floor_passages_confirmed !== true))
     || result.provenance !== 'generated' || result.status !== status
+    || (takeoff != null && (takeoff.basis !== 'selected_network_uniform_conductors_planning_only'
+      || !['observed_meters','generated_meters','horizontal_meters','vertical_meters','conduit_meters'].every(key=>metric(takeoff[key]))
+      || Math.abs(takeoff.conduit_meters-takeoff.horizontal_meters-takeoff.vertical_meters)>1e-6
+      || takeoff.conductor_count !== (configuration.conductor_count ?? null)
+      || (takeoff.conductor_count == null ? takeoff.one_conductor_meters !== null || takeoff.total_conductor_meters !== null
+        : !Number.isSafeInteger(takeoff.conductor_count) || takeoff.conductor_count<1 || takeoff.conductor_count>1000
+          || !metric(takeoff.total_conductor_meters)
+          || takeoff.one_conductor_meters!==takeoff.conduit_meters
+          || Math.abs(takeoff.total_conductor_meters-takeoff.conduit_meters*takeoff.conductor_count)>1e-6)))
     || !Array.isArray(assignments) || !Array.isArray(reused) || reused.length !== assignments.length
     || reused.some((item, index) => !item || !assignments[index] || !Number.isSafeInteger(item.floor_id) || item.floor_id <= 0
       || !Number.isSafeInteger(item.route_id) || item.route_id <= 0 || assignmentKey(item) !== assignmentKey(assignments[index]))

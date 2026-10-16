@@ -5,6 +5,7 @@ import { legendDescription } from '../../api/legendChoices.js'
 import { orderNamed, orderList } from '../../utils/listOrder.js'
 
 const pricingLabels = {
+  network_material_review_required: 'Review overlapping path materials',
   scale_required: 'Set plan scale once', classification_required: 'Unclassified',
   material_not_found: 'No matching catalog material', ambiguous_material: 'Multiple matching materials',
   purchase_unit_required: 'Purchase-unit conversion needed', missing_price: 'Price missing', priced: 'Priced',
@@ -114,7 +115,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
       {bom.planning.items.length ? <div className="studio-table-scroll" role="region" aria-label="Draft material costs" tabIndex={0}><table className="studio-estimate-table studio-bom-table" aria-label="Draft bill of materials"><thead><tr>
         <th scope="col">Device / wiring</th><th scope="col">Quantity</th><th scope="col">Unit price</th><th scope="col">Cost / missing input</th></tr></thead>
         <tbody>{orderList(bom.planning.items, row => legendDescription(row.name), row => row.page_id ?? row.floor_id, row => row.class_id, row => row.path_id).map((row,index) => <tr key={`${row.page_id || row.floor_id}:${row.path_id || row.class_id}:${index}`}>
-          <td>{legendDescription(row.name)}<small>{row.material_kind === 'wire' ? 'Draft cable route length' : row.pricing_state === 'custom_priced' ? 'User-entered device price' : row.origin === 'generated' ? 'Generated path' : row.kind === 'path' ? 'Drawing trace' : 'Device count'}</small></td>
+          <td>{legendDescription(row.name)}<small>{row.material_kind === 'wire' ? 'Draft cable route length' : row.pricing_state === 'custom_priced' ? 'User-entered device price' : row.origin === 'generated' ? 'Generated path' : row.origin === 'observed' ? 'Drawing trace' : row.kind === 'path' ? 'Saved path · provenance unresolved' : 'Device count'}</small></td>
           <td>{new Intl.NumberFormat(undefined,{maximumFractionDigits:4}).format(Number(row.quantity))} {row.unit}
             {row.vertical_meters > 0 && <small>Includes {new Intl.NumberFormat(undefined,{maximumFractionDigits:3}).format(row.vertical_meters)} m drop/rise</small>}
             {row.missing_vertical_inputs?.length > 0 && <small>Incomplete · drop/rise measurements missing</small>}</td>

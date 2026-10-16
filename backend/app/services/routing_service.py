@@ -5,6 +5,7 @@ from app.services.layout_service import retrieve_accessible_current_layout
 from app.services.project_service import get_accessible_project
 from app.routing.circuit import plan_circuit
 from app.routing.missing_devices import plan_missing_devices
+from app.routing.network_measurements import circuit_network_takeoff
 
 
 def response(session, record, lock=False):
@@ -37,6 +38,7 @@ def preview_circuit(session, user, project_id, request):
         versions[str(config.floor_id)] = record.id
     generated = (plan_missing_devices(request, documents, extensions, latest_route(session, project_id), versions)
                  if request.routing_mode == 'missing_devices' else plan_circuit(request, documents))
+    generated = circuit_network_takeoff(request, generated, documents)
     # MySQL REPEATABLE READ can keep a nonlocking recheck on its old snapshot.
     # Use the canonical save lock order/current read, without publishing data.
     lock_context(session, project_id, sorted(documents))
@@ -89,6 +91,7 @@ def save_circuit(session, user, project_id, request):
             stored.setdefault('floor_passages_confirmed', False)
         stored.setdefault('routing_mode', 'shared_circuit')
         stored.setdefault('observed_route_assignments', [])
+        stored.setdefault('conductor_count', None)
         if stored != configuration:
             raise RoutingError('CIRCUIT_RETRY_CONFLICT')
         payload = response(session, record, lock=True)
@@ -110,6 +113,7 @@ def save_circuit(session, user, project_id, request):
         versions[str(config.floor_id)] = record.id
     planned = (plan_missing_devices(request, documents, extensions, latest_route(session, project_id), versions)
                if request.routing_mode == 'missing_devices' else plan_circuit(request, documents))
+    planned = circuit_network_takeoff(request, planned, documents)
     if not planned.segments:
         raise RoutingError('NO_NEW_ROUTE_TO_SAVE')
     generated = planned.model_dump(mode='json')

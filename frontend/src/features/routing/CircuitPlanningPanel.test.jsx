@@ -21,6 +21,19 @@ function fill() {
   fireEvent.click(screen.getByLabelText(/I confirm this circuit membership/))
   fireEvent.submit(screen.getByRole('button', { name: 'Preview shared circuit' }).closest('form'))
 }
+it('leaves conductor count unset by default and submits only an explicit uniform count',async()=>{
+  const measured={...record,result:{...record.result,planning_takeoff:{conduit_meters:4,vertical_meters:1,
+    conductor_count:3,one_conductor_meters:4,total_conductor_meters:12}}}
+  previewCircuit.mockResolvedValue(measured)
+  render(<CircuitPlanningPanel layout={layout} onPreview={vi.fn()} />)
+  const input=screen.getByLabelText('Uniform conductors along selected network (optional)')
+  expect(input.value).toBe('')
+  fireEvent.change(input,{target:{value:'3'}})
+  fill()
+  await waitFor(()=>expect(previewCircuit).toHaveBeenCalled())
+  expect(previewCircuit.mock.calls[0][1].conductor_count).toBe(3)
+  expect(screen.getByRole('region',{name:'Selected network quantities'}).textContent).toContain('12.000 conductor-m')
+})
 
 it('requires explicit observed path selection and restores it without inventing circuit membership', async () => {
   const sourceLayout = { ...layout, geometry: { ...layout.geometry, routes: [{ id: 7, points: [] }, { id: 8, points: [] }] },

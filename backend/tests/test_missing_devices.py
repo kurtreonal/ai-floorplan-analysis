@@ -282,3 +282,21 @@ def test_observed_network_anchors_use_stored_floor_offsets_once():
     assert result.total_meters == 1
     assert result.branches[0].observed_attachment.anchor.model_dump() == dict(floor_id=2, x=13, y=21, elevation_meters=3)
     assert (raw['routes'][0]['points'][0]['x'], raw['routes'][0]['points'][0]['y']) == (1, 1)
+
+
+def test_explicit_canonical_junction_allows_an_interior_branch_but_circuit_conflicts_stay_blocked():
+    raw,request=inputs();request,extension=observed_network(raw,request)
+    raw['routes'][0]['points'].insert(1,dict(project_floor_id=2,x=2,y=1,elevation_meters=3))
+    raw['routes'].append(dict(id=8,points=[dict(project_floor_id=2,x=2,y=1,elevation_meters=3),
+                                        dict(project_floor_id=2,x=2,y=2,elevation_meters=3)]))
+    anchor=dict(x=2,y=1,elevation_meters=3)
+    extension.route_details[0].junction_connections=[dict(junction_id='junction-0001',point_index=1,anchor=anchor)]
+    extension.route_details[0].circuit_id='C-1'
+    extension.route_details.append(SimpleNamespace(route_id=8,route_kind='observed',device_connections=[],circuit_id='C-1',
+        junction_connections=[dict(junction_id='junction-0001',point_index=0,anchor=anchor)]))
+    request=CircuitPlanningRequest.model_validate({**request.model_dump(),'observed_route_assignments':[
+        dict(floor_id=2,route_id=7),dict(floor_id=2,route_id=8)]})
+    assert run(raw,request,extension).total_meters==1
+    extension.route_details[-1].circuit_id='other'
+    with pytest.raises(RoutingError,match='OBSERVED_NETWORK_CIRCUIT_CONFLICT'):
+        run(raw,request,extension)

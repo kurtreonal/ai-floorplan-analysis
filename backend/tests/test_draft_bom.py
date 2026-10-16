@@ -44,6 +44,36 @@ def test_same_path_retracing_counts_physical_span_once_but_not_separate_circuits
     assert sum(row['quantity'] for row in paths) == 12
 
 
+def joined_document():
+    source=document()
+    source['observed_wiring']=[dict(id='segment-0001',disposition='corrected',circuit_id='C1',wiring_legend_name='Conduit',
+        points=[dict(x=0,y=0),dict(x=100,y=0),dict(x=100,y=50)],junction_attachments=[dict(junction_id='junction-0001',point_index=1)]),
+        dict(id='segment-0002',disposition='corrected',circuit_id='C1',wiring_legend_name='Conduit',
+        points=[dict(x=50,y=0),dict(x=100,y=0),dict(x=150,y=0)],junction_attachments=[dict(junction_id='junction-0001',point_index=1)])]
+    return source
+
+
+def test_explicit_network_shared_spans_count_once_not_same_circuit_names_or_nearby_lines():
+    source=joined_document();before=deepcopy(source)
+    paths=[r for r in document_takeoff(source,scale=10) if r['kind']=='path']
+    assert len(paths)==1 and paths[0]['quantity']==20
+    assert paths[0]['path_ids']==['segment-0001','segment-0002']
+    assert source==before
+    for wire in source['observed_wiring']:wire.pop('junction_attachments')
+    paths=[r for r in document_takeoff(source,scale=10) if r['kind']=='path']
+    assert len(paths)==2 and sum(r['quantity'] for r in paths)==25
+
+
+def test_conflicting_materials_do_not_duplicate_network_or_pick_an_arbitrary_price():
+    source=joined_document();source['observed_wiring'][1]['wiring_legend_name']='Other conduit'
+    paths=[r for r in document_takeoff(source,scale=10) if r['kind']=='path']
+    assert len(paths)==1 and paths[0]['quantity']==20 and paths[0]['material_conflict']
+    paths[0]['custom_wire_price_per_meter']=10;paths[0]['material_kind']='wire'
+    result=price_rows(paths,[material('Conduit','meter','3')])
+    assert result['items'][0]['pricing_state']=='network_material_review_required'
+    assert result['items'][0]['line_total'] is None
+
+
 def test_saved_elevations_add_drop_to_both_conduit_and_wire_cost_without_display_measurements():
     source=document()
     source['symbols'][0]['mounting_height_meters']=1.2

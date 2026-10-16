@@ -64,6 +64,18 @@ it('keeps observed reuse references aligned with the explicit pinned assignments
   record.result.reused_observed_routes = [{ floor_id: 2, route_id: 8 }]
   await expect(previewCircuit(1, record.configuration)).rejects.toThrow('Invalid circuit preview response.')
 })
+it('validates separate planning route and explicit conductor quantities without inventing a count',async()=>{
+  const record=response()
+  record.result.planning_takeoff={basis:'selected_network_uniform_conductors_planning_only',observed_meters:0,generated_meters:1,
+    horizontal_meters:1,vertical_meters:0,conduit_meters:1,conductor_count:null,one_conductor_meters:null,total_conductor_meters:null}
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,status:200,json:async()=>record}))
+  expect(await previewCircuit(1,record.configuration)).toEqual(record)
+  record.configuration.conductor_count=3
+  Object.assign(record.result.planning_takeoff,{conductor_count:3,one_conductor_meters:1,total_conductor_meters:3})
+  expect(await previewCircuit(1,record.configuration)).toEqual(record)
+  record.result.planning_takeoff.total_conductor_meters=NaN
+  await expect(previewCircuit(1,record.configuration)).rejects.toThrow('Invalid circuit preview response.')
+})
 it.each(['saved', 'branch', 'nan', 'kind', 'length'])('rejects malformed or misleading %s previews', async (mutation) => {
   const record = response()
   if (mutation === 'saved') record.result.status = 'saved'
