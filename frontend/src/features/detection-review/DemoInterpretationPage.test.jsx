@@ -87,6 +87,68 @@ afterEach(() => {
 
 
 describe('unified demo interpretation review', () => {
+  it('device clipboard supports copy, repeated paste, undo/redo and draft save/reload without copying attachments', async () => {
+    const source = structuredClone(record)
+    source.draft_review = { symbols: [{ id: 'symbol-0001', disposition: 'corrected',
+      center: { x: 50, y: 50 }, symbol_legend_id: 9, mounting_height_meters: 1.2, mounting_wall_id: 'wall-0001' }] }
+    source.observed_wiring = [{ id: 'segment-0001', disposition: 'accepted', completeness: 'partial', elevation_meters: null,
+      points: [{ x: 10, y: 50 }, { x: 50, y: 50 }], device_attachments: [{ symbol_id: 'symbol-0001', point_index: 1 }] }]
+    fetchDemoInterpretation.mockResolvedValue(source)
+    const props = { projectId: 1, floorPlanId: 3, processingJobId: 4 }
+    const view = render(<DemoInterpretationPage {...props} />)
+    fireEvent.click(await screen.findByText('Select first symbol'))
+    fireEvent.copy(window)
+    expect(screen.getByRole('button', { name: 'Undo' }).disabled).toBe(true)
+    fireEvent.paste(window)
+    expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/2')
+    fireEvent.keyDown(window, { key: 'v', metaKey: true })
+    expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/3')
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true })
+    expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/2')
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true })
+    expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/3')
+    fireEvent.click(screen.getByRole('button', { name: 'Save unfinished draft' }))
+    await screen.findByText('Review revision 1 saved.')
+    const body = saveDemoReview.mock.calls[0][1]
+    expect(body.symbols.slice(1)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'manual-symbol-0001', disposition: 'added', symbol_legend_id: 9, mounting_height_meters: 1.2 }),
+      expect.objectContaining({ id: 'manual-symbol-0002', disposition: 'added' }),
+    ]))
+    expect(body.symbols[1].center).not.toEqual(body.symbols[2].center)
+    expect(body.symbols[1]).not.toHaveProperty('mounting_wall_id')
+    expect(body.observed_wiring).toEqual(source.observed_wiring)
+    expect(body.review_complete).toBe(false)
+    expect(body.approved_for_layout).toBe(false)
+    const saved = await saveDemoReview.mock.results[0].value
+    fetchDemoInterpretation.mockResolvedValue(saved)
+    view.unmount()
+    render(<DemoInterpretationPage {...props} />)
+    await screen.findByText('Select first symbol')
+    expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/3')
+    fireEvent.keyDown(window, { key: 'v', ctrlKey: true })
+    expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/3')
+    expect(source.draft_review.symbols).toHaveLength(1)
+  })
+
+  it('device clipboard leaves native form editing alone and ignores repeat and unselected devices', async () => {
+    render(<DemoInterpretationPage projectId={1} floorPlanId={3} processingJobId={4} />)
+    await screen.findByText('Select first symbol')
+    fireEvent.keyDown(window, { key: 'c', ctrlKey: true })
+    fireEvent.keyDown(window, { key: 'v', ctrlKey: true })
+    expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/1')
+    fireEvent.click(screen.getByText('Select first symbol'))
+    fireEvent.keyDown(window, { key: 'c', ctrlKey: true })
+    for (const target of [screen.getByLabelText('VED legend class'), screen.getByLabelText('X', { selector: 'input' })]) {
+      expect(fireEvent.keyDown(target, { key: 'v', ctrlKey: true })).toBe(true)
+    }
+    const editable = document.createElement('div')
+    editable.setAttribute('contenteditable', 'true'); document.body.append(editable)
+    expect(fireEvent.keyDown(editable, { key: 'v', ctrlKey: true })).toBe(true)
+    editable.remove()
+    fireEvent.keyDown(window, { key: 'v', ctrlKey: true, repeat: true })
+    expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/1')
+  })
+
   it('counts circuit annotations separately from physical device proposals', async () => {
     const source = structuredClone(record)
     source.candidate.payload.symbols.items = [

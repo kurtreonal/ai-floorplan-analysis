@@ -34,6 +34,7 @@ import { orderNamed } from '../../utils/listOrder.js'
 import { autoLinkSymbols, clampDevicePoint, describeReviewSymbol, deviceFamily, relatedSymbolIds, updateRelatedSymbols, reviewGeometryPayload } from './devicePresentation.js'
 import { addConnectedWall, moveConnectedWall, deleteConnectedWall } from './wallDrawing.js'
 import { WallDimensionEditor } from './WallDimensionEditor.jsx'
+import { pastedDevice, useDeviceClipboard } from './useDeviceClipboard.js'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
 
@@ -217,7 +218,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   // Keyboard undo/redo
   useEffect(() => {
     function handleKeyDown(e) {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) return
+      if (e.target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])') || saveState.status === 'saving') return
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault()
         setEditingSession(value=>value+1)
@@ -250,7 +251,24 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [historyIndex, history])
+  }, [historyIndex, history, saveState.status])
+
+  useDeviceClipboard({
+    sourceKey: `${floorPlanId}:${processingJobId}`,
+    draft, selected, plane: state.record?.candidate.payload.source_plane,
+    disabled: state.status !== 'ready' || saveState.status === 'saving',
+    onPaste(snapshot) {
+      const symbol = pastedDevice(snapshot, draft, state.record.candidate.payload.source_plane,
+        nextManualId(draft.symbols, 'manual-symbol'))
+      if (!symbol) return
+      pushDraft({ ...draft, symbols: [...draft.symbols, symbol] }, { autoConnect: false })
+      setEditingSession(value => value + 1)
+      setSelected({ kind: 'symbol', id: symbol.id })
+      setTool('select')
+      setLayers(current => ({ ...current, symbols: true }))
+    },
+  })
+
 
   const selectedEntity = useMemo(() => (
     selected && draft ? draft[`${selected.kind}s`].find((item) => item.id === selected.id) : null
@@ -267,10 +285,10 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     && (approveLayout ? Number(wallThickness) : null) === state.record.review.wall_thickness_meters
     && (approveLayout ? Number(wallHeight) : null) === state.record.review.wall_height_meters)
 
-  function pushDraft(nextDraft, { wallChange = false } = {}) {
+  function pushDraft(nextDraft, { wallChange = false, autoConnect = true } = {}) {
     if (saveState.status === 'saving' || nextDraft === draft) return
     const nextPresentations = Object.fromEntries(nextDraft.symbols.map(s => [s.id, describeReviewSymbol(s,state.record,state.legends)]))
-    nextDraft = connectTouchingWireEndpoints(nextDraft,nextPresentations)
+    if (autoConnect) nextDraft = connectTouchingWireEndpoints(nextDraft,nextPresentations)
     setHistory((prev) => [...prev.slice(0, historyIndex + 1), nextDraft])
     setHistoryIndex((prev) => prev + 1)
     setDraft(nextDraft)
