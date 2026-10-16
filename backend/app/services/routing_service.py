@@ -88,6 +88,7 @@ def save_circuit(session, user, project_id, request):
         if stored.get('installation_method') == 'ceiling_service':
             stored.setdefault('floor_passages_confirmed', False)
         stored.setdefault('routing_mode', 'shared_circuit')
+        stored.setdefault('observed_route_assignments', [])
         if stored != configuration:
             raise RoutingError('CIRCUIT_RETRY_CONFLICT')
         payload = response(session, record, lock=True)

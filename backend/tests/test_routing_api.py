@@ -247,6 +247,42 @@ def test_missing_completion_reads_real_canonical_connections_without_mutating_th
     assert client.get(url).json() is None
 
 
+def test_reviewed_observed_network_assignment_saves_reloads_and_retries_without_source_rewrite(context):
+    from app.geometry import canonical_geometry_from_dict
+    from app.geometry.canonical_extension import canonical_extension_from_dict
+    from app.services.canonical_extension_storage import save_canonical_extension
+    client, url, payload, session, snapshot, *_ = context
+    raw = deepcopy(snapshot.geometry_document)
+    floor_id = snapshot.project_floor_id
+    raw['routes'] = [dict(id=7, points=[dict(project_floor_id=floor_id, x=x, y=1, elevation_meters=3) for x in [1, 3]])]
+    snapshot.geometry_document = raw; session.commit()
+    extension = canonical_extension_from_dict(dict(extension_schema_version=4, base_schema_version=1,
+        source_plane_reference=dict(floor_plan_page_id=snapshot.floor_plan_id, source_artifact_id=103,
+                                    width_pixels=640, height_pixels=480), openings=[], panels=[], symbol_details=[],
+        route_details=[dict(route_id=7, route_kind='observed', provenance_ref='reviewed:synthetic', device_connections=[])]),
+        canonical_geometry_from_dict(raw))
+    source_file, source_hash = save_canonical_extension(snapshot.id, extension)
+    source_bytes = source_file.read_bytes()
+    data = circuit_save_payload(payload)
+    data.update(routing_mode='missing_devices', observed_route_assignments=[dict(floor_id=floor_id, route_id=7)])
+    reply = client.post(url, json=data)
+    assert reply.status_code == 201, reply.text
+    saved = reply.json()
+    assert saved['result']['algorithm'] == 'assigned_missing_device_astar_v3'
+    assert saved['result']['total_meters'] == .5
+    assert saved['result']['reused_observed_routes'] == data['observed_route_assignments']
+    assert saved['result']['branches'][0]['points'][0] == dict(floor_id=floor_id, x=2.5, y=1, elevation_meters=3)
+    assert client.get(url).json() == saved
+    assert client.post(url, json=data).json() == saved
+    assert len(session.scalars(select(GeneratedRouteVersion)).all()) == 1
+    assert snapshot.geometry_document == raw
+    assert source_file.read_bytes() == source_bytes
+    import hashlib
+    assert hashlib.sha256(source_bytes).hexdigest() == source_hash
+    changed = deepcopy(data); changed['observed_route_assignments'] = []
+    assert client.post(url, json=changed).status_code == 409
+
+
 def test_circuit_preview_enforces_owner_roles_and_explicit_supported_installation(context):
     client, url, payload, session, snapshot, app, other, admin = context
     data = {key: value for key, value in payload.items() if key != 'target'}

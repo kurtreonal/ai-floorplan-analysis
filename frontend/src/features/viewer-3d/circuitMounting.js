@@ -1,5 +1,5 @@
 // Version-bound planning inputs, not approval or a second geometry model.
-const missingAlgorithms = ['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2']
+const missingAlgorithms = ['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2', 'assigned_missing_device_astar_v3']
 export function bindCircuitMounting(scene, record, layout) {
   if (!record || record.stale || record.project_id !== layout.project_id
     || record.layout_versions?.[String(layout.project_floor_id)] !== layout.id

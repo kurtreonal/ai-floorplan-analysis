@@ -13,11 +13,16 @@ from uuid import UUID
 from pydantic import Field, model_validator
 
 from app.routing.contracts import (
-    Contract, Connector, Endpoint, FloorConfig, Number, Obstacle, Point, RoutingRequest, Segment,
+    Contract, Connector, Endpoint, FloorConfig, Identifier, Number, Obstacle, Point, RoutingRequest, Segment,
 )
 from app.routing.engine import (attachment, segment, service_graph, validate_target, world_point,
                                 validate_service_elevations, vertical_kind)
 from app.routing.graph import RoutingError
+
+
+class ObservedRouteAssignment(Contract):
+    floor_id: Identifier
+    route_id: Identifier
 
 
 class CircuitPlanningRequest(Contract):
@@ -30,6 +35,7 @@ class CircuitPlanningRequest(Contract):
     targets: Annotated[list[Endpoint], Field(min_length=1, max_length=32)]
     connectors: Annotated[list[Connector], Field(max_length=32)] = []
     obstacles: Annotated[list[Obstacle], Field(max_length=128)] = []
+    observed_route_assignments: Annotated[list[ObservedRouteAssignment], Field(max_length=32)] = []
     grid_step_meters: Annotated[float, Field(ge=0.1, le=5, allow_inf_nan=False)]
     alignment_confirmed: Literal[True]
     purpose: Literal['planning'] = 'planning'
@@ -41,6 +47,11 @@ class CircuitPlanningRequest(Contract):
         identities = [(target.floor_id, target.symbol_id) for target in self.targets]
         if len(set(identities)) != len(identities):
             raise ValueError('Duplicate circuit targets.')
+        assignments = [(item.floor_id, item.route_id) for item in self.observed_route_assignments]
+        if (len(set(assignments)) != len(assignments)
+            or any(item.floor_id not in {floor.floor_id for floor in self.floors} for item in self.observed_route_assignments)
+            or (assignments and self.routing_mode != 'missing_devices')):
+            raise ValueError('Observed routes require distinct, configured-floor missing-device assignments.')
         for target in self.targets:
             self.single_target(target)  # Existing alignment/reference validation.
         return self
@@ -54,6 +65,11 @@ class CircuitPlanningRequest(Contract):
                               alignment_confirmed=self.alignment_confirmed, purpose=self.purpose)
 
 
+class ObservedNetworkAttachment(ObservedRouteAssignment):
+    segment_index: Annotated[int, Field(strict=True, ge=0)]
+    anchor: Point
+
+
 class CircuitBranch(Contract):
     floor_id: int
     symbol_id: str
@@ -62,6 +78,7 @@ class CircuitBranch(Contract):
     horizontal_meters: Number
     vertical_meters: Number
     total_meters: Number
+    observed_attachment: ObservedNetworkAttachment | None = None
 
 
 class CircuitTargetIssue(Contract):
@@ -81,13 +98,14 @@ class CircuitPlanningResult(Contract):
     installation_method: Literal['ceiling_service', 'underground']
     provenance: Literal['generated'] = 'generated'
     algorithm: Literal['greedy_shared_service_tree_v1', 'assigned_missing_device_astar_v1',
-                       'assigned_missing_device_astar_v2'] = 'greedy_shared_service_tree_v1'
+                       'assigned_missing_device_astar_v2', 'assigned_missing_device_astar_v3'] = 'greedy_shared_service_tree_v1'
     optimality: Literal['graph_heuristic_not_global_optimum'] = 'graph_heuristic_not_global_optimum'
     status: Literal['preview_not_saved'] = 'preview_not_saved'
     segments: list[Segment]
     branches: list[CircuitBranch]
     skipped_targets: list[CircuitTargetIssue] = []
     unresolved_targets: list[CircuitTargetIssue] = []
+    reused_observed_routes: list[ObservedRouteAssignment] = []
     # Unique physical path length, NOT a conductor count or material takeoff.
     horizontal_meters: Number
     vertical_meters: Number

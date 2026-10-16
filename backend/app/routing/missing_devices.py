@@ -9,6 +9,7 @@ from app.routing.circuit import CircuitBranch, CircuitPlanningResult, CircuitTar
 from app.routing.contracts import Point, Segment
 from app.routing.engine import generate_route, segment, validate_target
 from app.routing.graph import RoutingError
+from app.routing.observed_network import assigned_observed_sources, observed_attachment
 
 
 def _key(point):
@@ -76,6 +77,8 @@ def _retained(request, previous, versions):
         or old.get('connectors', []) != [connector.model_dump(mode='json') for connector in request.connectors]
         or old.get('grid_step_meters') != request.grid_step_meters):
         raise RoutingError('EXISTING_ROUTE_REVIEW_REQUIRED')
+    if old.get('observed_route_assignments', []) != [a.model_dump(mode='json') for a in request.observed_route_assignments]:
+        raise RoutingError('EXISTING_ROUTE_REVIEW_REQUIRED')
     targets = {(target.floor_id, target.symbol_id): target.model_dump(mode='json') for target in request.targets}
     old_targets = {(target['floor_id'], target['symbol_id']): target for target in old.get('targets', [])}
     branches = previous.result.get('branches', [])
@@ -138,7 +141,7 @@ def plan_missing_devices(request, documents, extensions, previous, versions):
     # independent of lexical device order. Its layout/configuration/assignments
     # were checked by _retained; no observed circuit identity is guessed.
     configs = {config.floor_id: config for config in request.floors}
-    service_sources = set()
+    service_sources = assigned_observed_sources(request, documents, extensions)
     for branch in retained.values():
         for raw in branch['points']:
             point = Point.model_validate(raw)
@@ -172,9 +175,13 @@ def plan_missing_devices(request, documents, extensions, previous, versions):
                 raise
             unresolved.append(CircuitTargetIssue(**issue, reason=str(error)))
     segments, branches = _combine(paths)
+    if request.observed_route_assignments:
+        branches = [branch.model_copy(update={'observed_attachment': observed_attachment(request, documents, branch.points[0])})
+                    for branch in branches]
     horizontal = sum(item.horizontal_meters for item in segments)
     vertical = sum(item.vertical_meters for item in segments)
     return CircuitPlanningResult(circuit_id=request.circuit_id, installation_method=request.installation_method,
-        algorithm='assigned_missing_device_astar_v2', segments=segments, branches=branches,
+        algorithm='assigned_missing_device_astar_v3' if request.observed_route_assignments else 'assigned_missing_device_astar_v2',
+        reused_observed_routes=request.observed_route_assignments, segments=segments, branches=branches,
         skipped_targets=skipped, unresolved_targets=unresolved,
         horizontal_meters=horizontal, vertical_meters=vertical, total_meters=horizontal+vertical)

@@ -153,3 +153,132 @@ def test_assigned_device_on_generated_tree_has_persisted_binding_without_new_wir
     stored['status'] = 'saved_planning'
     previous = SimpleNamespace(configuration=request.model_dump(mode='json'), result=stored, layout_versions={'2': 5})
     assert run(raw, request, previous=previous) == result
+
+
+def observed_network(raw, request, *, points=None):
+    raw['symbols'][0]['position'] = dict(x=3, y=2)
+    target = request.targets[0].model_copy(update=raw['symbols'][0]['position'])
+    request = CircuitPlanningRequest.model_validate({**request.model_dump(), 'targets': [target.model_dump()],
+        'observed_route_assignments': [dict(floor_id=2, route_id=7)]})
+    raw['routes'] = [dict(id=7, points=[dict(project_floor_id=2, x=x, y=y, elevation_meters=z)
+                                      for x, y, z in (points or [(1, 1, 3), (4, 1, 3)])])]
+    extension = SimpleNamespace(route_details=[SimpleNamespace(route_id=7, route_kind='observed', device_connections=[])])
+    return request, extension
+
+
+def test_explicit_reviewed_observed_network_reused_without_copying_or_recounting_it():
+    raw, request = inputs()
+    request, extension = observed_network(raw, request)
+    before = deepcopy(raw)
+    result = run(raw, request, extension)
+    assert result.algorithm == 'assigned_missing_device_astar_v3'
+    assert result.total_meters == 1  # Original 3 m observed run is not generated/count again.
+    assert result.branches[0].points[0].model_dump() == dict(floor_id=2, x=3, y=1, elevation_meters=3)
+    assert result.reused_observed_routes == request.observed_route_assignments
+    assert result.branches[0].observed_attachment.model_dump() == dict(floor_id=2, route_id=7, segment_index=0,
+        anchor=dict(floor_id=2, x=3, y=1, elevation_meters=3))
+    assert result == run(raw, request, extension)
+    assert raw == before
+    unassigned = request.model_copy(update={'observed_route_assignments': []})
+    assert run(raw, unassigned, extension).total_meters == 3
+
+
+@pytest.mark.parametrize('start,end', [((2, 0), (2, 2)), ((4.01, 1), (4.01, 2))])
+def test_assigned_crossings_and_nearby_endpoints_do_not_create_network_junctions(start, end):
+    raw, request = inputs()
+    request, extension = observed_network(raw, request)
+    raw['routes'].append(dict(id=8, points=[dict(project_floor_id=2, x=x, y=y, elevation_meters=3) for x, y in (start, end)]))
+    extension.route_details.append(SimpleNamespace(route_id=8, route_kind='observed', device_connections=[]))
+    request = CircuitPlanningRequest.model_validate({**request.model_dump(), 'observed_route_assignments': [
+        dict(floor_id=2, route_id=7), dict(floor_id=2, route_id=8)]})
+    with pytest.raises(RoutingError, match='OBSERVED_NETWORK_PANEL_CONNECTION_REQUIRED'):
+        run(raw, request, extension)
+
+
+def test_shared_reviewed_endpoints_join_but_wrong_provenance_and_obstacles_are_refused():
+    raw, request = inputs()
+    request, extension = observed_network(raw, request)
+    raw['routes'].append(dict(id=8, points=[dict(project_floor_id=2, x=x, y=y, elevation_meters=3) for x, y in [(4, 1), (4, 2)]]))
+    extension.route_details.append(SimpleNamespace(route_id=8, route_kind='observed', device_connections=[]))
+    request = CircuitPlanningRequest.model_validate({**request.model_dump(), 'observed_route_assignments': [
+        dict(floor_id=2, route_id=7), dict(floor_id=2, route_id=8)]})
+    assert run(raw, request, extension).total_meters == 1
+    extension.route_details[-1].route_kind = 'generated'
+    with pytest.raises(RoutingError, match='OBSERVED_NETWORK_REFERENCE_REQUIRED'):
+        run(raw, request, extension)
+    extension.route_details[-1].route_kind = 'observed'
+    blocked = CircuitPlanningRequest.model_validate({**request.model_dump(), 'obstacles': [
+        dict(floor_id=2, min_x=2, max_x=2.1, min_y=.9, max_y=1.1, bottom=2, top=4)]})
+    with pytest.raises(RoutingError, match='OBSERVED_NETWORK_OBSTACLE_CONFLICT'):
+        run(raw, blocked, extension)
+
+
+def test_observed_network_requires_stored_service_height_and_preserves_explicit_drop():
+    raw, request = inputs()
+    request, extension = observed_network(raw, request)
+    raw['walls'] = [dict(id=7, source_candidate_id=None, processing_job_id=None, status='verified',
+        start=dict(x=3, y=0), end=dict(x=3, y=3), length_meters=3, angle_degrees=90,
+        thickness_meters=.2, height_meters=3)]
+    request = request.model_copy(update={'targets': [request.targets[0].model_copy(update={'elevation_meters': -.15, 'wall_id': 7})]})
+    result = run(raw, request, extension)
+    assert result.horizontal_meters == 1
+    assert result.vertical_meters == pytest.approx(3.15)
+    assert result.branches[0].points[-1].elevation_meters == -.15
+    assert sum(s.kind == 'wall_drop' for s in result.segments) == 1
+    for point in raw['routes'][0]['points']:
+        point['elevation_meters'] = 2.9
+    request = request.model_copy(update={'panel': request.panel.model_copy(update={'elevation_meters': 2.9})})
+    with pytest.raises(RoutingError, match='OBSERVED_NETWORK_SERVICE_ELEVATION_REQUIRED'):
+        run(raw, request, extension)
+
+
+def test_saved_observed_network_assignment_is_pinned_and_retry_is_nonmutating():
+    raw, request = inputs()
+    request, extension = observed_network(raw, request)
+    result = run(raw, request, extension)
+    stored = result.model_dump(mode='json'); stored['status'] = 'saved_planning'
+    previous = SimpleNamespace(configuration=request.model_dump(mode='json'), result=stored, layout_versions={'2': 5})
+    assert run(raw, request, extension, previous) == result
+    with pytest.raises(RoutingError, match='EXISTING_ROUTE_REVIEW_REQUIRED'):
+        run(raw, request.model_copy(update={'observed_route_assignments': []}), extension, previous)
+    assert previous.result == stored
+
+
+def test_observed_network_does_not_invent_a_service_rise_above_physical_panel():
+    raw, request = inputs()
+    request, extension = observed_network(raw, request, points=[(1, 1, 1), (1, 1, 2), (4, 1, 2), (4, 1, 3)])
+    raw['walls'] = [dict(id=7, source_candidate_id=None, processing_job_id=None, status='verified',
+        start=dict(x=1, y=0), end=dict(x=1, y=3), length_meters=3, angle_degrees=90,
+        thickness_meters=.2, height_meters=3)]
+    raw['symbols'][0]['position'] = dict(x=1.5, y=1.2)
+    request = request.model_copy(update={
+        'panel': request.panel.model_copy(update={'elevation_meters': 1, 'wall_id': 7}),
+        'targets': [request.targets[0].model_copy(update=raw['symbols'][0]['position'])]})
+    result = run(raw, request, extension)
+    assert (result.branches[0].points[0].x, result.branches[0].points[0].y) == (4, 1)
+    assert result.total_meters == pytest.approx(2.7)
+    assert result.vertical_meters == 0
+    assert result.branches[0].observed_attachment.route_id == 7
+    assert result.branches[0].observed_attachment.segment_index == 2
+
+
+@pytest.mark.parametrize('assignments,mode', [
+    ([dict(floor_id=2, route_id=7)]*2, 'missing_devices'),
+    ([dict(floor_id=99, route_id=7)], 'missing_devices'),
+    ([dict(floor_id=2, route_id=7)], 'shared_circuit'),
+])
+def test_observed_assignments_reject_duplicate_foreign_floor_and_wrong_mode(assignments, mode):
+    from pydantic import ValidationError
+    _, request = inputs()
+    with pytest.raises(ValidationError):
+        CircuitPlanningRequest.model_validate({**request.model_dump(), 'routing_mode': mode, 'observed_route_assignments': assignments})
+
+
+def test_observed_network_anchors_use_stored_floor_offsets_once():
+    raw, request = inputs()
+    request, extension = observed_network(raw, request)
+    request = request.model_copy(update={'floors': [request.floors[0].model_copy(update={'offset_x': 10, 'offset_y': 20})]})
+    result = run(raw, request, extension)
+    assert result.total_meters == 1
+    assert result.branches[0].observed_attachment.anchor.model_dump() == dict(floor_id=2, x=13, y=21, elevation_meters=3)
+    assert (raw['routes'][0]['points'][0]['x'], raw['routes'][0]['points'][0]['y']) == (1, 1)

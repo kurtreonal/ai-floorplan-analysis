@@ -136,8 +136,8 @@ def generate_route(request, documents, *, service_sources=()):
     configs = {c.floor_id: c for c in request.floors}
     panel = attachment(request.panel, configs[request.panel.floor_id], documents[request.panel.floor_id], request.obstacles, request.installation_method)
     target = attachment(request.target, configs[request.target.floor_id], documents[request.target.floor_id], request.obstacles, request.installation_method)
-    # Only the caller's version-matched SAME-circuit generated tree may supply
-    # these anchors. Never discover circuit membership by nearest source ink.
+    # Only a version-matched same-circuit generated tree or explicitly assigned,
+    # panel-connected reviewed network may supply these anchors. No nearest ink.
     sources = tuple(sorted(set(service_sources), key=lambda p: (p.floor_id, p.x, p.y, p.elevation_meters)))
     anchors = []
     for point in sources:
@@ -156,8 +156,6 @@ def generate_route(request, documents, *, service_sources=()):
     end = (request.target.floor_id, request.target.x, request.target.y)
     if anchors:
         eligible = {(p.floor_id, p.x, p.y) for p in anchors} & graph.keys()
-        if start in graph:
-            eligible.add(start)
         # Reverse search finds the least NEW permitted length to this assigned
         # tree; zero heuristic is admissible for multiple targets/floors.
         path = list(reversed(astar_to_any(graph, end, eligible)))

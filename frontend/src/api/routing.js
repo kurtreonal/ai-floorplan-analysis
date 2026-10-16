@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './auth.js'
 
-const missingAlgorithms = ['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2']
+const missingAlgorithms = ['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2', 'assigned_missing_device_astar_v3']
 const circuitAlgorithms = ['greedy_shared_service_tree_v1', ...missingAlgorithms]
 
 export async function routingRequest(projectId, { configuration, signal } = {}) {
@@ -72,6 +72,9 @@ function validateCircuit(record, projectId, configuration, status) {
     throw new Error('Invalid circuit preview response.')
   }
   const issues = [...(result?.skipped_targets ?? []), ...(result?.unresolved_targets ?? [])]
+  const assignments = configuration.observed_route_assignments ?? []
+  const reused = result?.reused_observed_routes ?? []
+  const assignmentKey = item => `${item.floor_id}:${item.route_id}`
   const covered = [...(result?.branches ?? []), ...issues].map((item) => `${item.floor_id}:${item.symbol_id}`)
   if (record?.project_id !== projectId || typeof record.stale !== 'boolean'
     || (status === 'preview_not_saved' && record.stale)
@@ -86,6 +89,9 @@ function validateCircuit(record, projectId, configuration, status) {
     || (result.installation_method === 'underground' && (configuration.floor_passages_confirmed !== true
       || record.configuration.floor_passages_confirmed !== true))
     || result.provenance !== 'generated' || result.status !== status
+    || !Array.isArray(assignments) || !Array.isArray(reused) || reused.length !== assignments.length
+    || reused.some((item, index) => !item || !assignments[index] || !Number.isSafeInteger(item.floor_id) || item.floor_id <= 0
+      || !Number.isSafeInteger(item.route_id) || item.route_id <= 0 || assignmentKey(item) !== assignmentKey(assignments[index]))
     || !circuitAlgorithms.includes(result.algorithm) || result.optimality !== 'graph_heuristic_not_global_optimum'
     || (missing && configuration.routing_mode !== 'missing_devices')
     || !lengths(result) || !Array.isArray(result.segments) || (!missing && !result.segments.length)
@@ -100,6 +106,10 @@ function validateCircuit(record, projectId, configuration, status) {
       || typeof issue.reason !== 'string' || !/^[A-Z_]+$/.test(issue.reason))
     || result.branches.some((branch) => !expected.has(`${branch.floor_id}:${branch.symbol_id}`) || !lengths(branch)
       || !Array.isArray(branch.points) || !branch.points.length || branch.points.some((p) => !point(p))
+      || (branch.observed_attachment != null && (!Number.isSafeInteger(branch.observed_attachment.segment_index)
+        || branch.observed_attachment.segment_index < 0 || !point(branch.observed_attachment.anchor)
+        || !assignments.some(item => assignmentKey(item) === assignmentKey(branch.observed_attachment))
+        || ['floor_id', 'x', 'y', 'elevation_meters'].some(key => branch.observed_attachment.anchor[key] !== branch.points[0][key])))
       || !Array.isArray(branch.segment_indices) || branch.segment_indices.some((index) => !Number.isSafeInteger(index)
         || index < 0 || index >= result.segments.length))) {
     throw new Error('Invalid circuit preview response.')

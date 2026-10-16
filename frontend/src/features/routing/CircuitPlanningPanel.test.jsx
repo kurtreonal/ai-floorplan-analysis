@@ -22,6 +22,27 @@ function fill() {
   fireEvent.submit(screen.getByRole('button', { name: 'Preview shared circuit' }).closest('form'))
 }
 
+it('requires explicit observed path selection and restores it without inventing circuit membership', async () => {
+  const sourceLayout = { ...layout, geometry: { ...layout.geometry, routes: [{ id: 7, points: [] }, { id: 8, points: [] }] },
+    extension: { route_details: [{ route_id: 7, route_kind: 'observed' }, { route_id: 8, route_kind: 'generated' }] } }
+  previewCircuit.mockResolvedValue(record)
+  const rendered = render(<CircuitPlanningPanel layout={sourceLayout} onPreview={vi.fn()} />)
+  expect(screen.getByLabelText('Use observed route 7').checked).toBe(false)
+  expect(screen.queryByLabelText('Use observed route 8')).toBeNull()
+  fireEvent.click(screen.getByLabelText('Use observed route 7'))
+  fill()
+  await waitFor(() => expect(previewCircuit).toHaveBeenCalled())
+  expect(previewCircuit.mock.calls[0][1].observed_route_assignments).toEqual([{ floor_id: 2, route_id: 7 }])
+  const saved = savedCircuit()
+  saved.configuration.observed_route_assignments = [{ floor_id: 2, route_id: 7 }]
+  saved.configuration.routing_mode = 'missing_devices'
+  saved.configuration.panel = { floor_id: 2, x: 1, y: 1, elevation_meters: 3 }
+  saved.configuration.targets = [{ floor_id: 2, symbol_id: 'detected:1', x: 2, y: 1, elevation_meters: 3 }]
+  rendered.rerender(<CircuitPlanningPanel layout={sourceLayout} record={saved} onPreview={vi.fn()} />)
+  expect(screen.getByLabelText('Use observed route 7').checked).toBe(true)
+  expect(screen.getByLabelText(/I confirm this circuit membership/).checked).toBe(false)
+})
+
 it('defers missing device elevations without inventing them or blocking other assignments', async () => {
   const second = { id: 'detected:2', class: { name: 'Outlet' }, position: { x: 3, y: 1 } }
   previewCircuit.mockResolvedValue(record)

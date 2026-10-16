@@ -23,7 +23,7 @@ it('sends explicit preview inputs and abort signal without publishing a saved ro
   }))
 })
 
-it.each(['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2'])('validates partial %s results and rejects duplicated or omitted coverage', async (algorithm) => {
+it.each(['assigned_missing_device_astar_v1', 'assigned_missing_device_astar_v2', 'assigned_missing_device_astar_v3'])('validates partial %s results and rejects duplicated or omitted coverage', async (algorithm) => {
   const record = response()
   record.configuration.routing_mode = 'missing_devices'
   record.result.algorithm = algorithm
@@ -48,6 +48,21 @@ it('accepts an explicit v2 device binding at its assigned tree without a duplica
     segment_indices: [], horizontal_meters: 0, vertical_meters: 0, total_meters: 0 })
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => record }))
   expect(await previewCircuit(1, record.configuration)).toEqual(record)
+})
+it('keeps observed reuse references aligned with the explicit pinned assignments', async () => {
+  const record = response()
+  record.configuration.routing_mode = 'missing_devices'
+  record.configuration.observed_route_assignments = [{ floor_id: 2, route_id: 7 }]
+  record.result.algorithm = 'assigned_missing_device_astar_v3'
+  record.result.reused_observed_routes = [{ floor_id: 2, route_id: 7 }]
+  record.result.branches[0].observed_attachment = { floor_id: 2, route_id: 7, segment_index: 0, anchor: record.result.branches[0].points[0] }
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => record }))
+  expect(await previewCircuit(1, record.configuration)).toEqual(record)
+  record.result.branches[0].observed_attachment = { ...record.result.branches[0].observed_attachment, segment_index: -1 }
+  await expect(previewCircuit(1, record.configuration)).rejects.toThrow('Invalid circuit preview response.')
+  record.result.branches[0].observed_attachment.segment_index = 0
+  record.result.reused_observed_routes = [{ floor_id: 2, route_id: 8 }]
+  await expect(previewCircuit(1, record.configuration)).rejects.toThrow('Invalid circuit preview response.')
 })
 it.each(['saved', 'branch', 'nan', 'kind', 'length'])('rejects malformed or misleading %s previews', async (mutation) => {
   const record = response()
