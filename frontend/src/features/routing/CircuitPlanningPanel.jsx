@@ -9,6 +9,7 @@ import { normalizeRouteObstacles, obstacleRows, routingObstaclesFromRows } from 
 
 function routingFailure(failure) {
   const observedErrors = {
+    OBSERVED_NETWORK_CIRCUIT_CONFLICT: 'Selected wiring is stored on another circuit. Review its assignment; circuits were not merged.',
     OBSERVED_NETWORK_REFERENCE_REQUIRED: 'Select existing reviewed observed routes from this saved layout.',
     OBSERVED_NETWORK_FLOOR_REVIEW_REQUIRED: 'The selected observed route crosses floors without a reviewed connector. Review it before reuse.',
     OBSERVED_NETWORK_PANEL_CONNECTION_REQUIRED: 'Selected routes must form a panel-connected network through shared endpoints. Crossings and nearby paths are not joined.',

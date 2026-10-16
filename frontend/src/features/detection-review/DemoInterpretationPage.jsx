@@ -35,6 +35,8 @@ import { autoLinkSymbols, clampDevicePoint, describeReviewSymbol, deviceFamily, 
 import { addConnectedWall, moveConnectedWall, deleteConnectedWall } from './wallDrawing.js'
 import { WallDimensionEditor } from './WallDimensionEditor.jsx'
 import { pastedDevice, useDeviceClipboard } from './useDeviceClipboard.js'
+import { WireJunctionEditor } from './WireJunctionEditor.jsx'
+import { updateWireNetwork } from './wireJunctions.js'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
 
@@ -363,8 +365,11 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   function updateSelected(replacement) {
     if (!selected) return
     if(selected.kind==='wall'){handleUpdateWall(replacement);return}
-    if (selected.kind === 'wiring' && replacement.origin === 'generated') {
-      replacement = {...replacement, suppression_reason:null}
+    if (selected.kind === 'wiring') {
+      editWireNetwork(current => updateWireNetwork(current, {...replacement,
+        ...(replacement.origin === 'generated' ? {suppression_reason:null} : {}),
+        disposition: replacement.disposition === 'rejected' || replacement.disposition === 'added' ? replacement.disposition : 'corrected'}))
+      return
     }
     const key = `${selected.kind}s`
     const isWall = selected.kind === 'wall'
@@ -403,8 +408,13 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   function moveWirePoint(id, index, point, snap = null) {
     if (saveState.status === 'saving') return
     const plane = state.record.candidate.payload.source_plane
-    const next = moveConnectedWirePoint(draft, id, index, point, plane.width_pixels, plane.height_pixels, snap, presentations)
-    if (next !== draft) pushDraft(next)
+    editWireNetwork(current => moveConnectedWirePoint(current, id, index, point, plane.width_pixels, plane.height_pixels, snap, presentations))
+  }
+
+  function editWireNetwork(edit) {
+    if (saveState.status === 'saving') return
+    try { pushDraft(edit(draft)) }
+    catch (error) { setSaveState({status:'error',message:error.message}) }
   }
 
   function addEntity(kind) {
@@ -682,6 +692,10 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             </>
           )}
           {selected.kind === 'wiring' && <>
+            <label>Circuit identifier (connected network)<input value={selectedEntity.circuit_id ?? ''} maxLength="80"
+              onChange={event => updateSelected({...selectedEntity,circuit_id:event.target.value || null})} /></label>
+            <WireJunctionEditor key={selectedEntity.id} wire={selectedEntity} draft={draft}
+              disabled={saveState.status === 'saving' || selectedEntity.disposition === 'rejected'} onEdit={editWireNetwork} />
             <label>Wiring placement<select value={selectedEntity.installation_method || 'unknown'}
               onChange={event => updateSelected(withWiringMethod(selectedEntity,event.target.value))}>
               <option value="unknown" disabled>Not specified</option>

@@ -7,6 +7,43 @@ from app.schemas.demo_interpretation import DemoGeneratedWiringReview
 
 
 class ObservedWiringReviewApiTests(fixture.DemoInterpretationApiTests):
+    def test_explicit_junction_review_reload_and_canonical_v5_preserve_shared_anchor(self):
+        from copy import deepcopy
+        from uuid import uuid4
+        self._login()
+        path=f"/api/floor-plans/{self.ids['floor_plan']}/interpretation"
+        payload=self._review_payload(complete=False,approved=False)
+        payload['observed_wiring']=[dict(id='manual-wiring-0001',disposition='added',completeness='partial',elevation_meters=None,
+            circuit_id='C1',points=[dict(x=10,y=50),dict(x=70,y=50),dict(x=150,y=50)],
+            junction_attachments=[dict(junction_id='junction-0001',point_index=1)]),
+            dict(id='manual-wiring-0002',disposition='added',completeness='partial',elevation_meters=None,circuit_id='C1',
+            points=[dict(x=70,y=50),dict(x=70,y=130)],junction_attachments=[dict(junction_id='junction-0001',point_index=0)])]
+        payload['observed_wiring'] += [dict(id=w.id,disposition='rejected',points=[p.model_dump() for p in w.points],
+            completeness='partial',elevation_meters=None) for w in self.candidate.payload.observed_routes.segments]
+        draft=self.client.post(path+'/reviews',json=payload)
+        self.assertEqual(draft.status_code,201,draft.text)
+        self.assertEqual(self.client.get(path).json()['review']['observed_wiring'][0]['junction_attachments'],
+            payload['observed_wiring'][0]['junction_attachments'])
+        bad=deepcopy(payload);bad['expected_revision_number']=1
+        bad['observed_wiring'][1]['points'][0]['x']+=1
+        self.assertEqual(self.client.post(path+'/reviews',json=bad).status_code,422)
+        payload.update(expected_revision_number=1,review_complete=True,approved_for_layout=True,
+                       wall_thickness_meters=.15,wall_height_meters=3)
+        for wire in payload['observed_wiring']:wire.update(completeness='complete',elevation_meters=2.8)
+        approved=self.client.post(path+'/reviews',json=payload)
+        self.assertEqual(approved.status_code,201,approved.text)
+        url=f"/api/projects/{self.ids['project']}/floors/{self.ids['floor']}/floor-plans/{self.ids['floor_plan']}/interpretation/layout"
+        response=self.client.post(url,json=dict(candidate_run_id=self.candidate.provenance.candidate_run_id,
+            review_revision_number=2,expected_layout_version_number=None,idempotency_key=str(uuid4())))
+        self.assertEqual(response.status_code,201,response.text)
+        saved=response.json()
+        self.assertEqual(saved['extension']['extension_schema_version'],5)
+        self.assertEqual(len(saved['geometry']['routes']),2)
+        contacts=[d['junction_connections'][0] for d in saved['extension']['route_details']]
+        self.assertEqual(contacts[0]['anchor'],contacts[1]['anchor'])
+        self.assertEqual(contacts[0]['anchor'],dict(x=.7,y=.5,elevation_meters=2.8))
+        self.assertEqual(self.client.get(path).json()['review']['revision_number'],2)
+
     def test_initial_source_contacts_survive_move_reload_and_canonical_connection_save(self):
         import json
         from hashlib import sha256

@@ -78,3 +78,25 @@ def test_ordinary_manual_only_drawing_keeps_automatic_routing_enabled():
     document['observed_wiring']=document['observed_wiring'][1:]
     document['generated_wiring']=[]
     assert not has_manual_wiring_replacement(document)
+
+
+def test_reanalysis_preserves_explicit_shared_junctions_without_crossing_approval():
+    import json
+    from pathlib import Path
+    from app.ai.floor_plan_interpretation.candidate import FloorPlanInterpretationPayload
+    from app.ai.floor_plan_interpretation.reviewed_reference import inherit_review_draft
+    from app.geometry.wire_network import wire_networks
+    raw=json.loads((Path(__file__).resolve().parents[2]/'fixtures/floor_plan_interpretation_candidate_v1.json').read_text())
+    old=NS(provenance=NS(source_sha256='same'),payload=FloorPlanInterpretationPayload.model_validate(raw))
+    document=dict(symbols=[],walls=[],rooms=[],observed_wiring=[
+        dict(id='manual-wiring-0001',disposition='corrected',completeness='partial',elevation_meters=None,circuit_id='C1',
+             points=[dict(x=10,y=10),dict(x=50,y=10)],junction_attachments=[dict(junction_id='junction-0001',point_index=1)]),
+        dict(id='manual-wiring-0002',disposition='corrected',completeness='partial',elevation_meters=None,circuit_id='C1',
+             points=[dict(x=50,y=10),dict(x=50,y=80)],junction_attachments=[dict(junction_id='junction-0001',point_index=0)])])
+    before=deepcopy(document)
+    carried=inherit_review_draft(old,old,document)
+    wires=[w for w in carried['observed_wiring'] if w.get('junction_attachments')]
+    assert wires==document['observed_wiring']
+    assert len(set(wire_networks(wires).values()))==1
+    assert 'approved_for_layout' not in carried and 'dataset_approval' not in carried
+    assert document==before

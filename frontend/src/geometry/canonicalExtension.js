@@ -158,13 +158,14 @@ function symbolDetail(value, validSymbolIds, version = 2, validWallIds = null) {
 }
 
 function routeDetail(value, validRouteIds, version=2, baseGeometry=null) {
-  const data = exactObject(value, ['route_id', 'route_kind', 'provenance_ref',...(version===4 ? ['device_connections'] : [])])
+  const data = exactObject(value, ['route_id', 'route_kind', 'provenance_ref',...(version>=4 ? ['device_connections'] : []),
+    ...(version>=5 ? ['junction_connections','circuit_id'] : [])])
   const routeId = identifier(data.route_id)
   if (validRouteIds && !validRouteIds.has(routeId)) fail()
   if (!['observed', 'generated'].includes(data.route_kind)) fail()
   const provenanceRef = name(data.provenance_ref, { nullable: true, maximum: 255 })
   let connections
-  if (version===4) {
+  if (version>=4) {
     if (!Array.isArray(data.device_connections) || data.device_connections.length>512) fail()
     const indices=new Set()
     connections=data.device_connections.map(raw => {
@@ -183,11 +184,31 @@ function routeDetail(value, validRouteIds, version=2, baseGeometry=null) {
       return {symbol_id:symbolId,point_index:index,anchor:normalized}
     })
   }
+  let junctions, circuit
+  if (version>=5) {
+    circuit = name(data.circuit_id,{nullable:true,maximum:80})
+    if (!Array.isArray(data.junction_connections) || data.junction_connections.length>512) fail()
+    const indices=new Set(connections.map(c=>c.point_index))
+    junctions=data.junction_connections.map(raw=>{
+      const contact=exactObject(raw,['junction_id','point_index','anchor'])
+      const identity=name(contact.junction_id,{maximum:64}), index=integer(contact.point_index)
+      if (!/^junction-[0-9]{4}$/.test(identity) || index<0 || index>2047 || indices.has(index)) fail()
+      indices.add(index)
+      const anchor=exactObject(contact.anchor,['x','y','elevation_meters'])
+      const normalized={...point({x:anchor.x,y:anchor.y},baseGeometry?.coordinate_system),elevation_meters:finiteNumber(anchor.elevation_meters)}
+      if (baseGeometry) {
+        const p=baseGeometry.routes.find(r=>r.id===routeId)?.points[index]
+        if (!p || p.project_floor_id!==baseGeometry.floor.project_floor_id || Object.keys(normalized).some(k=>!close(p[k],normalized[k]))) fail()
+      }
+      return {junction_id:identity,point_index:index,anchor:normalized}
+    })
+  }
   return {
     route_id: routeId,
     route_kind: data.route_kind,
     provenance_ref: provenanceRef,
     ...(connections ? {device_connections:connections} : {}),
+    ...(junctions ? {junction_connections:junctions,circuit_id:circuit} : {}),
   }
 }
 
@@ -208,7 +229,7 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
     'symbol_details',
     'route_details',
   ])
-  if (![2, 3, 4].includes(data.extension_schema_version) || !Number.isSafeInteger(data.extension_schema_version)) {
+  if (![2, 3, 4, 5].includes(data.extension_schema_version) || !Number.isSafeInteger(data.extension_schema_version)) {
     fail()
   }
   if (data.base_schema_version !== BASE_SCHEMA_VERSION || !Number.isSafeInteger(data.base_schema_version)) {
@@ -253,10 +274,23 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
   const normalizedRouteDetails = data.route_details.map((item) => routeDetail(item, validRouteIds,data.extension_schema_version,baseGeometry))
   const routeDetailIds = new Set(normalizedRouteDetails.map((r) => r.route_id))
   if (routeDetailIds.size !== normalizedRouteDetails.length) fail()
-  if (data.extension_schema_version===4) {
+  if (data.extension_schema_version>=4) {
     const mounts=new Map(normalizedSymbolDetails.filter(s => s.installation).map(s => [s.symbol_id,s.installation]))
     for (const route of normalizedRouteDetails) for (const connection of route.device_connections) {
       if (!mounts.has(connection.symbol_id) || !close(connection.anchor.elevation_meters,mounts.get(connection.symbol_id).elevation_meters)) fail()
+    }
+  }
+  if (data.extension_schema_version>=5) {
+    const junctions=new Map()
+    for (const route of normalizedRouteDetails) for (const contact of route.junction_connections) {
+      if (!junctions.has(contact.junction_id)) junctions.set(contact.junction_id,[])
+      junctions.get(contact.junction_id).push({route,anchor:contact.anchor})
+    }
+    if (junctions.size>4096 || [...junctions.values()].reduce((sum,rows)=>sum+rows.length,0)>16384) fail()
+    for (const contacts of junctions.values()) {
+      if (new Set(contacts.map(c=>c.route.route_id)).size<2) fail()
+      const first=contacts[0]
+      if (contacts.some(c=>c.route.circuit_id!==first.route.circuit_id || Object.keys(first.anchor).some(k=>!close(c.anchor[k],first.anchor[k])))) fail()
     }
   }
 

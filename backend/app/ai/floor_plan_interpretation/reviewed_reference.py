@@ -70,6 +70,10 @@ def inherit_review_draft(candidate, previous_candidate, previous_document):
         or a.get('provenance') != 'source_supported_proposal'}
     mounted_walls = {s['mounting_wall_id'] for s in previous_document.get('symbols', [])
         if s.get('mounting_wall_id') and s['disposition'] != 'rejected'}
+    for wire in previous_document.get('generated_wiring', []):
+        if wire.get('disposition') in ('corrected', 'added'):
+            attached_symbols.add(wire['source_device_id'])
+            if wire.get('target_kind') == 'device': attached_symbols.add(wire['target_id'])
     result, identities = {}, {}
     def rows(payload, key):
         return (payload.observed_routes.segments if key == 'observed_wiring'
@@ -111,12 +115,13 @@ def inherit_review_draft(candidate, previous_candidate, previous_document):
             edited |= key == 'symbols' and (saved.get('symbol_legend_id') is not None or saved.get('custom_unit_price') is not None)
             edited |= key == 'symbols' and any(saved.get(f) is not None for f in ('mounting_height_meters', 'mounting_wall_id'))
             edited |= key == 'observed_wiring' and bool(saved.get('device_attachments') or
-                saved.get('auto_connect_disabled_endpoints') or saved.get('elevation_meters') is not None
+                saved.get('junction_attachments') or saved.get('circuit_id') or saved.get('auto_connect_disabled_endpoints') or saved.get('elevation_meters') is not None
                 or saved.get('completeness', 'partial') != 'partial')
             if key == 'observed_wiring' and old is not None and saved['disposition']=='unresolved':
                 attachments=saved.get('device_attachments', [])
                 if (attachments and all(a.get('provenance')=='source_supported_proposal' for a in attachments)
                     and not saved.get('auto_connect_disabled_endpoints') and saved.get('elevation_meters') is None
+                    and not saved.get('junction_attachments') and not saved.get('circuit_id')
                     and saved.get('completeness','partial')=='partial'):
                     from app.routing.endpoint_connections import apply_source_contacts
                     baseline=apply_source_contacts(previous_candidate,{'observed_wiring':[dict(

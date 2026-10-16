@@ -46,6 +46,9 @@ export function buildCanonicalScene(document, extension = null) {
       routeId: route.id, segmentIndex: index,
       provenance: routeDetails.get(route.id)?.route_kind ?? 'unresolved',
       installationMethod: 'unresolved', elevationState: 'stored',
+      ...(routeDetails.get(route.id)?.junction_connections?.length ? {
+        connectionAnchors:routeDetails.get(route.id).junction_connections.map(c=>canonicalPointToWorld(c.anchor,c.anchor.elevation_meters)),
+      } : {}),
       start: canonicalPointToWorld(start, start.elevation_meters),
       end: canonicalPointToWorld(end, end.elevation_meters),
     }]
@@ -64,7 +67,7 @@ export function buildCanonicalScene(document, extension = null) {
       ...(installations.has(symbol.id) ? {installation:installations.get(symbol.id)} : {}),
     })),
   }
-  if (normalizedExtension?.extension_schema_version===4) {
+  if (normalizedExtension?.extension_schema_version>=4) {
     const contacts = new Map(details.map(d => [d.route_id,d.device_connections]))
     const replacement=[]
     for (const segment of scene.routeSegments) {

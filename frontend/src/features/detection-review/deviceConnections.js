@@ -1,6 +1,7 @@
 // Explicit endpoint attachments only. Crossings/interior segment snaps need a
 // separately modelled junction and are deliberately not supported here.
 import { moveDraftWirePoint } from './draftWiringScene.js'
+import { moveJunctionVertex } from './wireJunctions.js'
 
 // Source-coordinate contact test, independent of camera, zoom or pixel density.
 // Only endpoints meeting a device port qualify; segment crossings never do.
@@ -12,6 +13,7 @@ export function connectTouchingWireEndpoints(draft, presentations = {}) {
     if (wire.disposition === 'rejected' || wire.suppression_reason || wire.source_evidence_required) continue
     for (const index of [0,wire.points.length-1]) {
       if (wire.device_attachments.some(a => a.point_index === index)
+        || wire.junction_attachments?.some(a => a.point_index === index)
         || wire.auto_connect_disabled_endpoints?.includes(index)) continue
       const point = wire.points[index], neighbor = wire.points[index === 0 ? 1 : index-1]
       const length = Math.hypot(point.x-neighbor.x,point.y-neighbor.y)
@@ -50,6 +52,7 @@ export function findWireDeviceSnap(point, wireId, pointIndex, draft, presentatio
   if (!point || ![point.x, point.y].every(Number.isFinite)) return null
   const wire = (draft.wirings || []).find(w => w.id === wireId && w.disposition !== 'rejected')
   if (!wire || ![0, wire.points.length - 1].includes(pointIndex) || !Number.isFinite(threshold) || threshold < 0) return null
+  if (wire.junction_attachments?.some(a => a.point_index === pointIndex)) return null
   const candidates = []
   for (const symbol of draft.symbols || []) {
     if (symbol.disposition === 'rejected' || presentations[symbol.id]?.family === 'annotation'
@@ -72,6 +75,11 @@ export function findWireDeviceSnap(point, wireId, pointIndex, draft, presentatio
 export function moveConnectedWirePoint(draft, wireId, pointIndex, point, width, height, snap = null, presentations = {}) {
   const wire = (draft.wirings || []).find(w => w.id === wireId && w.disposition !== 'rejected')
   if (!wire) return draft
+  if (wire.junction_attachments?.some(a => a.point_index === pointIndex)) {
+    if (snap) return draft // Detach the junction before binding a device terminal.
+    const updated = moveDraftWirePoint(wire, pointIndex, point, width, height)
+    return updated ? moveJunctionVertex(draft, wireId, pointIndex, updated.points[pointIndex]) : draft
+  }
   let updated
   if (snap) {
     // Revalidate against current shared state on commit, not a stale UI preview.
@@ -104,6 +112,7 @@ export function findDeviceWireSnap(point, symbolId, wires, threshold) {
     // independent circuits through a moved device.
     if (connected.some(w => w.id !== wire.id)) continue
     for (const index of [0, wire.points.length - 1]) {
+      if (wire.junction_attachments?.some(a => a.point_index === index)) continue
       if ((wire.device_attachments || []).some(a => a.symbol_id === symbolId && a.point_index !== index)) continue
       if ((wire.device_attachments || []).some(a => a.point_index === index && a.symbol_id !== symbolId)) continue
       const p = wire.points[index]

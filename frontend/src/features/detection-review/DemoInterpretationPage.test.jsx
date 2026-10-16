@@ -87,6 +87,45 @@ afterEach(() => {
 
 
 describe('unified demo interpretation review', () => {
+  it.each(['2d','3d'])('edits a shared wire junction in %s with undo/redo and unfinished save/reload', async viewMode => {
+    const source=structuredClone(record)
+    source.candidate.payload.observed_routes={state:'partial',segments:[
+      {id:'segment-0001',points:[{x:0,y:20},{x:100,y:20}]},
+      {id:'segment-0002',points:[{x:50,y:70},{x:50,y:120}]},
+    ]}
+    fetchDemoInterpretation.mockResolvedValue(source)
+    const props={projectId:1,floorPlanId:3,processingJobId:4}
+    const rendered=render(<DemoInterpretationPage {...props} />)
+    await screen.findByText('Select first symbol')
+    if(viewMode==='3d')fireEvent.click(screen.getByRole('button',{name:'3D · Draft preview'}))
+    const reopen=screen.queryByRole('button',{name:'Reopen Item inspector'})
+    if(reopen)fireEvent.click(reopen)
+    fireEvent.change(screen.getByLabelText('Select item'),{target:{value:'wiring:segment-0002'}})
+    fireEvent.click(screen.getByText('Path vertices & junctions'))
+    fireEvent.change(screen.getByLabelText('Connect to path'),{target:{value:'segment-0001'}})
+    fireEvent.click(screen.getByRole('button',{name:'Connect junction'}))
+    fireEvent.click(screen.getByRole('button',{name:'Undo'}))
+    expect(screen.queryByRole('button',{name:'Detach junction at vertex'})).toBeNull()
+    fireEvent.click(screen.getByRole('button',{name:'Redo'}))
+    fireEvent.change(within(screen.getByRole('group',{name:'Wire point 1'})).getByLabelText('X'),{target:{value:'60'}})
+    fireEvent.click(screen.getByRole('button',{name:'Save unfinished draft'}))
+    await screen.findByText('Review revision 1 saved.')
+    const body=saveDemoReview.mock.calls[0][1], wires=body.observed_wiring
+    expect(wires[0].points).toEqual([{x:0,y:20},{x:60,y:20},{x:100,y:20}])
+    expect(wires[1].points[0]).toEqual({x:60,y:20})
+    expect(wires[0].junction_attachments[0].junction_id).toBe(wires[1].junction_attachments[0].junction_id)
+    expect(body.approved_for_layout).toBe(false)
+    const saved=await saveDemoReview.mock.results[0].value
+    fetchDemoInterpretation.mockResolvedValue({...saved,candidate:source.candidate})
+    rendered.unmount();render(<DemoInterpretationPage {...props} />)
+    await screen.findByText('Select first symbol')
+    const reopenSaved=screen.queryByRole('button',{name:'Reopen Item inspector'})
+    if(reopenSaved)fireEvent.click(reopenSaved)
+    fireEvent.change(screen.getByLabelText('Select item'),{target:{value:'wiring:segment-0002'}})
+    fireEvent.click(screen.getByText('Path vertices & junctions'))
+    fireEvent.click(screen.getByRole('button',{name:'Detach junction at vertex'}))
+    expect(screen.queryByRole('button',{name:'Detach junction at vertex'})).toBeNull()
+  })
   it('device clipboard supports copy, repeated paste, undo/redo and draft save/reload without copying attachments', async () => {
     const source = structuredClone(record)
     source.draft_review = { symbols: [{ id: 'symbol-0001', disposition: 'corrected',

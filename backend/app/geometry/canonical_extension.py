@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, Literal
 
@@ -169,6 +170,8 @@ class CanonicalRouteDetail:
     route_kind: str
     provenance_ref: str | None = None
     device_connections: tuple[CanonicalDeviceConnection, ...] | None = None
+    junction_connections: tuple[dict, ...] | None = None
+    circuit_id: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         result = {
@@ -178,6 +181,8 @@ class CanonicalRouteDetail:
         }
         if self.device_connections is not None:
             result['device_connections'] = [c.to_dict() for c in self.device_connections]
+        if self.junction_connections is not None:
+            result.update(junction_connections=[dict(c, anchor=dict(c['anchor'])) for c in self.junction_connections], circuit_id=self.circuit_id)
         return result
 
 
@@ -359,7 +364,8 @@ def _route_detail(
 ) -> CanonicalRouteDetail:
     data = _exact_keys(
         value,
-        {"route_id", "route_kind", "provenance_ref"} | ({'device_connections'} if version==4 else set()),
+        {"route_id", "route_kind", "provenance_ref"} | ({'device_connections'} if version>=4 else set())
+        | ({'junction_connections', 'circuit_id'} if version>=5 else set()),
         "INVALID_ROUTE_DETAIL",
     )
     route_id = _identifier(data["route_id"], "INVALID_ROUTE_DETAIL")
@@ -370,7 +376,7 @@ def _route_detail(
         _fail("INVALID_ROUTE_DETAIL")
     provenance_ref = _name(data["provenance_ref"], "INVALID_ROUTE_DETAIL", nullable=True, maximum=255)
     connections = None
-    if version == 4:
+    if version >= 4:
         if type(data['device_connections']) is not list or len(data['device_connections'])>512:
             _fail('INVALID_ROUTE_DETAIL')
         connections=[];indices=set()
@@ -391,11 +397,37 @@ def _route_detail(
                     _fail('EXTENSION_CROSS_REFERENCE_FAILED')
             connections.append(CanonicalDeviceConnection(identity,index,anchor))
         connections=tuple(connections)
+    junctions = None
+    circuit = None
+    if version >= 5:
+        circuit = _name(data['circuit_id'], 'INVALID_ROUTE_DETAIL', nullable=True, maximum=80)
+        if type(data['junction_connections']) is not list or len(data['junction_connections']) > 512:
+            _fail('INVALID_ROUTE_DETAIL')
+        junctions = []
+        indices = {c.point_index for c in connections}
+        for raw in data['junction_connections']:
+            contact = _exact_keys(raw, {'junction_id', 'point_index', 'anchor'}, 'INVALID_ROUTE_DETAIL')
+            identity = _name(contact['junction_id'], 'INVALID_ROUTE_DETAIL', maximum=64)
+            if not re.fullmatch(r'junction-[0-9]{4}', identity): _fail('INVALID_ROUTE_DETAIL')
+            index = _integer(contact['point_index'], 'INVALID_ROUTE_DETAIL')
+            anchor = _exact_keys(contact['anchor'], {'x', 'y', 'elevation_meters'}, 'INVALID_ROUTE_DETAIL')
+            anchor = {k: _number(v, 'INVALID_ROUTE_DETAIL', nonnegative=k!='elevation_meters') for k, v in anchor.items()}
+            if index < 0 or index > 2047 or index in indices: _fail('INVALID_ROUTE_DETAIL')
+            indices.add(index)
+            if base_document:
+                route = next(r for r in base_document.routes if r.id == route_id)
+                if index >= len(route.points): _fail('EXTENSION_CROSS_REFERENCE_FAILED')
+                point = route.points[index]
+                if point.project_floor_id != base_document.floor.project_floor_id or any(not _close(getattr(point, k), v) for k, v in anchor.items()):
+                    _fail('EXTENSION_CROSS_REFERENCE_FAILED')
+            junctions.append(dict(junction_id=identity, point_index=index, anchor=anchor))
+        junctions = tuple(junctions)
     return CanonicalRouteDetail(
         route_id=route_id,
         route_kind=route_kind,
         provenance_ref=provenance_ref,
         device_connections=connections,
+        junction_connections=junctions, circuit_id=circuit,
     )
 
 
@@ -417,7 +449,7 @@ def canonical_extension_from_dict(
         "INVALID_EXTENSION_DOCUMENT",
     )
     version = data['extension_schema_version']
-    if type(version) is not int or version not in (2, 3, 4):
+    if type(version) is not int or version not in (2, 3, 4, 5):
         _fail("UNSUPPORTED_EXTENSION_VERSION")
     if type(data["base_schema_version"]) is not int or data["base_schema_version"] != BASE_SCHEMA_VERSION:
         _fail("INVALID_EXTENSION_DOCUMENT")
@@ -478,12 +510,23 @@ def canonical_extension_from_dict(
     detail_route_ids = [d.route_id for d in route_details]
     if len(detail_route_ids) != len(set(detail_route_ids)):
         _fail("INVALID_ROUTE_DETAIL")
-    if version==4:
+    if version>=4:
         mounts={s.symbol_id:s.installation for s in symbol_details if s.installation is not None}
         for detail in route_details:
             for contact in detail.device_connections:
                 if contact.symbol_id not in mounts or not _close(contact.anchor['elevation_meters'],mounts[contact.symbol_id].elevation_meters):
                     _fail('INVALID_ROUTE_DETAIL')
+    if version >= 5:
+        junctions = {}
+        for detail in route_details:
+            for contact in detail.junction_connections:
+                junctions.setdefault(contact['junction_id'], []).append((detail, contact['anchor']))
+        if len(junctions) > 4096 or sum(map(len, junctions.values())) > 16384: _fail('INVALID_ROUTE_DETAIL')
+        for contacts in junctions.values():
+            first, anchor = contacts[0]
+            if len({detail.route_id for detail, _ in contacts}) < 2: _fail('INVALID_ROUTE_DETAIL')
+            if any(detail.circuit_id != first.circuit_id or any(not _close(point[k], anchor[k]) for k in anchor)
+                   for detail, point in contacts): _fail('INVALID_ROUTE_DETAIL')
 
     return CanonicalExtensionV2(
         extension_schema_version=version,

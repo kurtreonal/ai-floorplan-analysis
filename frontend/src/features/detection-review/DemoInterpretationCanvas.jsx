@@ -685,6 +685,10 @@ export function DemoInterpretationCanvas({
                 dash={wiringAppearance(wire).dash?.map(value => value / stageTransform.scale)} />
               </Group>
             ))}
+            {layers.wirings && [...new Map((draft.wirings || []).filter(w=>w.disposition!=='rejected' && !w.suppression_reason)
+              .flatMap(w=>(w.junction_attachments || []).map(a=>[a.junction_id,w.points[a.point_index]]))).entries()].map(([id,point])=>
+              <Circle key={id} name={`wire-junction-${id}`} x={point.x} y={point.y} radius={3.5/stageTransform.scale}
+                fill="#2563eb" stroke="white" strokeWidth={1/stageTransform.scale} listening={false} />)}
             {layers.wirings && selected?.kind === 'wiring' && (draft.wirings || []).find(wire => wire.id === selected.id && wire.disposition !== 'rejected')?.points.map((point,index) => (
               <Circle key={index} name={`wiring-point-${index}`} x={point.x} y={point.y} radius={5 / stageTransform.scale}
                 fill="#2563eb" stroke="white" strokeWidth={1 / stageTransform.scale}

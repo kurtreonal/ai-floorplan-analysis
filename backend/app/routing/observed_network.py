@@ -19,12 +19,16 @@ def assigned_observed_sources(request, documents, extensions):
         return set()
     configs = {item.floor_id: item for item in request.floors}
     paths = []
+    details = {}
     for assignment in request.observed_route_assignments:
         document, extension = documents[assignment.floor_id], extensions.get(assignment.floor_id)
         route = next((r for r in document.routes if r.id == assignment.route_id), None)
         detail = next((d for d in extension.route_details if d.route_id == assignment.route_id), None) if extension else None
         if route is None or detail is None or detail.route_kind != 'observed':
             raise RoutingError('OBSERVED_NETWORK_REFERENCE_REQUIRED')
+        if getattr(detail, 'circuit_id', None) not in (None, request.circuit_id):
+            raise RoutingError('OBSERVED_NETWORK_CIRCUIT_CONFLICT')
+        details[assignment.floor_id, route.id] = detail
         if len(route.points) < 2 or any(p.project_floor_id != assignment.floor_id for p in route.points):
             raise RoutingError('OBSERVED_NETWORK_FLOOR_REVIEW_REQUIRED')
         for a, b in zip(route.points, route.points[1:]):
@@ -41,13 +45,20 @@ def assigned_observed_sources(request, documents, extensions):
     # network. Do not add a fictional lead or rise to make selected ink usable.
     root = (request.panel.floor_id, request.panel.x, request.panel.y, request.panel.elevation_meters)
     reached = {root}
+    reached_junctions = set()
     pending = list(paths)
     while pending:
-        joined = [route for route in pending if _key(route.points[0]) in reached or _key(route.points[-1]) in reached]
+        def contacts(route):
+            return getattr(details[route.points[0].project_floor_id, route.id], 'junction_connections', None) or ()
+        joined = [route for route in pending if _key(route.points[0]) in reached or _key(route.points[-1]) in reached
+                  or any(c['junction_id'] in reached_junctions
+                         or (route.points[0].project_floor_id, c['anchor']['x'], c['anchor']['y'], c['anchor']['elevation_meters']) in reached
+                         for c in contacts(route))]
         if not joined:
             raise RoutingError('OBSERVED_NETWORK_PANEL_CONNECTION_REQUIRED')
         for route in joined:
             reached.update((_key(route.points[0]), _key(route.points[-1])))
+            reached_junctions.update(c['junction_id'] for c in contacts(route))
             pending.remove(route)
 
     sources = set()

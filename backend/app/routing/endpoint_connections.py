@@ -26,6 +26,7 @@ def apply_source_contacts(candidate, document, *, preserve_source=True):
         source = source_routes.get(wire['id'])
         if strict:wire['source_evidence_required'] = source is not None
         if (source is None or wire.get('disposition','unresolved') != 'unresolved'
+            or wire.get('junction_attachments')
             or wire.get('device_attachments') or wire.get('auto_connect_disabled_endpoints')
             or wire['points'] != [p.model_dump() for p in source.points]):continue
         selected=[]
@@ -131,7 +132,7 @@ def connect_touching_endpoints(candidate, document):
             continue
         points = wire['points']
         attachments = wire.get('device_attachments', [])
-        occupied = {a['point_index'] for a in attachments}
+        occupied = {a['point_index'] for a in attachments} | {a['point_index'] for a in wire.get('junction_attachments', [])}
         for index in (0, len(points)-1):
             if index in occupied or index in wire.get('auto_connect_disabled_endpoints', []):
                 continue

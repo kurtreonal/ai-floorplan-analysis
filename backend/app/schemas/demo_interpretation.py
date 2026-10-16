@@ -125,6 +125,11 @@ class DemoDeviceAttachment(DemoSchema):
         return result
 
 
+class DemoJunctionAttachment(DemoSchema):
+    junction_id: Annotated[str, Field(pattern=r'^junction-[0-9]{4}$')]
+    point_index: Annotated[StrictInt, Field(ge=0, le=2047)]
+
+
 class DemoObservedWiringReview(DemoSchema):
     id: EntityId
     disposition: ReviewDisposition
@@ -136,6 +141,8 @@ class DemoObservedWiringReview(DemoSchema):
     wiring_legend_id: Annotated[StrictInt, Field(gt=0)] | None = None
     wiring_legend_name: Annotated[str, Field(max_length=255)] | None = None
     device_attachments: Annotated[list[DemoDeviceAttachment], Field(max_length=512)] = []
+    junction_attachments: Annotated[list[DemoJunctionAttachment], Field(max_length=512)] = []
+    circuit_id: Annotated[str, Field(min_length=1, max_length=80)] | None = None
     source_evidence_required: StrictBool = False
     auto_connect_disabled_endpoints: Annotated[list[Annotated[StrictInt, Field(ge=0, le=2047)]], Field(max_length=512)] = []
 
@@ -147,7 +154,17 @@ class DemoObservedWiringReview(DemoSchema):
         disabled = self.auto_connect_disabled_endpoints
         if len(disabled) != len(set(disabled)) or any(i >= len(self.points) for i in disabled) or set(disabled) & set(indices):
             raise ValueError('Disabled automatic contacts require unattached vertices.')
+        junctions = [a.point_index for a in self.junction_attachments]
+        if len(junctions) != len(set(junctions)) or any(i >= len(self.points) for i in junctions) or set(junctions) & set(indices):
+            raise ValueError('Junctions require distinct vertices without device bindings.')
         return self
+
+    @model_serializer(mode='wrap')
+    def preserve_legacy_shape(self, handler):
+        value = handler(self)
+        if not self.junction_attachments: value.pop('junction_attachments', None)
+        if self.circuit_id is None: value.pop('circuit_id', None)
+        return value
 
 
 class DemoGeneratedWiringReview(DemoObservedWiringReview):
@@ -218,6 +235,9 @@ class DemoReviewRequest(DemoSchema):
 
     @model_validator(mode="after")
     def approval_is_explicit(self):
+        from app.geometry.wire_network import wire_networks
+        wire_networks([w.model_dump(mode='json') for w in self.observed_wiring]
+            + [dict(w.model_dump(mode='json'),origin='generated') for w in self.generated_wiring])
         if self.approved_for_layout and not self.review_complete:
             raise ValueError("Layout approval requires completed review.")
         dimensions = (self.wall_thickness_meters, self.wall_height_meters)

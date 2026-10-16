@@ -395,6 +395,11 @@ def append_interpretation_review(
         document=annotate_wiring(session,candidate,document,drawing_name=drawing_name)
         document = connect_touching_endpoints(candidate, document)
         generated = document['generated_wiring']
+        from app.geometry.wire_network import wire_networks
+        try:
+            wire_networks(document.get('observed_wiring', []) + [dict(w,origin='generated') for w in generated])
+        except ValueError:
+            _fail('INVALID_WIRING_JUNCTION')
         serialized = json.dumps(document, sort_keys=True, separators=(",", ":"))
         review = add_review(
             session,
@@ -759,7 +764,7 @@ def save_approved_interpretation_layout(
         ]
 
         extension = {
-            "extension_schema_version": 4 if connection_v4 else 3 if installations else 2,
+            "extension_schema_version": 5 if any('junction_connections' in detail for detail in route_details) else 4 if connection_v4 else 3 if installations else 2,
             "base_schema_version": 1,
             "source_plane_reference": {
                 "floor_plan_page_id": run.floor_plan_page_id,
