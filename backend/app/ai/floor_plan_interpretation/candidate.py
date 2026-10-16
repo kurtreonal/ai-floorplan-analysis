@@ -310,14 +310,15 @@ class WiringRecoveryPass(StrictCandidateModel):
 class WiringRecoveryDevice(StrictCandidateModel):
     symbol_id: EntityId
     state: Literal['observed_recovered', 'unresolved_observed', 'no_usable_observed_path']
-    reason: Literal['source_supported_attachment', 'ambiguous_contact', 'partial_source_evidence', 'no_supported_path_after_search', 'resource_limit']
+    reason: Literal['source_supported_attachment', 'ambiguous_contact', 'partial_source_evidence', 'no_supported_path_after_search', 'resource_limit', 'missing_symbol_bounds', 'outside_plan_scope', 'recovery_method_failed']
 
 
 class WiringRecoveryReport(StrictCandidateModel):
-    version: Literal['targeted-source-recovery-v1'] = 'targeted-source-recovery-v1'
+    version: Literal['targeted-source-recovery-v1', 'targeted-source-recovery-v2'] = 'targeted-source-recovery-v2'
     stop_reason: Literal['running', 'converged', 'methods_exhausted', 'resource_limit']
     passes: Annotated[tuple[WiringRecoveryPass, ...], Field(max_length=2)] = ()
     devices: Annotated[tuple[WiringRecoveryDevice, ...], Field(max_length=512)] = ()
+    unassessed_devices: Annotated[StrictInt, Field(ge=0, le=2048)] = Field(default=0, exclude_if=lambda value: value == 0)
 
 
 class ObservedRoutes(StrictCandidateModel):

@@ -291,6 +291,34 @@ class FloorPlanUploadApiTests(unittest.TestCase):
             content=self.png,
         )
 
+    def test_new_upload_process_worker_and_status_include_automatic_source_recovery(self):
+        from app.ai.floor_plan_interpretation import multiclass_symbol_detector as detector
+        from app.ai.floor_plan_interpretation.candidate import FloorPlanInterpretationCandidate
+        from app.services.interpretation_processing_service import process_interpretation_job
+        from app.models import FloorPlanInterpretationRun
+        from tests.test_demo_processing_worker import floor_plan_png
+        mapping={i:(f'Test fixture {i}',f'test:L{i}') for i in range(80)}
+        self.settings.processed_dir=self.test_upload_directory/'processed'
+        self.settings.processed_dir.mkdir(parents=True)
+        upload=self.post_upload(user=self.designer,filename=f'{uuid4().hex}.png',mime_type='image/png',content=floor_plan_png())
+        self.assertEqual(upload.status_code,201)
+        with patch.object(detector,'verify_artifacts',return_value=mapping),patch.object(detector,'locate',return_value=([],False)):
+            started=self.client.post(f"/api/floor-plans/{upload.json()['id']}/process")
+            self.assertEqual(started.status_code,202,started.text)
+            job_id=started.json()['job_id']
+            run=process_interpretation_job(self.database_session,job_id=job_id,worker_identity='new-upload-test',settings=self.settings)
+        candidate=FloorPlanInterpretationCandidate.model_validate_json(run.candidate_json)
+        self.assertIsNotNone(candidate.payload.observed_routes.recovery)
+        self.assertEqual(candidate.payload.observed_routes.recovery.version,'targeted-source-recovery-v2')
+        parameters={p.name:p.value for p in candidate.provenance.inference_parameters}
+        self.assertIn('input-pixel-profile',parameters)
+        saved=run.candidate_json
+        status=self.client.get(f'/api/processing-jobs/{job_id}')
+        self.assertEqual(status.status_code,200,status.text)
+        self.assertEqual(status.json()['status'],'completed')
+        self.assertEqual(status.json()['source_connectivity']['state'],'unavailable')
+        self.assertEqual(self.database_session.get(FloorPlanInterpretationRun,run.id).candidate_json,saved)
+
     def test_valid_pdf_returns_201(self) -> None:
         self.assert_successful_upload(
             filename="floor-plan.pdf",

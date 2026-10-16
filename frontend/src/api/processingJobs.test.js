@@ -24,6 +24,14 @@ afterEach(() => {
 })
 
 describe('processing jobs API client', () => {
+  it('preserves validated source connectivity separately from completed analysis', async () => {
+    const summary={state:'unresolved',connected_devices:1,unresolved_devices:3,no_usable_path_devices:0,unassessed_devices:0,unassessed_pages:0,search_incomplete:true}
+    const payload={job_id:31,type:'floor_plan_analysis',status:'completed',progress:100,error_message:null,source_connectivity:summary}
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValue(response({payload})))
+    expect((await fetchProcessingJob(31)).source_connectivity).toEqual(summary)
+    payload.source_connectivity={...summary,unresolved_devices:-1}
+    await expect(fetchProcessingJob(31)).rejects.toBeInstanceOf(ProcessingJobApiError)
+  })
   it('requests cancellation with the exact credentialed job URL', async () => {
     const payload = { job_id: 31, status: 'processing', cancellation_mode: 'cooperative_requested' }
     const fetchMock = vi.fn().mockResolvedValue(response({ payload }))

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { FloorPlanApiError, uploadFloorPlan } from '../../api/floorPlans.js'
+import { ProcessingJobApiError, startFloorPlanProcessing } from '../../api/processingJobs.js'
 
 
 export const FLOOR_PLAN_ACCEPT = '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf'
@@ -54,6 +55,7 @@ export function FloorPlanUploadForm({
 }) {
   const [file, setFile] = useState(null)
   const [error, setError] = useState(null)
+  const [analysisNotice, setAnalysisNotice] = useState(null)
   const [isUploading, setIsUploading] = useState(false)
   const uploadLocked = useRef(false)
   const fileInput = useRef(null)
@@ -101,6 +103,7 @@ export function FloorPlanUploadForm({
     setIsUploading(true)
     onUploadingChange(true)
     setError(null)
+    setAnalysisNotice(null)
     const controller = new AbortController()
     activeController.current = controller
 
@@ -110,7 +113,19 @@ export function FloorPlanUploadForm({
         { projectFloorId, file },
         { signal: controller.signal },
       )
-      onUploaded(uploadedFloorPlan)
+      // Preserve a successfully stored original even when analysis cannot queue.
+      // Never retry the upload to recover a failed processing request.
+      let initialJob = null
+      try {
+        initialJob = await startFloorPlanProcessing(uploadedFloorPlan.id, { signal: controller.signal })
+      } catch (processingError) {
+        if (processingError instanceof ProcessingJobApiError && processingError.existingJobId) {
+          initialJob = { job_id: processingError.existingJobId, status: 'queued' }
+        } else if (processingError.name !== 'AbortError') {
+          setAnalysisNotice('Original uploaded. Automatic analysis could not start; use Analyze on the saved floor plan. Do not upload it again.')
+        }
+      }
+      onUploaded({ ...uploadedFloorPlan, initial_job: initialJob })
       setFile(null)
       if (fileInput.current) fileInput.current.value = ''
     } catch (requestError) {
@@ -141,7 +156,7 @@ export function FloorPlanUploadForm({
           onChange={handleFileChange}
         />
       </label>
-      <p className="floor-plan-form-help">Supported formats: JPEG, PNG, and PDF.</p>
+      <p className="floor-plan-form-help">JPEG, PNG or PDF. Analysis starts automatically after upload; recovery and unresolved connections are included.</p>
       {file && (
         <p className="floor-plan-selected-file">
           Selected: <strong>{file.name}</strong> ({file.size.toLocaleString()} bytes)
@@ -154,6 +169,7 @@ export function FloorPlanUploadForm({
         </div>
       )}
       {error && <div className="project-alert project-alert-error" role="alert">{error}</div>}
+      {analysisNotice && <div className="project-alert" role="alert">{analysisNotice}</div>}
       <button className="btn btn-accent" type="submit" disabled={isUploading}>
         {isUploading ? 'Uploading…' : 'Upload floor plan'}
       </button>

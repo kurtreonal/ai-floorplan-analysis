@@ -259,7 +259,7 @@ describe('processing job panel', () => {
     await runNextPoll()
     await act(async () => vi.advanceTimersByTimeAsync(PROCESSING_POLL_INTERVAL_MS * 3))
 
-    expect(screen.getByText('Processing completed.')).toBeTruthy()
+    expect(screen.getByText('Analysis finished.')).toBeTruthy()
     expect(fetchProcessingJob).toHaveBeenCalledTimes(1)
   })
 

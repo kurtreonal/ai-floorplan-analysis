@@ -4,6 +4,12 @@ from sqlalchemy.orm import Session
 from app.models import FloorPlanInterpretationReview, FloorPlanInterpretationRun
 
 
+def list_job_runs(session: Session, *, job_id: int):
+    return session.scalars(select(FloorPlanInterpretationRun).where(
+        FloorPlanInterpretationRun.processing_job_id == job_id).order_by(
+        FloorPlanInterpretationRun.floor_plan_page_id, FloorPlanInterpretationRun.id)).all()
+
+
 def find_by_processing_job(
     session: Session,
     *,

@@ -7,6 +7,7 @@ import {
   startFloorPlanProcessing,
 } from '../../api/processingJobs.js'
 import { getDemoInterpretationHref, getDetectionReviewHref } from '../../routes/projectRoutes.js'
+import { SourceConnectivityNotice } from './SourceConnectivityNotice.jsx'
 
 
 export const PROCESSING_POLL_INTERVAL_MS = 2000
@@ -271,6 +272,7 @@ export function ProcessingJobPanel({
         </div>
         {job && <span className="processing-job-id mono">JOB #{job.job_id}</span>}
       </div>}
+      <SourceConnectivityNotice summary={job?.source_connectivity} />
 
       {canStart && import.meta.env.DEV && !isActive && viewState !== 'starting' && (
         <details className="processing-detector-selection"><summary>Analysis options</summary>
@@ -327,7 +329,7 @@ export function ProcessingJobPanel({
 
       {viewState === 'completed' && (
         <div className="processing-job-result processing-job-success" role="status">
-          <strong>Processing completed.</strong>
+          <strong>Analysis finished.</strong>
           {!compact && <p>Next: open the room workspace to explore 2D and unfinished 3D. No symbol legend or dimension approval is needed for the draft preview.</p>}
           <a className="btn btn-outline-dark" href={getDemoInterpretationHref(projectId, projectFloorId, floorPlanId, job.job_id)}>
             Open plan editor

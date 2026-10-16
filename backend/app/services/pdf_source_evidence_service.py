@@ -39,6 +39,7 @@ def prepare_pdf_source_evidence(*, floor_plan, source_manifest, page, artifact, 
         InferenceParameter(name='pdf-view-configuration',value=VIEW_VERSION),
         InferenceParameter(name='source-view-pipeline-version',value=PIPELINE_VERSION),
         InferenceParameter(name='pdf-source-capability',value=evidence['capability']),
+        InferenceParameter(name='pdf-source-rotation-degrees',value=str(evidence['rotation'])),
         InferenceParameter(name='source-view-regions',value=json.dumps([
             {key:view[key] for key in ('label','region','state')}
             for view in view_summary(views)],separators=(',',':'))),

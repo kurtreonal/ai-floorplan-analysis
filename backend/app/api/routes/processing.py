@@ -34,6 +34,7 @@ from app.schemas.drawing_selection import DrawingRegionProcessingRequest
 from app.services.drawing_selection_service import DrawingSelectionError, start_drawing_region_processing
 from app.ai.floor_plan_interpretation.experimental_pull_station import ExperimentalLocatorUnavailable
 from app.ai.floor_plan_interpretation.experimental_symbol_detector import ExperimentalDetectorUnavailable
+from app.services.connectivity_summary_service import job_connectivity_summary
 
 
 router = APIRouter(tags=["processing jobs"])
@@ -100,6 +101,7 @@ def list_processing_job_history_endpoint(
             status=processing_job.status,
             progress=processing_job.progress,
             error_message=get_safe_processing_error_message(processing_job),
+            source_connectivity=job_connectivity_summary(database_session,job_id=processing_job.id),
             page_outcomes=[
                 ProcessingPageOutcomeResponse(
                     page_number=row.page_number,
@@ -240,6 +242,7 @@ def get_processing_job_status_endpoint(
         status=processing_job.status,
         progress=processing_job.progress,
         error_message=get_safe_processing_error_message(processing_job),
+        source_connectivity=job_connectivity_summary(database_session,job_id=processing_job.id),
         page_outcomes=[
             ProcessingPageOutcomeResponse(
                 page_number=row.page_number,

@@ -24,6 +24,16 @@ class ProcessingJobStartResponse(BaseModel):
     status: Literal["queued", "processing", "completed", "failed", "cancelled"]
 
 
+class SourceConnectivitySummary(BaseModel):
+    state: Literal['observed_recovered', 'unresolved', 'unavailable']
+    connected_devices: int = Field(ge=0)
+    unresolved_devices: int = Field(ge=0)
+    no_usable_path_devices: int = Field(ge=0)
+    unassessed_devices: int = Field(ge=0)
+    unassessed_pages: int = Field(ge=0)
+    search_incomplete: bool
+
+
 class ProcessingJobStatusResponse(BaseModel):
     job_id: PositiveInt
     type: Annotated[str, Field(min_length=1, max_length=64)]
@@ -36,6 +46,7 @@ class ProcessingJobStatusResponse(BaseModel):
     ]
     progress: Annotated[int, Field(ge=0, le=100)]
     error_message: str | None
+    source_connectivity: SourceConnectivitySummary | None = Field(default=None, exclude_if=lambda value: value is None)
     page_outcomes: list[ProcessingPageOutcomeResponse] = Field(
         default_factory=list,
         exclude_if=lambda value: value == [],

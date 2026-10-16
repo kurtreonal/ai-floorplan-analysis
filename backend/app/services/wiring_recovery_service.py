@@ -11,6 +11,7 @@ from time import monotonic, time_ns
 from uuid import uuid4
 from app.ai.floor_plan_interpretation.candidate import FloorPlanInterpretationPayload, InferenceParameter
 from app.ai.floor_plan_interpretation.wiring_recovery import recover_wiring, RecoveryLimits, VERSION
+from app.ai.floor_plan_interpretation.input_profile import inspect_input_pixels
 
 
 class RecoveryCheckpointStore:
@@ -21,7 +22,9 @@ class RecoveryCheckpointStore:
         identity=dict(source=source_sha256,base=sha256(payload.model_dump_json().encode()).hexdigest(),
                       version=VERSION,limits=asdict(limits))
         self.fingerprint=sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest()
-        self.directory=self.root/'wiring-recovery'/f'job-{job_id}-page-{page_id}'/self.fingerprint
+        # Keep Windows paths below legacy MAX_PATH for ordinary configured
+        # storage roots. Full source/config/base hashes still bind the wrapper.
+        self.directory=self.root/'wiring-recovery'/f'j{job_id}-p{page_id}'/self.fingerprint[:32]
         self.directory.mkdir(parents=True,exist_ok=True)
         if self.directory.resolve(strict=True)!=self.directory or not self.directory.is_relative_to(self.root):
             raise ValueError('Unsafe recovery checkpoint directory.')
@@ -48,7 +51,7 @@ class RecoveryCheckpointStore:
     def save(self,state):
         raw=json.dumps(state,sort_keys=True,separators=(',',':')).encode()
         wrapper=dict(fingerprint=self.fingerprint,sha256=sha256(raw).hexdigest(),state=state)
-        path=self.directory/f'checkpoint-{time_ns():020d}-{uuid4().hex}.json'
+        path=self.directory/f'checkpoint-{time_ns():020d}-{uuid4().hex[:8]}.json'
         with path.open('x',encoding='utf-8') as stream:json.dump(wrapper,stream,separators=(',',':'))
         self.reference=path
 
@@ -65,6 +68,7 @@ def recover_worker_wiring(payload,image,*,root,job_id,page_id,source_sha256,sett
     result=recover_wiring(payload,image,limits=limits,check=check,checkpoint=store.save,resume=previous)
     heartbeat()
     parameters=(InferenceParameter(name='wiring-recovery-version',value=VERSION),
+        InferenceParameter(name='input-pixel-profile',value=json.dumps(inspect_input_pixels(image,payload),sort_keys=True)),
         InferenceParameter(name='wiring-recovery-limits',value=json.dumps(asdict(limits),sort_keys=True)),
         InferenceParameter(name='wiring-recovery-reference',value=store.reference.relative_to(store.root).as_posix()),
         InferenceParameter(name='wiring-recovery-sha256',value=sha256(store.reference.read_bytes()).hexdigest()))

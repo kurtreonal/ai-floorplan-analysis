@@ -103,12 +103,17 @@ function normalizeStatusResponse(payload) {
     throw new ProcessingJobApiError(GENERIC_STATUS_ERROR)
   }
 
+  const summary = payload.source_connectivity
+  if (summary != null && (!['observed_recovered', 'unresolved', 'unavailable'].includes(summary.state)
+    || !['connected_devices','unresolved_devices','no_usable_path_devices','unassessed_devices','unassessed_pages'].every(key => Number.isSafeInteger(summary[key]) && summary[key]>=0)
+    || typeof summary.search_incomplete !== 'boolean')) throw new ProcessingJobApiError(GENERIC_STATUS_ERROR)
   return {
     job_id: payload.job_id,
     type: payload.type,
     status: payload.status,
     progress: payload.progress,
     error_message: payload.error_message,
+    ...(summary ? { source_connectivity: summary } : {}),
   }
 }
 

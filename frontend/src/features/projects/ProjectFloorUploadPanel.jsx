@@ -151,7 +151,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
         ...floorPlan,
         floor_name: selectedFloor?.name || 'Unknown floor',
         history: [],
-        latest_job: null,
+        latest_job: floorPlan.initial_job ? { ...floorPlan.initial_job, type: 'floor_plan_analysis', progress: 0, error_message: null } : null,
       },
     ])
     setPlanRefreshKey((key) => key + 1)

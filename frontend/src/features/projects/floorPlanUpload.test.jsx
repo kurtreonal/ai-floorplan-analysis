@@ -19,6 +19,7 @@ import {
   fetchProcessingJob,
   listProcessingJobs,
   ProcessingJobApiError,
+  startFloorPlanProcessing,
 } from '../../api/processingJobs.js'
 import {
   createProjectFloor,
@@ -54,6 +55,7 @@ vi.mock('../../api/processingJobs.js', async () => {
     ...actual,
     fetchProcessingJob: vi.fn(),
     listProcessingJobs: vi.fn(),
+    startFloorPlanProcessing: vi.fn(),
   }
 })
 
@@ -106,6 +108,7 @@ const COMPLETED_JOB = {
 }
 
 beforeEach(() => {
+  startFloorPlanProcessing.mockResolvedValue({ job_id: 81, status: 'queued' })
   listFloorPlans.mockResolvedValue([])
   listProcessingJobs.mockResolvedValue([])
 })
@@ -154,7 +157,7 @@ describe('project floor upload panel', () => {
     listFloorPlans.mockResolvedValue([UPLOAD])
     listProcessingJobs.mockResolvedValue([COMPLETED_JOB])
     render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
-    expect(await screen.findByText('Processing completed.')).toBeTruthy()
+    expect(await screen.findByText(/Analysis finished/)).toBeTruthy()
     expect(screen.getByText(UPLOAD.original_filename)).toBeTruthy()
     expect(screen.getByText('1')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Review detections' }).getAttribute('href')).toBe(
@@ -182,7 +185,7 @@ describe('project floor upload panel', () => {
     expect(screen.getByText('Processing')).toBeTruthy()
     await act(async () => vi.advanceTimersByTimeAsync(2000))
     expect(fetchProcessingJob).toHaveBeenCalledWith(31, { signal: expect.any(AbortSignal) })
-    expect(screen.getByText('Processing completed.')).toBeTruthy()
+    expect(screen.getByText(/Analysis finished/)).toBeTruthy()
   })
 
   it('shows safe persisted-plan errors and retries', async () => {
@@ -472,6 +475,7 @@ describe('floor plan upload form', () => {
   it('renders a successful response in the session workspace and clears the input', async () => {
     listProjectFloors.mockResolvedValue(FLOORS)
     uploadFloorPlan.mockResolvedValue(UPLOAD)
+    listProcessingJobs.mockResolvedValue([{ ...COMPLETED_JOB, job_id: 81, status: 'queued', progress: 0 }])
     render(<ProjectFloorUploadPanel projectId={PROJECT_ID} session={DESIGNER_SESSION} />)
     await screen.findByRole('combobox', { name: 'Project floor' })
     const input = chooseFile()
@@ -486,9 +490,21 @@ describe('floor plan upload form', () => {
     expect(screen.getByText(UPLOAD.processing_status)).toBeTruthy()
     expect(screen.getAllByText('Ground Floor')).toHaveLength(2)
     expect(screen.getByText(String(UPLOAD.id))).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Start processing' })).toBeTruthy()
+    expect(startFloorPlanProcessing).toHaveBeenCalledWith(UPLOAD.id, expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(screen.getByRole('button', { name: /^Cancel(?: processing)?$/ })).toBeTruthy()
     expect(screen.queryByText(/Selected:/)).toBeNull()
     expect(input.value).toBe('')
+  })
+
+  it('retains a successful upload and offers analysis retry without uploading again', async () => {
+    uploadFloorPlan.mockResolvedValue(UPLOAD)
+    startFloorPlanProcessing.mockRejectedValueOnce(new ProcessingJobApiError('Unavailable', 503))
+    const uploaded = vi.fn()
+    render(<FloorPlanUploadForm projectId={PROJECT_ID} projectFloorId={12} onUploaded={uploaded} />)
+    chooseFile(); submitUpload()
+    expect((await screen.findByRole('alert')).textContent).toContain('Original uploaded. Automatic analysis could not start')
+    expect(uploaded).toHaveBeenCalledWith({ ...UPLOAD, initial_job: null })
+    expect(uploadFloorPlan).toHaveBeenCalledTimes(1)
   })
 
   it('preserves a selected file and its bytes after a failed upload', async () => {

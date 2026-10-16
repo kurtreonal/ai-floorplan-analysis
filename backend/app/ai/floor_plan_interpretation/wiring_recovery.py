@@ -19,7 +19,7 @@ from app.ai.floor_plan_interpretation.candidate import (
 from app.ai.floor_plan_interpretation.device_contact_evidence import with_device_contact_evidence
 from app.ai.floor_plan_interpretation.stroke_centerlines import stroke_paths
 
-VERSION = 'targeted-source-recovery-v1'
+VERSION = 'targeted-source-recovery-v2'
 METHODS = ('native_local_strokes', 'contrast_local_strokes')
 
 
@@ -36,10 +36,20 @@ class RecoveryLimits:
             raise ValueError('Invalid recovery resource limits.')
 
 
-def eligible_symbols(payload):
-    return [s for s in payload.symbols.items if s.bounds and not re.search(
+def device_symbols(payload):
+    return [s for s in payload.symbols.items if not re.search(
         r'home.?run|circuit.*notation|raceway conduit',
         s.training_legend.name if s.training_legend else s.observed_label or '', re.I)]
+
+
+def eligible_symbols(payload):
+    return [s for s in device_symbols(payload) if s.bounds]
+
+
+def in_plan(payload, symbol):
+    return any(r.kind == 'plan_region' and r.bounds and
+        r.bounds.x <= symbol.center.x <= r.bounds.x+r.bounds.width and
+        r.bounds.y <= symbol.center.y <= r.bounds.y+r.bounds.height for r in payload.regions)
 
 
 def served_symbols(payload):
@@ -47,23 +57,29 @@ def served_symbols(payload):
             if c.evidence_kind and c.ambiguity == 'unambiguous' and c.to_ref.startswith('symbol:')}
 
 
-def audit_devices(payload, image, *, exhausted=False):
+def audit_devices(payload, image, *, exhausted=False, failed=False):
     served = served_symbols(payload)
     ambiguous = {c.to_ref.split(':',1)[1] for c in payload.observed_routes.connections
                  if c.ambiguity == 'ambiguous' and c.to_ref.startswith('symbol:')}
     gray = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
     padding=max(2,min(6,round(min(image.shape[:2])*.0015)))
     result = []
-    for symbol in eligible_symbols(payload)[:512]:
+    for symbol in device_symbols(payload)[:512]:
         if symbol.id in served:
             state,reason = 'observed_recovered','source_supported_attachment'
         elif symbol.id in ambiguous:
             state,reason = 'unresolved_observed','ambiguous_contact'
+        elif not symbol.bounds:
+            state,reason = 'unresolved_observed','missing_symbol_bounds'
+        elif not in_plan(payload, symbol):
+            state,reason = 'unresolved_observed','outside_plan_scope'
         elif exhausted:
             state,reason = 'unresolved_observed','resource_limit'
+        elif failed:
+            state,reason = 'unresolved_observed','recovery_method_failed'
         else:
             box = symbol.bounds
-            radius = max(12,round(min(box.width,box.height)))
+            radius = max(3,round(min(box.width,box.height)))
             left,top = max(0,math.floor(box.x)-radius),max(0,math.floor(box.y)-radius)
             right,bottom = min(image.shape[1],math.ceil(box.x+box.width)+radius),min(image.shape[0],math.ceil(box.y+box.height)+radius)
             patch = gray[top:bottom,left:right].copy()
@@ -80,7 +96,7 @@ def audit_devices(payload, image, *, exhausted=False):
 def local_paths(payload, image, symbol, method):
     """Native-resolution window; integer translation is the ONLY transform."""
     box = symbol.bounds
-    radius = max(96,min(384,math.ceil(max(box.width,box.height)*8)))
+    radius = max(24,min(768,math.ceil(max(box.width,box.height)*8)))
     x,y = max(0,math.floor(symbol.center.x)-radius),max(0,math.floor(symbol.center.y)-radius)
     right,bottom = min(image.shape[1],math.ceil(symbol.center.x)+radius+1),min(image.shape[0],math.ceil(symbol.center.y)+radius+1)
     gray = cv2.cvtColor(image[y:bottom,x:right],cv2.COLOR_RGB2GRAY)
@@ -97,7 +113,7 @@ def local_paths(payload, image, symbol, method):
     refs = []
     for region in payload.regions:
         b = region.bounds
-        if region.kind != 'plan_region' or not (b.x <= symbol.center.x <= b.x+b.width and b.y <= symbol.center.y <= b.y+b.height): continue
+        if region.kind != 'plan_region' or not b or not (b.x <= symbol.center.x <= b.x+b.width and b.y <= symbol.center.y <= b.y+b.height): continue
         refs.append(f'region:{region.id}')
         scope[max(0,math.ceil(b.y)-y):max(0,min(bottom,math.floor(b.y+b.height)+1)-y),
               max(0,math.ceil(b.x)-x):max(0,min(right,math.floor(b.x+b.width)+1)-x)] = 255
@@ -111,14 +127,36 @@ def local_paths(payload, image, symbol, method):
              max(0,math.floor(b.x)-x-1):max(0,min(right,math.ceil(b.x+b.width)+2)-x)] = 0
     from app.ai.floor_plan_interpretation.automatic_wiring import _parallel_wall
     paths = []
-    for chain in stroke_paths(mask,minimum_length=12,maximum_paths=128):
+    minimum = max(3,round(min(box.width,box.height)*.6))
+    for chain in stroke_paths(mask,minimum_length=minimum,maximum_paths=128):
         points = tuple(PixelPoint(x=p[0]+x,y=p[1]+y) for p in chain)
         # Existing structural evidence is context, not a thickness-only rule.
         length = sum(math.hypot(b.x-a.x,b.y-a.y) for a,b in zip(points,points[1:]))
         structural = sum(math.hypot(b.x-a.x,b.y-a.y) for a,b in zip(points,points[1:])
             if _parallel_wall(((a.x,a.y),(b.x,b.y)),payload.walls.items,2))
         if structural > length*.8: continue
-        paths.append((points,tuple(refs)))
+        paths.append((points,tuple(refs),'solid'))
+    if method == 'contrast_local_strokes':
+        # A different method, not repeated threshold lowering: collinear dash
+        # evidence must pass both repeated-run and cross-stroke-direction gates.
+        from app.ai.floor_plan_interpretation.automatic_wiring import _regular_dash_evidence, _dash_direction_evidence
+        dash_mask = ((gray < 180).astype(np.uint8)*255) & scope
+        for device in payload.symbols.items:
+            b=device.bounds
+            if b:
+                dash_mask[max(0,math.floor(b.y)-y-1):max(0,min(bottom,math.ceil(b.y+b.height)+2)-y),
+                          max(0,math.floor(b.x)-x-1):max(0,min(right,math.ceil(b.x+b.width)+2)-x)] = 0
+        gap=max(3,round(min(box.width,box.height)*1.5))
+        rows=cv2.HoughLinesP(dash_mask,1,math.pi/180,max(6,minimum),minLineLength=minimum*3,maxLineGap=gap)
+        if rows is not None:
+            for row in sorted({tuple(map(int,r[0])) for r in rows})[:128]:
+                a,b=row[:2],row[2:]
+                count=math.ceil(math.dist(a,b))+1
+                xy=np.rint(np.linspace(a,b,count)).astype(int)
+                samples=dash_mask[xy[:,1],xy[:,0]]>0
+                if _regular_dash_evidence(samples,gap) and _dash_direction_evidence(a,b,samples,dash_mask):
+                    points=(PixelPoint(x=a[0]+x,y=a[1]+y),PixelPoint(x=b[0]+x,y=b[1]+y))
+                    paths.append((points,tuple(refs),'dashed'))
     return paths
 
 
@@ -185,8 +223,9 @@ def _source_attachment(points, routes, image, *, endpoint_indices=None):
 
 def _ends_at_device(points,symbol):
     box=symbol.bounds
+    margin=max(2,min(box.width,box.height)*.4)
     for p,n in ((points[0],points[1]),(points[-1],points[-2])):
-        if not (box.x-8<=p.x<=box.x+box.width+8 and box.y-8<=p.y<=box.y+box.height+8):continue
+        if not (box.x-margin<=p.x<=box.x+box.width+margin and box.y-margin<=p.y<=box.y+box.height+margin):continue
         dx,dy=n.x-p.x,n.y-p.y;length=math.hypot(dx,dy)
         perpendicular=abs((symbol.center.x-p.x)*dy-(symbol.center.y-p.y)*dx)/length
         if perpendicular<=max(3,min(10,min(box.width,box.height)*.3)):return True
@@ -197,7 +236,8 @@ def _trim_to_network(points,symbol,routes,image):
     # Stop at the FIRST supported network contact; retaining a later dash tail
     # would draw a second parallel observation of the existing run.
     first=points[0];box=symbol.bounds
-    ordered=points if box.x-8<=first.x<=box.x+box.width+8 and box.y-8<=first.y<=box.y+box.height+8 else tuple(reversed(points))
+    margin=max(2,min(box.width,box.height)*.4)
+    ordered=points if box.x-margin<=first.x<=box.x+box.width+margin and box.y-margin<=first.y<=box.y+box.height+margin else tuple(reversed(points))
     for last in range(1,len(ordered)):
         prefix=ordered[:last+1]
         attachment=_source_attachment(prefix,routes,image,endpoint_indices=(last,))
@@ -243,7 +283,9 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
     if image.shape[:2] != (payload.source_plane.height_pixels,payload.source_plane.width_pixels):
         raise ValueError('Recovery requires unchanged source coordinates.')
     base = payload
-    symbols = eligible_symbols(payload)
+    devices = device_symbols(payload)
+    symbols = [s for s in eligible_symbols(payload) if in_plan(payload,s)]
+    target_ids={s.id for s in symbols}
     overflow=len(symbols)>512
     external_limit=image.shape[0]*image.shape[1]>12_000_000 or len(payload.symbols.items)>512 or sum(len(r.points)-1 for r in payload.observed_routes.segments)>4096
     if len(symbols)>512: symbols=symbols[:512]
@@ -260,7 +302,7 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
     save();check()
     reason='resource_limit' if external_limit else 'methods_exhausted'
     while method_index < len(METHODS) and not external_limit:
-        if len(served_symbols(payload)) >= len(symbols): reason='converged';break
+        if target_ids.issubset(served_symbols(payload)): reason='converged';break
         method=METHODS[method_index]
         if len(passes)<=method_index: passes.append(WiringRecoveryPass(method=method,windows=0,added_paths=0,added_contacts=0))
         while cursor < len(symbols):
@@ -275,7 +317,7 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
                     row=passes[method_index]
                     passes[method_index]=row.model_copy(update={'failed_windows':row.failed_windows+1})
                     proposals=[]
-                for points,refs in proposals:
+                for points,refs,*style in proposals:
                     check()
                     if spent+monotonic()-start >= limits.maximum_seconds: reason='resource_limit';break
                     if len(payload.observed_routes.segments)>=limits.maximum_paths: break
@@ -287,7 +329,7 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
                     if attachment:
                         q=attachment[-1]
                         if any(s.bounds.x-3<=q.x<=s.bounds.x+s.bounds.width+3 and s.bounds.y-3<=q.y<=s.bounds.y+s.bounds.height+3 for s in symbols):attachment=None
-                    route=ObservedRouteSegment(id=f'segment-{identity:04d}',points=points,line_style='solid',evidence_refs=refs,ambiguity='ambiguous')
+                    route=ObservedRouteSegment(id=f'segment-{identity:04d}',points=points,line_style=style[0] if style else 'solid',evidence_refs=refs,ambiguity='ambiguous')
                     trial=_join_source_trial(payload,route,attachment) if attachment else payload.model_copy(update={
                         'document_state':'partial','observed_routes':payload.observed_routes.model_copy(update={
                         'state':'partial','failure_reason':None,'segments':payload.observed_routes.segments+(route,)})})
@@ -309,9 +351,13 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
             if reason=='resource_limit': break
         if reason=='resource_limit': break
         method_index+=1;cursor=0;save()
-    if len(served_symbols(payload)) >= len(symbols): reason='converged'
+    if target_ids.issubset(served_symbols(payload)): reason='converged'
     if overflow or external_limit:reason='resource_limit'
-    report=WiringRecoveryReport(stop_reason=reason,passes=tuple(passes),devices=audit_devices(payload,image,exhausted=reason=='resource_limit'))
+    if not symbols or any(not s.bounds or not in_plan(payload,s) for s in devices):
+        if reason=='converged':reason='methods_exhausted'
+    report=WiringRecoveryReport(version=VERSION,stop_reason=reason,passes=tuple(passes),
+        unassessed_devices=max(0,len(devices)-512),
+        devices=audit_devices(payload,image,exhausted=reason=='resource_limit',failed=any(p.failed_windows for p in passes)))
     warnings=tuple(w for w in payload.warnings if w.code!='wiring_recovery_status')
     if len(warnings)<256:
         warnings+=(CandidateWarning(code='wiring_recovery_status',severity='info',message=
