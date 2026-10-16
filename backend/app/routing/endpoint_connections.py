@@ -56,6 +56,24 @@ def apply_source_contacts(candidate, document, *, preserve_source=True):
                     if edge==0 and center!=points[0]:
                         points.insert(0,dict(center));index=0
                     else:index=len(points)-1;points[index]=dict(center)
+                elif (preserve_source and t>=1-1e-8 and edge<len(source.points)-2
+                      and contact.evidence_kind=='inline_device'):
+                    # A chained path can have a device exactly at an interior
+                    # vertex. Adapt only its glyph-core interval on BOTH arms;
+                    # do not turn the entire next arm into a long diagonal or
+                    # flatten a new out-and-back attachment branch into it.
+                    symbol=predictions[identity]
+                    following=source.points[edge+2]
+                    outgoing=(following.x-b.x,following.y-b.y)
+                    incoming_length=math.sqrt(length2)
+                    outgoing_length=math.hypot(*outgoing)
+                    half=min(8,min(symbol.bounds.width,symbol.bounds.height)*.3,
+                             incoming_length/4,outgoing_length/4)
+                    append(dict(x=b.x-half*delta[0]/incoming_length,
+                                y=b.y-half*delta[1]/incoming_length))
+                    index=append(center)
+                    append(dict(x=b.x+half*outgoing[0]/outgoing_length,
+                                y=b.y+half*outgoing[1]/outgoing_length))
                 elif preserve_source and t>=1-1e-8:
                     append(b.model_dump());index=append(center)
                 elif preserve_source:

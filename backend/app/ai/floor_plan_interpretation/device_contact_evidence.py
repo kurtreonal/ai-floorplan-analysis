@@ -11,7 +11,7 @@ from app.ai.floor_plan_interpretation.candidate import (
     FloorPlanInterpretationPayload, ObservedRouteConnection, PixelPoint, CandidateWarning,
 )
 
-EVIDENCE_VERSION = 'source-device-ports-bounded-approaches-v3'
+EVIDENCE_VERSION = 'source-device-ports-polyline-vertices-v4'
 
 
 def with_device_contact_evidence(payload, image_rgb):
@@ -125,6 +125,16 @@ def with_device_contact_evidence(payload, image_rgb):
                 elif end_contact and support(b,box,route.line_style=='dashed',route,edge,False):
                     kind='symbol_occlusion' if np.linalg.norm(b-center)>2 else 'boundary_contact';anchor=b
                     phase=not near_box(b)
+                elif edge < len(route.points)-2 and abs(along-length) <= port and near_box(b):
+                    # An interior vertex of a logical polyline is not a route
+                    # endpoint. Check BOTH real approaches around that vertex;
+                    # otherwise chaining spans would lose the inline device.
+                    approaches=[support(b,box,route.line_style=='dashed',route,edge,forward)
+                                for forward in (True,False)]
+                    if all(approaches):
+                        kind='inline_device';anchor=b
+                    elif any(approaches):
+                        unresolved_refs.update((f'segment:{route.id}',f'symbol:{symbol.id}'))
                 elif port<along<length-port and near_box(projected):
                     # A device on a continuous run needs two independently
                     # supported approaches through its central port band.

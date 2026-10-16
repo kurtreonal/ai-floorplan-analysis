@@ -25,6 +25,7 @@ from app.ai.floor_plan_interpretation.candidate import (
 from app.ai.floor_plan_interpretation.preparation import (
     local_to_source_coords,
 )
+from app.ai.floor_plan_interpretation.stroke_centerlines import stroke_paths
 
 
 class ObservedWiringConfig(BaseModel):
@@ -36,6 +37,51 @@ class ObservedWiringConfig(BaseModel):
     connection_radius_pixels: float = Field(default=30.0, ge=1.0, le=100.0)
     dash_merge_tolerance_pixels: float = Field(default=15.0, ge=1.0, le=50.0)
     tile_seam_tolerance_pixels: float = Field(default=10.0, ge=1.0, le=50.0)
+
+
+def _merge_source_overlaps(groups, local_keys):
+    """Union exactly collinear overlapping observations, never nearby wires.
+
+    No gap tolerance, endpoint-only joins, style changes or crossing junctions.
+    Source coordinates have already been transformed. Decimal tolerance only
+    absorbs affine arithmetic, not a spatial snapping radius.
+    """
+    changed = True
+    while changed:
+        changed = False
+        keys = sorted(groups)
+        for i, first in enumerate(keys):
+            if len(first) != 2:
+                continue
+            a, b = first
+            dx, dy = b[0]-a[0], b[1]-a[1]
+            length = math.hypot(dx, dy)
+            if not length:
+                continue
+            for second in keys[i+1:]:
+                if len(second) != 2 or groups[first]['styles'] != groups[second]['styles']:
+                    continue
+                c, d = second
+                if any(abs((p[0]-a[0])*dy-(p[1]-a[1])*dx)/length > 1e-7 for p in second):
+                    continue
+                projections = [((p[0]-a[0])*dx+(p[1]-a[1])*dy)/length for p in second]
+                if min(length, max(projections))-max(0, min(projections)) <= 1e-7:
+                    continue
+                ordered = sorted((a, b, c, d), key=lambda p: (p[0]*dx+p[1]*dy, p))
+                key = min((ordered[0], ordered[-1]), (ordered[-1], ordered[0]))
+                merged = {field: groups[first][field] | groups[second][field]
+                          for field in ('evidence', 'ambiguities', 'styles')}
+                if len(merged['evidence']) > 32:
+                    continue  # Keep provenance complete rather than truncate it.
+                del groups[first], groups[second]
+                groups[key] = merged
+                for identity, old in local_keys.items():
+                    if old in (first, second):
+                        local_keys[identity] = key
+                changed = True
+                break
+            if changed:
+                break
 
 
 def extract_observed_wiring_from_image(
@@ -56,48 +102,21 @@ def extract_observed_wiring_from_image(
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY_INV)
 
-    # Use morphological operations to isolate thin lines/curves (wiring)
-    # Walls are typically thicker parallel lines. We remove thick structures.
-    kernel_thick = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-    thick_elements = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel_thick)
-    thin_lines = cv2.subtract(binary, thick_elements)
-
-    # Filter out very short noise
-    kernel_clean = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    thin_lines = cv2.morphologyEx(thin_lines, cv2.MORPH_OPEN, kernel_clean)
-
-    # Find contours for wiring traces
-    contours, hierarchy = cv2.findContours(thin_lines, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Deterministic sort: length descending, then top-left bounding box
-    sorted_contours = sorted(
-        contours,
-        key=lambda c: (-cv2.arcLength(c, False), cv2.boundingRect(c)[1], cv2.boundingRect(c)[0])
-    )
+    # Auxiliary geometry is deliberately ambiguous: thickness alone cannot
+    # distinguish a wall from a broad wire. Semantic/source-context validation
+    # remains the interpreter's responsibility. Never trace both stroke edges.
+    paths = stroke_paths(binary, maximum_paths=config.max_segments)
 
     segments: list[ObservedRouteSegment] = []
     connections: list[ObservedRouteConnection] = []
     segment_idx = 1
 
-    for contour in sorted_contours:
+    for path in paths:
         if len(segments) >= config.max_segments:
             break
             
-        length = cv2.arcLength(contour, False)
-        if length < 15.0:
-            continue
-
-        # Approximate contour to polyline
-        epsilon = 0.015 * length
-        approx = cv2.approxPolyDP(contour, epsilon, False)
-
-        # Ensure we have at least 2 points
-        if len(approx) < 2:
-            continue
-
         points: list[PixelPoint] = []
-        for pt in approx:
-            x, y = map(float, pt[0])
+        for x, y in path:
             # Avoid consecutive duplicate points
             if not points or not (math.isclose(points[-1].x, x) and math.isclose(points[-1].y, y)):
                 points.append(PixelPoint(x=round(x, 2), y=round(y, 2)))
@@ -133,7 +152,7 @@ def fuse_observed_routes(
     region_transforms: dict[str, AffineTransform],
     config: ObservedWiringConfig,
 ) -> tuple[Sequence[ObservedRouteSegment], Sequence[ObservedRouteConnection]]:
-    """Deduplicate identical source polylines without bridging unseen gaps.
+    """Deduplicate identical/collinear overlapping source observations.
 
     Tile identities scope local segment IDs. Endpoint proximity is insufficient
     evidence for continuity, so distinct fragments and crossings remain separate.
@@ -164,6 +183,8 @@ def fuse_observed_routes(
         group["evidence"].add(f"region:{region_id}")
         group["ambiguities"].add(segment.ambiguity)
         group['styles'].add(segment.line_style)
+
+    _merge_source_overlaps(groups, local_keys)
 
     segments = []
     ids = {}
@@ -199,7 +220,8 @@ def fuse_observed_routes(
         if connection.evidence_kind is not None:
             key=local_keys[(region_id,connection.from_ref.split(':',1)[1])]
             points=local_points[(region_id,connection.from_ref.split(':',1)[1])]
-            edge=connection.source_edge_index if points==key else len(points)-2-connection.source_edge_index
+            edge = (0 if len(key) == 2 else connection.source_edge_index if points == key
+                    else len(points)-2-connection.source_edge_index)
             transform=region_transforms[region_id]
             path=local_to_source_coords(transform,connection.path_anchor.x,connection.path_anchor.y)
             anchor=local_to_source_coords(transform,connection.device_anchor.x,connection.device_anchor.y)

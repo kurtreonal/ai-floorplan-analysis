@@ -4,10 +4,11 @@ import re
 
 import cv2
 import numpy as np
+from app.ai.floor_plan_interpretation.stroke_axis import refine_axis_trace
 
 
 FIXTURE_PATTERN = r'troffer|fluorescent|downlight|ceiling light|lighting point'
-CONFIGURATION = dict(version='fixture-axis-source-ink-v3', threshold_c=8,
+CONFIGURATION = dict(version='fixture-axis-own-stroke-band-v4', threshold_c=8,
                      minimum_support=.95, maximum_white_run=3,
                      maximum_fixtures=192, maximum_pairs=8192,maximum_offsets=64)
 
@@ -75,7 +76,8 @@ def fixture_axis_traces(payload, image_rgb, scope, *, dash_validator=None):
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     ink = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                 cv2.THRESH_BINARY_INV, max(31, round(edge * .09)) | 1, CONFIGURATION['threshold_c'])
-    ink = cv2.dilate(cv2.bitwise_and(ink, scope), np.ones((3, 3), np.uint8))
+    source_ink = cv2.bitwise_and(ink, scope)
+    ink = cv2.dilate(source_ink, np.ones((3, 3), np.uint8))
     glyphs = np.zeros((height, width), np.uint8)
     for symbol in fixtures:
         box = symbol.bounds
@@ -149,5 +151,10 @@ def fixture_axis_traces(payload, image_rgb, scope, *, dash_validator=None):
                 if best is None or score > best[0]:
                     best = score, tuple(map(float, a)), tuple(map(float, b)), not solid
             if best:
-                rows.append((best[1], best[2], set(), best[3]))
+                a, b = refine_axis_trace(best[1], best[2], source_ink, glyphs, dashed=best[3])
+                # Keep the established context gate at the refined location.
+                if abs(a[cross]-middle) > offset_limit and not best[3] and not _bounded_terminal(
+                        ink, scope, first_box, last_box, axis, a[cross]):
+                    a, b = best[1], best[2]
+                rows.append((a, b, set(), best[3]))
     return sorted(rows), truncated

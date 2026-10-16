@@ -42,7 +42,7 @@ def test_extract_wiring_with_visible_lines(sample_config):
     # Draw a thin black line (wiring) - 2px to survive noise filtering
     cv2.line(image, (20, 20), (100, 100), (0, 0, 0), 2)
     
-    # Draw a thick black line (should be filtered out as wall-like)
+    # A broad line cannot be classified as a wall from thickness alone.
     cv2.line(image, (150, 20), (150, 180), (0, 0, 0), 10)
     
     symbols = [
@@ -75,7 +75,7 @@ def test_extract_wiring_with_visible_lines(sample_config):
         image, "tile-0001", symbols, panels, sample_config
     )
     
-    assert len(segments) == 1
+    assert len(segments) == 2
     assert segments[0].route_kind == "observed"
     
     # Check endpoints match roughly what we drew
@@ -84,6 +84,77 @@ def test_extract_wiring_with_visible_lines(sample_config):
     
     assert connections == ()
     assert segments[0].ambiguity == "ambiguous"
+
+
+@pytest.mark.parametrize('thickness', [1, 2, 4, 7])
+def test_one_stroke_is_one_centerline_not_a_perimeter(thickness):
+    image = np.full((100, 220, 3), 255, np.uint8)
+    cv2.line(image, (20, 50), (200, 50), (0, 0, 0), thickness)
+    paths, connections = extract_observed_wiring_from_image(image, 'tile-0001', (), (), ObservedWiringConfig())
+    assert len(paths) == 1 and not connections
+    assert len(paths[0].points) == 2
+    assert all(abs(p.y-50) <= 1 for p in paths[0].points)
+    assert 174 <= math_length(paths[0]) <= 182
+
+
+def math_length(path):
+    return sum(np.hypot(b.x-a.x, b.y-a.y) for a, b in zip(path.points, path.points[1:]))
+
+
+def test_bent_continuous_stroke_is_one_editable_polyline():
+    image = np.full((160, 220, 3), 255, np.uint8)
+    cv2.polylines(image, [np.array([(20, 30), (180, 30), (180, 130)], np.int32)], False, (0, 0, 0), 3)
+    paths, _ = extract_observed_wiring_from_image(image, 'tile-0001', (), (), ObservedWiringConfig())
+    assert len(paths) == 1
+    assert 3 <= len(paths[0].points) <= 5
+    assert math_length(paths[0]) == pytest.approx(260, abs=6)
+
+
+@pytest.mark.parametrize('shape,expected', [('T', 3), ('X', 4)])
+def test_raster_branches_remain_distinct_not_a_flattened_route_or_approved_junction(shape, expected):
+    image = np.full((180, 180, 3), 255, np.uint8)
+    cv2.line(image, (20, 90), (160, 90), (0, 0, 0), 3)
+    cv2.line(image, (90, 20), (90, 90 if shape == 'T' else 160), (0, 0, 0), 3)
+    paths, contacts = extract_observed_wiring_from_image(image, 'tile-0001', (), (), ObservedWiringConfig())
+    assert len(paths) == expected and not contacts
+    assert all(path.ambiguity == 'ambiguous' for path in paths)
+
+
+@pytest.mark.parametrize('scale', [1, 2])
+def test_diagonal_stroke_and_rotation_preserve_native_source_mapping(scale):
+    image = np.full((120*scale, 180*scale, 3), 255, np.uint8)
+    cv2.line(image, (20*scale, 20*scale), (100*scale, 100*scale), (0, 0, 0), 3*scale)
+    paths, _ = extract_observed_wiring_from_image(image, 'tile-0001', (), (), ObservedWiringConfig())
+    rotated, _ = extract_observed_wiring_from_image(cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE),
+        'tile-0002', (), (), ObservedWiringConfig())
+    assert len(paths) == len(rotated) == 1
+    assert math_length(paths[0]) == pytest.approx(math_length(rotated[0]), abs=3*scale)
+    assert math_length(paths[0])/scale == pytest.approx(80*2**.5, abs=4)
+
+
+def test_exact_partial_tile_overlap_unions_without_parallel_or_crossing_join():
+    from app.ai.floor_plan_interpretation.candidate import ObservedRouteSegment, ObservedRouteConnection
+    def line(identity, points):
+        return ObservedRouteSegment(id=identity, points=[PixelPoint(x=x, y=y) for x, y in points],
+                                    evidence_refs=('region:tile-0001',), ambiguity='ambiguous')
+    rows = [('tile-0001', line('segment-0001', [(10, 20), (80, 20)])),
+            ('tile-0002', line('segment-0001', [(60, 20), (120, 20)])),
+            ('tile-0001', line('segment-0002', [(10, 22), (120, 22)])),
+            ('tile-0001', line('segment-0003', [(70, 10), (70, 40)]))]
+    identity = AffineTransform(a=1, b=0, c=0, d=1, e=0, f=0)
+    contact = ObservedRouteConnection(id='connection-0001', from_ref='segment:segment-0001',
+        to_ref='symbol:symbol-0001', source_edge_index=0, path_anchor=PixelPoint(x=120, y=20),
+        device_anchor=PixelPoint(x=120, y=20), evidence_kind='boundary_contact',
+        evidence_refs=('region:tile-0001',), ambiguity='unambiguous')
+    paths, contacts = fuse_observed_routes(rows, [('tile-0002', contact)],
+        {'tile-0001': identity, 'tile-0002': identity}, ObservedWiringConfig())
+    assert len(paths) == 3 and len(contacts) == 1
+    merged = next(s for s in paths if s.points == (PixelPoint(x=10, y=20), PixelPoint(x=120, y=20)))
+    assert contacts[0].from_ref == 'segment:' + merged.id and contacts[0].source_edge_index == 0
+    assert contacts[0].path_anchor == contact.path_anchor
+    assert sum(math_length(s) for s in paths) == 250
+    assert (paths, contacts) == fuse_observed_routes(list(reversed(rows)), [('tile-0002', contact)],
+        {'tile-0001': identity, 'tile-0002': identity}, ObservedWiringConfig())
 
 
 def test_fuse_observed_routes(sample_config):

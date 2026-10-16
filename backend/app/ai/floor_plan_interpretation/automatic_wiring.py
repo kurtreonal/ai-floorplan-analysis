@@ -7,13 +7,14 @@ import numpy as np
 
 from app.ai.floor_plan_interpretation.fixture_wiring import fixture_axis_traces
 from app.ai.floor_plan_interpretation.device_contact_evidence import with_device_contact_evidence
+from app.ai.floor_plan_interpretation.stroke_axis import chain_exact_traces
 
 from app.ai.floor_plan_interpretation.candidate import (
     CandidateCollection, CandidateWarning, FloorPlanInterpretationPayload, ObservedRoutes,
     ObservedRouteSegment, PixelPoint,
 )
 
-EVIDENCE_VERSION = "raw-source-device-port-evidence-v9"
+EVIDENCE_VERSION = "raw-source-device-port-evidence-v10"
 
 
 def with_fixture_wall_conflicts(payload):
@@ -376,7 +377,7 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
     value = payload.model_dump(mode="json")
     if value["document_state"] == "completed":
         value["document_state"] = "partial"
-    value["observed_routes"] = ObservedRoutes(state="partial", segments=tuple(segments),
+    value["observed_routes"] = ObservedRoutes(state="partial", segments=chain_exact_traces(segments),
                                                connections=(), truncated=truncated).model_dump()
     value["warnings"].append(CandidateWarning(code="automatic_visible_wiring", severity="info",
         message="Drawing traces are editable; gaps, circuit connections and heights remain unresolved.").model_dump())
