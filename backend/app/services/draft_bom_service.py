@@ -13,6 +13,7 @@ from app.repositories.floor_plan_interpretation_repository import find_latest_re
 from app.services.demo_interpretation_service import _candidate, _review_document
 from app.services.wiring_legend_service import annotate_wiring
 from app.ai.floor_plan_interpretation.reviewed_reference import inherit_manual_reference
+from app.geometry.path_lengths import unique_polyline_length
 
 
 def material_key(name):
@@ -141,7 +142,7 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
             if wire.get('disposition') == 'rejected' or wire.get('suppression_reason'):
                 continue
             points = wire['points']
-            length = sum(math.hypot(b['x']-a['x'], b['y']-a['y']) for a,b in zip(points, points[1:]))
+            length = unique_polyline_length(points)
             if not math.isfinite(length) or length <= 0:
                 raise ValueError('Invalid draft path length.')
             measured = scale is not None
@@ -167,7 +168,7 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
                 quantity=quantity, unit='meter' if measured else 'source pixel',
                 horizontal_meters=horizontal, vertical_meters=vertical if measured else None,
                 missing_vertical_inputs=missing,
-                basis='2D path length / source pixels per meter + attached device drops/rises from saved absolute wire elevation minus (floor elevation + device mounting height). Shared device drops at the same service elevation counted once. No inferred conductors, waste or display offsets.'
+                basis='Unique collinear centerline spans within this logical path / source pixels per meter + attached device drops/rises from saved absolute wire elevation minus (floor elevation + device mounting height). Separate paths are not merged without network identity. Shared device drops at the same service elevation counted once. No inferred conductors, waste or display offsets.'
                     + (' INCOMPLETE: unmeasured drops/rises excluded.' if missing else '')))
     return rows
 

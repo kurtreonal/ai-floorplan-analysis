@@ -32,6 +32,18 @@ def test_unapproved_draft_counts_and_source_lengths_are_read_only():
     assert source==before
 
 
+def test_same_path_retracing_counts_physical_span_once_but_not_separate_circuits():
+    source = document()
+    source['observed_wiring'][0]['points'] = [dict(x=x, y=y) for x, y in
+        [(0, 0), (30, 0), (15, 0), (15, 20), (15, 0), (40, 0)]]
+    first = document_takeoff(source, scale=10)[1]
+    assert first['quantity'] == 6 and first['horizontal_meters'] == 6
+    # Circuit/network identity is not known across separate logical paths.
+    source['observed_wiring'].append({**source['observed_wiring'][0], 'id': 'segment-0002'})
+    paths = [row for row in document_takeoff(source, scale=10) if row['kind'] == 'path']
+    assert sum(row['quantity'] for row in paths) == 12
+
+
 def test_saved_elevations_add_drop_to_both_conduit_and_wire_cost_without_display_measurements():
     source=document()
     source['symbols'][0]['mounting_height_meters']=1.2
