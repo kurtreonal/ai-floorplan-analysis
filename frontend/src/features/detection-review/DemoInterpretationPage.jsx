@@ -36,6 +36,7 @@ import { addConnectedWall, moveConnectedWall, deleteConnectedWall } from './wall
 import { WallDimensionEditor } from './WallDimensionEditor.jsx'
 import { pastedDevice, useDeviceClipboard } from './useDeviceClipboard.js'
 import { WireJunctionEditor } from './WireJunctionEditor.jsx'
+import { WiringRecoveryStatus } from './WiringRecoveryStatus.jsx'
 import { updateWireNetwork } from './wireJunctions.js'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
@@ -578,6 +579,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             </select></label>
             <p>Snap to a device or existing wire. Depth and height stay unset until you enter them.</p>
           </fieldset>}
+          <WiringRecoveryStatus report={state.record.candidate.payload.observed_routes?.recovery} presentations={presentations} />
           <ObservedWiringPanel wires={draft.wirings} width={plane.width_pixels} height={plane.height_pixels}
             disabled={saveState.status === 'saving'}
             view={view} visible={Boolean(layers.wirings)} onVisibilityChange={(visible) => setLayers((current) => ({ ...current, wirings: visible }))}
@@ -696,6 +698,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               onChange={event => updateSelected({...selectedEntity,circuit_id:event.target.value || null})} /></label>
             <WireJunctionEditor key={selectedEntity.id} wire={selectedEntity} draft={draft}
               disabled={saveState.status === 'saving' || selectedEntity.disposition === 'rejected'} onEdit={editWireNetwork} />
+            {selectedEntity.assignment_state==='unresolved' && <p role="note">Geometric A* draft only. Circuit, service level and electrical assignment are unresolved; not eligible for measured electrical quantities. Moving an endpoint device requires reviewing this alternative again.</p>}
             <label>Wiring placement<select value={selectedEntity.installation_method || 'unknown'}
               onChange={event => updateSelected(withWiringMethod(selectedEntity,event.target.value))}>
               <option value="unknown" disabled>Not specified</option>
@@ -706,7 +709,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             {selectedEntity.device_attachments?.some(a => a.provenance==='source_supported_proposal') && <p>Source-supported device contacts · short glyph-obscured leads are proposed geometry, not observed pixels or human approval.</p>}
             {state.record.candidate.payload.observed_routes?.connections?.filter(c => c.from_ref===`segment:${selectedEntity.id}` && c.ambiguity==='ambiguous').map(c =>
               <p role="note" key={c.id}>Unresolved contact: {c.to_ref.replace('symbol:','')} · overlapping or ambiguous device port. Edit the connection rather than guessing.</p>)}
-            <p>Drag a blue endpoint near a device in either view. Green means release to connect; Escape cancels.</p>
+            <p>Drag a free blue endpoint onto a device or compatible path in either view. Green previews the connection; release to commit, Escape to cancel.</p>
             <WireDeviceConnections wire={selectedEntity} draft={draft} presentations={presentations}
               disabled={saveState.status === 'saving' || selectedEntity.disposition === 'rejected'}
               onConnect={(index,snap) => moveWirePoint(selectedEntity.id,index,snap.point,snap)}

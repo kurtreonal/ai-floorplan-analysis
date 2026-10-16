@@ -31,6 +31,7 @@ venv/
 env/
 
 # Uploaded and generated project artifacts
+/tmp/
 storage/uploads/**
 storage/processed/**
 storage/detections/**

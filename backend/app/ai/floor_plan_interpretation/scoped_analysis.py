@@ -20,8 +20,10 @@ def raster_configuration_versions():
     from app.ai.floor_plan_interpretation.automatic_wiring import EVIDENCE_VERSION as wire_version
     from app.ai.floor_plan_interpretation.device_contact_evidence import EVIDENCE_VERSION as contact_version
     from app.ai.floor_plan_interpretation.fixture_wiring import CONFIGURATION as fixture_configuration
+    from app.ai.floor_plan_interpretation.wiring_recovery import VERSION as recovery_version, RecoveryLimits
+    from dataclasses import asdict
     return dict(geometry=cv_version, observed_wiring=wire_version, device_contacts=contact_version,
-                fixture_axis=dict(fixture_configuration))
+                fixture_axis=dict(fixture_configuration),recovery_version=recovery_version,recovery_limits=asdict(RecoveryLimits()))
 
 
 def native_configuration_versions():

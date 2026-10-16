@@ -53,6 +53,7 @@ export function draftWiringScene(wires, scene) {
     return [{ id: wire.id, points, segments, connectionAnchors:[...(wire.device_attachments || []),...(wire.junction_attachments || [])].map(a => points[a.point_index]).filter(Boolean),
       deviceIds:[...attachedDevices], unmeasuredDeviceIds:[...unmeasuredDevices], illustrativeHeight: !knownHeight,
       installationMethod: wire.installation_method ?? 'unknown', lineStyle: wire.line_style ?? 'unknown',
+      ...(wire.assignment_state ? {assignment_state:wire.assignment_state} : {}),
       ...(wire.origin === 'generated' ? { origin: 'generated' } : {}) }]
   })
 }

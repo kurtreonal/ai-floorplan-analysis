@@ -139,7 +139,8 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
         length = unique_paths_length([w['points'] for w in group])
         if not math.isfinite(length) or length <= 0:
             raise ValueError('Invalid draft path length.')
-        measured = scale is not None
+        unassigned = any(w.get('assignment_state')=='unresolved' for w in group)
+        measured = scale is not None and not unassigned
         vertical, missing = 0, []
         for attachment in (a for w in group for a in w.get('device_attachments', [])):
             symbol = symbols.get(attachment['symbol_id'])
@@ -158,12 +159,13 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
         quantity = Decimal(str(horizontal + vertical if measured else length)).quantize(Decimal('.0001'), rounding=ROUND_HALF_UP)
         rows.append(dict(kind='path', name='Wiring network — conflicting material mappings' if wire.get('takeoff_material_conflict') else wire.get('wiring_legend_name') or 'Wiring path — type not specified',
             material_conflict=bool(wire.get('takeoff_material_conflict')),
+            electrical_assignment_required=unassigned,
             path_id=wire['id'], path_ids=[w['id'] for w in group], circuit_id=wire.get('circuit_id'),
             installation_method=wire.get('installation_method', 'unknown'), origin=wire['origin'],
             quantity=quantity, unit='meter' if measured else 'source pixel',
             horizontal_meters=horizontal, vertical_meters=vertical if measured else None,
             missing_vertical_inputs=missing,
-            basis='Unique collinear centerline spans within this explicit junction-connected network and material/installation group / source pixels per meter + attached device drops/rises from saved absolute wire elevation minus (floor elevation + device mounting height). Separate or merely same-named circuits are not merged. Shared device drops at the same service elevation counted once. No inferred conductors, waste or display offsets.'
+            basis=('Geometric alternative: electrical assignment and service level unresolved. Source pixels only; excluded from measured/purchase takeoff. ' if unassigned else '')+'Unique collinear centerline spans within this explicit junction-connected network and material/installation group / source pixels per meter + attached device drops/rises from saved absolute wire elevation minus (floor elevation + device mounting height). Separate or merely same-named circuits are not merged. Shared device drops at the same service elevation counted once. No inferred conductors, waste or display offsets.'
                 + (' INCOMPLETE: unmeasured drops/rises excluded.' if missing else '')))
     return rows
 
@@ -202,7 +204,9 @@ def price_rows(rows, materials):
             material = dict(matches[0])
             material.update(unit='meter',unit_price=Decimal(str(material['unit_price'])) / Decimal(str(row['wire_meters_per_unit'])))
             matches = [material]
-        if row.get('material_conflict'):
+        if row.get('electrical_assignment_required'):
+            row['pricing_state']='electrical_assignment_required'
+        elif row.get('material_conflict'):
             row['pricing_state'] = 'network_material_review_required'
         elif row['kind'] == 'device' and row.get('class_id') is None:
             row['pricing_state'] = 'classification_required'

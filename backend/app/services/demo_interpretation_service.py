@@ -296,6 +296,21 @@ def append_interpretation_review(
                         or contact.path_anchor.model_dump() != attachment.observed_anchor.model_dump()
                         or evidence_candidate.provenance.source_sha256 != candidate.provenance.source_sha256):
                         _fail('INVALID_DEVICE_ATTACHMENT')
+            for attachment in wire.junction_attachments:
+                if attachment.source_candidate_run_id is None:continue
+                evidence_run=session.scalar(select(FloorPlanInterpretationRun).where(
+                    FloorPlanInterpretationRun.floor_plan_id==run.floor_plan_id,
+                    FloorPlanInterpretationRun.floor_plan_page_id==run.floor_plan_page_id,
+                    FloorPlanInterpretationRun.candidate_run_id==attachment.source_candidate_run_id))
+                evidence_candidate=_candidate(evidence_run) if evidence_run else None
+                junction=next((j for j in evidence_candidate.payload.observed_routes.junctions
+                    if j.id==attachment.source_junction_id),None) if evidence_candidate else None
+                if junction is None or evidence_candidate.provenance.source_sha256!=candidate.provenance.source_sha256:
+                    _fail('INVALID_DEVICE_ATTACHMENT')
+                member=junction.members[0]
+                source_route=next(r for r in evidence_candidate.payload.observed_routes.segments if r.id==member.segment_id)
+                if source_route.points[member.point_index].model_dump()!=attachment.observed_anchor.model_dump():
+                    _fail('INVALID_DEVICE_ATTACHMENT')
         trace_ids = {w.id for w in payload.observed_wiring}
         for wire in payload.generated_wiring:
             if wire.source_device_id not in symbol_ids or wire.target_id not in (

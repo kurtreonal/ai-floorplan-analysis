@@ -11,7 +11,7 @@ from app.ai.floor_plan_interpretation.candidate import (
     FloorPlanInterpretationPayload, ObservedRouteConnection, PixelPoint, CandidateWarning,
 )
 
-EVIDENCE_VERSION = 'source-device-ports-polyline-vertices-v4'
+EVIDENCE_VERSION = 'source-device-ports-polyline-vertices-v5'
 
 
 def with_device_contact_evidence(payload, image_rgb):
@@ -101,11 +101,15 @@ def with_device_contact_evidence(payload, image_rgb):
         return tail_support>=.8
 
     proposals=[];unresolved_refs=set()
+    plan_refs={f'region:{r.id}' for r in payload.regions if r.kind=='plan_region'}
     for route in payload.observed_routes.segments:
         for edge,(first,last) in enumerate(zip(route.points,route.points[1:])):
             a=np.array([first.x,first.y],float);b=np.array([last.x,last.y],float)
             delta=b-a;length=float(np.linalg.norm(delta));axis=delta/length
             for symbol in symbols:
+                route_scopes=set(route.evidence_refs)&plan_refs
+                symbol_scopes=set(symbol.evidence_refs)&plan_refs
+                if route_scopes and symbol_scopes and not route_scopes&symbol_scopes:continue
                 box=symbol.bounds;center=np.array([symbol.center.x,symbol.center.y])
                 along=float((center-a)@axis);projected=a+along*axis
                 port=max(3,min(10,min(box.width,box.height)*.30))
@@ -149,7 +153,9 @@ def with_device_contact_evidence(payload, image_rgb):
                         distance=float(np.linalg.norm(anchor-center)),phase=phase))
     # Overlapping detector classes/ports are unresolved, not nearest-wins.
     connections=[];seen=set()
+    preserved=[c for c in payload.observed_routes.connections if c.evidence_kind is None]
     for proposal in sorted(proposals,key=lambda p:(p['route'].id,p['edge'],p['distance'],p['symbol'].id)):
+        if len(connections)>=2048-len(preserved):break
         route,symbol=proposal['route'],proposal['symbol']
         key=(route.id,symbol.id)
         if key in seen:continue
@@ -163,6 +169,13 @@ def with_device_contact_evidence(payload, image_rgb):
             device_anchor=symbol.center,evidence_kind=proposal['kind'],evidence_refs=route.evidence_refs,
             ambiguity='ambiguous' if ambiguous else 'unambiguous'))
         if len(connections)>=2048:break
+    # Native/vector topology may carry non-device graph evidence. A local
+    # terminal audit must not discard it or promote it to a device attachment.
+    known={(c.from_ref,c.to_ref) for c in connections}
+    for contact in payload.observed_routes.connections:
+        if contact.evidence_kind is None and (contact.from_ref,contact.to_ref) not in known:
+            connections.append(contact.model_copy(update={'id':f'connection-{len(connections)+1:04d}'}))
+            known.add((contact.from_ref,contact.to_ref))
     routes=payload.observed_routes.model_copy(update={'connections':tuple(connections)})
     warnings=tuple(w for w in payload.warnings if w.code not in (
         'ambiguous_device_contacts','dash_phase_device_contact','source_supported_terminal_lead',

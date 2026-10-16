@@ -47,9 +47,23 @@ def annotate_wiring(session, candidate, review=None, *, drawing_name=None):
                     wiring_legend_name=legend.name if legend else None,
                     installation_method=("concealed_under_floor" if legend.name.startswith(
                         "Raceway conduit concealed under floor") else "concealed_in_ceiling") if legend else "unknown")
+    # A continuous solid terminal curve does not change a dashed parent run's
+    # installation convention. Only source-backed recovery junctions supply
+    # this context; arbitrary nearby paths and human assignments are untouched.
+    by_id={w['id']:w for w in document['observed_wiring']}
+    for junction in candidate.payload.observed_routes.junctions:
+        parent=by_id.get(junction.members[0].segment_id)
+        if not parent:continue
+        for member in junction.members[1:]:
+            child=by_id.get(member.segment_id)
+            if child and child.get('disposition','unresolved')=='unresolved':
+                for key in ('wiring_legend_id','wiring_legend_name','installation_method'):child[key]=parent.get(key)
     # Generated paths inherit a connected trace's type in the router. Client
     # copies cannot inject catalog names or arbitrary engineering meanings.
     for wire in document.get("generated_wiring",[]):
+        if wire.get('assignment_state')=='unresolved':
+            wire.update(wiring_legend_id=None,wiring_legend_name=None,installation_method='unknown')
+            continue
         explicit_id=wire.get('wiring_legend_id')
         legend=legends.get(explicit_id) if explicit_id is not None else None if drawing_specific else (
             patterns.get('solid') if lighting and wire.get('disposition')=='unresolved' else None)

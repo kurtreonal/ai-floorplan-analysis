@@ -128,6 +128,21 @@ class DemoDeviceAttachment(DemoSchema):
 class DemoJunctionAttachment(DemoSchema):
     junction_id: Annotated[str, Field(pattern=r'^junction-[0-9]{4}$')]
     point_index: Annotated[StrictInt, Field(ge=0, le=2047)]
+    source_candidate_run_id: Annotated[str, Field(pattern=r'^[0-9a-f]{32}$')] | None = None
+    source_junction_id: Annotated[str, Field(pattern=r'^junction-[0-9]{4}$')] | None = None
+    observed_anchor: DemoPoint | None = None
+
+    @model_validator(mode='after')
+    def complete_source_evidence(self):
+        fields=(self.source_candidate_run_id,self.source_junction_id,self.observed_anchor)
+        if any(v is not None for v in fields) and any(v is None for v in fields):
+            raise ValueError('Source junction proposals require their run, junction and observed anchor.')
+        return self
+
+    @model_serializer(mode='wrap')
+    def compatible_shape(self,handler):
+        value=handler(self)
+        return {key:item for key,item in value.items() if item is not None}
 
 
 class DemoObservedWiringReview(DemoSchema):
@@ -164,6 +179,7 @@ class DemoObservedWiringReview(DemoSchema):
         value = handler(self)
         if not self.junction_attachments: value.pop('junction_attachments', None)
         if self.circuit_id is None: value.pop('circuit_id', None)
+        if value.get('assignment_state') is None: value.pop('assignment_state',None)
         return value
 
 
@@ -174,6 +190,7 @@ class DemoGeneratedWiringReview(DemoObservedWiringReview):
     target_id: EntityId
     target_kind: Literal["visible_trace", "device"]
     suppression_reason: Literal["redundant_observed_connection"] | None = None
+    assignment_state: Literal['unresolved'] | None = None
 
     @model_validator(mode="after")
     def generated_identity(self):

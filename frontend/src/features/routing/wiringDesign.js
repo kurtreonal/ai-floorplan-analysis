@@ -18,7 +18,7 @@ export function wiringDesign(wire, selected = false, segment = null) {
     color: selected ? WIRING_COLORS.selected : floor ? WIRING_COLORS.underground
       : segment?.previewDrop || wall ? WIRING_COLORS.wall
         : ceiling ? WIRING_COLORS.ceiling : WIRING_COLORS.unresolved,
-    dash: floor || style === 'dashed' ? [8, 5]
+    dash: wire.assignment_state === 'unresolved' ? [2,6] : floor || style === 'dashed' ? [8, 5]
       : style === 'solid' ? undefined : [5, 4],
   }
 }

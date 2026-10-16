@@ -119,9 +119,11 @@ def inherit_review_draft(candidate, previous_candidate, previous_document):
                 or saved.get('completeness', 'partial') != 'partial')
             if key == 'observed_wiring' and old is not None and saved['disposition']=='unresolved':
                 attachments=saved.get('device_attachments', [])
-                if (attachments and all(a.get('provenance')=='source_supported_proposal' for a in attachments)
+                junctions=saved.get('junction_attachments',[])
+                if ((attachments or junctions) and all(a.get('provenance')=='source_supported_proposal' for a in attachments)
+                    and all(a.get('source_candidate_run_id') for a in junctions)
                     and not saved.get('auto_connect_disabled_endpoints') and saved.get('elevation_meters') is None
-                    and not saved.get('junction_attachments') and not saved.get('circuit_id')
+                    and not saved.get('circuit_id')
                     and saved.get('completeness','partial')=='partial'):
                     from app.routing.endpoint_connections import apply_source_contacts
                     baseline=apply_source_contacts(previous_candidate,{'observed_wiring':[dict(

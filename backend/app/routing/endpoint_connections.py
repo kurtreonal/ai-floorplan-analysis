@@ -102,8 +102,38 @@ def apply_source_contacts(candidate, document, *, preserve_source=True):
     return result
 
 
+def apply_source_junctions(candidate, document):
+    """Source-backed shared nodes are proposals, not human confirmations."""
+    if document.get('approved_for_layout'):return document
+    observed=candidate.payload.observed_routes
+    wires={w['id']:w for w in document.get('observed_wiring',[])}
+    routes={r.id:r for r in observed.segments}
+    for junction in observed.junctions:
+        if junction.ambiguity!='clear':continue
+        matches=[]
+        for member in junction.members:
+            wire=wires.get(member.segment_id)
+            if not wire or wire.get('disposition','unresolved')!='unresolved' or wire.get('auto_connect_disabled_endpoints'):
+                break
+            if any(a.get('source_junction_id')==junction.id for a in wire.get('junction_attachments',[])):
+                break
+            anchor=routes[member.segment_id].points[member.point_index].model_dump()
+            indices=[i for i,p in enumerate(wire['points']) if p==anchor
+                and not any(a['point_index']==i for a in wire.get('device_attachments',[]))]
+            if len(indices)!=1:break
+            matches.append((wire,indices[0],anchor))
+        else:
+            scopes={(w.get('circuit_id'),w.get('elevation_meters'),w.get('installation_method','unknown')) for w,_,_ in matches}
+            if len(scopes)!=1:continue
+            for wire,index,anchor in matches:
+                wire['junction_attachments']=[*wire.get('junction_attachments',[]),dict(junction_id=junction.id,point_index=index,
+                    source_candidate_run_id=candidate.provenance.candidate_run_id,source_junction_id=junction.id,observed_anchor=anchor)]
+    return document
+
+
 def connect_touching_endpoints(candidate, document):
     result = apply_source_contacts(candidate, document)
+    result = apply_source_junctions(candidate, result)
     if result.get('approved_for_layout'):
         return result  # Approved historical geometry is not silently rewritten.
     predictions = {s.id: s for s in candidate.payload.symbols.items}
@@ -128,7 +158,7 @@ def connect_touching_endpoints(candidate, document):
     for wire in wires:
         if wire.get('disposition') == 'rejected' or wire.get('suppression_reason'):
             continue
-        if wire.get('source_evidence_required'):
+        if wire.get('source_evidence_required') or wire.get('assignment_state')=='unresolved':
             continue
         points = wire['points']
         attachments = wire.get('device_attachments', [])

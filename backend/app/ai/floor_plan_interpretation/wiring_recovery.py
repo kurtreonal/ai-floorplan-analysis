@@ -1,0 +1,324 @@
+"""Bounded, resumable source inspection, not circuit completion or training.
+
+Different local pixel methods inspect only unresolved device neighborhoods.
+Agreement is not confidence. New geometry must add a unique source-supported
+device contact; existing observations and approval are never replaced.
+"""
+from dataclasses import dataclass
+from time import monotonic
+import math
+import re
+import cv2
+import numpy as np
+
+from app.ai.floor_plan_interpretation.candidate import (
+    FloorPlanInterpretationPayload, ObservedRouteSegment, PixelPoint,
+    WiringRecoveryReport, WiringRecoveryPass, WiringRecoveryDevice, CandidateWarning,
+    ObservedJunction, ObservedJunctionMember,
+)
+from app.ai.floor_plan_interpretation.device_contact_evidence import with_device_contact_evidence
+from app.ai.floor_plan_interpretation.stroke_centerlines import stroke_paths
+
+VERSION = 'targeted-source-recovery-v1'
+METHODS = ('native_local_strokes', 'contrast_local_strokes')
+
+
+@dataclass(frozen=True)
+class RecoveryLimits:
+    maximum_windows: int = 64
+    maximum_seconds: float = 90
+    maximum_paths: int = 256
+
+    def __post_init__(self):
+        if (type(self.maximum_windows) is not int or not 1 <= self.maximum_windows <= 512
+            or not math.isfinite(self.maximum_seconds) or not 1 <= self.maximum_seconds <= 600
+            or type(self.maximum_paths) is not int or not 1 <= self.maximum_paths <= 512):
+            raise ValueError('Invalid recovery resource limits.')
+
+
+def eligible_symbols(payload):
+    return [s for s in payload.symbols.items if s.bounds and not re.search(
+        r'home.?run|circuit.*notation|raceway conduit',
+        s.training_legend.name if s.training_legend else s.observed_label or '', re.I)]
+
+
+def served_symbols(payload):
+    return {c.to_ref.split(':',1)[1] for c in payload.observed_routes.connections
+            if c.evidence_kind and c.ambiguity == 'unambiguous' and c.to_ref.startswith('symbol:')}
+
+
+def audit_devices(payload, image, *, exhausted=False):
+    served = served_symbols(payload)
+    ambiguous = {c.to_ref.split(':',1)[1] for c in payload.observed_routes.connections
+                 if c.ambiguity == 'ambiguous' and c.to_ref.startswith('symbol:')}
+    gray = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+    padding=max(2,min(6,round(min(image.shape[:2])*.0015)))
+    result = []
+    for symbol in eligible_symbols(payload)[:512]:
+        if symbol.id in served:
+            state,reason = 'observed_recovered','source_supported_attachment'
+        elif symbol.id in ambiguous:
+            state,reason = 'unresolved_observed','ambiguous_contact'
+        elif exhausted:
+            state,reason = 'unresolved_observed','resource_limit'
+        else:
+            box = symbol.bounds
+            radius = max(12,round(min(box.width,box.height)))
+            left,top = max(0,math.floor(box.x)-radius),max(0,math.floor(box.y)-radius)
+            right,bottom = min(image.shape[1],math.ceil(box.x+box.width)+radius),min(image.shape[0],math.ceil(box.y+box.height)+radius)
+            patch = gray[top:bottom,left:right].copy()
+            patch[max(0,math.floor(box.y)-top-padding):math.ceil(box.y+box.height)-top+padding+1,
+                  max(0,math.floor(box.x)-left-padding):math.ceil(box.x+box.width)-left+padding+1] = 255
+            # This is an unresolved-evidence flag, never a wall/wire classifier.
+            has_ink = int((patch < 180).sum()) >= max(12,radius)
+            state,reason = ('unresolved_observed','partial_source_evidence') if has_ink else (
+                'no_usable_observed_path','no_supported_path_after_search')
+        result.append(WiringRecoveryDevice(symbol_id=symbol.id,state=state,reason=reason))
+    return tuple(result)
+
+
+def local_paths(payload, image, symbol, method):
+    """Native-resolution window; integer translation is the ONLY transform."""
+    box = symbol.bounds
+    radius = max(96,min(384,math.ceil(max(box.width,box.height)*8)))
+    x,y = max(0,math.floor(symbol.center.x)-radius),max(0,math.floor(symbol.center.y)-radius)
+    right,bottom = min(image.shape[1],math.ceil(symbol.center.x)+radius+1),min(image.shape[0],math.ceil(symbol.center.y)+radius+1)
+    gray = cv2.cvtColor(image[y:bottom,x:right],cv2.COLOR_RGB2GRAY)
+    if method == 'contrast_local_strokes':
+        gray = cv2.createCLAHE(clipLimit=2,tileGridSize=(8,8)).apply(gray)
+        mask = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,31,12)
+        # Alternate structural-line separation: only the stronger stroke cores
+        # survive. Native thin-wire proposals remain untouched in the first
+        # method; contact/source gates still decide whether these are wires.
+        mask = cv2.morphologyEx(mask,cv2.MORPH_OPEN,cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3)))
+    else:
+        _,mask = cv2.threshold(gray,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    scope = np.zeros_like(mask)
+    refs = []
+    for region in payload.regions:
+        b = region.bounds
+        if region.kind != 'plan_region' or not (b.x <= symbol.center.x <= b.x+b.width and b.y <= symbol.center.y <= b.y+b.height): continue
+        refs.append(f'region:{region.id}')
+        scope[max(0,math.ceil(b.y)-y):max(0,min(bottom,math.floor(b.y+b.height)+1)-y),
+              max(0,math.ceil(b.x)-x):max(0,min(right,math.floor(b.x+b.width)+1)-x)] = 255
+    if not refs: return []
+    mask &= scope
+    for device in payload.symbols.items:
+        b = device.bounds
+        if not b: continue
+        # Source outside the glyph remains intact; no arbitrary gap closing.
+        mask[max(0,math.floor(b.y)-y-1):max(0,min(bottom,math.ceil(b.y+b.height)+2)-y),
+             max(0,math.floor(b.x)-x-1):max(0,min(right,math.ceil(b.x+b.width)+2)-x)] = 0
+    from app.ai.floor_plan_interpretation.automatic_wiring import _parallel_wall
+    paths = []
+    for chain in stroke_paths(mask,minimum_length=12,maximum_paths=128):
+        points = tuple(PixelPoint(x=p[0]+x,y=p[1]+y) for p in chain)
+        # Existing structural evidence is context, not a thickness-only rule.
+        length = sum(math.hypot(b.x-a.x,b.y-a.y) for a,b in zip(points,points[1:]))
+        structural = sum(math.hypot(b.x-a.x,b.y-a.y) for a,b in zip(points,points[1:])
+            if _parallel_wall(((a.x,a.y),(b.x,b.y)),payload.walls.items,2))
+        if structural > length*.8: continue
+        paths.append((points,tuple(refs)))
+    return paths
+
+
+def _duplicate(points, routes, image=None):
+    # All sampled points must belong to ONE existing path. Never fuse parallel
+    # observations or connect two paths just because their bounding boxes meet.
+    samples = [np.array([a.x,a.y])+(np.array([b.x,b.y])-np.array([a.x,a.y]))*t
+               for a,b in zip(points,points[1:]) for t in np.linspace(0,1,5)]
+    for route in routes:
+        def covered(p):
+            for a,b in zip(route.points,route.points[1:]):
+                start=np.array([a.x,a.y]);delta=np.array([b.x-a.x,b.y-a.y])
+                t=np.clip(float((p-start)@delta/(delta@delta)),0,1)
+                q=start+delta*t;distance=float(np.linalg.norm(p-q))
+                if distance<=1:return True
+                if image is None or distance>4:continue
+                # Slightly different axes within ONE continuous ink band are
+                # duplicate observations, not parallel physical conductors.
+                xy=np.rint(np.linspace(p,q,max(3,math.ceil(distance)+1))).astype(int)
+                if np.mean(image[xy[:,1],xy[:,0]].mean(axis=1)<180)>=.95:return True
+                if image[xy[-1,1],xy[-1,0]].mean()>=180 and image[xy[0,1],xy[0,0]].mean()<180:
+                    # An unsupported old axis beside this native stroke is
+                    # coordinate uncertainty, not evidence for a SECOND wire.
+                    # Keep it reviewable rather than inflate parallel routes.
+                    return True
+            return False
+        if samples and all(covered(p) for p in samples): return True
+    return False
+
+
+def _source_attachment(points, routes, image, *, endpoint_indices=None):
+    """A native stroke END meets an existing source centerline, not a crossing.
+
+    Own-stroke raster-band correction requires actual dark ink across the tiny
+    contact. Multiple independent targets stay ambiguous, not nearest-wins.
+    """
+    choices=[]
+    for index in endpoint_indices if endpoint_indices is not None else (0,len(points)-1):
+        p=points[index]
+        px,py=round(p.x),round(p.y)
+        local=(image[max(0,py-8):py+9,max(0,px-8):px+9].mean(axis=2)<180).astype(np.uint8)
+        radius=max(2,min(6,float(cv2.distanceTransform(local,cv2.DIST_L2,5).max())))
+        for route in routes:
+            for edge,(a,b) in enumerate(zip(route.points,route.points[1:])):
+                dx,dy=b.x-a.x,b.y-a.y;l2=dx*dx+dy*dy
+                t=max(0,min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/l2))
+                q=PixelPoint(x=a.x+t*dx,y=a.y+t*dy)
+                if math.hypot(p.x-q.x,p.y-q.y)>radius:continue
+                xy=np.rint(np.linspace((p.x,p.y),(q.x,q.y),5)).astype(int)
+                if np.mean(image[xy[:,1],xy[:,0]].mean(axis=1)<180)<.8:continue
+                neighbor=points[1 if index==0 else index-1]
+                incoming=np.array([q.x-neighbor.x,q.y-neighbor.y]);incoming/=np.linalg.norm(incoming)
+                trunk=np.array([dx,dy])/math.sqrt(l2)
+                if abs(float(incoming@trunk))<.95:
+                    # A fourth arm means an unmarked crossing, not a T. Inspect
+                    # beyond the source endpoint on its incoming axis.
+                    samples=np.rint(np.array([q.x,q.y])+np.arange(6,65)[:,None]*incoming).astype(int)
+                    if (samples<0).any() or (samples[:,0]>=image.shape[1]).any() or (samples[:,1]>=image.shape[0]).any():continue
+                    if np.mean(image[samples[:,1],samples[:,0]].mean(axis=1)<180)>.15:continue
+                choices.append((route.id,index,edge,t,q))
+    if len({(r,i) for r,i,_,_,_ in choices})!=1:return None
+    return min(choices,key=lambda c:(c[2],c[3])) if choices else None
+
+
+def _ends_at_device(points,symbol):
+    box=symbol.bounds
+    for p,n in ((points[0],points[1]),(points[-1],points[-2])):
+        if not (box.x-8<=p.x<=box.x+box.width+8 and box.y-8<=p.y<=box.y+box.height+8):continue
+        dx,dy=n.x-p.x,n.y-p.y;length=math.hypot(dx,dy)
+        perpendicular=abs((symbol.center.x-p.x)*dy-(symbol.center.y-p.y)*dx)/length
+        if perpendicular<=max(3,min(10,min(box.width,box.height)*.3)):return True
+    return False
+
+
+def _trim_to_network(points,symbol,routes,image):
+    # Stop at the FIRST supported network contact; retaining a later dash tail
+    # would draw a second parallel observation of the existing run.
+    first=points[0];box=symbol.bounds
+    ordered=points if box.x-8<=first.x<=box.x+box.width+8 and box.y-8<=first.y<=box.y+box.height+8 else tuple(reversed(points))
+    for last in range(1,len(ordered)):
+        prefix=ordered[:last+1]
+        attachment=_source_attachment(prefix,routes,image,endpoint_indices=(last,))
+        if attachment:return prefix,attachment
+    return points,None
+
+
+def _join_source_trial(payload, route, contact):
+    target_id,index,edge,t,point=contact
+    segments=list(payload.observed_routes.segments)
+    target=next(r for r in segments if r.id==target_id)
+    target_points=list(target.points)
+    if t<1e-8:vertex=edge;point=target_points[vertex]
+    elif t>1-1e-8:vertex=edge+1;point=target_points[vertex]
+    else:
+        vertex=edge+1
+        if len(target_points)>=512:return None
+        target_points.insert(vertex,point)
+    junctions=list(payload.observed_routes.junctions)
+    if 0<t<1:
+        junctions=[j.model_copy(update={'members':tuple(m.model_copy(update={'point_index':m.point_index+1})
+            if m.segment_id==target_id and m.point_index>=vertex else m for m in j.members)}) for j in junctions]
+    existing=next((j for j in junctions if any(m.segment_id==target_id and m.point_index==vertex for m in j.members)),None)
+    points=list(route.points);points[index]=point
+    if any(a==b for a,b in zip(points,points[1:])):return None
+    route=route.model_copy(update={'points':tuple(points)})
+    segments=[r.model_copy(update={'points':tuple(target_points)}) if r.id==target_id else r for r in segments]+[route]
+    member=ObservedJunctionMember(segment_id=route.id,point_index=index)
+    if existing:
+        if len(existing.members)>=16:return None
+        junctions=[j.model_copy(update={'members':j.members+(member,)}) if j.id==existing.id else j for j in junctions]
+    else:
+        number=max((int(j.id.split('-')[-1]) for j in junctions),default=0)+1
+        junctions.append(ObservedJunction(id=f'junction-{number:04d}',members=(
+            ObservedJunctionMember(segment_id=target_id,point_index=vertex),member),
+            evidence_kind='source_corner_contact',evidence_refs=route.evidence_refs,ambiguity='clear'))
+    return payload.model_copy(update={'document_state':'partial','observed_routes':payload.observed_routes.model_copy(update={
+        'state':'partial','failure_reason':None,'segments':tuple(segments),'junctions':tuple(junctions)})})
+
+
+def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint=lambda state:None, resume=None):
+    limits = limits or RecoveryLimits()
+    if image.shape[:2] != (payload.source_plane.height_pixels,payload.source_plane.width_pixels):
+        raise ValueError('Recovery requires unchanged source coordinates.')
+    base = payload
+    symbols = eligible_symbols(payload)
+    overflow=len(symbols)>512
+    external_limit=image.shape[0]*image.shape[1]>12_000_000 or len(payload.symbols.items)>512 or sum(len(r.points)-1 for r in payload.observed_routes.segments)>4096
+    if len(symbols)>512: symbols=symbols[:512]
+    start=monotonic();spent=0.;cursor=0;method_index=0;passes=[];windows=0
+    if resume:
+        payload=FloorPlanInterpretationPayload.model_validate(resume['payload'])
+        cursor=resume['cursor'];method_index=resume['method_index'];spent=resume['spent_seconds']
+        passes=[WiringRecoveryPass.model_validate(p) for p in resume['passes']];windows=resume['windows']
+    else:
+        payload=with_device_contact_evidence(payload,image)
+    def save():
+        checkpoint(dict(payload=payload.model_dump(mode='json'),cursor=cursor,method_index=method_index,
+            spent_seconds=spent+monotonic()-start,passes=[p.model_dump() for p in passes],windows=windows))
+    save();check()
+    reason='resource_limit' if external_limit else 'methods_exhausted'
+    while method_index < len(METHODS) and not external_limit:
+        if len(served_symbols(payload)) >= len(symbols): reason='converged';break
+        method=METHODS[method_index]
+        if len(passes)<=method_index: passes.append(WiringRecoveryPass(method=method,windows=0,added_paths=0,added_contacts=0))
+        while cursor < len(symbols):
+            if windows >= limits.maximum_windows or spent+monotonic()-start >= limits.maximum_seconds or len(payload.observed_routes.segments)>=limits.maximum_paths:
+                reason='resource_limit';break
+            check()
+            symbol=symbols[cursor]
+            if symbol.id not in served_symbols(payload):
+                old_contacts=len(payload.observed_routes.connections);added=0
+                try: proposals=local_paths(payload,image,symbol,method)
+                except (ValueError,cv2.error,MemoryError):
+                    row=passes[method_index]
+                    passes[method_index]=row.model_copy(update={'failed_windows':row.failed_windows+1})
+                    proposals=[]
+                for points,refs in proposals:
+                    check()
+                    if spent+monotonic()-start >= limits.maximum_seconds: reason='resource_limit';break
+                    if len(payload.observed_routes.segments)>=limits.maximum_paths: break
+                    if not _ends_at_device(points,symbol):continue
+                    same_scope=[r for r in payload.observed_routes.segments if set(r.evidence_refs)&set(refs)]
+                    if _duplicate(points,same_scope,image): continue
+                    identity=max((int(r.id.split('-')[-1]) for r in payload.observed_routes.segments),default=0)+1
+                    points,attachment=_trim_to_network(points,symbol,same_scope,image)
+                    if attachment:
+                        q=attachment[-1]
+                        if any(s.bounds.x-3<=q.x<=s.bounds.x+s.bounds.width+3 and s.bounds.y-3<=q.y<=s.bounds.y+s.bounds.height+3 for s in symbols):attachment=None
+                    route=ObservedRouteSegment(id=f'segment-{identity:04d}',points=points,line_style='solid',evidence_refs=refs,ambiguity='ambiguous')
+                    trial=_join_source_trial(payload,route,attachment) if attachment else payload.model_copy(update={
+                        'document_state':'partial','observed_routes':payload.observed_routes.model_copy(update={
+                        'state':'partial','failure_reason':None,'segments':payload.observed_routes.segments+(route,)})})
+                    if trial is None:continue
+                    trial=with_device_contact_evidence(trial,image)
+                    if not served_symbols(payload).issubset(served_symbols(trial)):continue
+                    new=[c for c in trial.observed_routes.connections if c.from_ref==f'segment:{route.id}' and c.ambiguity=='unambiguous']
+                    # Two distinct source ports, including the audited device,
+                    # not one random leaf or a line near an unconnected glyph.
+                    ids={c.to_ref.split(':',1)[1] for c in new if c.evidence_kind}
+                    if symbol.id not in ids or (len(ids)<2 and attachment is None) or not ids-served_symbols(payload): continue
+                    payload=FloorPlanInterpretationPayload.model_validate(trial.model_dump());added+=1
+                row=passes[method_index]
+                passes[method_index]=row.model_copy(update={'windows':row.windows+1,'added_paths':row.added_paths+added,
+                    'added_contacts':row.added_contacts+max(0,len(payload.observed_routes.connections)-old_contacts)})
+                windows+=1
+            cursor+=1
+            save();check()
+            if reason=='resource_limit': break
+        if reason=='resource_limit': break
+        method_index+=1;cursor=0;save()
+    if len(served_symbols(payload)) >= len(symbols): reason='converged'
+    if overflow or external_limit:reason='resource_limit'
+    report=WiringRecoveryReport(stop_reason=reason,passes=tuple(passes),devices=audit_devices(payload,image,exhausted=reason=='resource_limit'))
+    warnings=tuple(w for w in payload.warnings if w.code!='wiring_recovery_status')
+    if len(warnings)<256:
+        warnings+=(CandidateWarning(code='wiring_recovery_status',severity='info',message=
+            f'Targeted source recovery: {reason}; {windows} windows. No usable observed path is not proof that wiring is absent. Generated routes are separate proposals.'),)
+    payload=FloorPlanInterpretationPayload.model_validate(payload.model_copy(update={'observed_routes':payload.observed_routes.model_copy(update={
+        'recovery':report}),'warnings':warnings}).model_dump())
+    save();check()
+    # Walls, symbols, scale and original observations are owned by other stages.
+    assert payload.walls==base.walls and payload.symbols==base.symbols
+    return payload

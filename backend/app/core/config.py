@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     auto_start_interpretation_worker: bool = True
     # Retained for the legacy standalone demo-worker rollback command only.
     auto_start_demo_worker: bool = False
+    wiring_recovery_maximum_windows: int = Field(default=64,ge=1,le=512)
+    wiring_recovery_maximum_seconds: float = Field(default=90,ge=1,le=600)
 
     # U8 local gateway settings.  A missing runtime/model is an honest
     # unavailable VLM state; it must never trigger a hosted fallback.

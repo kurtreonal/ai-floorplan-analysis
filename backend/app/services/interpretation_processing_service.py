@@ -109,6 +109,7 @@ from app.ai.floor_plan_interpretation.pdf_wall_evidence import with_pdf_wall_evi
 from app.ai.floor_plan_interpretation.pdf_wall_recognition import with_pdf_wall_recognition, VERSION as PDF_WALL_RECOGNITION_VERSION
 from app.ai.floor_plan_interpretation.pdf_observed_wiring import with_pdf_observed_wiring, VERSION as PDF_WIRING_RECOGNITION_VERSION
 from app.ai.floor_plan_interpretation.scoped_analysis import merge_view_payloads,failed_geometry_payload,failed_wiring_payload
+from app.services.wiring_recovery_service import recover_worker_wiring
 
 
 # This path currently executes deterministic OpenCV, not a model gateway.
@@ -212,13 +213,12 @@ def _heartbeat(
     worker_identity: str,
     stage: str,
 ) -> None:
-    cancellation_requested = heartbeat_processing_attempt(
-        session,
-        attempt_id=attempt_id,
-        worker_identity=worker_identity,
-        stage=stage,
-        lease_seconds=LEASE_SECONDS,
-    )
+    try:
+        cancellation_requested = heartbeat_processing_attempt(
+            session,attempt_id=attempt_id,worker_identity=worker_identity,
+            stage=stage,lease_seconds=LEASE_SECONDS)
+    except ProcessingExecutionError as error:
+        raise InterpretationProcessingError(error.code) from None
     if cancellation_requested:
         # The failure fence acknowledges cancellation together with page state.
         raise InterpretationProcessingError("PROCESSING_CANCELLED")
@@ -696,6 +696,11 @@ def process_interpretation_job(
                             'legend before assigning installation types; floor/view heights are not inferred.')
                 payload=type(payload).model_validate(payload.model_copy(update={
                     'document_state':'partial','warnings':payload.warnings+(warning,)}).model_dump())
+            payload,recovery_parameters = recover_worker_wiring(payload,rgb,
+                root=get_processed_directory(settings),job_id=job.id,page_id=page.id,
+                source_sha256=artifact.record.sha256,settings=settings,
+                heartbeat=lambda:_heartbeat(session,attempt_id=claim.attempt_id,
+                    worker_identity=worker_identity,stage='symbol_evidence'))
             candidate = build_candidate_envelope(
                 payload,
                 CandidateHostProvenance(
@@ -719,7 +724,7 @@ def process_interpretation_job(
                                     "partial-label-symbol-detector-v1" if trained else
                                     "pull-template-v1" if experimental else "demo-cv-room-v2"),
                     runtime_version=("ultralytics-local-cpu-v1" if trained else f"opencv-{cv2.__version__}"),
-                    inference_parameters=tuple(sorted(selection_parameters + pdf_parameters + (
+                    inference_parameters=tuple(sorted(selection_parameters + pdf_parameters + recovery_parameters + (
                         InferenceParameter(name="preprocessing-configuration", value=json.dumps(
                             preprocessing_configuration(
                                 region.width if region else rgb.shape[1],
@@ -813,6 +818,16 @@ def process_interpretation_job(
             except GatewayError as error:
                 raise InterpretationProcessingError(error.code) from None
             candidate = result.candidate
+            recovered,recovery_parameters=recover_worker_wiring(candidate.payload,rgb,
+                root=get_processed_directory(settings),job_id=job.id,page_id=page.id,
+                source_sha256=artifact.record.sha256,settings=settings,
+                heartbeat=lambda:_heartbeat(session,attempt_id=claim.attempt_id,
+                    worker_identity=worker_identity,stage='symbol_evidence'))
+            parameters={p.name:p for p in candidate.provenance.inference_parameters}
+            parameters.update({p.name:p for p in recovery_parameters})
+            parameters['wiring-evidence-version']=InferenceParameter(name='wiring-evidence-version',value=WIRING_EVIDENCE_VERSION)
+            candidate=type(candidate).model_validate(candidate.model_copy(update={'payload':recovered,
+                'provenance':candidate.provenance.model_copy(update={'inference_parameters':tuple(parameters[key] for key in sorted(parameters))})}).model_dump())
         serialized = candidate.model_dump_json()
         run = FloorPlanInterpretationRun(
             candidate_run_id=run_id,

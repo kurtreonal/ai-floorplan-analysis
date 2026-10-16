@@ -6,7 +6,8 @@ import { fitCanvas } from './detectionCanvasGeometry.js'
 import { DeviceGlyph } from './DeviceGlyph.jsx'
 import { wiringAppearance } from './wiringAppearance.js'
 import { snapWiringPoint } from './wireDrawing.js'
-import { findDeviceWireSnap, findWireDeviceSnap } from './deviceConnections.js'
+import { findDeviceWireSnap } from './deviceConnections.js'
+import { findWireEndpointSnap } from './wirePathSnap.js'
 import { clampDevicePoint } from './devicePresentation.js'
 import { drawingRegionFromPoints } from './drawingRegion.js'
 import {buildWallTopology} from '../../geometry/wallTopology.js'
@@ -692,7 +693,7 @@ export function DemoInterpretationCanvas({
             {layers.wirings && selected?.kind === 'wiring' && (draft.wirings || []).find(wire => wire.id === selected.id && wire.disposition !== 'rejected')?.points.map((point,index) => (
               <Circle key={index} name={`wiring-point-${index}`} x={point.x} y={point.y} radius={5 / stageTransform.scale}
                 fill="#2563eb" stroke="white" strokeWidth={1 / stageTransform.scale}
-                hitStrokeWidth={6 / stageTransform.scale} draggable={Boolean(onMoveWirePoint)}
+                hitStrokeWidth={6 / stageTransform.scale} draggable={Boolean(onMoveWirePoint) && ['select','move'].includes(tool) && !isSpaceHeld}
                 onMouseDown={event => { event.cancelBubble = true }}
                 onTouchStart={event => { event.cancelBubble = true }}
                 onClick={(event) => { event.cancelBubble = true }}
@@ -700,7 +701,7 @@ export function DemoInterpretationCanvas({
                 onDragMove={(event) => {
                   if (wireDrag.current?.cancelled) return
                   const next = {x: event.target.x(), y: event.target.y()}
-                  const target = preferences.snapping ? findWireDeviceSnap(next, selected.id, index, draft, presentations, snapThreshold) : null
+                  const target = preferences.snapping ? findWireEndpointSnap(next, selected.id, index, draft, presentations, snapThreshold) : null
                   setWireDeviceSnap(target)
                   if (target) event.target.position(target.point)
                 }}
@@ -709,7 +710,7 @@ export function DemoInterpretationCanvas({
                   wireDrag.current = null
                   setWireDeviceSnap(null)
                   const next = { x: event.target.x(), y: event.target.y() }
-                  const target = cancelled || !preferences.snapping ? null : findWireDeviceSnap(next, selected.id, index, draft, presentations, snapThreshold)
+                  const target = cancelled || !preferences.snapping ? null : findWireEndpointSnap(next, selected.id, index, draft, presentations, snapThreshold)
                   event.target.position(point)
                   if (cancelled) return
                   if (target) onMoveWirePoint?.(selected.id,index,target.point,target)
@@ -751,7 +752,7 @@ export function DemoInterpretationCanvas({
               <Circle name="wire-device-magnet" x={wireDeviceSnap.point.x} y={wireDeviceSnap.point.y}
                 radius={12 / stageTransform.scale} stroke="#13816c" fill="#13816c20" strokeWidth={2 / stageTransform.scale} />
               <Text x={wireDeviceSnap.point.x+16/stageTransform.scale} y={wireDeviceSnap.point.y-20/stageTransform.scale}
-                text="Release to connect device" fill="#13816c" fontSize={12/stageTransform.scale} />
+                text={wireDeviceSnap.kind === 'junction' ? 'Release to join path' : 'Release to connect device'} fill="#13816c" fontSize={12/stageTransform.scale} />
             </Group>}
             {tool === 'place-device' && <Rect name="device-place-hit" x={0} y={0} width={width} height={height}
               fill="rgba(0,0,0,0.001)" onMouseLeave={() => setPlacementPointer(null)} />}

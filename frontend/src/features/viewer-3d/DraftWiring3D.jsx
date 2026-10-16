@@ -70,9 +70,19 @@ export function WireHandle({ position, scene, onMove, onFindSnap, onDraggingChan
         if (projected.z < -1 || projected.z > 1 || Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1) return Infinity
         targetPositions.set(symbol.id,connector)
         return Math.hypot((projected.x-pointer.x)*size.width/2,(projected.y-pointer.y)*size.height/2)
-      },16)
+      },16,(sourcePoint,wire) => {
+        const rendered = scene.draftWires.find(w => w.id === wire.id)
+        if (!rendered?.points.length) return Infinity
+        const target = [sourcePoint.x*scene.sourceScale,rendered.points[0][1],sourcePoint.y*scene.sourceScale]
+        const projected = new Vector3(...target).project(camera)
+        if (projected.z < -1 || projected.z > 1) return Infinity
+        targetPositions.set(`path:${wire.id}`,target)
+        return Math.hypot((projected.x-pointer.x)*size.width/2,(projected.y-pointer.y)*size.height/2)
+      })
       current.snap = snap ?? null
-      setSnapPreview(snap ? {position:targetPositions.get(snap.symbolId)} : null)
+      setSnapPreview(snap ? {position:snap.kind === 'junction'
+        ? [snap.point.x*scene.sourceScale,targetPositions.get(`path:${snap.wireId}`)[1],snap.point.y*scene.sourceScale]
+        : targetPositions.get(snap.symbolId)} : null)
       ref.current?.position.set(snap ? snap.point.x*scene.sourceScale : point.x,position[1],
         snap ? snap.point.y*scene.sourceScale : point.z); invalidate()
     }} onPointerUp={e => finish(e,true)} onPointerCancel={e => finish(e,false)} onLostPointerCapture={e => finish(e,false)}>
@@ -100,7 +110,7 @@ export function DraftWiring3D({ scene, selectedWireId, onSelectWire, onMoveWireP
       color={wiringAppearance(wire,selectedWireId===wire.id,run.segment).color}
       onClick={event=>{event.stopPropagation();onSelectWire?.(wire.id)}} />)}
     {selectedWireId === wire.id && wire.points.map((p,index) => <WireHandle key={index} position={p} scene={scene}
-      onFindSnap={onFindWireDeviceSnap ? (point,distance,threshold) => onFindWireDeviceSnap(wire.id,index,point,distance,threshold) : undefined}
+      onFindSnap={onFindWireDeviceSnap ? (point,distance,threshold,pathDistance) => onFindWireDeviceSnap(wire.id,index,point,distance,threshold,pathDistance) : undefined}
       onMove={onMoveWirePoint ? (point,snap) => snap ? onMoveWirePoint(wire.id,index,point,snap) : onMoveWirePoint(wire.id,index,point) : undefined} onDraggingChange={onDraggingChange} />)}
   </group>)}</group>
 }

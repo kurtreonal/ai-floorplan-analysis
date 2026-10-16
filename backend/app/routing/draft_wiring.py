@@ -303,6 +303,9 @@ def generate_draft_wiring(candidate, review=None, *, maximum_devices=64, budget_
     # remains editable with unresolved topology. A* is an independent proposal
     # source, not evidence that a device touches a particular drawing trace.
     if not legacy_completion:
+        if payload.observed_routes.recovery is not None:
+            from app.routing.geometric_draft import propose_geometric_drafts
+            return propose_geometric_drafts(candidate,review,symbols,wires,existing,clearances,budget_seconds=budget_seconds)
         return existing, (["Observed wiring connectivity is unresolved unless explicitly attached. No proximity-based A* joins were added."] if wires else [])
     existing = _prune_redundant(_inherit_trace_types(existing, wires), wires)
     active = wires + [w for w in existing if w.get("disposition") != "rejected"]

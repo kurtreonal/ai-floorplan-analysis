@@ -7,6 +7,58 @@ from app.schemas.demo_interpretation import DemoGeneratedWiringReview
 
 
 class ObservedWiringReviewApiTests(fixture.DemoInterpretationApiTests):
+    def test_automatic_source_junction_is_proposed_saved_and_published_without_form_submission(self):
+        from hashlib import sha256
+        from copy import deepcopy
+        from uuid import uuid4
+        from sqlalchemy.orm import Session
+        from app.models import FloorPlanInterpretationRun
+        original=self.candidate
+        with Session(self.engine) as session:
+            source_run=session.get(FloorPlanInterpretationRun,self.ids['run'])
+            prior=(source_run.candidate_json,source_run.candidate_sha256)
+        def restore_source():
+            self.candidate=original
+            with Session(self.engine) as session:
+                source_run=session.get(FloorPlanInterpretationRun,self.ids['run'])
+                source_run.candidate_json,source_run.candidate_sha256=prior
+                session.commit()
+        self.addCleanup(restore_source)
+        raw=self.candidate.payload.model_dump(mode='json')
+        raw['document_state']='partial'
+        raw['observed_routes']=dict(state='partial',segments=[dict(id=f'segment-{i:04d}',points=points,
+            evidence_refs=['region:region-0001'],ambiguity='ambiguous') for i,points in [
+            (1,[dict(x=20,y=30),dict(x=80,y=30)]),(2,[dict(x=80,y=30),dict(x=80,y=90)])]],
+            junctions=[dict(id='junction-0001',members=[dict(segment_id=f'segment-{i:04d}',point_index=index) for i,index in [(1,1),(2,0)]],
+                evidence_kind='source_corner_contact',evidence_refs=['region:region-0001'],ambiguity='clear')])
+        self.candidate=self.candidate.model_copy(update={'payload':FloorPlanInterpretationPayload.model_validate(raw)})
+        encoded=self.candidate.model_dump_json()
+        with Session(self.engine) as session:
+            run=session.get(FloorPlanInterpretationRun,self.ids['run']);run.candidate_json=encoded;run.candidate_sha256=sha256(encoded.encode()).hexdigest();session.commit()
+        self._login();url=f"/api/floor-plans/{self.ids['floor_plan']}/interpretation"
+        loaded=self.client.get(url).json()
+        self.assertIsNone(loaded['review'])
+        wires=loaded['observed_wiring']
+        self.assertTrue(all(w['disposition']=='unresolved' and w['junction_attachments'][0]['source_junction_id']=='junction-0001' for w in wires))
+        payload=self._review_payload(complete=False,approved=False);payload['observed_wiring']=wires
+        saved=self.client.post(url+'/reviews',json=payload)
+        self.assertEqual(saved.status_code,201,saved.text)
+        self.assertEqual(self.client.get(url).json()['review']['observed_wiring'],saved.json()['review']['observed_wiring'])
+        invalid=deepcopy(payload);invalid['expected_revision_number']=1
+        for wire in invalid['observed_wiring']:wire['junction_attachments'][0]['observed_anchor']['x']+=1
+        self.assertEqual(self.client.post(url+'/reviews',json=invalid).status_code,422)
+        payload.update(expected_revision_number=1,review_complete=True,approved_for_layout=True,wall_height_meters=3,wall_thickness_meters=.15)
+        for wire in payload['observed_wiring']:wire.update(disposition='accepted',completeness='complete',elevation_meters=2.8)
+        approved=self.client.post(url+'/reviews',json=payload)
+        self.assertEqual(approved.status_code,201,approved.text)
+        target=f"/api/projects/{self.ids['project']}/floors/{self.ids['floor']}/floor-plans/{self.ids['floor_plan']}/interpretation/layout"
+        published=self.client.post(target,json=dict(candidate_run_id=self.candidate.provenance.candidate_run_id,review_revision_number=2,
+            expected_layout_version_number=None,idempotency_key=str(uuid4())))
+        self.assertEqual(published.status_code,201,published.text)
+        self.assertEqual(published.json()['extension']['extension_schema_version'],5)
+        contacts=[row['junction_connections'][0]['anchor'] for row in published.json()['extension']['route_details']]
+        self.assertEqual(contacts[0],contacts[1])
+
     def test_explicit_junction_review_reload_and_canonical_v5_preserve_shared_anchor(self):
         from copy import deepcopy
         from uuid import uuid4

@@ -5,6 +5,7 @@ import { legendDescription } from '../../api/legendChoices.js'
 import { orderNamed, orderList } from '../../utils/listOrder.js'
 
 const pricingLabels = {
+  electrical_assignment_required:'Electrical assignment required',
   network_material_review_required: 'Review overlapping path materials',
   scale_required: 'Set plan scale once', classification_required: 'Unclassified',
   material_not_found: 'No matching catalog material', ambiguous_material: 'Multiple matching materials',

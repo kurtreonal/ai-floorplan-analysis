@@ -25,11 +25,12 @@ vi.mock('../../api/symbolLegends.js', async () => ({
   ...(await vi.importActual('../../api/symbolLegends.js')), fetchSymbolLegends: vi.fn(),
 }))
 vi.mock('./DemoInterpretationCanvas.jsx', () => ({
-  DemoInterpretationCanvas: ({ draft, onSelect, onUpdateSymbol, onUpdateWall, onAddWire, onPlaceDevice, placementPresentation, tool }) => <div data-testid="demo-canvas">
+  DemoInterpretationCanvas: ({ draft, onSelect, onUpdateSymbol, onUpdateWall, onAddWire, onMoveWirePoint, onPlaceDevice, placementPresentation, tool }) => <div data-testid="demo-canvas">
     {draft.walls.length}/{draft.rooms.length}/{draft.symbols.length}
     <button type="button" onClick={() => onSelect({ kind: 'symbol', id: 'symbol-0001' })}>Select first symbol</button>
     <button type="button" onClick={() => onUpdateSymbol({ ...draft.symbols[0], center: { x: 85, y: 65 } })}>Drag first symbol</button>
     <button onClick={()=>onUpdateWall({...draft.walls[0],start:{x:10,y:20},end:{x:100,y:20}})}>Move joined wall</button>
+    <button onClick={()=>onMoveWirePoint('segment-0002',0,{x:50,y:20},{kind:'junction',wireId:'segment-0001',segmentIndex:0,t:.5,point:{x:50,y:20}})}>Drag endpoint onto path</button>
     {tool === 'wire' && <button onClick={() => onAddWire([{ x: 20, y: 30 }, { x: 80, y: 30 }])}>Finish drawn wire</button>}
     {tool === 'place-device' && placementPresentation && <button onClick={() => onPlaceDevice({x:200,y:150})}>Place preview device</button>}
   </div>,
@@ -37,6 +38,7 @@ vi.mock('./DemoInterpretationCanvas.jsx', () => ({
 vi.mock('./DraftRoomPreview.jsx', () => ({ DraftRoomPreview: ({ draft, onSelect, onUpdateSymbol, onMoveWirePoint }) => <div data-testid="draft-3d">{draft.rooms.length} draft rooms
   <button onClick={() => onSelect({ kind: 'symbol', id: 'symbol-0001' })}>Inspect 3D device</button>
   <button onClick={() => onUpdateSymbol({ ...draft.symbols[0], center: { x: 85, y: 65 } })}>Move 3D device</button>
+  <button onClick={()=>onMoveWirePoint('segment-0002',0,{x:50,y:20},{kind:'junction',wireId:'segment-0001',segmentIndex:0,t:.5,point:{x:50,y:20}})}>Drag endpoint onto path</button>
   {draft.wirings?.length > 0 && <><button onClick={() => onSelect({ kind: 'wiring', id: draft.wirings[0].id })}>Inspect 3D wire</button>
     <button onClick={() => onMoveWirePoint(draft.wirings[0].id,1,{ x: 70, y: 30 })}>Move 3D wire point</button></>}
 </div> }))
@@ -102,8 +104,8 @@ describe('unified demo interpretation review', () => {
     if(reopen)fireEvent.click(reopen)
     fireEvent.change(screen.getByLabelText('Select item'),{target:{value:'wiring:segment-0002'}})
     fireEvent.click(screen.getByText('Path vertices & junctions'))
-    fireEvent.change(screen.getByLabelText('Connect to path'),{target:{value:'segment-0001'}})
-    fireEvent.click(screen.getByRole('button',{name:'Connect junction'}))
+    expect(screen.queryByRole('button',{name:'Connect junction'})).toBeNull()
+    fireEvent.click(await screen.findByRole('button',{name:'Drag endpoint onto path'}))
     fireEvent.click(screen.getByRole('button',{name:'Undo'}))
     expect(screen.queryByRole('button',{name:'Detach junction at vertex'})).toBeNull()
     fireEvent.click(screen.getByRole('button',{name:'Redo'}))

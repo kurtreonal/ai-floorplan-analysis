@@ -1,7 +1,7 @@
-// Explicit endpoint attachments only. Crossings/interior segment snaps need a
-// separately modelled junction and are deliberately not supported here.
+// Device terminal bindings and committed shared-node edits. Crossings alone
+// never imply connectivity; path magnets commit through the junction model.
 import { moveDraftWirePoint } from './draftWiringScene.js'
-import { moveJunctionVertex } from './wireJunctions.js'
+import { joinWireJunction, moveJunctionVertex } from './wireJunctions.js'
 
 // Source-coordinate contact test, independent of camera, zoom or pixel density.
 // Only endpoints meeting a device port qualify; segment crossings never do.
@@ -10,7 +10,7 @@ export function connectTouchingWireEndpoints(draft, presentations = {}) {
   const wirings = (draft.wirings || []).map(w => ({...w, points:w.points.map(p => ({...p})),
     device_attachments:[...(w.device_attachments || [])]}))
   for (const wire of wirings) {
-    if (wire.disposition === 'rejected' || wire.suppression_reason || wire.source_evidence_required) continue
+    if (wire.disposition === 'rejected' || wire.suppression_reason || wire.source_evidence_required || wire.assignment_state === 'unresolved') continue
     for (const index of [0,wire.points.length-1]) {
       if (wire.device_attachments.some(a => a.point_index === index)
         || wire.junction_attachments?.some(a => a.point_index === index)
@@ -75,6 +75,10 @@ export function findWireDeviceSnap(point, wireId, pointIndex, draft, presentatio
 export function moveConnectedWirePoint(draft, wireId, pointIndex, point, width, height, snap = null, presentations = {}) {
   const wire = (draft.wirings || []).find(w => w.id === wireId && w.disposition !== 'rejected')
   if (!wire) return draft
+  if (snap?.kind === 'junction') {
+    if (![0,wire.points.length-1].includes(pointIndex)) return draft
+    return joinWireJunction(draft,wireId,pointIndex,snap.wireId,snap.segmentIndex,snap.t)
+  }
   if (wire.junction_attachments?.some(a => a.point_index === pointIndex)) {
     if (snap) return draft // Detach the junction before binding a device terminal.
     const updated = moveDraftWirePoint(wire, pointIndex, point, width, height)

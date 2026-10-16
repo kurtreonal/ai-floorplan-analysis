@@ -288,12 +288,53 @@ class ObservedRouteConnection(StrictCandidateModel):
         return value
 
 
+class ObservedJunctionMember(StrictCandidateModel):
+    segment_id: EntityId
+    point_index: Annotated[StrictInt, Field(ge=0, le=511)]
+
+
+class ObservedJunction(EvidenceRefMixin):
+    id: EntityId
+    members: Annotated[tuple[ObservedJunctionMember, ...], Field(min_length=2, max_length=16)]
+    evidence_kind: Literal['source_t_contact', 'source_corner_contact', 'marked_junction']
+
+
+class WiringRecoveryPass(StrictCandidateModel):
+    method: Literal['native_local_strokes', 'contrast_local_strokes']
+    windows: Annotated[StrictInt, Field(ge=0, le=512)]
+    added_paths: Annotated[StrictInt, Field(ge=0, le=512)]
+    added_contacts: Annotated[StrictInt, Field(ge=0, le=2048)]
+    failed_windows: Annotated[StrictInt, Field(ge=0, le=512)] = 0
+
+
+class WiringRecoveryDevice(StrictCandidateModel):
+    symbol_id: EntityId
+    state: Literal['observed_recovered', 'unresolved_observed', 'no_usable_observed_path']
+    reason: Literal['source_supported_attachment', 'ambiguous_contact', 'partial_source_evidence', 'no_supported_path_after_search', 'resource_limit']
+
+
+class WiringRecoveryReport(StrictCandidateModel):
+    version: Literal['targeted-source-recovery-v1'] = 'targeted-source-recovery-v1'
+    stop_reason: Literal['running', 'converged', 'methods_exhausted', 'resource_limit']
+    passes: Annotated[tuple[WiringRecoveryPass, ...], Field(max_length=2)] = ()
+    devices: Annotated[tuple[WiringRecoveryDevice, ...], Field(max_length=512)] = ()
+
+
 class ObservedRoutes(StrictCandidateModel):
     state: Literal["unavailable", "empty", "completed", "partial", "failed"]
     segments: Annotated[tuple[ObservedRouteSegment, ...], Field(max_length=MAXIMUM_ITEMS)] = ()
     connections: Annotated[tuple[ObservedRouteConnection, ...], Field(max_length=MAXIMUM_ITEMS)] = ()
     failure_reason: SafeText | None = None
     truncated: StrictBool = False
+    junctions: Annotated[tuple[ObservedJunction, ...], Field(max_length=512)] = ()
+    recovery: WiringRecoveryReport | None = None
+
+    @model_serializer(mode='wrap')
+    def compatible_shape(self, handler):
+        result = handler(self)
+        if not self.junctions: result.pop('junctions', None)
+        if self.recovery is None: result.pop('recovery', None)
+        return result
 
     @model_validator(mode="after")
     def state_matches_content(self):
@@ -549,6 +590,25 @@ def _validate_candidate_document(document: FloorPlanInterpretationPayload) -> No
             along=(px*dx+py*dy)/length2
             if not -1e-8<=along<=1+1e-8 or abs(px*dy-py*dx)/math.sqrt(length2)>1e-6:
                 raise ValueError('Device contact anchor must belong to its observed source edge.')
+    routes = {r.id:r for r in document.observed_routes.segments}
+    junction_ids = set()
+    for junction in document.observed_routes.junctions:
+        if not junction.id.startswith('junction-') or junction.id in junction_ids:
+            raise ValueError('Invalid observed junction identity.')
+        junction_ids.add(junction.id)
+        anchors = []
+        if len({m.segment_id for m in junction.members}) != len(junction.members):
+            raise ValueError('Observed junction repeats a path.')
+        for member in junction.members:
+            route = routes.get(member.segment_id)
+            if route is None or member.point_index >= len(route.points):
+                raise ValueError('Observed junction has an unavailable vertex.')
+            anchors.append(route.points[member.point_index])
+        if any(p != anchors[0] for p in anchors) or any(ref not in evidence_refs for ref in junction.evidence_refs):
+            raise ValueError('Observed junction requires one supported source anchor.')
+    if document.observed_routes.recovery and any(d.symbol_id not in {s.id for s in document.symbols.items}
+            for d in document.observed_routes.recovery.devices):
+        raise ValueError('Wiring recovery references an unavailable device.')
     for warning in document.warnings:
         if any(reference not in entity_refs for reference in warning.entity_refs):
             raise ValueError("Warning has a dangling entity reference.")
