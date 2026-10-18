@@ -15,10 +15,19 @@ def canonical_path_rows(document, extension=None):
     contacts = {}
     for identity, detail in details.items():
         if identity not in routes: continue
-        # Distinct circuits/origins never merge through a coincident device.
-        scope = (detail.circuit_id, detail.route_kind)
+        # Provenance belongs to each edge, not to physical connectivity. An
+        # explicitly joined manual continuation must not duplicate a source span.
+        # Distinct circuits and unspecified historical terminals stay separate.
+        scope = (detail.circuit_id,)
         for contact in detail.device_connections or ():
-            contacts.setdefault((*scope,'device',contact.symbol_id), []).append(identity)
+            if contact.terminal_id:
+                contacts.setdefault((*scope,'device',contact.symbol_id,contact.terminal_id), []).append(identity)
+        # Older installation-drop routes have a precise parent provenance,
+        # unlike two unspecified terminals on the same device bounding box.
+        ref=detail.provenance_ref or ''
+        if ref.endswith(':installation-connection'):
+            parent=next((d.route_id for d in details.values() if d.provenance_ref==ref.removesuffix(':installation-connection')),None)
+            if parent is not None: contacts.setdefault((*scope,'installation',parent),[]).extend([identity,parent])
         for contact in detail.junction_connections or ():
             contacts.setdefault((*scope,'junction',contact['junction_id']), []).append(identity)
     for members in contacts.values():
@@ -41,11 +50,12 @@ def canonical_path_rows(document, extension=None):
                 else: edges.append(dict(start=point(a),end=point(b)))
         h,v = unique_metric_edges(edges)
         detail = details.get(identities[0])
-        origin = detail.route_kind if detail else 'unresolved'
+        origins = sorted({details[i].route_kind if i in details else 'unresolved' for i in identities})
+        origin = origins[0] if len(origins)==1 else 'mixed'
         rows.append(dict(kind='path',name=f'Reviewed wiring path — {origin} provenance; material unassigned',
-            origin=origin,path_id=f'canonical:{identities[0]}',path_ids=identities,circuit_id=detail.circuit_id if detail else None,
+            origin=origin,provenance_origins=origins,path_id=f'canonical:{identities[0]}',path_ids=identities,circuit_id=detail.circuit_id if detail else None,
             quantity=Decimal(str(h+v)).quantize(Decimal('.0001'),rounding=ROUND_HALF_UP),unit='meter',
             horizontal_meters=h,vertical_meters=v,missing_vertical_inputs=sorted(set(missing)),
-            basis='Saved canonical metric centerlines including stored drops/rises. Unique spans only within explicit device/junction-connected same-circuit/provenance groups. Independent paths remain separate. No inferred material, conductor count, allowance or display offsets.'
+            basis='Saved canonical metric centerlines including stored drops/rises. Unique spans only within explicit device/junction-connected same-circuit groups; each route retains its provenance. Independent paths remain separate. No inferred material, conductor count, allowance or display offsets.'
                   + (' INCOMPLETE: unsupported inter-floor or height-changing edges excluded.' if missing else '')))
     return rows

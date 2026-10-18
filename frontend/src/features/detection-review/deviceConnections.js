@@ -97,6 +97,11 @@ export function moveConnectedWirePoint(draft, wireId, pointIndex, point, width, 
     updated = moveDraftWirePoint(wire, pointIndex, point, width, height)
     if (!updated) return draft
   }
+  if (wire.vertex_ids) {
+    const identity=wire.vertex_ids[pointIndex]
+    updated={...updated,points:updated.points.map((p,i)=>wire.vertex_ids[i]===identity?{...updated.points[pointIndex]}:p)}
+    if(updated.points.some((p,i)=>i>0&&p.x===updated.points[i-1].x&&p.y===updated.points[i-1].y))return draft
+  }
   updated.device_attachments = [...(wire.device_attachments || []).filter(a => a.point_index !== pointIndex),
     ...(snap ? [{symbol_id: snap.symbolId, point_index: pointIndex}] : [])]
   updated.auto_connect_disabled_endpoints = [...new Set([
@@ -143,6 +148,8 @@ export function moveConnectedDevice(draft, symbol, snap = null) {
       {symbol_id: symbol.id, point_index: snap.pointIndex}]
     const indices = new Set(attachments.filter(a => a.symbol_id === symbol.id).map(a => a.point_index))
     if (!indices.size) return wire
+    const identities=new Set([...indices].map(i=>wire.vertex_ids?.[i]).filter(Boolean))
+    wire.vertex_ids?.forEach((id,i)=>{if(identities.has(id))indices.add(i)})
     return {...wire, device_attachments: attachments,
       points: wire.points.map((p,i) => indices.has(i) ? {...center} : p),
       disposition: wire.disposition === 'added' ? 'added' : 'corrected'}

@@ -3,7 +3,7 @@
 - Status: Accepted
 - Decision date: 2026-09-06
 - Owning ticket: PRE11
-- Current implemented contracts: K1 schema version 1; separate extension versions 2 and 3
+- Current implemented contracts: K1 schema version 1; separate extension versions 2 through 6
 - Original PRE11 decision is retained below; see the implementation addendum.
 
 ## October 11 implementation addendum
@@ -131,3 +131,36 @@ height, panel rating, symbol rotation, electrical rule, or route. Exact
 version-2 extension validation and additive persistence are U11 work after U2 defines the
 candidate schema. K1/K2/K3 behavior and existing original uploads remain
 unchanged.
+
+## Connected wiring extension (version 6)
+
+The additive version-6 reader retains the version-1 base and the exact version
+2–5 shapes. It adds optional route `vertex_ids` and `network_lineage`, explicit
+device `terminal_id`, and `manual` route provenance. New writes select version
+6 only when these features are used. Unknown versions and malformed references
+fail closed; old reviews are not rewritten or implicitly connected.
+
+Existing path IDs remain editable edge records. Explicit junction references
+and matching device-terminal references define connected components, not
+crossings, distance, or common device bounds. Component identity is the stable
+lexical minimum active path ID; persisted lineage retains predecessor path IDs
+after branch removal. Per-path vertex IDs survive edge insertion and loops;
+shared junction/device references carry cross-path node identity. Unspecified
+historical terminals remain isolated. Source proposals derive terminal identity
+from the validated source port, never the device bounding box. A deliberate
+manual device click may select a design anchor; it is not an inferred electrical
+pin or approval of observed pixels.
+
+Drawing commits one continuous polyline and its explicit splits/joins in one
+undo transaction. Connected paths retain their original IDs and per-path
+provenance. Both draft renderers use the same component resolver. Backend
+physical takeoff unions supported overlapping spans only within explicit
+compatible groups; circuit/conductor assignments are not inferred or discarded.
+Unscaled source lengths remain pixels. Metric publication still requires the
+existing approval, scale, routing and device-elevation checks.
+
+Generated A* drafts keep their existing separate review/publication lifecycle;
+cross-origin draft joins remain rejected, rather than silently promoting them
+to reviewed source wiring. Version 6 does not approve generated routes or
+relax final estimate eligibility. This restriction is explicit remaining work
+for a future unified reviewed-route lifecycle, not a geometric merge heuristic.

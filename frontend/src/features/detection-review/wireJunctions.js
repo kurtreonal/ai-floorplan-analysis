@@ -1,3 +1,4 @@
+import { vertexIds, wiringComponents } from './connectedWiring.js'
 const active = wire => wire.disposition !== 'rejected' && !wire.suppression_reason
 const changed = wire => ({ ...wire, disposition: wire.disposition === 'added' ? 'added' : 'corrected' })
 const at = (wire, index) => wire.junction_attachments?.find(a => a.point_index === index)
@@ -27,15 +28,8 @@ export function wireJunctions(draft) {
 }
 
 export function connectedWireIds(draft, wireId) {
-  const ids = new Set([wireId]), nodes = wireJunctions(draft)
-  let grew = true
-  while (grew) {
-    grew = false
-    for (const members of nodes.values()) if (members.some(m => ids.has(m.wire.id))) {
-      for (const { wire } of members) if (!ids.has(wire.id)) { ids.add(wire.id); grew = true }
-    }
-  }
-  return ids
+  const components = wiringComponents(draft.wirings || [])
+  return new Set([...components].filter(([,root])=>root===components.get(wireId)).map(([id])=>id))
 }
 
 function validateResult(draft) {
@@ -43,16 +37,23 @@ function validateResult(draft) {
     throw new Error('This edit would collapse a wiring segment.')
   }
   wireJunctions(draft)
+  wiringComponents(draft.wirings)
   return draft
 }
 
 function reindex(wire, index, delta, point) {
   const points = [...wire.points]
+  const ids = [...vertexIds(wire)]
+  if (delta === 1) {
+    // A deleted vertex may remain in an older immutable review. Do not reuse
+    // its identity for a new node after deletion and reload.
+    ids.splice(index,0,`${wire.id}:vertex:${globalThis.crypto.randomUUID()}`)
+  } else ids.splice(index,1)
   if (delta === 1) points.splice(index, 0, point)
   else points.splice(index, 1)
   const shift = rows => (rows || []).filter(a => delta === 1 || a.point_index !== index)
     .map(a => ({ ...a, point_index: a.point_index >= index ? a.point_index + delta : a.point_index }))
-  return changed({ ...wire, points, device_attachments: shift(wire.device_attachments), junction_attachments: shift(wire.junction_attachments),
+  return changed({ ...wire, points, vertex_ids:ids, device_attachments: shift(wire.device_attachments), junction_attachments: shift(wire.junction_attachments),
     auto_connect_disabled_endpoints: (wire.auto_connect_disabled_endpoints || []).filter(i => delta === 1 || i !== index).map(i => i >= index ? i+delta : i) })
 }
 
@@ -79,6 +80,8 @@ export function moveJunctionVertex(draft, wireId, index, point) {
   const nodes = wireJunctions(draft).get(contact.junction_id)
   const next = { ...draft, wirings: draft.wirings.map(w => {
     const indices = nodes.filter(n => n.wire.id === w.id).map(n => n.index)
+    const identities=new Set(indices.map(i=>w.vertex_ids?.[i]).filter(Boolean))
+    w.vertex_ids?.forEach((id,i)=>{if(identities.has(id)&&!indices.includes(i))indices.push(i)})
     return indices.length ? changed({ ...w, points: w.points.map((p, i) => indices.includes(i) ? { ...point } : p) }) : w
   }) }
   return validateResult(next)
@@ -107,6 +110,8 @@ export function joinWireJunction(draft, sourceId, sourceIndex, targetId, segment
   const number = Math.max(0, ...numbers)+1
   if (!oldSource && !oldTarget && number > 9999) throw new Error('Junction identity limit reached.')
   const identity = oldTarget || oldSource || `junction-${String(number).padStart(4, '0')}`
+  const lineage = [...new Set([...connectedWireIds(next,sourceId),...connectedWireIds(next,targetId),
+    ...(source.network_lineage || []),...(target.network_lineage || [])])].sort()
   const merged = new Set([oldSource, oldTarget].filter(Boolean)), point = target.points[index]
   next = { ...next, wirings: next.wirings.map(w => {
     if (!active(w)) return w
@@ -115,7 +120,7 @@ export function joinWireJunction(draft, sourceId, sourceIndex, targetId, segment
     if (w.id === targetId && !at(w, index)) contacts = [...contacts, {junction_id:identity,point_index:index}]
     contacts = contacts.map(a => merged.has(a.junction_id) ? {...a,junction_id:identity} : a)
     const indices = contacts.filter(a => a.junction_id === identity).map(a => a.point_index)
-    return indices.length ? changed({ ...w, junction_attachments: contacts, points: w.points.map((p, i) => indices.includes(i) ? {...point} : p) }) : w
+    return indices.length ? changed({ ...w, network_lineage:lineage, junction_attachments: contacts, points: w.points.map((p, i) => indices.includes(i) ? {...point} : p) }) : w
   }) }
   return validateResult(next)
 }

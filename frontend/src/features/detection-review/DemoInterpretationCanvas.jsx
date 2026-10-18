@@ -8,6 +8,8 @@ import { wiringAppearance } from './wiringAppearance.js'
 import { snapWiringPoint } from './wireDrawing.js'
 import { findDeviceWireSnap } from './deviceConnections.js'
 import { findWireEndpointSnap } from './wirePathSnap.js'
+import { appendDrawingVertex } from './connectedWiring.js'
+import { connectedWireIds } from './wireJunctions.js'
 import { clampDevicePoint } from './devicePresentation.js'
 import { drawingRegionFromPoints } from './drawingRegion.js'
 import {buildWallTopology} from '../../geometry/wallTopology.js'
@@ -36,6 +38,7 @@ export function DemoInterpretationCanvas({
   onToolChange,
   onAddWall,
   onAddWire,
+  onDrawingPendingChange,
   drawingWireMethod = 'concealed_in_ceiling',
   onMoveWirePoint,
   editingSession = 0,
@@ -73,9 +76,16 @@ export function DemoInterpretationCanvas({
   const wallFootprints=useMemo(()=>new Map(buildWallTopology(draft.walls.map(w=>({...w,
     thickness:scaleMeters>0&&w.thickness_meters ? w.thickness_meters*scaleMeters : w.estimated_thickness_pixels||w.thickness_pixels||12}))).walls.map(w=>[w.id,w])),[draft.walls,scaleMeters])
   const [drawingAnchor, setDrawingAnchor] = useState(null)
+  const [wireSession,setWireSession] = useState(null)
+  function setWireDrawingSession(next) {
+    setWireSession(next)
+    onDrawingPendingChange?.(Boolean(next?.vertices?.length))
+  }
+  const wireVertices = useMemo(()=>wireSession?.session === editingSession ? wireSession.vertices : [],[wireSession,editingSession])
+  const selectedNetwork = useMemo(()=>selected?.kind==='wiring' ? connectedWireIds(draft,selected.id) : new Set(),[draft,selected])
   const [hoveredWall, setHoveredWall] = useState(null)
   const wallLabels=useMemo(()=>wallMeasurements(draft.walls,w=>scaleMeters>0&&w.thickness_meters ? w.thickness_meters*scaleMeters : w.estimated_thickness_pixels??12),[draft.walls,scaleMeters])
-  const drawingStart = drawingAnchor?.tool === tool && drawingAnchor.session === editingSession ? drawingAnchor.point : null
+  const drawingStart = tool==='wire' ? wireVertices.at(-1)?.point : drawingAnchor?.tool === tool && drawingAnchor.session === editingSession ? drawingAnchor.point : null
   const [regionStart, setRegionStart] = useState(null)
   const regionAnchor = regionStart?.session === regionSession ? regionStart.point : null
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
@@ -110,6 +120,18 @@ export function DemoInterpretationCanvas({
   // Keyboard handlers: Escape to cancel drawing, Delete/Backspace to delete wall, Shift constraint, Space to pan
   useEffect(() => {
     function handleKeyDown(event) {
+      if (tool==='wire' && ['Enter','Escape','Backspace'].includes(event.key)) {
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName) || event.target?.isContentEditable) return
+        event.preventDefault()
+        if (event.key==='Backspace') {setWireSession({session:editingSession,vertices:wireVertices.slice(0,-1)});onDrawingPendingChange?.(wireVertices.length>1)}
+        else {
+          if (wireVertices.length>=2 && onAddWire?.(wireVertices.map(v=>v.point),wireVertices)===false) return
+          setWireSession(null)
+          onDrawingPendingChange?.(false)
+          if(event.key==='Escape')onToolChange?.('select')
+        }
+        return
+      }
       if(event.key==='Escape'&&tool==='draw') {
         setDrawingAnchor(null);onToolChange?.('move');return
       }
@@ -161,7 +183,7 @@ export function DemoInterpretationCanvas({
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [drawingStart, regionAnchor, tool, selected, onDeleteWall, onDeleteSymbol, onToolChange])
+  }, [drawingStart, regionAnchor, tool, selected, onDeleteWall, onDeleteSymbol, onToolChange, wireVertices, editingSession,onAddWire,onDrawingPendingChange])
 
   // Map pointer to source-image pixels via stage inverse transform
   function getSourcePoint(stage) {
@@ -274,6 +296,10 @@ export function DemoInterpretationCanvas({
         draft,presentations,snapThreshold)
       const endpoint = clickedSnap?.snapped ? { x: clickedSnap.x, y: clickedSnap.y }
         : isShiftHeld && drawingStart ? constrainPoint(drawingStart, clicked, true) : clicked
+      if (tool==='wire') {
+        setWireDrawingSession({session:editingSession,vertices:appendDrawingVertex(wireVertices,endpoint,clickedSnap)})
+        return
+      }
       if (!drawingStart) {
         setDrawingAnchor({ tool, session: editingSession, point: endpoint })
       } else {
@@ -313,6 +339,8 @@ export function DemoInterpretationCanvas({
 
   return (
     <section className="demo-canvas-card" aria-label="Unified room wall and symbol review canvas">
+      {tool==='wire' && wireVertices.length>0 && <button type="button" className="btn-canvas-mini" style={{position:'absolute',top:64,left:80,zIndex:20}}
+        onClick={()=>{if(wireVertices.length>=2 && onAddWire?.(wireVertices.map(v=>v.point),wireVertices)===false)return;setWireDrawingSession(null)}}>Done</button>}
       <div className="demo-canvas-viewport-controls">
         <button type="button" className="btn-canvas-mini" onClick={() => handleZoomStep(1.2)} title="Zoom In" aria-label="Zoom In">+</button>
         <button type="button" className="btn-canvas-mini" onClick={() => handleZoomStep(0.833)} title="Zoom Out" aria-label="Zoom Out">−</button>
@@ -678,7 +706,7 @@ export function DemoInterpretationCanvas({
               <Group key={wire.id} listening={['move', 'select'].includes(tool) && !isSpaceHeld}>
               <Line points={roomPoints(wire.points)} stroke="#fffdf8" strokeWidth={5 / stageTransform.scale} opacity={.8} listening={false} lineCap="round" lineJoin="round" />
               <Line name={`observed-wiring-${wire.id}`} points={roomPoints(wire.points)}
-                stroke={wiringAppearance(wire,selected?.kind === 'wiring' && selected.id === wire.id).color} strokeWidth={1.8 / stageTransform.scale}
+                stroke={wiringAppearance(wire,selectedNetwork.has(wire.id)).color} strokeWidth={1.8 / stageTransform.scale}
                 hitStrokeWidth={12 / stageTransform.scale}
                 lineCap="round" lineJoin="round"
                 onClick={(event) => { event.cancelBubble = true; onSelect?.({ kind: 'wiring', id: wire.id }) }}
@@ -690,8 +718,8 @@ export function DemoInterpretationCanvas({
               .flatMap(w=>(w.junction_attachments || []).map(a=>[a.junction_id,w.points[a.point_index]]))).entries()].map(([id,point])=>
               <Circle key={id} name={`wire-junction-${id}`} x={point.x} y={point.y} radius={3.5/stageTransform.scale}
                 fill="#2563eb" stroke="white" strokeWidth={1/stageTransform.scale} listening={false} />)}
-            {layers.wirings && selected?.kind === 'wiring' && (draft.wirings || []).find(wire => wire.id === selected.id && wire.disposition !== 'rejected')?.points.map((point,index) => (
-              <Circle key={index} name={`wiring-point-${index}`} x={point.x} y={point.y} radius={5 / stageTransform.scale}
+            {layers.wirings && (draft.wirings || []).filter(wire => selectedNetwork.has(wire.id)).flatMap(wire => wire.points.map((point,index) => (
+              <Circle key={`${wire.id}:${index}`} name={wire.id===selected?.id ? `wiring-point-${index}` : `wiring-point-${wire.id}-${index}`} x={point.x} y={point.y} radius={5 / stageTransform.scale}
                 fill="#2563eb" stroke="white" strokeWidth={1 / stageTransform.scale}
                 hitStrokeWidth={6 / stageTransform.scale} draggable={Boolean(onMoveWirePoint) && ['select','move'].includes(tool) && !isSpaceHeld}
                 onMouseDown={event => { event.cancelBubble = true }}
@@ -701,7 +729,7 @@ export function DemoInterpretationCanvas({
                 onDragMove={(event) => {
                   if (wireDrag.current?.cancelled) return
                   const next = {x: event.target.x(), y: event.target.y()}
-                  const target = preferences.snapping ? findWireEndpointSnap(next, selected.id, index, draft, presentations, snapThreshold) : null
+                  const target = preferences.snapping ? findWireEndpointSnap(next, wire.id, index, draft, presentations, snapThreshold) : null
                   setWireDeviceSnap(target)
                   if (target) event.target.position(target.point)
                 }}
@@ -710,13 +738,13 @@ export function DemoInterpretationCanvas({
                   wireDrag.current = null
                   setWireDeviceSnap(null)
                   const next = { x: event.target.x(), y: event.target.y() }
-                  const target = cancelled || !preferences.snapping ? null : findWireEndpointSnap(next, selected.id, index, draft, presentations, snapThreshold)
+                  const target = cancelled || !preferences.snapping ? null : findWireEndpointSnap(next, wire.id, index, draft, presentations, snapThreshold)
                   event.target.position(point)
                   if (cancelled) return
-                  if (target) onMoveWirePoint?.(selected.id,index,target.point,target)
-                  else onMoveWirePoint?.(selected.id,index,next)
+                  if (target) onMoveWirePoint?.(wire.id,index,target.point,target)
+                  else onMoveWirePoint?.(wire.id,index,next)
                 }} />
-            ))}
+            )))}
           </Layer>
           {/* Room Handles (when room selected) */}
           <Layer>
@@ -747,6 +775,10 @@ export function DemoInterpretationCanvas({
               )))}
           </Layer>
           {/* Top hit surface prevents ROI selection from changing review items. */}
+          <Layer listening={false}>
+            {tool==='wire' && wireVertices.length>1 && <Line name="wire-committed-preview" points={roomPoints(wireVertices.map(v=>v.point))}
+              stroke="#ff7a45" strokeWidth={2/stageTransform.scale} lineCap="round" lineJoin="round" />}
+          </Layer>
           <Layer>
             {wireDeviceSnap && <Group listening={false}>
               <Circle name="wire-device-magnet" x={wireDeviceSnap.point.x} y={wireDeviceSnap.point.y}
@@ -801,7 +833,7 @@ export function DemoInterpretationCanvas({
           </div>
         )}
         {tool === 'region' && <div className="demo-esc-pill" role="status">Click two opposite corners of the drawing. Outside stays unprocessed. Esc cancels.</div>}
-        {tool === 'wire' && <div className="demo-esc-pill" role="status">Click two points to draw wiring · Esc cancels</div>}
+        {tool === 'wire' && <div className="demo-esc-pill" role="status">Click to add points · Enter / Done finishes · Backspace removes a point</div>}
 
         {/* Floating Help icon button */}
         <button

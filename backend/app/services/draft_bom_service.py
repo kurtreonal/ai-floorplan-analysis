@@ -63,7 +63,7 @@ def apply_conduit_choice(rows, materials, material_id):
         raise ValueError('Choose an active priced conduit material.')
     material = matches[0]
     for row in rows:
-        if (row['kind'] == 'path' and row.get('origin') in ('observed', 'generated')
+        if (row['kind'] == 'path' and row.get('origin') in ('observed', 'generated', 'manual', 'mixed')
                 and row['unit'] == 'meter' and re.search(r'\bconduit\b', row['name'], re.I)):
             row.update(preferred_material_id=material_id, unit=material['unit'],
                        basis=row['basis'] + ' Draft material choice; one purchase length = one metre, as specified by the user.')
@@ -101,7 +101,7 @@ def apply_wire_choice(rows, materials, material_id, *, meters_per_unit=None, pri
     # Draft route-length pricing, not an extra surcharge or conductor takeoff.
     additions = []
     for row in rows:
-        if row['kind'] == 'path' and row.get('origin') in ('observed', 'generated'):
+        if row['kind'] == 'path' and row.get('origin') in ('observed', 'generated', 'manual', 'mixed'):
             additions.append(dict(row, name='Wire/cable — ' + row['name'],
                 preferred_material_id=material_id, material_kind='wire',
                 wire_meters_per_unit=factor, custom_wire_price_per_meter=price_per_meter,

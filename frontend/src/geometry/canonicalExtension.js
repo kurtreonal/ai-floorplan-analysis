@@ -159,17 +159,20 @@ function symbolDetail(value, validSymbolIds, version = 2, validWallIds = null) {
 
 function routeDetail(value, validRouteIds, version=2, baseGeometry=null) {
   const data = exactObject(value, ['route_id', 'route_kind', 'provenance_ref',...(version>=4 ? ['device_connections'] : []),
-    ...(version>=5 ? ['junction_connections','circuit_id'] : [])])
+    ...(version>=5 ? ['junction_connections','circuit_id'] : []),
+    ...(version>=6 ? ['vertex_ids','network_lineage'].filter(k=>value && Object.hasOwn(value,k)) : [])])
   const routeId = identifier(data.route_id)
   if (validRouteIds && !validRouteIds.has(routeId)) fail()
-  if (!['observed', 'generated'].includes(data.route_kind)) fail()
+  if (!(version>=6?['observed','generated','manual']:['observed', 'generated']).includes(data.route_kind)) fail()
   const provenanceRef = name(data.provenance_ref, { nullable: true, maximum: 255 })
   let connections
   if (version>=4) {
     if (!Array.isArray(data.device_connections) || data.device_connections.length>512) fail()
     const indices=new Set()
     connections=data.device_connections.map(raw => {
-      const contact=exactObject(raw,['symbol_id','point_index','anchor'])
+      const contact=exactObject(raw,['symbol_id','point_index','anchor',...(version>=6 && raw && Object.hasOwn(raw,'terminal_id')?['terminal_id']:[])])
+      const terminal=Object.hasOwn(contact,'terminal_id')?name(contact.terminal_id,{maximum:128}):null
+      if(terminal!==null && !/^[A-Za-z0-9_.:-]{1,128}$/.test(terminal))fail()
       const symbolId=name(contact.symbol_id,{maximum:128}), index=integer(contact.point_index)
       if (index<0 || index>2047 || indices.has(index)) fail()
       indices.add(index)
@@ -181,7 +184,7 @@ function routeDetail(value, validRouteIds, version=2, baseGeometry=null) {
         if (!symbol || !p || !close(p.x,normalized.x) || !close(p.y,normalized.y)
           || !close(symbol.position.x,normalized.x) || !close(symbol.position.y,normalized.y)) fail()
       }
-      return {symbol_id:symbolId,point_index:index,anchor:normalized}
+      return {symbol_id:symbolId,point_index:index,anchor:normalized,...(terminal!==null?{terminal_id:terminal}:{})}
     })
   }
   let junctions, circuit
@@ -203,8 +206,20 @@ function routeDetail(value, validRouteIds, version=2, baseGeometry=null) {
       return {junction_id:identity,point_index:index,anchor:normalized}
     })
   }
+  const metadata={}
+  for(const key of ['vertex_ids','network_lineage'])if(Object.hasOwn(data,key)){
+    const values=data[key]
+    if(!Array.isArray(values)||!values.length||values.length>2048
+      ||values.some(v=>typeof v!=='string'||!/^[A-Za-z0-9_.:-]{1,160}$/.test(v)))fail()
+    if(key==='vertex_ids'&&baseGeometry&&values.length!==baseGeometry.routes.find(r=>r.id===routeId)?.points.length)fail()
+    if(key==='vertex_ids'&&baseGeometry){
+      const positions=new Map(),points=baseGeometry.routes.find(r=>r.id===routeId).points
+      values.forEach((id,i)=>{if(positions.has(id)&&JSON.stringify(positions.get(id))!==JSON.stringify(points[i]))fail();positions.set(id,points[i])})
+    }
+    metadata[key]=[...values]
+  }
   return {
-    route_id: routeId,
+    route_id: routeId,...metadata,
     route_kind: data.route_kind,
     provenance_ref: provenanceRef,
     ...(connections ? {device_connections:connections} : {}),
@@ -229,7 +244,7 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
     'symbol_details',
     'route_details',
   ])
-  if (![2, 3, 4, 5].includes(data.extension_schema_version) || !Number.isSafeInteger(data.extension_schema_version)) {
+  if (![2, 3, 4, 5, 6].includes(data.extension_schema_version) || !Number.isSafeInteger(data.extension_schema_version)) {
     fail()
   }
   if (data.base_schema_version !== BASE_SCHEMA_VERSION || !Number.isSafeInteger(data.base_schema_version)) {
@@ -278,6 +293,19 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
     const mounts=new Map(normalizedSymbolDetails.filter(s => s.installation).map(s => [s.symbol_id,s.installation]))
     for (const route of normalizedRouteDetails) for (const connection of route.device_connections) {
       if (!mounts.has(connection.symbol_id) || !close(connection.anchor.elevation_meters,mounts.get(connection.symbol_id).elevation_meters)) fail()
+    }
+  }
+  if (data.extension_schema_version>=6) {
+    const terminals=new Map()
+    for(const route of normalizedRouteDetails)for(const contact of route.device_connections)if(contact.terminal_id){
+      const key=JSON.stringify([contact.symbol_id,contact.terminal_id])
+      if(!terminals.has(key))terminals.set(key,[])
+      terminals.get(key).push({route,anchor:contact.anchor})
+    }
+    if(terminals.size>4096 || [...terminals.values()].reduce((sum,rows)=>sum+rows.length,0)>16384)fail()
+    for(const contacts of terminals.values()){
+      const first=contacts[0]
+      if(contacts.some(c=>c.route.circuit_id!==first.route.circuit_id || Object.keys(first.anchor).some(k=>!close(c.anchor[k],first.anchor[k]))))fail()
     }
   }
   if (data.extension_schema_version>=5) {

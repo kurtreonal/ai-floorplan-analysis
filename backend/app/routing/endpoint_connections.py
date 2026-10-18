@@ -4,6 +4,11 @@ import math
 import re
 
 
+def source_terminal_id(contact):
+    """Exact evidence port, not the symbol center/bounds or a proximity cluster."""
+    return f'observed-port.{contact.path_anchor.x:.9f}.{contact.path_anchor.y:.9f}'
+
+
 def apply_source_contacts(candidate, document, *, preserve_source=True):
     """Adapt pixel-supported proposals, preserving raw candidates and user edits."""
     result = deepcopy(document)
@@ -91,7 +96,7 @@ def apply_source_contacts(candidate, document, *, preserve_source=True):
                     points.append(dict(center));index=len(points)-1
                 else:
                     points.append(dict(center));index=len(points)-1
-                attachments.append(dict(symbol_id=identity,point_index=index,
+                attachments.append(dict(symbol_id=identity,point_index=index,terminal_id=source_terminal_id(contact),
                     provenance='source_supported_proposal',source_connection_id=contact.id,
                     source_candidate_run_id=candidate.provenance.candidate_run_id,
                     geometry_version='source_preserving_v1' if preserve_source else 'center_replace_v0',

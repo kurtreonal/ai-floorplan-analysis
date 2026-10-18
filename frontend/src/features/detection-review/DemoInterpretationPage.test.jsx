@@ -393,7 +393,7 @@ describe('unified demo interpretation review', () => {
     await screen.findByText('Wiring · 1 paths')
     expect(screen.queryByLabelText('Review decision')).toBeNull()
     fireEvent.change(screen.getByLabelText('Select item'),{target:{value:'wiring:manual-route-0001'}})
-    expect(screen.getByText(/Automatic A\* draft — not detected in the image/)).toBeTruthy()
+    expect(screen.getByText('Automatic A* draft',{selector:'p'})).toBeTruthy()
     fireEvent.change(screen.getAllByLabelText('X')[0],{target:{value:'25'}})
     fireEvent.click(screen.getByRole('button',{name:'Save unfinished draft'}))
     await screen.findByText('Review revision 1 saved.')
@@ -589,6 +589,8 @@ describe('unified demo interpretation review', () => {
     expect(body.review_complete).toBe(false)
     expect(body.observed_wiring).toEqual([{ id: 'manual-wiring-0001', points: [{ x: 20, y: 30 }, { x: 80, y: 30 }],
       disposition: 'added', completeness: 'partial', elevation_meters: null,
+      path_origin:'manual',device_attachments:[],network_lineage:['manual-wiring-0001'],
+      vertex_ids:['manual-wiring-0001:vertex:0','manual-wiring-0001:vertex:1'],
       installation_method:'concealed_in_ceiling',line_style:'solid',wiring_legend_id:null,wiring_legend_name:null }])
     const saved = await saveDemoReview.mock.results[1].value
     fetchDemoInterpretation.mockResolvedValue(saved)

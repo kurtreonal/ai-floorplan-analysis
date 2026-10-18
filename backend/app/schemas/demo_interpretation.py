@@ -99,6 +99,7 @@ class DemoScaleEvidenceReview(DemoSchema):
 
 class DemoDeviceAttachment(DemoSchema):
     symbol_id: EntityId
+    terminal_id: Annotated[str, Field(pattern=r'^[A-Za-z0-9_.:-]{1,128}$')] | None = None
     point_index: Annotated[StrictInt, Field(ge=0, le=2047)]
     provenance: Literal['designer_attachment', 'source_supported_proposal'] = 'designer_attachment'
     source_connection_id: Annotated[str, Field(pattern=r'^connection-[0-9]{4,}$')] | None = None
@@ -117,6 +118,7 @@ class DemoDeviceAttachment(DemoSchema):
     @model_serializer
     def serialize_attachment(self):
         result=dict(symbol_id=self.symbol_id,point_index=self.point_index)
+        if self.terminal_id is not None: result['terminal_id'] = self.terminal_id
         if self.provenance == 'source_supported_proposal':
             result.update(provenance=self.provenance,source_connection_id=self.source_connection_id,
                 source_candidate_run_id=self.source_candidate_run_id,evidence_kind=self.evidence_kind,
@@ -158,11 +160,20 @@ class DemoObservedWiringReview(DemoSchema):
     device_attachments: Annotated[list[DemoDeviceAttachment], Field(max_length=512)] = []
     junction_attachments: Annotated[list[DemoJunctionAttachment], Field(max_length=512)] = []
     circuit_id: Annotated[str, Field(min_length=1, max_length=80)] | None = None
+    vertex_ids: Annotated[list[Annotated[str, Field(pattern=r'^[A-Za-z0-9_.:-]{1,160}$')]], Field(max_length=2048)] | None = None
+    network_lineage: Annotated[list[EntityId], Field(max_length=2048)] | None = None
+    path_origin: Literal['manual'] | None = None
     source_evidence_required: StrictBool = False
     auto_connect_disabled_endpoints: Annotated[list[Annotated[StrictInt, Field(ge=0, le=2047)]], Field(max_length=512)] = []
 
     @model_validator(mode="after")
     def endpoint_attachments(self):
+        if self.vertex_ids is not None:
+            if len(self.vertex_ids) != len(self.points): raise ValueError('Vertex identities must match the path.')
+            positions={}
+            for identity,point in zip(self.vertex_ids,self.points):
+                if identity in positions and positions[identity] != point: raise ValueError('A shared vertex requires one position.')
+                positions[identity]=point
         indices = [a.point_index for a in self.device_attachments]
         if len(indices) != len(set(indices)) or any(i >= len(self.points) for i in indices):
             raise ValueError('Attachments require distinct wire vertices.')
@@ -179,6 +190,9 @@ class DemoObservedWiringReview(DemoSchema):
         value = handler(self)
         if not self.junction_attachments: value.pop('junction_attachments', None)
         if self.circuit_id is None: value.pop('circuit_id', None)
+        if self.vertex_ids is None: value.pop('vertex_ids', None)
+        if self.network_lineage is None: value.pop('network_lineage', None)
+        if self.path_origin is None: value.pop('path_origin', None)
         if value.get('assignment_state') is None: value.pop('assignment_state',None)
         return value
 
@@ -194,6 +208,8 @@ class DemoGeneratedWiringReview(DemoObservedWiringReview):
 
     @model_validator(mode="after")
     def generated_identity(self):
+        if self.path_origin is not None:
+            raise ValueError('A generated route cannot be relabelled as manual wiring.')
         if not self.id.startswith("manual-route-"):
             raise ValueError("Generated draft wiring requires its own identity.")
         if any(a == b for a,b in zip(self.points,self.points[1:])):

@@ -95,6 +95,7 @@ export function WireHandle({ position, scene, onMove, onFindSnap, onDraggingChan
 }
 
 export function DraftWiring3D({ scene, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, onDraggingChange }) {
+  const selectedNetwork=scene.draftWires?.find(w=>w.id===selectedWireId)?.networkId
   // Scale tubing with the devices, not the arbitrary source-page preview size.
   // This is visual thickness only, never a conduit diameter or quantity input.
   const radius = ROUTE_DISPLAY_RADIUS * (scene.unitsPerMeter ?? 1)
@@ -107,9 +108,9 @@ export function DraftWiring3D({ scene, selectedWireId, onSelectWire, onMoveWireP
       provenance: wire.origin ?? 'observed', installationMethod: wire.installationMethod, lineStyle: wire.lineStyle }}>
     {runs.filter(run=>run.ownerId===wire.id).map(run => <WiringTube3D key={run.id} run={run} radius={radius}
       xray={wire.installationMethod==='concealed_under_floor' || selectedWireId===wire.id}
-      color={wiringAppearance(wire,selectedWireId===wire.id,run.segment).color}
+      color={wiringAppearance(wire,selectedWireId===wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork),run.segment).color}
       onClick={event=>{event.stopPropagation();onSelectWire?.(wire.id)}} />)}
-    {selectedWireId === wire.id && wire.points.map((p,index) => <WireHandle key={index} position={p} scene={scene}
+    {(selectedWireId === wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork)) && wire.points.map((p,index) => <WireHandle key={index} position={p} scene={scene}
       onFindSnap={onFindWireDeviceSnap ? (point,distance,threshold,pathDistance) => onFindWireDeviceSnap(wire.id,index,point,distance,threshold,pathDistance) : undefined}
       onMove={onMoveWirePoint ? (point,snap) => snap ? onMoveWirePoint(wire.id,index,point,snap) : onMoveWirePoint(wire.id,index,point) : undefined} onDraggingChange={onDraggingChange} />)}
   </group>)}</group>

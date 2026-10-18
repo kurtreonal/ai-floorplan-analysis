@@ -12,6 +12,7 @@ def wire_networks(wires):
             identity = parents[identity]
         return identity
     junctions = {}
+    terminals = {}
     members = 0
     for wire in active:
         for contact in wire.get('junction_attachments', []):
@@ -20,10 +21,19 @@ def wire_networks(wires):
             if not 0 <= index < len(wire['points']):
                 raise ValueError('Junction vertex is unavailable.')
             junctions.setdefault(contact['junction_id'], []).append((wire, wire['points'][index]))
-    if len(junctions) > 4096 or members > 16384:
+        for contact in wire.get('device_attachments', []):
+            # Old symbol-only bindings do not establish which electrical/design
+            # terminal is shared. Never merge their bounding boxes implicitly.
+            if contact.get('terminal_id'):
+                members += 1
+                index = contact['point_index']
+                if not 0 <= index < len(wire['points']):
+                    raise ValueError('Terminal vertex is unavailable.')
+                terminals.setdefault((contact['symbol_id'],contact['terminal_id']), []).append((wire,wire['points'][index]))
+    if len(junctions)+len(terminals) > 4096 or members > 16384:
         raise ValueError('Wiring network resource limit reached.')
-    for contacts in junctions.values():
-        if len({w['id'] for w, _ in contacts}) < 2:
+    for key, contacts in [(('junction',key),rows) for key,rows in junctions.items()] + [(('terminal',key),rows) for key,rows in terminals.items()]:
+        if key[0] == 'junction' and len({w['id'] for w, _ in contacts}) < 2:
             raise ValueError('A junction requires at least two active wiring paths.')
         first, anchor = contacts[0]
         for wire, point in contacts[1:]:
@@ -43,7 +53,7 @@ def takeoff_path_groups(document):
     Different provenance/material/installation groups remain separately costed.
     Shared circuit wording alone never proves a shared physical raceway.
     """
-    wires = [dict(w, origin='observed' if category == 'observed_wiring' else 'generated')
+    wires = [dict(w, origin=(w.get('path_origin') or 'observed') if category == 'observed_wiring' else 'generated')
              for category in ('observed_wiring','generated_wiring') for w in document.get(category, [])
              if w.get('disposition') != 'rejected' and not w.get('suppression_reason')]
     networks = wire_networks(wires)

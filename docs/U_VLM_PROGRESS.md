@@ -4,6 +4,61 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 19 connected-wiring checkpoint (after 9507dbc; partial)
+
+- Causes: drawing reset after two clicks and discarded snap references. Network
+  selection followed junctions but not explicit terminals; symbol-only historical
+  contacts could incorrectly imply one terminal in takeoff. Manual paths also
+  masqueraded as source traces. No detector weights or BDO work changed.
+- Implemented: continuous polyline sessions, pointer preview, Enter/Done, Escape
+  committed-path finish, Backspace, explicit endpoint/interior joins with edge
+  splitting, circuit/height/installation checks, stable vertex IDs, terminal
+  references and component lineage. Shared node/device movement preserves loops;
+  deleted vertex identities are not reused. Selection exposes connected paths in
+  both draft views without flattening branches or rebuilding topology in Three.js.
+- Contract: additive canonical extension 6 carries terminal/vertex/lineage fields
+  and manual provenance. K1 and extension 2–5 remain readable without rewriting
+  history. New source proposals retain exact validated port identities; legacy
+  unspecified terminals remain separate. Same-device bounds, proximity and
+  crossings do not establish connections. Unknown circuits remain unknown.
+- Quantity proof: explicit overlapping spans count once, splitting adds no
+  length, nearby parallel spans remain separate, and a manual continuation does
+  not duplicate a shared observed canonical span. Source/manual/generated
+  provenance remains per path. Conductor assignments remain separate; none are
+  inferred from strokes. Missing approved scale/elevations still block unsupported
+  measured/final quantities.
+- PASS: exact index exported to ignored tmp/connected-wiring-index; final
+  database-free backend 138 tests plus 20 subtests, frontend 101 files/789 tests,
+  scoped ESLint and Vite build (2153 modules). Existing large-chunk and two
+  deprecation warnings remain. A contended full frontend run timed out on the
+  unrelated 128-obstacle fixture; bounded two-worker reruns pass. Earlier isolated
+  API gate passed 159 tests including v6 review reload/publication; expanded gate
+  had 254 passes/20 subtests and one old v4-version assertion, subsequently updated.
+- Real-layout regression: frozen lighting24338 (17 paths/34 terminal refs) and
+  power24304 (10/13) replay idempotently, preserving exact X/Z coordinates and
+  shared network references through JSON/3D projection. These are exposed
+  regression records, not independent accuracy evidence. Historical reviews and
+  candidates remain byte-identical. No new live reanalysis or approval was made.
+- Browser proof before interruption: four-point drawing, a second-session join,
+  network handles/highlighting, undo/redo and 3D preview verified. Test paths were
+  undone without Save; the baseline returned to Save draft/Undo disabled. Private
+  screenshot tmp/connected-wiring-browser.png records the unsaved test network.
+- BLOCKED final API/fresh-browser rerun: on resume MySQL was stopped; normal
+  XAMPP startup succeeds without file repair. The restricted ved_test principal
+  now has only USAGE and receives 1044 for ved_electrical_verify. No grants were
+  changed and the live database was not substituted. Fresh editor session
+  verification also fails; app servers run with automatic workers disabled.
+  Database-free tests use an unreachable database target and explicitly omit
+  persistence fixtures. Full mixed-worktree gates are not claimed passing.
+- Remaining scope: cross-origin generated A* draft joins retain the existing
+  explicit rejection and separate review/publication lifecycle. This is not yet
+  the requested fully unified generated/observed editing workflow. Ambiguous
+  historical terminals still require intentional correction. Final measured
+  3D/BOM verification needs approved measurements. No universal upload accuracy
+  claim is made; no further detection/training phase started. Original uploads,
+  reviewed layouts, unrelated edits and stash@{0} are preserved. Scoped local
+  checkpoint only, no push; no endpoint/table/dependency or destructive migration.
+
 ### October 18 path continuation and consistent source recovery (after cc78385)
 
 - Scope: BDO-specific detection/training remains paused. No model, original,

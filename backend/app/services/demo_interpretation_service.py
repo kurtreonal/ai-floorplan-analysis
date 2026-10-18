@@ -296,6 +296,9 @@ def append_interpretation_review(
                         or contact.path_anchor.model_dump() != attachment.observed_anchor.model_dump()
                         or evidence_candidate.provenance.source_sha256 != candidate.provenance.source_sha256):
                         _fail('INVALID_DEVICE_ATTACHMENT')
+                    if attachment.terminal_id is not None:
+                        from app.routing.endpoint_connections import source_terminal_id
+                        if attachment.terminal_id != source_terminal_id(contact): _fail('INVALID_DEVICE_ATTACHMENT')
             for attachment in wire.junction_attachments:
                 if attachment.source_candidate_run_id is None:continue
                 evidence_run=session.scalar(select(FloorPlanInterpretationRun).where(
@@ -779,7 +782,7 @@ def save_approved_interpretation_layout(
         ]
 
         extension = {
-            "extension_schema_version": 5 if any('junction_connections' in detail for detail in route_details) else 4 if connection_v4 else 3 if installations else 2,
+            "extension_schema_version": 6 if any(d.get('route_kind') == 'manual' or d.get('vertex_ids') or d.get('network_lineage') or any(c.get('terminal_id') for c in d.get('device_connections',[])) for d in route_details) else 5 if any('junction_connections' in detail for detail in route_details) else 4 if connection_v4 else 3 if installations else 2,
             "base_schema_version": 1,
             "source_plane_reference": {
                 "floor_plan_page_id": run.floor_plan_page_id,

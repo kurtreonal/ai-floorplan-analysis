@@ -6,7 +6,8 @@ def observed_connection_routes(wires, symbols, symbol_ids, *, floor_id, floor_el
     version4=any(w.get('source_evidence_required') or any(
         a.get('provenance')=='source_supported_proposal' or a['point_index'] not in (0,len(w['points'])-1)
         for a in w.get('device_attachments',[])) for w in active)
-    version5 = any(w.get('junction_attachments') or w.get('circuit_id') for w in active)
+    version5 = any(w.get('path_origin') or w.get('junction_attachments') or w.get('circuit_id') or w.get('vertex_ids')
+        or any(a.get('terminal_id') for a in w.get('device_attachments',[])) for w in active)
     version4 |= version5  # Keep vertex indices stable when generating device drops.
     routes=[];details=[];drops=set()
     for wire in active:
@@ -22,6 +23,7 @@ def observed_connection_routes(wires, symbols, symbol_ids, *, floor_id, floor_el
             if version4:
                 anchor={k:mounted[k] for k in ('x','y','elevation_meters')}
                 binding=dict(symbol_id=symbol_ids[symbol['id']],point_index=index,anchor=anchor)
+                if attachment.get('terminal_id'): binding['terminal_id']=attachment['terminal_id']
                 connections.append(binding)
                 key=(symbol['id'],wire['elevation_meters'])
                 if mounted != service and key not in drops:
@@ -30,7 +32,10 @@ def observed_connection_routes(wires, symbols, symbol_ids, *, floor_id, floor_el
                 if index==0:points.insert(0,mounted)
                 else:points.append(mounted)
         routes.append(dict(id=identity,points=points))
-        detail=dict(route_id=identity,route_kind='observed',provenance_ref=f'{provenance}:wiring:{wire["id"]}')
+        kind=wire.get('path_origin') or 'observed'
+        detail=dict(route_id=identity,route_kind=kind,provenance_ref=f'{provenance}:wiring:{wire["id"]}')
+        if wire.get('vertex_ids'): detail['vertex_ids']=list(wire['vertex_ids'])
+        if wire.get('network_lineage'): detail['network_lineage']=list(wire['network_lineage'])
         if version4:detail['device_connections']=connections
         if version5:
             detail.update(circuit_id=wire.get('circuit_id'), junction_connections=[dict(junction_id=a['junction_id'],
@@ -40,7 +45,7 @@ def observed_connection_routes(wires, symbols, symbol_ids, *, floor_id, floor_el
         for service,mounted,binding in branches:
             child=len(routes)+1
             routes.append(dict(id=child,points=[dict(service),dict(mounted)]))
-            details.append(dict(route_id=child,route_kind='observed',
+            details.append(dict(route_id=child,route_kind=kind,
                 provenance_ref=f'{provenance}:wiring:{wire["id"]}:installation-connection',device_connections=[binding],
                 **(dict(circuit_id=wire.get('circuit_id'), junction_connections=[]) if version5 else {})))
     return routes,details,version4

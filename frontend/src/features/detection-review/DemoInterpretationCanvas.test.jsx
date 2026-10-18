@@ -106,8 +106,26 @@ describe('DemoInterpretationCanvas', () => {
     act(() => stage.konvaProps.onClick({target:{getStage:() => realStage}}))
     point = {x:204,y:101}
     act(() => stage.konvaProps.onClick({target:{getStage:() => realStage}}))
-    expect(onAddWire).toHaveBeenCalledWith([{x:100,y:100},{x:200,y:100}])
+    expect(onAddWire).not.toHaveBeenCalled()
+    fireEvent.keyDown(window,{key:'Enter'})
+    expect(onAddWire).toHaveBeenCalledWith([{x:100,y:100},{x:200,y:100}],expect.arrayContaining([expect.objectContaining({snap:expect.objectContaining({id:'w'})})]))
     expect(source.symbols[0].center).toEqual({x:100,y:100})
+  })
+  it('continues for multiple clicks, previews, backspaces and finishes only committed vertices on Escape',()=>{
+    const add=vi.fn(), change=vi.fn()
+    const {container}=render(<DemoInterpretationCanvas width={400} height={300} draft={{...mockDraft,symbols:[],wirings:[]}} tool="wire" onAddWire={add} onToolChange={change} />)
+    const stage=container.querySelector('[data-konva="Stage"]')
+    let point={x:20,y:20}
+    const real={getPointerPosition:()=>point,getAbsoluteTransform:()=>({copy:()=>({invert:()=>({point:p=>p})})})}
+    const event={target:{getStage:()=>real}}
+    for(const p of [{x:20,y:20},{x:80,y:20},{x:80,y:80},{x:140,y:80}]){point=p;act(()=>stage.konvaProps.onClick(event))}
+    expect(add).not.toHaveBeenCalled()
+    expect(container.querySelector('[name="wire-committed-preview"]')).toBeTruthy()
+    fireEvent.keyDown(window,{key:'Backspace'})
+    point={x:150,y:100};act(()=>stage.konvaProps.onMouseMove(event))
+    fireEvent.keyDown(window,{key:'Escape'})
+    expect(add.mock.calls[0][0]).toEqual([{x:20,y:20},{x:80,y:20},{x:80,y:80}])
+    expect(change).toHaveBeenCalledWith('select')
   })
   it('magnetizes an existing endpoint in zoomed source space, previews and commits without moving the device', () => {
     const onMove = vi.fn()

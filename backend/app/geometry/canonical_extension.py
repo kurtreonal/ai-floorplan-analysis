@@ -159,9 +159,11 @@ class CanonicalDeviceConnection:
     symbol_id: str
     point_index: int
     anchor: dict
+    terminal_id: str | None = None
 
     def to_dict(self):
-        return dict(symbol_id=self.symbol_id,point_index=self.point_index,anchor=dict(self.anchor))
+        return dict(symbol_id=self.symbol_id,point_index=self.point_index,anchor=dict(self.anchor),
+            **({'terminal_id':self.terminal_id} if self.terminal_id is not None else {}))
 
 
 @dataclass(frozen=True)
@@ -172,6 +174,8 @@ class CanonicalRouteDetail:
     device_connections: tuple[CanonicalDeviceConnection, ...] | None = None
     junction_connections: tuple[dict, ...] | None = None
     circuit_id: str | None = None
+    vertex_ids: tuple[str, ...] | None = None
+    network_lineage: tuple[str, ...] | None = None
 
     def to_dict(self) -> dict[str, object]:
         result = {
@@ -183,6 +187,8 @@ class CanonicalRouteDetail:
             result['device_connections'] = [c.to_dict() for c in self.device_connections]
         if self.junction_connections is not None:
             result.update(junction_connections=[dict(c, anchor=dict(c['anchor'])) for c in self.junction_connections], circuit_id=self.circuit_id)
+        if self.vertex_ids is not None: result['vertex_ids']=list(self.vertex_ids)
+        if self.network_lineage is not None: result['network_lineage']=list(self.network_lineage)
         return result
 
 
@@ -365,14 +371,15 @@ def _route_detail(
     data = _exact_keys(
         value,
         {"route_id", "route_kind", "provenance_ref"} | ({'device_connections'} if version>=4 else set())
-        | ({'junction_connections', 'circuit_id'} if version>=5 else set()),
+        | ({'junction_connections', 'circuit_id'} if version>=5 else set())
+        | ({key for key in ('vertex_ids','network_lineage') if isinstance(value,dict) and key in value} if version>=6 else set()),
         "INVALID_ROUTE_DETAIL",
     )
     route_id = _identifier(data["route_id"], "INVALID_ROUTE_DETAIL")
     if valid_route_ids is not None and route_id not in valid_route_ids:
         _fail("EXTENSION_CROSS_REFERENCE_FAILED")
     route_kind = data["route_kind"]
-    if route_kind not in {"observed", "generated"}:
+    if route_kind not in ({"observed", "generated", "manual"} if version>=6 else {"observed", "generated"}):
         _fail("INVALID_ROUTE_DETAIL")
     provenance_ref = _name(data["provenance_ref"], "INVALID_ROUTE_DETAIL", nullable=True, maximum=255)
     connections = None
@@ -381,7 +388,9 @@ def _route_detail(
             _fail('INVALID_ROUTE_DETAIL')
         connections=[];indices=set()
         for raw in data['device_connections']:
-            contact=_exact_keys(raw,{'symbol_id','point_index','anchor'},'INVALID_ROUTE_DETAIL')
+            contact=_exact_keys(raw,{'symbol_id','point_index','anchor'} | ({'terminal_id'} if version>=6 and isinstance(raw,dict) and 'terminal_id' in raw else set()),'INVALID_ROUTE_DETAIL')
+            terminal=_name(contact['terminal_id'],'INVALID_ROUTE_DETAIL',maximum=128) if 'terminal_id' in contact else None
+            if terminal is not None and not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',terminal): _fail('INVALID_ROUTE_DETAIL')
             identity=_name(contact['symbol_id'],'INVALID_ROUTE_DETAIL',maximum=128)
             index=_integer(contact['point_index'],'INVALID_ROUTE_DETAIL')
             anchor=_exact_keys(contact['anchor'],{'x','y','elevation_meters'},'INVALID_ROUTE_DETAIL')
@@ -395,7 +404,7 @@ def _route_detail(
                     or not _close(route.points[index].x,anchor['x']) or not _close(route.points[index].y,anchor['y'])
                     or not _close(symbol.position.x,anchor['x']) or not _close(symbol.position.y,anchor['y'])):
                     _fail('EXTENSION_CROSS_REFERENCE_FAILED')
-            connections.append(CanonicalDeviceConnection(identity,index,anchor))
+            connections.append(CanonicalDeviceConnection(identity,index,anchor,terminal))
         connections=tuple(connections)
     junctions = None
     circuit = None
@@ -422,12 +431,26 @@ def _route_detail(
                     _fail('EXTENSION_CROSS_REFERENCE_FAILED')
             junctions.append(dict(junction_id=identity, point_index=index, anchor=anchor))
         junctions = tuple(junctions)
+    metadata={}
+    for key in ('vertex_ids','network_lineage'):
+        if key not in data: continue
+        values=data[key]
+        if type(values) is not list or not 1<=len(values)<=2048: _fail('INVALID_ROUTE_DETAIL')
+        for item in values:
+            if not isinstance(item,str) or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,160}',item): _fail('INVALID_ROUTE_DETAIL')
+        if key=='vertex_ids' and base_document and len(values)!=len(next(r for r in base_document.routes if r.id==route_id).points): _fail('EXTENSION_CROSS_REFERENCE_FAILED')
+        if key=='vertex_ids' and base_document:
+            positions={}
+            for identity,point in zip(values,next(r for r in base_document.routes if r.id==route_id).points):
+                if identity in positions and positions[identity]!=point:_fail('EXTENSION_CROSS_REFERENCE_FAILED')
+                positions[identity]=point
+        metadata[key]=tuple(values)
     return CanonicalRouteDetail(
         route_id=route_id,
         route_kind=route_kind,
         provenance_ref=provenance_ref,
         device_connections=connections,
-        junction_connections=junctions, circuit_id=circuit,
+        junction_connections=junctions, circuit_id=circuit, **metadata,
     )
 
 
@@ -449,7 +472,7 @@ def canonical_extension_from_dict(
         "INVALID_EXTENSION_DOCUMENT",
     )
     version = data['extension_schema_version']
-    if type(version) is not int or version not in (2, 3, 4, 5):
+    if type(version) is not int or version not in (2, 3, 4, 5, 6):
         _fail("UNSUPPORTED_EXTENSION_VERSION")
     if type(data["base_schema_version"]) is not int or data["base_schema_version"] != BASE_SCHEMA_VERSION:
         _fail("INVALID_EXTENSION_DOCUMENT")
@@ -516,6 +539,17 @@ def canonical_extension_from_dict(
             for contact in detail.device_connections:
                 if contact.symbol_id not in mounts or not _close(contact.anchor['elevation_meters'],mounts[contact.symbol_id].elevation_meters):
                     _fail('INVALID_ROUTE_DETAIL')
+    if version >= 6:
+        terminals = {}
+        for detail in route_details:
+            for contact in detail.device_connections:
+                if contact.terminal_id:
+                    terminals.setdefault((contact.symbol_id,contact.terminal_id), []).append((detail,contact.anchor))
+        if len(terminals)>4096 or sum(map(len,terminals.values()))>16384: _fail('INVALID_ROUTE_DETAIL')
+        for contacts in terminals.values():
+            first,anchor=contacts[0]
+            if any(detail.circuit_id!=first.circuit_id or any(not _close(point[k],anchor[k]) for k in anchor)
+                   for detail,point in contacts): _fail('INVALID_ROUTE_DETAIL')
     if version >= 5:
         junctions = {}
         for detail in route_details:

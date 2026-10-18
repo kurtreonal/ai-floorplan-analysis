@@ -25,9 +25,11 @@ export function snapWiringPoint(point, draft, presentations = {}, threshold = 12
     }
     if (examined >= 512) break
   }
-  const nearest = candidates.map(p => ({ ...p, distance: Math.hypot(p.x-point.x,p.y-point.y) }))
+  const ordered = candidates.map(p => ({ ...p, distance: Math.hypot(p.x-point.x,p.y-point.y) }))
     .filter(p => Number.isFinite(p.distance) && p.distance <= threshold)
-    .sort((a,b) => a.priority-b.priority || a.distance-b.distance)[0]
+    .sort((a,b) => a.priority-b.priority || a.distance-b.distance)
+  const nearest = ordered[0]
+  if (nearest && ordered.some(p => p!==nearest && p.priority===nearest.priority && Math.abs(p.distance-nearest.distance)<1e-6 && (p.id!==nearest.id || p.kind!==nearest.kind))) return {...point,snapped:false}
   return nearest ? { x: nearest.x, y: nearest.y, snapped: true, kind: nearest.kind, id: nearest.id }
     : { ...point, snapped: false }
 }

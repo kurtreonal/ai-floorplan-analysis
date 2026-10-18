@@ -147,7 +147,9 @@ class ObservedWiringReviewApiTests(fixture.DemoInterpretationApiTests):
                 review_revision_number=2,expected_layout_version_number=None,idempotency_key=str(uuid4())))
             self.assertEqual(layout.status_code,201,layout.text)
             document=layout.json()
-            self.assertEqual(document['extension']['extension_schema_version'],4)
+            self.assertEqual(document['extension']['extension_schema_version'],6)
+            self.assertTrue(all(a['terminal_id'].startswith('observed-port.')
+                for a in document['extension']['route_details'][0]['device_connections']))
             self.assertEqual(len(document['geometry']['routes']),3) # One observed run, two installation drops.
             self.assertEqual(len(document['extension']['route_details'][0]['device_connections']),2)
             self.assertEqual(self.client.get(path).json()['review']['observed_wiring'][0]['points'][index],dict(x=120,y=160))

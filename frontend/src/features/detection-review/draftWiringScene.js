@@ -1,8 +1,10 @@
 import { devicePlacement, deviceConnector } from '../viewer-3d/devicePlacement.js'
 import { connectionLead } from '../viewer-3d/connectionGeometry.js'
+import { wiringComponents } from './connectedWiring.js'
 
 // Advisory projection of the SAME draft source points, never a circuit or quantity input.
 export function draftWiringScene(wires, scene) {
+  const networks=wiringComponents(wires || [])
   const attachedDrops = new Set()
   const attachmentSegments = new Set()
   return (wires || []).filter(wire => wire.disposition !== 'rejected').flatMap(wire => {
@@ -50,11 +52,11 @@ export function draftWiringScene(wires, scene) {
         }
       }
     }
-    return [{ id: wire.id, points, segments, connectionAnchors:[...(wire.device_attachments || []),...(wire.junction_attachments || [])].map(a => points[a.point_index]).filter(Boolean),
+    return [{ id: wire.id, networkId:networks.get(wire.id), points, segments, connectionAnchors:[...(wire.device_attachments || []),...(wire.junction_attachments || [])].map(a => points[a.point_index]).filter(Boolean),
       deviceIds:[...attachedDevices], unmeasuredDeviceIds:[...unmeasuredDevices], illustrativeHeight: !knownHeight,
       installationMethod: wire.installation_method ?? 'unknown', lineStyle: wire.line_style ?? 'unknown',
       ...(wire.assignment_state ? {assignment_state:wire.assignment_state} : {}),
-      ...(wire.origin === 'generated' ? { origin: 'generated' } : {}) }]
+      ...(wire.origin === 'generated' ? { origin: 'generated' } : wire.path_origin === 'manual' ? {origin:'manual'} : {}) }]
   })
 }
 

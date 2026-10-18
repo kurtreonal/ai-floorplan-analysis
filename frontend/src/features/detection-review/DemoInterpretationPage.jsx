@@ -23,7 +23,7 @@ import { SourceViewsPanel } from './SourceViewsPanel.jsx'
 import { ObservedWiringPanel } from './ObservedWiringPanel.jsx'
 import { WireDeviceConnections } from './WireDeviceConnections.jsx'
 import { BOMPanel } from '../estimation/BOMPanel.jsx'
-import { initialWiringDraft, nextWiringId, wiringSavePayload } from './observedWiringDraft.js'
+import { initialWiringDraft, wiringSavePayload } from './observedWiringDraft.js'
 import { withWiringMethod } from './wireDrawing.js'
 import { connectTouchingWireEndpoints, detachDevice, moveConnectedDevice, moveConnectedWirePoint } from './deviceConnections.js'
 import './detectionReview.css'
@@ -38,6 +38,7 @@ import { pastedDevice, useDeviceClipboard } from './useDeviceClipboard.js'
 import { WireJunctionEditor } from './WireJunctionEditor.jsx'
 import { WiringRecoveryStatus } from './WiringRecoveryStatus.jsx'
 import { updateWireNetwork } from './wireJunctions.js'
+import { commitWiringPath } from './connectedWiring.js'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
 
@@ -169,6 +170,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const [tool, setTool] = useState('select')
   const [placementLegendId, setPlacementLegendId] = useState('')
   const [drawingWireMethod, setDrawingWireMethod] = useState('concealed_in_ceiling')
+  const [drawingPending,setDrawingPending] = useState(false)
   const [editingSession, setEditingSession] = useState(0)
   const [analysisRegion, setAnalysisRegion] = useState(null)
   const [blueprintOpacity, setBlueprintOpacity] = useState(1.0)
@@ -223,6 +225,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     function handleKeyDown(e) {
       if (e.target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])') || saveState.status === 'saving') return
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        setDrawingPending(false)
         e.preventDefault()
         setEditingSession(value=>value+1)
         if (e.shiftKey) {
@@ -241,6 +244,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           setApproveLayout(false)
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        setDrawingPending(false)
         e.preventDefault()
         setEditingSession(value=>value+1)
         if (historyIndex < history.length - 1) {
@@ -259,7 +263,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   useDeviceClipboard({
     sourceKey: `${floorPlanId}:${processingJobId}`,
     draft, selected, plane: state.record?.candidate.payload.source_plane,
-    disabled: state.status !== 'ready' || saveState.status === 'saving',
+    disabled: state.status !== 'ready' || saveState.status === 'saving' || drawingPending,
     onPaste(snapshot) {
       const symbol = pastedDevice(snapshot, draft, state.record.candidate.payload.source_plane,
         nextManualId(draft.symbols, 'manual-symbol'))
@@ -304,6 +308,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   }
 
   function handleUndo() {
+    setDrawingPending(false)
     if (historyIndex > 0) {
       setEditingSession(value=>value+1)
       const prev = history[historyIndex - 1]
@@ -316,6 +321,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   }
 
   function handleRedo() {
+    setDrawingPending(false)
     if (historyIndex < history.length - 1) {
       setEditingSession(value=>value+1)
       const next = history[historyIndex + 1]
@@ -419,6 +425,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   }
 
   function addEntity(kind) {
+    if(drawingPending){setSaveState({status:'error',message:'Finish wiring with Done or Enter first.'});return}
     if (kind === 'symbol') {
       setTool('place-device'); setSelected(null); setPlacementLegendId(''); setView('2d')
       setLayers(current => ({...current, symbols: true}))
@@ -445,6 +452,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   }
 
   async function saveReview({ draftOnly = false } = {}) {
+    if (drawingPending) {setSaveState({status:'error',message:'Finish wiring with Done or Enter before saving.'});return}
     if (saveState.status === 'saving') return
     setSaveState({ status: 'saving', message: 'Saving immutable review revision…' })
     try {
@@ -554,7 +562,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       <div className="studio-review-headerbar">
         <div className="studio-review-mode" role="group" aria-label="Preview mode">
           <Button variant={view === '2d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '2d'} aria-label="2D · Review rooms" onClick={() => setView('2d')}><Layers3 aria-hidden="true" />Edit 2D</Button>
-          <Button variant={view === '3d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '3d'} aria-label="3D · Draft preview" onClick={() => { setOpened3d(true); setView('3d'); setTool('select') }}><Box aria-hidden="true" />View 3D</Button>
+          <Button variant={view === '3d' ? 'secondary' : 'ghost'} size="sm" disabled={drawingPending} aria-pressed={view === '3d'} aria-label="3D · Draft preview" onClick={() => { setOpened3d(true); setView('3d'); setTool('select') }}><Box aria-hidden="true" />View 3D</Button>
         </div>
         <Button variant="ghost" size="icon" aria-label="Undo" disabled={historyIndex <= 0} onClick={handleUndo}><Undo2 aria-hidden="true" /></Button>
         <Button variant="ghost" size="icon" aria-label="Redo" disabled={historyIndex >= history.length - 1} onClick={handleRedo}><Redo2 aria-hidden="true" /></Button>
@@ -563,6 +571,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       <div className="studio-review-workbench studio-device-workbench">
       <WorkspacePanel title="Plan tools" className="studio-review-tools-panel">
       <ReviewToolRail view={view} tool={tool} onToolChange={(nextTool) => {
+        if(drawingPending){setSaveState({status:'error',message:'Finish wiring with Done or Enter first.'});return}
         setTool(nextTool); setEditingSession((value) => value + 1)
         if (nextTool === 'wire') setSelected(null)
       }} onAdd={addEntity}
@@ -586,7 +595,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
 
         <p className="demo-next-step">
           {view === '2d'
-            ? tool === 'wire' ? 'Click two points to draw a wire. Shift keeps it straight; Escape cancels.' : tool === 'draw' ? 'Click A → B → C to keep drawing walls. Escape finishes; Shift keeps it straight.' : 'Click a device or wire to edit. Save when ready.'
+            ? tool === 'wire' ? 'Click to add points. Enter or Done finishes; Backspace removes the last point. Escape finishes without the preview.' : tool === 'draw' ? 'Click A → B → C to keep drawing walls. Escape finishes; Shift keeps it straight.' : 'Click a device or wire to edit. Save when ready.'
             : 'Click a wire and drag its blue points. Devices and wiring share the same 2D/3D draft.'}
         </p>
 
@@ -627,10 +636,11 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               drawingWireMethod={drawingWireMethod}
               presentations={presentations}
               blueprintOpacity={blueprintOpacity}
-              onAddWire={(points) => {
-                if (saveState.status === 'saving' || draft.wirings.length >= 2048) return
-                pushDraft({ ...draft, wirings: [...draft.wirings, { id: nextWiringId(draft.wirings), points,
-                  ...withWiringMethod({ disposition: 'added', completeness: 'partial', elevation_meters: null },drawingWireMethod) }] })
+              onDrawingPendingChange={setDrawingPending}
+              onAddWire={(points,vertices=points.map(point=>({point}))) => {
+                if (saveState.status === 'saving' || draft.wirings.length >= 2048) return false
+                try { pushDraft(commitWiringPath(draft,vertices,withWiringMethod({},drawingWireMethod)),{autoConnect:false}) }
+                catch(error){setSaveState({status:'error',message:error.message});return false}
                 setLayers((current) => ({ ...current, wirings: true }))
               }}
             />
@@ -701,7 +711,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               <option value="concealed_in_ceiling">Ceiling</option>
               <option value="concealed_under_floor">Underground / under floor</option>
             </select></label>
-            <p>{selectedEntity.origin === 'generated' ? 'Automatic A* draft — not detected in the image.' : 'Drawing trace.'}</p>
+            <p>{selectedEntity.origin === 'generated' ? 'Automatic A* draft' : selectedEntity.path_origin === 'manual' ? 'Drawn path' : 'Drawing trace'}</p>
             {state.record.candidate.payload.observed_routes?.connections?.filter(c => c.from_ref===`segment:${selectedEntity.id}` && c.ambiguity==='ambiguous').map(c =>
               <p role="note" key={c.id}>Unresolved contact: {c.to_ref.replace('symbol:','')} · overlapping or ambiguous device port. Edit the connection rather than guessing.</p>)}
             <p>Drag a free blue endpoint onto a device or compatible path in either view. Green previews the connection; release to commit, Escape to cancel.</p>

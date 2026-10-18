@@ -21,7 +21,7 @@ function WireEditor({ wire, width, height, onApply, onRemove, onCancel, disabled
     <label>Trace completeness {wire.id}<select value={completeness} onChange={(event) => setCompleteness(event.target.value)}>
       <option value="partial">Partial</option><option value="complete">Complete visible trace</option><option value="unreadable">Unreadable</option>
     </select></label>
-    <p role="note">{wire.origin === 'generated' ? 'Automatic A* draft — not copied from the drawing.' : 'Source drawing trace.'} Edit freely, then save.</p>
+    <p role="note">{wire.origin === 'generated' ? 'Automatic A* draft.' : wire.path_origin === 'manual' ? 'Drawn path.' : 'Source drawing trace.'}</p>
     {wire.wiring_legend_name && <p>{wire.wiring_legend_name.replace(/ \[pdf-.*$/, '')}</p>}
     {error && <p role="alert">{error}</p>}
     <div className="demo-add-actions"><Button variant="outline" onClick={apply}>Apply wiring changes</Button>
@@ -48,7 +48,7 @@ export function ObservedWiringPanel({ wires, width, height, onChange, visible, o
     <details><summary>Edit wiring points</summary>
     <p>Drawing traces and automatic A* drafts stay separate. Drafts are not measured circuits.</p>
     {orderNamed(wires, wire => wire.id).map((wire) => <details key={wire.id}>
-      <summary>{wire.id} · {wire.disposition === 'rejected' ? 'removed' : wire.origin === 'generated' ? 'Automatic A* draft' : 'Drawing trace'}</summary>
+      <summary>{wire.id} · {wire.disposition === 'rejected' ? 'removed' : wire.origin === 'generated' ? 'Automatic A* draft' : wire.path_origin === 'manual' ? 'Drawn path' : 'Drawing trace'}</summary>
       <WireEditor key={JSON.stringify(wire)} wire={wire} width={width} height={height}
         disabled={disabled}
         onApply={(updated) => onChange(wires.map((item) => item.id === wire.id ? updated : item))}
