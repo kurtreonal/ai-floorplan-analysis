@@ -13,6 +13,7 @@ import unicodedata
 from app.core.config import REPOSITORY_ROOT, get_settings
 from app.ai.floor_plan_interpretation import experimental_symbol_detector as shared
 from app.ai.floor_plan_interpretation.legend_equivalence import EQUIVALENCE_REVISION, model_class_groups
+from app.ai.floor_plan_interpretation.orientation_consensus import CONFIGURATION as ORIENTATION_CONFIGURATION
 
 PROVIDER = "development_multiclass56_yolo"
 LEGACY_CHECKPOINT = REPOSITORY_ROOT / "storage/training/symbol-quality-20260929-run3/weights/best.pt"
@@ -188,6 +189,7 @@ def configuration_sha256():
         **({"dense_lighting_localization": {"policy": DENSE_LIGHTING_POLICY,
             "minimum_fixture_observations":8,"minimum_physical_device_fraction":.70,
             "detail_tile":320,"detail_stride":160,"total_window_cap":shared.MAX_TILES},
+            "orientation_consensus": ORIENTATION_CONFIGURATION,
             "plan_region_filter":"source-centre-v1",
             "fixture_wall_conflicts":"two-central-ceiling-fixtures-v1",
             "coordinate_fusion": "best-two-same-class-v1", "internal_seam_fragment":
@@ -224,6 +226,16 @@ def locate(rgb):
     classes = verify_artifacts()
     catalog={"classes": classes, "threshold": THRESHOLD, "model": _model(),
              "class_groups": model_class_groups(classes),"box_fusion": PROFILE == 'power80'}
+    if PROFILE == 'power80':
+        from app.ai.floor_plan_interpretation.orientation_consensus import locate_orientation_consensus
+        diagnostics={}
+        rows,truncated=locate_orientation_consensus(rgb, lambda image: _locate_context(image,catalog,classes),
+                                                    catalog['class_groups'], diagnostics=diagnostics)
+        return tuple({**row,**({'orientation_assessment':diagnostics} if diagnostics else {})} for row in rows),truncated
+    return _locate_context(rgb,catalog,classes)
+
+
+def _locate_context(rgb,catalog,classes):
     baseline,truncated=shared.locate(rgb,catalog=catalog)
     physical=[p for p in baseline if not re.search(r'home.?run|circuit.*notation',classes[p['class_id']][0],re.I)]
     fixtures=[p for p in physical if re.search(r'troffer|fluorescent|downlight|lighting point|light point',
@@ -254,6 +266,13 @@ def with_proposals(payload, predictions, truncated=False):
         catalog={"classes": classes,"dataset_sha256": TRAINING_DATASET_SHA256,
                  "alias_evidence_in_score":PROFILE=='power80'})
     from app.ai.floor_plan_interpretation.candidate import CandidateWarning
+    assessment=next((row['orientation_assessment'] for row in predictions if row.get('orientation_assessment')),None)
+    if assessment and len(result.warnings)<256:
+        result=result.model_copy(update={'warnings':result.warnings+(CandidateWarning(
+            code='symbol_orientation_assessment',severity='info',
+            message='Bounded quarter-turn inference; one coherent view selected, not a union. '
+                    'Agreement ranking is not calibrated confidence or approval: '
+                    +json.dumps(assessment,separators=(',',':'))),)})
     alias_refs = tuple(f'symbol:symbol-{index:04d}' for index,row in enumerate(predictions,start=1)
                        if row.get('equivalent_observations'))
     # Evidence is preserved once in each symbol's existing score warning.

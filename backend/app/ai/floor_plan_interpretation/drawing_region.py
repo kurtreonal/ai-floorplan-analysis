@@ -95,9 +95,10 @@ def restore_region_predictions(predictions, *, region: DrawingRegion, source_pla
         raise ValueError("Detector predictions exceed the bounded collection contract.")
 
     def restore(row, *, observation=False):
-        allowed = {"class_id", "bbox", "score", "tile_origin", "clipped_tile_edges"}
+        allowed = {"class_id", "bbox", "score", "tile_origin", "clipped_tile_edges",
+                   "tile_size", "inference_rotation_ccw"}
         if not observation:
-            allowed |= {"localization_observations", "equivalent_observations"}
+            allowed |= {"localization_observations", "equivalent_observations", "orientation_assessment"}
         if type(row) is not dict or not set(row) <= allowed:
             raise ValueError("Unsupported or recursive detector observation.")
         box = row.get("bbox")
@@ -110,6 +111,30 @@ def restore_region_predictions(predictions, *, region: DrawingRegion, source_pla
             raise ValueError("Invalid raw detector class identity.")
         if type(row.get("score")) not in (int, float) or not isfinite(row["score"]) or not 0 <= row["score"] <= 1:
             raise ValueError("Invalid raw detector score.")
+        if 'tile_size' in row and (type(row['tile_size']) is not int or not 224 <= row['tile_size'] <= 512):
+            raise ValueError('Invalid detector tile size.')
+        if 'inference_rotation_ccw' in row and (type(row['inference_rotation_ccw']) is not int
+                or row['inference_rotation_ccw'] not in (90, 180, 270)):
+            raise ValueError('Invalid detector rotation.')
+        if 'orientation_assessment' in row:
+            assessment = row['orientation_assessment']
+            if (type(assessment) is not dict or set(assessment) != {
+                    'selected_turn', 'agreement_ranks', 'agreed_counts', 'orientation_resolved',
+                    'retained_counts', 'truncated_views'}
+                    or type(assessment['selected_turn']) is not int or not 0 <= assessment['selected_turn'] <= 3
+                    or type(assessment['orientation_resolved']) is not bool):
+                raise ValueError('Invalid bounded orientation assessment.')
+            for key in ('agreement_ranks', 'agreed_counts', 'retained_counts', 'truncated_views'):
+                values = assessment[key]
+                if type(values) not in (list, tuple) or len(values) != 4:
+                    raise ValueError('Invalid orientation view count.')
+                for value in values:
+                    valid = (type(value) is bool if key == 'truncated_views' else
+                             type(value) in (int, float) and isfinite(value) and 0 <= value <= MAXIMUM_DETECTOR_ROWS
+                             if key == 'agreement_ranks' else
+                             type(value) is int and 0 <= value <= MAXIMUM_DETECTOR_ROWS)
+                    if not valid:
+                        raise ValueError('Invalid orientation observation value.')
         if "tile_origin" in row:
             origin = row["tile_origin"]
             if (type(origin) not in (list, tuple) or len(origin) != 2

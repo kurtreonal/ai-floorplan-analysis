@@ -22,7 +22,9 @@ def classes():
 
 
 class MulticlassDetectorTests(TestCase):
-    def test_dense_lighting_uses_bounded_native_context_without_lowering_threshold(self):
+    @patch('app.ai.floor_plan_interpretation.orientation_consensus.locate_orientation_consensus',
+           side_effect=lambda image,infer,groups,**kwargs:infer(image))
+    def test_dense_lighting_uses_bounded_native_context_without_lowering_threshold(self,_orientation):
         mapping={0:('Troffer lights','drawing:L00'),1:('One gang device switch','drawing:L01'),
                  2:('Circuit home-run notation','drawing:L02'),3:('Duplex outlet','drawing:L03')}
         lamps=tuple({'class_id':0,'bbox':(10,10,20,50),'score':.8} for _ in range(8))

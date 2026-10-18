@@ -147,6 +147,22 @@ class DrawingRegionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             restore_region_payload(FloorPlanInterpretationPayload.model_validate(data), region=self.region, source_plane=self.plane)
 
+    def test_rotated_dense_tile_evidence_survives_region_restore_with_bounded_metadata(self):
+        row={'class_id':1,'score':.6,'bbox':[10,20,30,40], 'tile_origin':[0,0],
+             'tile_size':320,'inference_rotation_ccw':90}
+        assessment={'selected_turn':1,'agreement_ranks':[1.,2.,1.,0.],
+                    'agreed_counts':[1,2,1,0],'retained_counts':[2,2,2,0],
+                    'orientation_resolved':True,'truncated_views':[False]*4}
+        prediction={**row,'orientation_assessment':assessment,'equivalent_observations':[row]}
+        restored=restore_region_predictions([prediction],region=self.region,source_plane=self.plane)[0]
+        self.assertEqual(restored['equivalent_observations'][0]['bbox'],[100,180,120,200])
+        self.assertEqual(restored['orientation_assessment'],assessment)
+        for invalid in ({'selected_turn':4},{'agreement_ranks':[float('nan')]*4},
+                        {'retained_counts':[201]*4},{'truncated_views':[False]*5}):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                restore_region_predictions([{**prediction,'orientation_assessment':{**assessment,**invalid}}],
+                    region=self.region,source_plane=self.plane)
+
     def test_source_contract_and_selected_inference_budgets_are_separate(self):
         source = np.full((300, 6000, 3), 255, dtype=np.uint8)
         result = interpret_drawing_region(source, region=DrawingRegion(x=5500, y=0, width=400, height=300))

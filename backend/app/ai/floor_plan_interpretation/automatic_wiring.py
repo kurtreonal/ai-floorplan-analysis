@@ -14,7 +14,7 @@ from app.ai.floor_plan_interpretation.candidate import (
     ObservedRouteSegment, PixelPoint,
 )
 
-EVIDENCE_VERSION = "raw-source-device-port-evidence-v12"
+EVIDENCE_VERSION = "raw-source-validated-context-v14"
 
 
 def with_fixture_wall_conflicts(payload):
@@ -117,7 +117,59 @@ def _dash_span(samples, maximum_gap):
     return best
 
 
-def _dash_direction_evidence(a, b, samples, ink):
+def _source_dash_contrast(a, b, samples, gray):
+    """Threshold holes in continuous gray structure are not source dash gaps.
+
+    Compare the same narrow stroke band in the original grayscale raster.
+    Relative contrast preserves faint wires; no absolute black-ink cutoff.
+    """
+    axis = np.asarray(b, float)-a
+    normal = np.array([-axis[1], axis[0]]) / np.linalg.norm(axis)
+    points = np.linspace(a, b, len(samples))
+    bands = np.rint(points[:, None, :] + normal * np.arange(-1, 2)[:, None]).astype(int)
+    bands[..., 0] = np.clip(bands[..., 0], 0, gray.shape[1]-1)
+    bands[..., 1] = np.clip(bands[..., 1], 0, gray.shape[0]-1)
+    values = gray[bands[..., 1], bands[..., 0]].min(axis=1)
+    return bool(samples.any() and (~samples).any()
+                and float(np.median(values[~samples]))-float(np.median(values[samples])) >= 12)
+
+
+def _parallel_dash_boundaries(a, b, samples, ink):
+    """Paired boundaries interrupted by the same columns are not dash wires.
+
+    Require two separate ink bands, a less occupied interior (empty or hatched),
+    and matching gaps. A wire beside a continuous wall, or one thick stroke,
+    does not match.
+    """
+    axis = np.asarray(b, float)-a
+    normal = np.array([-axis[1], axis[0]]) / np.linalg.norm(axis)
+    points = np.linspace(a, b, len(samples))
+    radius = 32  # Bounded cross-section; effective distance follows stroke width.
+    offsets = np.arange(-radius, radius+1)
+    xy = np.rint(points[:, None, :] + normal * offsets[:, None]).astype(int)
+    xy[..., 0] = np.clip(xy[..., 0], 0, ink.shape[1]-1)
+    xy[..., 1] = np.clip(xy[..., 1], 0, ink.shape[0]-1)
+    bands = ink[xy[..., 1], xy[..., 0]] > 0
+    if not samples.any() or not (~samples).any():
+        return False
+    on_stroke = bands[samples].mean(axis=0)
+    in_gaps = bands[~samples].mean(axis=0)
+    low = high = radius
+    while low > 0 and on_stroke[low-1] >= .8:
+        low -= 1
+    while high < len(offsets)-1 and on_stroke[high+1] >= .8:
+        high += 1
+    distance = max(6, min(radius, (high-low+1)*6))
+    for j, offset in enumerate(offsets):
+        if not 3 <= abs(offset) <= distance or on_stroke[j] < .8 or in_gaps[j] > .2:
+            continue
+        between = on_stroke[min(radius,j)+1:max(radius,j)]
+        if len(between) >= 2 and np.count_nonzero(between < .75) >= 2:
+            return True
+    return False
+
+
+def _dash_direction_evidence(a, b, samples, ink, *, include_terminal_strokes=False):
     """Require repeated strokes along the path, not periodic crossings.
 
     A scan through diagonal hatching or furniture can have perfectly regular
@@ -130,7 +182,7 @@ def _dash_direction_evidence(a, b, samples, ink):
     axis /= np.linalg.norm(axis)
     edges = np.flatnonzero(np.r_[True, samples[1:] != samples[:-1], True])
     strokes = [(int(lo), int(hi)) for lo, hi in zip(edges, edges[1:]) if samples[lo]]
-    interiors = strokes[1:-1]
+    interiors = strokes if include_terminal_strokes else strokes[1:-1]
     supported = 0
     for lo, hi in interiors:
         center = a + (b-a)*((lo+hi-1)/2/(len(samples)-1))
@@ -191,6 +243,52 @@ def _parallel_wall(segment, walls, tolerance):
     return False
 
 
+def _dash_mask_conflicts(symbols, ink):
+    """A long uncertain lamp box must not erase independently supported dashes.
+
+    Keep the symbol for review. Only exempt its extraction mask when an actual
+    repeated axial pattern spans two OTHER device boundaries. Alignment merely
+    bounds this test; the ordinary source/contact gates still decide the wire.
+    """
+    fixtures = [s for s in symbols if re.search(r'troffer|fluorescent',
+                s.training_legend.name if s.training_legend else s.observed_label or '', re.I)]
+    others = [s for s in symbols if s not in fixtures]
+    conflicts = set()
+    for symbol in fixtures:
+        box = symbol.bounds
+        minor, major = min(box.width, box.height), max(box.width, box.height)
+        if major < minor*3:
+            continue
+        axis = int(box.height > box.width)
+        attribute, extent = ('y', 'height') if axis else ('x', 'width')
+        cross_attribute, cross_extent = ('x', 'width') if axis else ('y', 'height')
+        low = getattr(box, attribute); high = low+getattr(box, extent)
+        cross = getattr(symbol.center, cross_attribute)
+        first = []; last = []
+        for other in others:
+            b = other.bounds
+            if not getattr(b,cross_attribute) <= cross <= getattr(b,cross_attribute)+getattr(b,cross_extent):
+                continue
+            start = getattr(b,attribute); end = start+getattr(b,extent)
+            if 0 <= low-end <= minor*2:
+                first.append((other,end))
+            if 0 <= start-high <= minor*2:
+                last.append((other,start))
+        for left,a in first[:4]:
+            for right,b in last[:4]:
+                for offset in range(-math.ceil(minor*.25),math.ceil(minor*.25)+1):
+                    p = np.array([cross+offset,a]) if axis else np.array([a,cross+offset])
+                    q = np.array([cross+offset,b]) if axis else np.array([b,cross+offset])
+                    xy = np.rint(np.linspace(p,q,math.ceil(b-a)+1)).astype(int)
+                    if (xy<0).any() or (xy[:,0]>=ink.shape[1]).any() or (xy[:,1]>=ink.shape[0]).any():
+                        continue
+                    samples = ink[xy[:,1],xy[:,0]]>0
+                    if (_regular_dash_evidence(samples, max(8,minor*2))
+                            and _dash_direction_evidence(p,q,samples,ink,include_terminal_strokes=True)):
+                        conflicts.add(symbol.id)
+    return conflicts
+
+
 def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
     """Find device-anchored strokes on the original pre-annotation source raster.
 
@@ -235,10 +333,11 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
     ink = cv2.bitwise_and(ink, scope)
     search = ink.copy()
     padding = max(2, min(6, round(min(width, height) * .0015)))
+    mask_conflicts = _dash_mask_conflicts(symbols, ink)
     # Glyph interiors cannot masquerade as a wire connecting a device to itself.
     for symbol in payload.symbols.items:
         bounds = symbol.bounds
-        if bounds is None:
+        if bounds is None or symbol.id in mask_conflicts:
             continue
         left, top = max(0, math.floor(bounds.x) - padding), max(0, math.floor(bounds.y) - padding)
         right = min(width, math.ceil(bounds.x + bounds.width) + padding + 1)
@@ -308,7 +407,14 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
         # A single gap or irregular missing span cannot become a connection.
         if not samples.all() and not regular_dashes:
             continue
-        if regular_dashes and not _dash_direction_evidence(a,b,samples,search):
+        # Search has glyph pixels removed. Its terminal dashes are independent
+        # evidence too; a single dimension crossing must not veto three real
+        # axial dashes. This does NOT create a junction at that crossing.
+        if regular_dashes and not _dash_direction_evidence(a,b,samples,search,include_terminal_strokes=True):
+            continue
+        if regular_dashes and not _source_dash_contrast(a,b,samples,gray):
+            continue
+        if regular_dashes and _parallel_dash_boundaries(a,b,samples,ink):
             continue
         direction=(b[0]-a[0],b[1]-a[1])
         anchors_a={s.id for s in symbols if _near_port(a,s,direction,anchor_tolerance)}
@@ -352,8 +458,12 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
     # stroke, and crossing/group membership cannot change a solid line style.
     selected=[(row[0],row[1],row[2],row[3]) for i,row in enumerate(selected) if i in eligible
               and row[0]!=row[1]]
-    fixture_rows, fixture_truncated = fixture_axis_traces(
+    # A few orientation/class mistakes on a power or mixed drawing must not
+    # replace every general wire hypothesis with a ceiling-fixture axis search.
+    from app.ai.floor_plan_interpretation.fixture_wiring import ceiling_fixtures
+    fixture_rows, fixture_truncated = (fixture_axis_traces(
         payload, image_rgb, scope, dash_validator=_regular_dash_evidence)
+        if len(ceiling_fixtures(payload)) >= max(4, len(symbols)*.70) else (None, False))
     if fixture_rows is not None:
         # Global Hough votes favour repeated ceiling grids. On fixture-rich
         # drawings use the bounded, source-supported axis search. Validate real
@@ -381,7 +491,77 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
                                                connections=(), truncated=truncated).model_dump()
     value["warnings"].append(CandidateWarning(code="automatic_visible_wiring", severity="info",
         message="Drawing traces are editable; gaps, circuit connections and heights remain unresolved.").model_dump())
+    if mask_conflicts and len(value['warnings']) < 256:
+        value['warnings'].append(CandidateWarning(code='symbol_mask_dash_conflict', severity='warning',
+            entity_refs=tuple(f'symbol:{s}' for s in sorted(mask_conflicts))[:32],
+            message='Repeated axial source dashes span two other device boundaries through these uncertain elongated fixture boxes. '
+                    'Their extraction masks were bypassed, not their classifications approved. Inspect the symbol proposals.').model_dump())
     if dashed_selected:
         value["warnings"].append(CandidateWarning(code="regular_dashed_wiring",severity="info",
             message="Repeated dashed ink supports partial trace proposals, not confirmed circuit connections.").model_dump())
-    return with_device_contact_evidence(FloorPlanInterpretationPayload.model_validate(value), image_rgb)
+    result = with_device_contact_evidence(FloorPlanInterpretationPayload.model_validate(value), image_rgb)
+    return with_validated_solid_context(result, image_rgb)
+
+
+def with_validated_solid_context(payload, image_rgb):
+    """Loose endpoint boxes are NOT two independent electrical contacts.
+
+    Initial solid Hough/fixture proposals need two validated ports. One-ended
+    repeated dashes retain their independent line-style evidence. Recovery can
+    subsequently add solid branches meeting a source-supported existing trunk.
+    Never apply this filter to already saved observations or native topology.
+    """
+    contacts = {}
+    for contact in payload.observed_routes.connections:
+        if contact.evidence_kind and contact.path_anchor:
+            contacts.setdefault(contact.from_ref, []).append(contact)
+    symbols = {f'symbol:{s.id}': s for s in payload.symbols.items}
+    def distinct_ports(route):
+        rows = contacts.get(f'segment:{route.id}', ())
+        for i, first in enumerate(rows):
+            for last in rows[:i]:
+                bounds = [symbols[c.to_ref].bounds for c in (first, last)
+                          if c.to_ref in symbols and symbols[c.to_ref].bounds]
+                tolerance = max(3, min((min(b.width, b.height) for b in bounds), default=6)*.5)
+                if first.to_ref != last.to_ref and math.dist(
+                        (first.path_anchor.x, first.path_anchor.y),
+                        (last.path_anchor.x, last.path_anchor.y)) > tolerance:
+                    return True
+        return False
+    # A zero-contact arm can belong to a supported bent dashed trace. Preserve
+    # its source geometry without treating the corner as a circuit junction.
+    dashed = [r for r in payload.observed_routes.segments if r.line_style == 'dashed']
+    supported = {r.id for r in dashed if contacts.get(f'segment:{r.id}')}
+    gap = max(8, min(64, round(min(image_rgb.shape[:2])*.035)))
+    changed = True
+    while changed:
+        changed = False
+        for route in dashed:
+            if route.id in supported:
+                continue
+            a, b = [(p.x, p.y) for p in (route.points[0], route.points[-1])]
+            if any(set(route.evidence_refs) & set(other.evidence_refs) and _dash_corner(
+                    a, b, (other.points[0].x, other.points[0].y),
+                    (other.points[-1].x, other.points[-1].y), gap)
+                   for other in dashed if other.id in supported):
+                supported.add(route.id); changed = True
+    rejected = [route for route in payload.observed_routes.segments
+                if (route.line_style == 'solid' and not distinct_ports(route))
+                or (route.line_style == 'dashed' and route.id not in supported)]
+    if not rejected:
+        return payload
+    refs = {f'segment:{r.id}' for r in rejected}
+    routes = payload.observed_routes.model_copy(update={
+        'segments': tuple(r for r in payload.observed_routes.segments if f'segment:{r.id}' not in refs),
+        'connections': tuple(c for c in payload.observed_routes.connections
+                             if c.from_ref not in refs and c.to_ref not in refs)})
+    warnings = tuple(w for w in payload.warnings if not refs.intersection(w.entity_refs))
+    if len(warnings) < 256:
+        raw = '; '.join(f'{r.id}: '+str([(round(p.x,2),round(p.y,2)) for p in r.points])
+                        for r in rejected[:4])
+        warnings += (CandidateWarning(code='unsupported_solid_trace_context', severity='warning',
+            message=f'{len(rejected)} line hypotheses lacked independent device-port context; '
+                    'structural/furniture ambiguity remains unresolved, not observed wiring. Raw source spans: '+raw),)
+    result = type(payload).model_validate(payload.model_copy(update={
+        'observed_routes': routes, 'warnings': warnings}).model_dump())
+    return with_device_contact_evidence(result, image_rgb)

@@ -337,6 +337,8 @@ def with_trained_symbol_proposals(payload, predictions, truncated=False, *, link
             message=(f"Training legend {classes[row['class_id']][1]}; score {row['score']:.4f} "
                      f"is not calibrated confidence; tile origin {row['tile_origin']} source pixels."
                      + (f" Native context {row['tile_size']} source pixels." if row.get('tile_size') else '')
+                     + (f" Inference view rotated {row['inference_rotation_ccw']} degrees CCW; all bounds inverse-mapped to source image edges."
+                        if row.get('inference_rotation_ccw') else '')
                      + (' Two-observation coordinate fusion; original boxes/scores/origins: '
                         + json.dumps(row['localization_observations'],separators=(',',':'))
                         if row.get('localization_observations') else '')
