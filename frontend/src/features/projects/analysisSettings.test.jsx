@@ -69,6 +69,22 @@ describe('reviewed metric settings', () => {
     expect(savePageScale).not.toHaveBeenCalled()
   })
 
+  it('sends a known dimension to the backend rather than treating printed scale as pixels', async () => {
+    savePageScale.mockResolvedValue({ ...fixture.pages[0].scale, revision_id: 10, pixels_per_meter: 100 })
+    await open()
+    const form = screen.getByLabelText('Scale (pixels per meter)').closest('form')
+    fireEvent.click(within(form).getByLabelText('Calibrate from a known dimension'))
+    for (const [label, value] of [['Measured span (source pixels)', '500'], ['Known real length (meters)', '5'],
+      ['Reference image width (pixels)', '1000'], ['Reference image height (pixels)', '500'], ['Evidence notes', 'Surveyed wall']]) {
+      fireEvent.change(within(form).getByLabelText(label), { target: { value } })
+    }
+    fireEvent.submit(form)
+    await waitFor(() => expect(savePageScale).toHaveBeenCalledWith(1, 2, 4, {
+      pixels_per_meter: null, reference_width_pixels: 1000, reference_height_pixels: 500,
+      known_dimension: { pixel_length: 500, real_length_meters: 5 }, evidence_notes: 'Surveyed wall',
+    }, expect.any(Object)))
+  })
+
   it('shows safe save failures and preserves the editable measurement', async () => {
     saveFloorElevation.mockRejectedValue(new AnalysisSettingsError(503))
     await open()

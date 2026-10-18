@@ -76,6 +76,18 @@ it('validates separate planning route and explicit conductor quantities without 
   record.result.planning_takeoff.total_conductor_meters=NaN
   await expect(previewCircuit(1,record.configuration)).rejects.toThrow('Invalid circuit preview response.')
 })
+it('reads versioned spatial takeoff without adding plan and elevation projections', async () => {
+  const record=response()
+  record.result.planning_takeoff={basis:'selected_network_uniform_conductors_planning_only',
+    measurement_revision:'canonical_centerline_3d_v1',observed_meters:4,generated_meters:1,
+    horizontal_meters:3,vertical_meters:4,conduit_meters:5,
+    conductor_count:null,one_conductor_meters:null,total_conductor_meters:null}
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,status:200,json:async()=>record}))
+  expect(await previewCircuit(1,record.configuration)).toEqual(record)
+  record.result.planning_takeoff.measurement_revision='unknown'
+  await expect(previewCircuit(1,record.configuration)).rejects.toThrow('Invalid circuit preview response.')
+})
+
 it.each(['saved', 'branch', 'nan', 'kind', 'length'])('rejects malformed or misleading %s previews', async (mutation) => {
   const record = response()
   if (mutation === 'saved') record.result.status = 'saved'

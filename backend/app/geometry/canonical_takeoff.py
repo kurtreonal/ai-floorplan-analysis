@@ -1,6 +1,6 @@
 """Read-only physical paths from the saved canonical snapshot, not fresh CV."""
 from decimal import Decimal, ROUND_HALF_UP
-from app.geometry.path_lengths import unique_metric_edges
+from app.geometry.route_measurement import measure_metric_network
 
 
 def canonical_path_rows(document, extension=None):
@@ -45,17 +45,20 @@ def canonical_path_rows(document, extension=None):
             for a,b in zip(routes[identity].points,routes[identity].points[1:]):
                 if a.project_floor_id != b.project_floor_id or a.project_floor_id != document.floor.project_floor_id:
                     missing.append('Inter-floor canonical edge has no explicit connector in this floor snapshot; excluded.')
-                elif a.elevation_meters != b.elevation_meters and (a.x,a.y) != (b.x,b.y):
-                    missing.append('Nonvertical height-changing canonical edge requires routing review; excluded.')
-                else: edges.append(dict(start=point(a),end=point(b)))
-        h,v = unique_metric_edges(edges)
+                else:
+                    # These are stored, reviewed metric points, not perspective
+                    # clicks, smoothed tubes or inferred mounting elevations.
+                    edges.append(dict(start=point(a),end=point(b),slope_supported=True))
+        measured = measure_metric_network(edges)
+        h, v = measured.horizontal_meters, measured.vertical_meters
         detail = details.get(identities[0])
         origins = sorted({details[i].route_kind if i in details else 'unresolved' for i in identities})
         origin = origins[0] if len(origins)==1 else 'mixed'
         rows.append(dict(kind='path',name=f'Reviewed wiring path — {origin} provenance; material unassigned',
             origin=origin,provenance_origins=origins,path_id=f'canonical:{identities[0]}',path_ids=identities,circuit_id=detail.circuit_id if detail else None,
-            quantity=Decimal(str(h+v)).quantize(Decimal('.0001'),rounding=ROUND_HALF_UP),unit='meter',
+            quantity=Decimal(str(measured.physical_meters)).quantize(Decimal('.0001'),rounding=ROUND_HALF_UP),unit='meter',
+            measurement_revision=measured.measurement_revision,
             horizontal_meters=h,vertical_meters=v,missing_vertical_inputs=sorted(set(missing)),
             basis='Saved canonical metric centerlines including stored drops/rises. Unique spans only within explicit device/junction-connected same-circuit groups; each route retains its provenance. Independent paths remain separate. No inferred material, conductor count, allowance or display offsets.'
-                  + (' INCOMPLETE: unsupported inter-floor or height-changing edges excluded.' if missing else '')))
+                  + (' INCOMPLETE: unsupported inter-floor edges excluded.' if missing else '')))
     return rows

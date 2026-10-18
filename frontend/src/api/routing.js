@@ -92,7 +92,11 @@ function validateCircuit(record, projectId, configuration, status) {
     || result.provenance !== 'generated' || result.status !== status
     || (takeoff != null && (takeoff.basis !== 'selected_network_uniform_conductors_planning_only'
       || !['observed_meters','generated_meters','horizontal_meters','vertical_meters','conduit_meters'].every(key=>metric(takeoff[key]))
-      || Math.abs(takeoff.conduit_meters-takeoff.horizontal_meters-takeoff.vertical_meters)>1e-6
+      || (takeoff.measurement_revision == null
+        ? Math.abs(takeoff.conduit_meters-takeoff.horizontal_meters-takeoff.vertical_meters)>1e-6
+        : takeoff.measurement_revision !== 'canonical_centerline_3d_v1'
+          || takeoff.conduit_meters + 1e-6 < Math.max(takeoff.horizontal_meters,takeoff.vertical_meters)
+          || takeoff.conduit_meters > takeoff.horizontal_meters + takeoff.vertical_meters + 1e-6)
       || takeoff.conductor_count !== (configuration.conductor_count ?? null)
       || (takeoff.conductor_count == null ? takeoff.one_conductor_meters !== null || takeoff.total_conductor_meters !== null
         : !Number.isSafeInteger(takeoff.conductor_count) || takeoff.conductor_count<1 || takeoff.conductor_count>1000

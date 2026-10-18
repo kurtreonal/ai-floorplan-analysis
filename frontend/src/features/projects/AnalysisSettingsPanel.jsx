@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { orderList } from '../../utils/listOrder.js'
 
 import { fetchAnalysisSettings, saveFloorElevation, savePageScale } from '../../api/analysisSettings.js'
+import './analysisSettings.css'
 
 function errorMessage(error) {
   if (error.status === 401) return 'Your session expired. Sign in again to manage analysis settings.'
@@ -15,6 +16,9 @@ function ApprovalForm({ record, scale = false, canEdit, onSave }) {
   const [value, setValue] = useState(String((scale ? record.pixels_per_meter : record.elevation_meters) ?? ''))
   const [width, setWidth] = useState(String(record.reference_width_pixels ?? ''))
   const [height, setHeight] = useState(String(record.reference_height_pixels ?? ''))
+  const [knownDimension, setKnownDimension] = useState(false)
+  const [pixelLength, setPixelLength] = useState('')
+  const [realLength, setRealLength] = useState('')
   const [notes, setNotes] = useState(record.evidence_notes ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -28,12 +32,13 @@ function ApprovalForm({ record, scale = false, canEdit, onSave }) {
     request.current = controller
     setSaving(true)
     setError(null)
-    const number = value.trim() === '' ? null : Number(value)
+    const number = knownDimension || value.trim() === '' ? null : Number(value)
     const body = scale ? {
       pixels_per_meter: number,
-      reference_width_pixels: number === null ? null : Number(width),
-      reference_height_pixels: number === null ? null : Number(height),
+      reference_width_pixels: number === null && !knownDimension ? null : Number(width),
+      reference_height_pixels: number === null && !knownDimension ? null : Number(height),
       evidence_notes: notes.trim(),
+      ...(knownDimension ? {known_dimension:{pixel_length:Number(pixelLength),real_length_meters:Number(realLength)}} : {}),
     } : { elevation_meters: number, evidence_notes: notes.trim() }
     try {
       await onSave(body, { signal: controller.signal })
@@ -49,18 +54,24 @@ function ApprovalForm({ record, scale = false, canEdit, onSave }) {
       <p>{record.state === 'approved' ? 'Designer-approved' : 'Unresolved — requires Designer review'}</p>
       {record.reviewed_by_user_id && <p>Reviewed by user #{record.reviewed_by_user_id} on {record.created_at}</p>}
       <fieldset disabled={!canEdit || saving}>
+        {scale && <label className="analysis-calibration-toggle"><input type="checkbox" checked={knownDimension} onChange={event=>setKnownDimension(event.target.checked)} /> Calibrate from a known dimension</label>}
+        {scale && knownDimension ? <>
+          <label>Measured span (source pixels)<input type="number" min="0.000001" step="any" required value={pixelLength} onChange={event=>setPixelLength(event.target.value)} /></label>
+          <label>Known real length (meters)<input type="number" min="0.000001" step="any" required value={realLength} onChange={event=>setRealLength(event.target.value)} /></label>
+          <p>Measure in the reference image, not the zoomed screen. A printed scale alone is not a pixel calibration.</p>
+        </> :
         <label>
           {scale ? 'Scale (pixels per meter)' : 'Floor elevation (meters from project datum)'}
           <input type="number" step="any" min={scale ? 0.000001 : -10000} max={scale ? 1000000 : 10000}
             value={value} onChange={(event) => setValue(event.target.value)} />
-        </label>
+        </label>}
         {scale && <>
           <label>Reference image width (pixels)
-            <input type="number" min="1" max="100000" step="1" required={value !== ''}
+            <input type="number" min="1" max="100000" step="1" required={knownDimension || value !== ''}
               value={width} onChange={(event) => setWidth(event.target.value)} />
           </label>
           <label>Reference image height (pixels)
-            <input type="number" min="1" max="100000" step="1" required={value !== ''}
+            <input type="number" min="1" max="100000" step="1" required={knownDimension || value !== ''}
               value={height} onChange={(event) => setHeight(event.target.value)} />
           </label>
         </>}

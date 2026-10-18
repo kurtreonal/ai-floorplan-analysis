@@ -138,6 +138,22 @@ class AnalysisSettingsTests(unittest.TestCase):
         with self.assertRaises(AnalysisSettingsError):
             require_approved_metric_inputs(settings, page_id=self.page.id, image_width=500, image_height=250)
 
+    def test_known_dimension_calibration_persists_without_rewriting_previous_approval(self):
+        previous = self.scale(50).json()
+        url = self.path + f'/pages/{self.page.id}/scale'
+        response = self.client.put(url, json={
+            'pixels_per_meter': None, 'reference_width_pixels': 1000, 'reference_height_pixels': 500,
+            'known_dimension': {'pixel_length': 500, 'real_length_meters': 5},
+            'evidence_notes': 'Measured the surveyed interior wall span',
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        current = response.json()
+        self.assertEqual(current['pixels_per_meter'], 100)
+        loaded = self.client.get(self.path).json()['pages'][0]['scale']
+        self.assertEqual(loaded, current)
+        self.assertEqual(float(self.session.get(PageScaleSetting, previous['revision_id']).pixels_per_meter), 50)
+        self.assertIn('500 source pixels = 5 metres', loaded['evidence_notes'])
+
     def test_settings_revision_cannot_rewrite_historical_k1_snapshot(self):
         payload = json.loads((Path(__file__).resolve().parents[2] / "fixtures/canonical_geometry_v1.json").read_text())
         payload.update(project_id=self.project.id, floor_plan_id=self.plan.id, walls=[], rooms=[], symbols=[], routes=[])

@@ -164,3 +164,31 @@ cross-origin draft joins remain rejected, rather than silently promoting them
 to reviewed source wiring. Version 6 does not approve generated routes or
 relax final estimate eligibility. This restriction is explicit remaining work
 for a future unified reviewed-route lifecycle, not a geometric merge heuristic.
+
+## Measurement checkpoint 1a (October 19)
+
+K1 and extension snapshots remain unchanged. Backend physical centerline
+measurement now shares `canonical_centerline_3d_v1` across generated route
+materials, circuit previews, and saved-canonical path takeoff. Horizontal and
+vertical figures are projections; a supported 3–4 sloped span measures 5 metres,
+not 7 or 8. Explicit physical-path identities keep coincident independent runs
+separate; numerical collinear interval union never discovers circuit membership
+or junctions. Canonical inter-floor edges without connectors remain excluded
+and flagged. Stored generated orthogonal route totals are still validated.
+Estimates capture the measurement revision with existing immutable layout,
+route/configuration and price snapshots; historical estimates are not rewritten.
+
+Known-dimension calibration is an optional input on the existing scale approval
+endpoint. The backend computes pixels/metre and appends the measured pixel and
+real lengths to existing approval evidence. Its page identity, image dimensions,
+actor, revision and resulting scale persist in existing append-only fields; no
+database schema reset, migration or new table is involved. Legacy explicit-scale
+approval remains compatible. Explicit similarity-transform propagation is tested
+for crop translation, quarter rotation and uniform resizing; nonuniform resize
+and shear reject a scalar scale. This helper does not infer transforms from
+dimensions, create new source views, or make a printed 1:100 label trustworthy.
+
+This slice does not complete checkpoint 1: draft paper assumptions and incomplete
+drop pricing still need tightening; allowances/purchase rounding, physical-path
+identity in all editing commands, and live transformed-view calibration require
+further integration/verification. Checkpoints 2–7 remain separate authorized work.

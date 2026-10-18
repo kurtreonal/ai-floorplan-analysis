@@ -96,6 +96,7 @@ class CircuitSaveRequest(CircuitPlanningRequest):
 
 class CircuitMaterialPreview(Contract):
     basis: Literal['selected_network_uniform_conductors_planning_only'] = 'selected_network_uniform_conductors_planning_only'
+    measurement_revision: Literal['canonical_centerline_3d_v1'] | None = None
     observed_meters: Number
     generated_meters: Number
     horizontal_meters: Number

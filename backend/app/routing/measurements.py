@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import math
 
 from app.routing.contracts import RouteResult
+from app.geometry.route_measurement import MEASUREMENT_REVISION, measure_metric_network
 
 
 @dataclass(frozen=True)
@@ -14,6 +15,7 @@ class MaterialLengths:
     conductor_count: int | None
     wire_meters: float | None
     unit: str = "meter"
+    measurement_revision: str = MEASUREMENT_REVISION
 
 
 def measure_material_lengths(route: RouteResult, *, conductor_count: int | None = None) -> MaterialLengths:
@@ -50,7 +52,8 @@ def measure_material_lengths(route: RouteResult, *, conductor_count: int | None 
         horizontal.append(h)
         vertical.append(dz)
     h, v = math.fsum(horizontal), math.fsum(vertical)
-    total = h + v
+    physical = measure_metric_network([segment.model_dump(mode='json') for segment in route.segments])
+    total = physical.physical_meters
     if not all(math.isclose(actual, stored, abs_tol=1e-9) for actual, stored in (
             (h, route.horizontal_meters), (v, route.vertical_meters), (total, route.total_meters))):
         raise ValueError("Stored route totals disagree with geometry.")
