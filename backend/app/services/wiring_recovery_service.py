@@ -29,6 +29,7 @@ class RecoveryCheckpointStore:
         if self.directory.resolve(strict=True)!=self.directory or not self.directory.is_relative_to(self.root):
             raise ValueError('Unsafe recovery checkpoint directory.')
         self.reference=None
+        self.maximum_spent_seconds=max(900,limits.maximum_windows*600)
 
     def load(self):
         for path in sorted(self.directory.glob('checkpoint-*.json'),reverse=True)[:1024]:
@@ -42,7 +43,7 @@ class RecoveryCheckpointStore:
                 if (type(state['cursor']) is not int or not 0<=state['cursor']<=512
                     or type(state['method_index']) is not int or not 0<=state['method_index']<=2
                     or type(state['windows']) is not int or not 0<=state['windows']<=512
-                    or not 0<=state['spent_seconds']<=900 or len(state['passes'])>2):continue
+                    or not 0<=state['spent_seconds']<=self.maximum_spent_seconds or len(state['passes'])>2):continue
                 self.reference=path
                 return state
             except (ValueError,KeyError,TypeError,OSError):continue
@@ -66,6 +67,18 @@ def recover_worker_wiring(payload,image,*,root,job_id,page_id,source_sha256,sett
             heartbeat();last[0]=monotonic()
     heartbeat()
     result=recover_wiring(payload,image,limits=limits,check=check,checkpoint=store.save,resume=previous)
+    # Wall-clock slices are execution checkpoints, not different final answer
+    # subsets. Continue the deterministic cursor to the configured work quota.
+    # Cancellation/lease checks still run in every window and proposal.
+    for _ in range(limits.maximum_windows):
+        if result.observed_routes.recovery.limit_reason!='time_budget':break
+        state=store.load()
+        if not state:break
+        cursor=(state['method_index'],state['cursor'],state['windows'])
+        if previous and cursor==(previous['method_index'],previous['cursor'],previous['windows']):break
+        previous=state
+        heartbeat()
+        result=recover_wiring(payload,image,limits=limits,check=check,checkpoint=store.save,resume=state)
     heartbeat()
     parameters=(InferenceParameter(name='wiring-recovery-version',value=VERSION),
         InferenceParameter(name='input-pixel-profile',value=json.dumps(inspect_input_pixels(image,payload),sort_keys=True)),

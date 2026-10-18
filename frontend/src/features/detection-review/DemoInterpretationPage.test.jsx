@@ -89,6 +89,22 @@ afterEach(() => {
 
 
 describe('unified demo interpretation review', () => {
+  it('opens detection diagnostics explicitly while unfinished saving keeps uncertainty',async()=>{
+    const source=structuredClone(record)
+    source.candidate.payload.walls.truncated=true
+    source.candidate.payload.observed_routes={state:'partial',segments:[],recovery:{stop_reason:'resource_limit',
+      passes:[],devices:[{symbol_id:'symbol-0001',state:'unresolved_observed',reason:'partial_source_evidence'}]}}
+    fetchDemoInterpretation.mockResolvedValue(source)
+    render(<DemoInterpretationPage projectId={1} floorPlanId={3} processingJobId={4} />)
+    await screen.findByText('Select first symbol')
+    const summary=screen.getByText(/Source recovery/)
+    const outer=summary.closest('details').parentElement.closest('details')
+    expect(outer.open).toBe(false)
+    expect(screen.queryByRole('alert')).toBeNull()
+    fireEvent.click(screen.getByRole('button',{name:'Save unfinished draft'}))
+    await screen.findByText('Review revision 1 saved.')
+    expect(saveDemoReview.mock.calls[0][1]).toMatchObject({approved_for_layout:false,review_complete:false})
+  })
   it.each(['2d','3d'])('edits a shared wire junction in %s with undo/redo and unfinished save/reload', async viewMode => {
     const source=structuredClone(record)
     source.candidate.payload.observed_routes={state:'partial',segments:[
@@ -190,7 +206,7 @@ describe('unified demo interpretation review', () => {
     expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/1')
   })
 
-  it('counts circuit annotations separately from physical device proposals', async () => {
+  it('keeps detection tallies out of the editor without changing annotation data', async () => {
     const source = structuredClone(record)
     source.candidate.payload.symbols.items = [
       { id: 'symbol-0001', center: { x: 50, y: 50 }, observed_label: 'Duplex outlet' },
@@ -198,7 +214,9 @@ describe('unified demo interpretation review', () => {
     ]
     fetchDemoInterpretation.mockResolvedValue(source)
     render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
-    expect(await screen.findByText(/SHARED DRAFT · 1 DEVICE PROPOSALS · 1 ANNOTATIONS/)).toBeTruthy()
+    await screen.findByText('Select first symbol')
+    expect(screen.queryByText(/DEVICE PROPOSALS/)).toBeNull()
+    expect(source.candidate.payload.symbols.items).toHaveLength(2)
     expect(saveDemoReview).not.toHaveBeenCalled()
   })
 
@@ -338,7 +356,7 @@ describe('unified demo interpretation review', () => {
       {id:'manual-wall-0001',disposition:'added',start:{x:20.25,y:30.5},end:{x:20.25,y:90.5}}]
     fetchDemoInterpretation.mockResolvedValue({...structuredClone(record),draft_walls:inherited})
     render(<DemoInterpretationPage projectId={1} floorId={2} floorPlanId={3} processingJobId={4} />)
-    await screen.findByText('1 wall segments · 1 rooms')
+    await screen.findByRole('button',{name:'Save unfinished draft'})
     fireEvent.click(screen.getByRole('button',{name:'Save unfinished draft'}))
     await waitFor(()=>expect(saveDemoReview).toHaveBeenCalled())
     const payload=saveDemoReview.mock.calls[0][1]

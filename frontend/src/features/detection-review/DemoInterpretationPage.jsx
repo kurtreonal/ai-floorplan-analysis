@@ -518,8 +518,6 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   )
   const activeWallsCount = draft.walls.filter((item) => item.disposition !== 'rejected').length
   const activeRoomsCount = draft.rooms.filter((item) => item.disposition !== 'rejected').length
-  const activeSymbols = draft.symbols.filter(item => item.disposition !== 'rejected')
-  const annotationCount = activeSymbols.filter(item => presentations[item.id]?.family === 'annotation').length
 
   return (
     <article className="detection-review-page demo-review-page studio-review-page">
@@ -531,12 +529,13 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       </nav>
       <header className="detection-review-header">
         <div>
-          <span className="mono">LOCAL DEMO REVIEW · JOB #{processingJobId}</span>
           <h1>Plan editor</h1>
         </div>
-        <p>{activeWallsCount} wall segments · {activeRoomsCount} rooms</p>
       </header>
-      <details className="demo-detection-details"><summary>Detection details and limitations</summary>
+      <details className="demo-detection-details"><summary>Diagnostics</summary>
+      <p>{activeWallsCount} wall segments / {activeRoomsCount} rooms / analysis #{processingJobId}</p>
+      <WiringRecoveryStatus report={state.record.candidate.payload.observed_routes?.recovery} presentations={presentations} />
+      {truncated.length > 0 && <p>Detection limit reached: {truncated.join(', ')}.</p>}
       <p role="note">
         Automatic detection can mistake wiring, grids and dimensions for walls. All draft items are editable; saving does not certify the design.
       </p>
@@ -544,7 +543,6 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       {general && <p role="note">The shared development detector uses the trained legend catalog. Sparse or synthetic examples and conflicting labels limit results; independent accuracy remains unverified. Edit names and positions as needed.</p>}
       {(trained || linked) && <p role="note">Legacy limited-class detector. {linked ? 'Five classes with uneven same-source recall.' : 'Troffer, smoke detector and Pull station only.'} Independent-project accuracy is unverified.</p>}
       </details>
-      {truncated.length > 0 && <p className="detection-limit-warning" role="alert">Detection limit reached for: {truncated.join(', ')}. Add missing items manually.</p>}
       {state.record.draft_wiring_limitations?.length > 0 && <details><summary>Wiring connectivity</summary>{state.record.draft_wiring_limitations.map(note => <p key={note}>{note}</p>)}</details>}
       {state.legends.length === 0 && <details><summary>Do I need a symbol legend?</summary><p>Not for wall review or 3D preview. Electrical-symbol approval requires an approved VED legend.</p></details>}
 
@@ -558,7 +556,6 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           <Button variant={view === '2d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '2d'} aria-label="2D · Review rooms" onClick={() => setView('2d')}><Layers3 aria-hidden="true" />Edit 2D</Button>
           <Button variant={view === '3d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '3d'} aria-label="3D · Draft preview" onClick={() => { setOpened3d(true); setView('3d'); setTool('select') }}><Box aria-hidden="true" />View 3D</Button>
         </div>
-        <span className="mono studio-draft-status">SHARED DRAFT · {activeSymbols.length - annotationCount} DEVICE PROPOSALS{annotationCount > 0 && <> · {annotationCount} ANNOTATIONS</>}</span>
         <Button variant="ghost" size="icon" aria-label="Undo" disabled={historyIndex <= 0} onClick={handleUndo}><Undo2 aria-hidden="true" /></Button>
         <Button variant="ghost" size="icon" aria-label="Redo" disabled={historyIndex >= history.length - 1} onClick={handleRedo}><Redo2 aria-hidden="true" /></Button>
         <Button size="sm" disabled={saveState.status === 'saving'} aria-label="Save unfinished draft" onClick={() => saveReview({ draftOnly: true })}><Save aria-hidden="true" />Save draft</Button>
@@ -579,7 +576,6 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             </select></label>
             <p>Snap to a device or existing wire. Depth and height stay unset until you enter them.</p>
           </fieldset>}
-          <WiringRecoveryStatus report={state.record.candidate.payload.observed_routes?.recovery} presentations={presentations} />
           <ObservedWiringPanel wires={draft.wirings} width={plane.width_pixels} height={plane.height_pixels}
             disabled={saveState.status === 'saving'}
             view={view} visible={Boolean(layers.wirings)} onVisibilityChange={(visible) => setLayers((current) => ({ ...current, wirings: visible }))}
@@ -706,7 +702,6 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               <option value="concealed_under_floor">Underground / under floor</option>
             </select></label>
             <p>{selectedEntity.origin === 'generated' ? 'Automatic A* draft — not detected in the image.' : 'Drawing trace.'}</p>
-            {selectedEntity.device_attachments?.some(a => a.provenance==='source_supported_proposal') && <p>Source-supported device contacts · short glyph-obscured leads are proposed geometry, not observed pixels or human approval.</p>}
             {state.record.candidate.payload.observed_routes?.connections?.filter(c => c.from_ref===`segment:${selectedEntity.id}` && c.ambiguity==='ambiguous').map(c =>
               <p role="note" key={c.id}>Unresolved contact: {c.to_ref.replace('symbol:','')} · overlapping or ambiguous device port. Edit the connection rather than guessing.</p>)}
             <p>Drag a free blue endpoint onto a device or compatible path in either view. Green previews the connection; release to commit, Escape to cancel.</p>

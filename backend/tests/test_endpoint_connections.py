@@ -6,7 +6,7 @@ from app.routing.endpoint_connections import connect_touching_endpoints
 
 
 def source(items=None):
-    return NS(payload=NS(symbols=NS(items=items or [NS(id='symbol-0001',
+    return NS(payload=NS(observed_routes=NS(segments=[],connections=[],junctions=[]),symbols=NS(items=items or [NS(id='symbol-0001',
         center=NS(x=20, y=20, model_dump=lambda:dict(x=20,y=20)), bounds=NS(x=10, y=10, width=20, height=20),
         training_legend=None, observed_label='Wall switch')])))
 
@@ -56,13 +56,14 @@ def test_multiple_contacting_runs_keep_identity_but_known_circuit_conflicts_do_n
 
 
 @pytest.mark.parametrize('revision',['7','8','9','10','99','future'])
-def test_new_source_versions_cannot_fall_back_to_proximity_during_review_conversion(revision):
+@pytest.mark.parametrize('prefix',['raw-source-device-port-evidence-v','raw-source-validated-context-v'])
+def test_new_source_versions_cannot_fall_back_to_proximity_during_review_conversion(revision,prefix):
     candidate=source();value=document();original=deepcopy(value)
     points=[NS(x=p['x'],y=p['y'],model_dump=lambda p=p:dict(p))
             for p in value['observed_wiring'][0]['points']]
-    candidate.payload.observed_routes=NS(connections=[],segments=[NS(id='segment-0001',points=points)])
+    candidate.payload.observed_routes=NS(connections=[],junctions=[],segments=[NS(id='segment-0001',points=points)])
     candidate.provenance=NS(inference_parameters=[NS(name='wiring-evidence-version',
-        value='raw-source-device-port-evidence-v'+revision)])
+        value=prefix+revision)])
     result=connect_touching_endpoints(candidate,value)
     assert result['observed_wiring'][0]['source_evidence_required'] is True
     assert not result['observed_wiring'][0].get('device_attachments')

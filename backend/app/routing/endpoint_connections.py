@@ -20,8 +20,9 @@ def apply_source_contacts(candidate, document, *, preserve_source=True):
     # must not silently re-enable the historical proximity-only adapter.
     legacy_versions = {f'raw-source-device-port-evidence-v{n}' for n in range(1,7)}
     strict = any(p.name == 'wiring-evidence-version'
-        and p.value.startswith('raw-source-device-port-evidence-v')
-        and p.value not in legacy_versions for p in parameters)
+        and (p.value.startswith('raw-source-validated-context-v') or
+             (p.value.startswith('raw-source-device-port-evidence-v') and p.value not in legacy_versions))
+        for p in parameters)
     for wire in result.get('observed_wiring', []):
         source = source_routes.get(wire['id'])
         if strict:wire['source_evidence_required'] = source is not None

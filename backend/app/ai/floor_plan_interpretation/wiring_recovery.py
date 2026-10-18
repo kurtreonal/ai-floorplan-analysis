@@ -1,8 +1,10 @@
 """Bounded, resumable source inspection, not circuit completion or training.
 
-Different local pixel methods inspect only unresolved device neighborhoods.
-Agreement is not confidence. New geometry must add a unique source-supported
-device contact; existing observations and approval are never replaced.
+Different local pixel methods inspect bounded device neighborhoods, including
+already served devices with potentially missing path continuation.
+Agreement is not confidence. New geometry must add source-supported path
+coverage; an already contacted device can still have missing continuation.
+Existing observations and approval are never replaced.
 """
 from dataclasses import dataclass
 from time import monotonic
@@ -19,7 +21,7 @@ from app.ai.floor_plan_interpretation.candidate import (
 from app.ai.floor_plan_interpretation.device_contact_evidence import with_device_contact_evidence
 from app.ai.floor_plan_interpretation.stroke_centerlines import stroke_paths
 
-VERSION = 'targeted-source-recovery-v2'
+VERSION = 'targeted-source-recovery-v3'
 METHODS = ('native_local_strokes', 'contrast_local_strokes')
 
 
@@ -96,7 +98,15 @@ def audit_devices(payload, image, *, exhausted=False, failed=False):
 def local_paths(payload, image, symbol, method):
     """Native-resolution window; integer translation is the ONLY transform."""
     box = symbol.bounds
-    radius = max(24,min(768,math.ceil(max(box.width,box.height)*8)))
+    # Existing source spans provide drawing-specific spacing evidence. A glyph-
+    # only window can clip the continuation before its next device even though
+    # both devices already have valid contacts on other arms of the network.
+    incident={c.from_ref for c in payload.observed_routes.connections
+              if c.to_ref==f'symbol:{symbol.id}' and c.evidence_kind and c.ambiguity=='unambiguous'}
+    context=max((math.hypot(p.x-symbol.center.x,p.y-symbol.center.y)
+                 for r in payload.observed_routes.segments if f'segment:{r.id}' in incident
+                 for p in r.points),default=0)
+    radius = max(24,min(768,math.ceil(max(max(box.width,box.height)*8,context*2))))
     x,y = max(0,math.floor(symbol.center.x)-radius),max(0,math.floor(symbol.center.y)-radius)
     right,bottom = min(image.shape[1],math.ceil(symbol.center.x)+radius+1),min(image.shape[0],math.ceil(symbol.center.y)+radius+1)
     gray = cv2.cvtColor(image[y:bottom,x:right],cv2.COLOR_RGB2GRAY)
@@ -208,7 +218,10 @@ def _source_attachment(points, routes, image, *, endpoint_indices=None):
                 xy=np.rint(np.linspace((p.x,p.y),(q.x,q.y),5)).astype(int)
                 if np.mean(image[xy[:,1],xy[:,0]].mean(axis=1)<180)<.8:continue
                 neighbor=points[1 if index==0 else index-1]
-                incoming=np.array([q.x-neighbor.x,q.y-neighbor.y]);incoming/=np.linalg.norm(incoming)
+                incoming=np.array([q.x-neighbor.x,q.y-neighbor.y],dtype=float)
+                incoming_length=float(np.linalg.norm(incoming))
+                if incoming_length<=1e-9:continue
+                incoming/=incoming_length
                 trunk=np.array([dx,dy])/math.sqrt(l2)
                 if abs(float(incoming@trunk))<.95:
                     # A fourth arm means an unmarked crossing, not a T. Inspect
@@ -229,6 +242,11 @@ def _ends_at_device(points,symbol):
         dx,dy=n.x-p.x,n.y-p.y;length=math.hypot(dx,dy)
         perpendicular=abs((symbol.center.x-p.x)*dy-(symbol.center.y-p.y)*dx)/length
         if perpendicular<=max(3,min(10,min(box.width,box.height)*.3)):return True
+        # Proposal eligibility only. Offset fixture-side ports still require
+        # the two-device, source-terminal/context gate in the contact audit.
+        if re.search(r'troffer|fluorescent|downlight|ceiling light|lighting point',
+                symbol.training_legend.name if symbol.training_legend else symbol.observed_label or '',re.I):
+            return True
     return False
 
 
@@ -284,7 +302,8 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
         raise ValueError('Recovery requires unchanged source coordinates.')
     base = payload
     devices = device_symbols(payload)
-    symbols = [s for s in eligible_symbols(payload) if in_plan(payload,s)]
+    symbols = sorted((s for s in eligible_symbols(payload) if in_plan(payload,s)),
+                     key=lambda s:(s.center.y,s.center.x,s.id))
     target_ids={s.id for s in symbols}
     overflow=len(symbols)>512
     external_limit=image.shape[0]*image.shape[1]>12_000_000 or len(payload.symbols.items)>512 or sum(len(r.points)-1 for r in payload.observed_routes.segments)>4096
@@ -301,16 +320,21 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
             spent_seconds=spent+monotonic()-start,passes=[p.model_dump() for p in passes],windows=windows))
     save();check()
     reason='resource_limit' if external_limit else 'methods_exhausted'
+    limit_reason='input_budget' if external_limit else None
     while method_index < len(METHODS) and not external_limit:
-        if target_ids.issubset(served_symbols(payload)): reason='converged';break
         method=METHODS[method_index]
         if len(passes)<=method_index: passes.append(WiringRecoveryPass(method=method,windows=0,added_paths=0,added_contacts=0))
         while cursor < len(symbols):
-            if windows >= limits.maximum_windows or spent+monotonic()-start >= limits.maximum_seconds or len(payload.observed_routes.segments)>=limits.maximum_paths:
-                reason='resource_limit';break
+            if windows >= limits.maximum_windows or monotonic()-start >= limits.maximum_seconds or len(payload.observed_routes.segments)>=limits.maximum_paths:
+                reason='resource_limit'
+                limit_reason=('window_budget' if windows>=limits.maximum_windows else
+                              'path_budget' if len(payload.observed_routes.segments)>=limits.maximum_paths else 'time_budget')
+                break
             check()
             symbol=symbols[cursor]
-            if symbol.id not in served_symbols(payload):
+            # One contact is not complete path coverage. Inspect both sides of
+            # every device in a stable order, even if it already has a contact.
+            if symbol.bounds is not None:
                 old_contacts=len(payload.observed_routes.connections);added=0
                 try: proposals=local_paths(payload,image,symbol,method)
                 except (ValueError,cv2.error,MemoryError):
@@ -319,8 +343,11 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
                     proposals=[]
                 for points,refs,*style in proposals:
                     check()
-                    if spent+monotonic()-start >= limits.maximum_seconds: reason='resource_limit';break
-                    if len(payload.observed_routes.segments)>=limits.maximum_paths: break
+                    # Finish this bounded window before yielding. A time slice
+                    # must never abandon the remainder of a partially accepted
+                    # window and advance its resume cursor past missing spans.
+                    if len(payload.observed_routes.segments)>=limits.maximum_paths:
+                        reason='resource_limit';limit_reason='path_budget';break
                     if not _ends_at_device(points,symbol):continue
                     same_scope=[r for r in payload.observed_routes.segments if set(r.evidence_refs)&set(refs)]
                     if _duplicate(points,same_scope,image): continue
@@ -340,7 +367,7 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
                     # Two distinct source ports, including the audited device,
                     # not one random leaf or a line near an unconnected glyph.
                     ids={c.to_ref.split(':',1)[1] for c in new if c.evidence_kind}
-                    if symbol.id not in ids or (len(ids)<2 and attachment is None) or not ids-served_symbols(payload): continue
+                    if symbol.id not in ids or (len(ids)<2 and attachment is None): continue
                     payload=FloorPlanInterpretationPayload.model_validate(trial.model_dump());added+=1
                 row=passes[method_index]
                 passes[method_index]=row.model_copy(update={'windows':row.windows+1,'added_paths':row.added_paths+added,
@@ -351,11 +378,12 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
             if reason=='resource_limit': break
         if reason=='resource_limit': break
         method_index+=1;cursor=0;save()
-    if target_ids.issubset(served_symbols(payload)): reason='converged'
+    if method_index==len(METHODS) and target_ids.issubset(served_symbols(payload)) and not external_limit:
+        reason='converged';limit_reason=None
     if overflow or external_limit:reason='resource_limit'
     if not symbols or any(not s.bounds or not in_plan(payload,s) for s in devices):
         if reason=='converged':reason='methods_exhausted'
-    report=WiringRecoveryReport(version=VERSION,stop_reason=reason,passes=tuple(passes),
+    report=WiringRecoveryReport(version=VERSION,stop_reason=reason,limit_reason=limit_reason,passes=tuple(passes),
         unassessed_devices=max(0,len(devices)-512),
         devices=audit_devices(payload,image,exhausted=reason=='resource_limit',failed=any(p.failed_windows for p in passes)))
     warnings=tuple(w for w in payload.warnings if w.code!='wiring_recovery_status')

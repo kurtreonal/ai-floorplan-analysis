@@ -11,7 +11,51 @@ from app.ai.floor_plan_interpretation.candidate import (
     FloorPlanInterpretationPayload, ObservedRouteConnection, PixelPoint, CandidateWarning,
 )
 
-EVIDENCE_VERSION = 'source-device-ports-polyline-vertices-v5'
+EVIDENCE_VERSION = 'source-device-ports-boundary-continuation-v6'
+
+
+def fixture_boundary_ports(payload, ink):
+    """Evidence for side ports away from a fixture's detector-box centre.
+
+    Two separate fixture bounds must intersect the SAME observed source edge.
+    An outer stop/turn seeds the chain; matching collinear spans may continue
+    through intervening fixtures. Continuous ceiling grids cannot seed it.
+    This identifies attachment eligibility, never fills a source-pixel gap.
+    """
+    from app.ai.floor_plan_interpretation.fixture_wiring import ceiling_fixtures, _bounded_terminal
+    fixtures=ceiling_fixtures(payload);scope=np.ones_like(ink,dtype=np.uint8)
+    mask_padding=max(2,min(6,round(min(ink.shape)*.0015)))
+    spans=[]
+    for route in payload.observed_routes.segments:
+        if route.line_style!='solid':continue
+        for edge,(a,b) in enumerate(zip(route.points,route.points[1:])):
+            axis=0 if abs(a.y-b.y)<.51 else 1 if abs(a.x-b.x)<.51 else None
+            if axis is None:continue
+            cross=(a.y+b.y)/2 if axis==0 else (a.x+b.x)/2
+            start,end=sorted((a.x,b.x) if axis==0 else (a.y,b.y))
+            hits=[]
+            for symbol in fixtures:
+                box=symbol.bounds
+                lo,size=(box.y,box.height) if axis==0 else (box.x,box.width)
+                along,width=(box.x,box.width) if axis==0 else (box.y,box.height)
+                boundary_margin=mask_padding+max(3,min(6,min(box.width,box.height)*.4))
+                if lo+size*.10 <= cross <= lo+size*.90 and along-boundary_margin<=end and along+width+boundary_margin>=start:
+                    hits.append(symbol)
+            if len(hits)<2:continue
+            hits.sort(key=lambda s:s.center.x if axis==0 else s.center.y)
+            if len({(round(s.center.x,1),round(s.center.y,1)) for s in hits})<2:continue
+            seeded=_bounded_terminal(ink,scope,hits[0].bounds,hits[-1].bounds,axis,cross)
+            spans.append(dict(route=route.id,edge=edge,axis=axis,cross=cross,
+                              ids={s.id for s in hits},refs=set(route.evidence_refs),seeded=seeded))
+    changed=True
+    while changed:
+        changed=False
+        for row in spans:
+            if row['seeded']:continue
+            if any(other['seeded'] and row['axis']==other['axis'] and abs(row['cross']-other['cross'])<=2
+                   and row['ids']&other['ids'] and row['refs']&other['refs'] for other in spans):
+                row['seeded']=True;changed=True
+    return {(r['route'],r['edge'],s) for r in spans if r['seeded'] for s in r['ids']}
 
 
 def with_device_contact_evidence(payload, image_rgb):
@@ -34,6 +78,7 @@ def with_device_contact_evidence(payload, image_rgb):
     symbols = [s for s in payload.symbols.items if s.bounds and not re.search(
         r'home.?run|circuit.*notation|raceway conduit',
         s.training_legend.name if s.training_legend else s.observed_label or '',re.I)]
+    boundary_ports=fixture_boundary_ports(payload,raw_ink)
 
     def support(anchor, box, dashed, route, edge, forward):
         # Approach ink OUTSIDE the glyph, so the symbol itself cannot supply it.
@@ -113,7 +158,8 @@ def with_device_contact_evidence(payload, image_rgb):
                 box=symbol.bounds;center=np.array([symbol.center.x,symbol.center.y])
                 along=float((center-a)@axis);projected=a+along*axis
                 port=max(3,min(10,min(box.width,box.height)*.30))
-                if np.linalg.norm(center-projected)>port:continue
+                if (np.linalg.norm(center-projected)>port
+                        and (route.id,edge,symbol.id) not in boundary_ports):continue
                 # The masked-boundary margin, not a nearest-device radius.
                 margin=padding+5
                 def near_box(p):

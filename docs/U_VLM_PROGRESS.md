@@ -4,6 +4,77 @@ This ledger separates implementation, real-data validation, human approval,
 activation, and publication. A checked implementation item is not equivalent
 to a trained or released model.
 
+### October 18 path continuation and consistent source recovery (after cc78385)
+
+- Scope: BDO-specific detection/training remains paused. No model, original,
+  reviewed geometry, final-quantity gate or generated-routing algorithm changed.
+  The general upload worker uses the same source-recovery code as these replays;
+  no filename, hash, drawing coordinate or topology lookup was added.
+- Reproduction: lighting9378/page1/region-0001/job24332/run259 (691x488) and
+  power9379/page1/job24333/run260 (1765x1084) match the screenshots. Neither run
+  had a saved review. Lighting yielded15 fixture spans,12 chained hypotheses,
+  5 context-retained paths, then7 recovered/persisted paths with14 contacts.
+  The missing horizontal spans were discarded before persistence, not hidden
+  by Konva. Status totals were run/view-bound analysis-time audits, not live
+  draft state or interchangeable path/contact/device counts.
+- Causes/fix: centre-only fixture ports rejected real off-centre side entries;
+  bounded source terminals plus shared fixture-boundary/direction/context evidence
+  now preserve them without using nearest-device distance. Recovery no longer
+  skips served devices or requires a new device identity for every new span.
+  Source-span/glyph scale determines bounded windows. Duplicate/structural,
+  ambiguous-port, crossing and source-T guards remain; branch junctions remain
+  separate from polylines. The new wiring-version prefix also bypassed the
+  canonical adapter's strict evidence guard; both version families now require
+  supported source attachments. An integer endpoint-projection NumPy cast crash
+  found during power replay is fixed.
+- Consistency: recoveryv3 orders device windows deterministically, commits whole
+  windows before yielding, and resumes90-second slices to the configured64-window
+  /256-path quota. These are bounded slices, not a90-second job deadline; one
+  bounded window can overrun a slice. Cancellation/checkpoints stay active.
+  Explicit time/window/path/input limit reasons persist internally; limited
+  searches cannot become converged merely because all devices have a contact.
+  Hash-bound checkpoints invalidate on source/base/config/version changes.
+- Visible progress: final application jobs24337/24338 produce identical17 paths,
+  34 contacts and graph identities at0px tolerance. Latest review212/revision1
+  saves/reloads all17 paths and34 source_connection_ids with review_complete=false,
+  approved_for_layout=false, no generated wiring. Saving superseded24337 was
+  refused in the browser. Reloaded canvas pixels match exactly; the shared3D
+  projection retains all savedX/Z vertices, with unmeasured heights illustrative.
+- Path evidence: ignored tmp/path-visual-reference-v2 contains readable paired
+  source-span overlays and wiring-only views. Assistant tracing is provisional,
+  NOT approved truth and never supplied to inference. At4px tolerance outside
+  glyphs,579/1826 reference pixels before versus1364/1826 after (31.7% to74.7%).
+  No unmatched predicted pixels in that reference scope or hits on three marked
+  structural negatives. This is not full-page precision or independent accuracy.
+  Upper-left glyph-heavy wiring, outer return and switch drops remain missing;
+  462 assessed reference pixels and9 device proposals remain unresolved.
+- Regression replays: power10/13 to12/16 paths/contact records, preserving dashed
+  source circuits; dense lighting41/83 to42/85, with64-window incomplete search
+  (~354s including initial extraction); non-BDO PDF page4 stays0/0 after34 windows
+  (~42s), retaining unresolved recognition rather than false window attachments.
+  These exposed drawings are regression/development data, not unseen evaluation.
+  Final frozen dense-lighting replay repeats42/85 with identical vertices,
+  contacts and junctions (~311s); datacom stays0/0 after40 windows (~44s).
+  Power also matches exactly in two private replays. Visual delta crops show
+  a dashed central power span and a bounded fixture-to-fixture lighting span,
+  distinct from adjacent continuous grid lines. No removed source spans in
+  those comparisons; these inspections are not exhaustive false-positive labels.
+- UI: normal source-count cards, duplicate summaries and approval-explanation
+  paragraphs removed; detailed recovery remains behind explicitly opened
+  Diagnostics. Save/unsaved/error/cancellation behavior and provenance remain.
+- Verification: exact staged export198 backend tests plus20 subtests PASS;
+  full frontend99 files/780 tests, build and lint PASS with the existing localhost
+  API-base setting. Mixed worktree separately has unrelated API-count/UI failures;
+  it is not claimed green. Initial exported API tests lacked that environment
+  value and failed25 URL assertions; rerun passed without changing assertions.
+  Existing deprecation/large-chunk warnings remain. Schema34 tables/49 API
+  operations unchanged by this scope. Originals, all prior candidates/reviews
+  and stash bb78854e87833124a1725b51f0be6099a8ac0cfa verified unchanged.
+- Research: [modular terminal/stroke graph extraction](https://arxiv.org/html/2402.11093v1)
+  motivates preserving ports and edges separately; it evaluates circuit diagrams,
+  not building-plan accuracy. [OpenCV thinning](https://docs.opencv.org/4.13.0/df/d2d/group__ximgproc.html)
+  supports the existing skeleton evidence approach. No new dependency or model.
+
 ### October 12 automatic endpoint contacts and draft vertical takeoff
 
 - Cause: endpoint attachments previously required an explicit magnet commit; the

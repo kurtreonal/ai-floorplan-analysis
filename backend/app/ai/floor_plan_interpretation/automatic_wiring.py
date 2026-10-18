@@ -14,7 +14,7 @@ from app.ai.floor_plan_interpretation.candidate import (
     ObservedRouteSegment, PixelPoint,
 )
 
-EVIDENCE_VERSION = "raw-source-validated-context-v14"
+EVIDENCE_VERSION = "raw-source-validated-context-v15"
 
 
 def with_fixture_wall_conflicts(payload):

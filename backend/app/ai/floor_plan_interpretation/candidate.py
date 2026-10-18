@@ -314,8 +314,9 @@ class WiringRecoveryDevice(StrictCandidateModel):
 
 
 class WiringRecoveryReport(StrictCandidateModel):
-    version: Literal['targeted-source-recovery-v1', 'targeted-source-recovery-v2'] = 'targeted-source-recovery-v2'
+    version: Literal['targeted-source-recovery-v1', 'targeted-source-recovery-v2', 'targeted-source-recovery-v3'] = 'targeted-source-recovery-v3'
     stop_reason: Literal['running', 'converged', 'methods_exhausted', 'resource_limit']
+    limit_reason: Literal['time_budget','window_budget','path_budget','input_budget'] | None = Field(default=None,exclude_if=lambda value:value is None)
     passes: Annotated[tuple[WiringRecoveryPass, ...], Field(max_length=2)] = ()
     devices: Annotated[tuple[WiringRecoveryDevice, ...], Field(max_length=512)] = ()
     unassessed_devices: Annotated[StrictInt, Field(ge=0, le=2048)] = Field(default=0, exclude_if=lambda value: value == 0)
