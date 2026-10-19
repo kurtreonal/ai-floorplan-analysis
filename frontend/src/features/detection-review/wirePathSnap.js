@@ -1,13 +1,19 @@
-import { findWireDeviceSnap } from './deviceConnections.js'
+import { findWireDeviceTargets } from './deviceConnections.js'
 
 // A preview is not connectivity: only the drag-end transaction commits a join.
 export function findWireEndpointSnap(point, wireId, index, draft, presentations = {}, threshold = 14, deviceDistance = null, pathDistance = null) {
-  if(!point || ![point.x,point.y,threshold].every(Number.isFinite) || threshold<0)return null
-  const device = findWireDeviceSnap(point, wireId, index, draft, presentations, threshold, deviceDistance)
+  const choices = findWireEndpointTargets(point, wireId, index, draft, presentations, threshold, deviceDistance, pathDistance)
+  return choices.length === 1 ? choices[0] : null
+}
+
+// Equally near targets remain distinct. Only an explicit chooser action resolves
+// ambiguity; stable sorting never grants connectivity to the first device ID.
+export function findWireEndpointTargets(point, wireId, index, draft, presentations = {}, threshold = 14, deviceDistance = null, pathDistance = null) {
+  if(!point || ![point.x,point.y,threshold].every(Number.isFinite) || threshold<0)return []
+  const choices = findWireDeviceTargets(point, wireId, index, draft, presentations, threshold, deviceDistance).map(c => ({...c,kind:'device'}))
   const wire = draft.wirings.find(w => w.id === wireId)
   if (!wire || ![0, wire.points.length-1].includes(index) || wire.junction_attachments?.some(a => a.point_index === index)
-    || wire.device_attachments?.some(a => a.point_index === index)) return device
-  const choices = device ? [{...device, kind:'device'}] : []
+    || wire.device_attachments?.some(a => a.point_index === index)) return nearestTargets(choices)
   for (const other of draft.wirings) {
     if (other.id === wireId || other.disposition === 'rejected' || other.suppression_reason
       || (wire.origin === 'generated') !== (other.origin === 'generated')
@@ -30,12 +36,12 @@ export function findWireEndpointSnap(point, wireId, index, draft, presentations 
       if (Number.isFinite(distance) && distance <= threshold) choices.push({kind:'junction',wireId:other.id,segmentIndex:edge,t,point:target,distance})
     }
   }
+  return nearestTargets(choices)
+}
+
+function nearestTargets(choices) {
   choices.sort((a,b)=>a.distance-b.distance)
-  if (!choices.length) return null
-  // Adjacent segments of the SAME target at one shared vertex are one target.
-  const best = choices[0]
-  if (choices.slice(1).some(c => Math.abs(c.distance-best.distance)<1e-6
-    && !(c.kind === 'junction' && best.kind === 'junction' && c.wireId === best.wireId
-      && Math.hypot(c.point.x-best.point.x,c.point.y-best.point.y)<1e-8))) return null
-  return best
+  const nearest = choices.filter(c => Math.abs(c.distance-choices[0].distance)<1e-6)
+  return nearest.filter((c,i) => !nearest.slice(0,i).some(p => c.kind === 'junction' && p.kind === 'junction'
+    && c.wireId === p.wireId && Math.hypot(c.point.x-p.point.x,c.point.y-p.point.y)<1e-8))
 }

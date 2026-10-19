@@ -226,3 +226,43 @@ canonical BOM and circuit preview; independent coincident runs remain separate.
 Circuit conductor multiplication remains separate from physical length. The
 clean scoped snapshot passes 157 selected backend tests, including save/reload
 and API contracts, without changing the 49-operation/34-table contract.
+
+## Magnetic wiring checkpoint 2 (October 19)
+
+Endpoint magnets now enumerate equally near compatible device terminals and
+path targets rather than discarding their identities on a tie. A shared compact
+chooser in 2D/3D resolves an overlap only after the designer selects one target.
+Focus/hover previews its exact device ID/terminal or path; Escape cancels. The
+original endpoint stays unchanged until selection. Scene/document, selection,
+tool or editing-session changes invalidate pending choices. Commit uses existing
+revalidated device/junction commands, edge splitting and one-step undo; there is
+no proximity-based crossing join, positional spreading or connect-all operation.
+
+Existing explicit terminal IDs remain distinct. Where there is no saved terminal,
+the deliberate manual choice uses the existing `design-anchor` convention, not
+an invented electrical pin. The current review contract requires these anchors
+at the canonical device center; unsupported/inconsistent off-center terminal
+records are not offered as saveable targets. Offset pin geometry is not newly
+supported. Automatic detection/review approval and source evidence are unchanged.
+Advanced numeric wire coordinates remain available behind a collapsed control;
+normal endpoint editing does not depend on them.
+
+Live verification uses temporary unsaved overlap edits on lighting job 24339:
+the chooser lists two switch IDs, selects only the requested one, and one undo/
+redo restores the original/chosen binding respectively. These temporary edits
+are discarded, not published as a review. Checkpoint 3 (genuine 3D drawing),
+checkpoints 4–7 and the explicitly remaining measurement integration are not
+claimed complete by this interaction slice. BDO detection/training stays paused.
+
+Verification: the clean scoped export passes 142 focused frontend tests and 60
+restricted-database backend tests, including independent co-located device
+bindings, rejected invalid anchors without revision replacement, save/reload,
+permissions and historical contracts. Frontend API tests use the documented
+`VITE_API_BASE_URL=http://localhost:8000`; without that exported environment their
+two fixed-base URL assertions fail. Scoped lint and production build pass
+(existing large-chunk warnings remain). No API operation/table changes: the clean
+contract remains 49/34, while unrelated worktree additions remain excluded.
+Full suites are not claimed. Live 2D chooser/undo/redo and discard/reload pass;
+live 3D interaction is BLOCKED by this browser's WebGL fallback, despite passing
+handle/chooser unit tests. Original images, reviews and estimates were not
+written; the verification tab was closed and stash@{0} retained.

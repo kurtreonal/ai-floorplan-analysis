@@ -119,6 +119,37 @@ def test_manual_continuation_does_not_double_count_an_explicitly_shared_canonica
 
 
 class ConnectedWiringApiTests(DemoInterpretationApiTests):
+    def test_overlapping_devices_keep_separate_terminal_connections_after_save_reload(self):
+        self._login()
+        url=f"/api/floor-plans/{self.ids['floor_plan']}/interpretation"
+        payload=self._review_payload(complete=False,approved=False)
+        first=payload['symbols'][0]
+        second=dict(id='manual-symbol-0001',disposition='added',center=deepcopy(first['center']))
+        payload['symbols'].append(second)
+        x,y=first['center']['x'],first['center']['y']
+        paths=[]
+        for index,(symbol,end) in enumerate([(first,(x+30,y)),(second,(x,y+30))],1):
+            route=wire(f'manual-wiring-{index:04d}',[(x,y),end],'design-anchor')
+            route['device_attachments'][0]['symbol_id']=symbol['id']
+            route['path_origin']='manual'
+            paths.append(route)
+        payload['observed_wiring']=paths
+        response=self.client.post(url+'/reviews',json=payload)
+        self.assertEqual(response.status_code,201,response.text)
+        saved=response.json()['review']['observed_wiring']
+        reloaded=self.client.get(url).json()['review']
+        self.assertEqual(reloaded['observed_wiring'],saved)
+        self.assertFalse(reloaded['approved_for_layout'])
+        self.assertEqual([w['device_attachments'][0]['symbol_id'] for w in saved],[first['id'],second['id']])
+        self.assertEqual(len(set(wire_networks(saved).values())),2)
+        invalid=deepcopy(payload)
+        invalid['expected_revision_number']=1
+        invalid['observed_wiring'][0]['points'][0]['x']+=1
+        rejected=self.client.post(url+'/reviews',json=invalid)
+        self.assertEqual(rejected.status_code,422,rejected.text)
+        self.assertEqual(rejected.json()['detail']['error']['code'],'INVALID_DEVICE_ATTACHMENT')
+        self.assertEqual(self.client.get(url).json()['review']['observed_wiring'],saved)
+
     def test_network_v6_survives_review_reload_and_canonical_publication(self):
         from uuid import uuid4
         self._login()

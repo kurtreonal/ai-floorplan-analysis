@@ -18,15 +18,15 @@ afterEach(()=>{for (const cleanup of harness.cleanups) cleanup(); harness.cleanu
 function handle(findSnap=vi.fn(()=>null)) {
   const position=[1,.75,2], node={position:new Vector3(...position)}
   harness.refs=[{current:node},{current:null},{current:null}]
-  const move=vi.fn(), dragging=vi.fn()
+  const move=vi.fn(), dragging=vi.fn(), choose=vi.fn()
   const scene={sourceScale:.025,width:10,depth:10,unitsPerMeter:.25,walls:[],symbols:[
     {id:'s',position:[3,0,2],presentation:{family:'troffer'}}],ceilingElevation:.75}
-  const tree=WireHandle({position,scene,onMove:move,onFindSnap:findSnap,onDraggingChange:dragging})
+  const tree=WireHandle({position,scene,onMove:move,onFindSnap:findSnap,onChooseTarget:choose,onDraggingChange:dragging})
   const props=tree.props.children[0].props
   const target={setPointerCapture:vi.fn(),releasePointerCapture:vi.fn()}
   const event=x=>({pointerId:1,button:0,target,stopPropagation:vi.fn(),
     ray:new Ray(new Vector3(x,5,2),new Vector3(0,-1,0))})
-  return {props,move,dragging,node,event,findSnap}
+  return {props,move,dragging,choose,node,event,findSnap}
 }
 
 it('magnetizes a captured 3D handle and commits the explicit shared attachment on release',()=>{
@@ -59,4 +59,18 @@ it('does not propose a device behind the camera and permits ordinary unsnapped m
   harness.three.camera.lookAt(5,8,30); harness.three.camera.updateMatrixWorld()
   h.props.onPointerDown(h.event(1)); h.props.onPointerMove(h.event(2.5)); h.props.onPointerUp(h.event(2.5))
   expect(h.move).toHaveBeenCalledWith({x:2.5,y:2})
+})
+
+it('defers ambiguous overlapping 3D targets without committing or moving their geometry',()=>{
+  const choices=['port-a','port-b'].map(terminalId=>({kind:'device',symbolId:'s',terminalId,point:{x:120,y:80},distance:4}))
+  const h=handle((point,distance)=>{
+    distance({id:'s',center:{x:120,y:80},terminalId:'port-a'})
+    distance({id:'s',center:{x:120,y:80},terminalId:'port-b'})
+    return choices
+  })
+  h.props.onPointerDown(h.event(1));h.props.onPointerMove(h.event(2.9));h.props.onPointerUp(h.event(2.9))
+  expect(h.move).not.toHaveBeenCalled()
+  expect(h.choose).toHaveBeenCalledWith(choices.map(c=>({...c,displayPosition:expect.any(Array)})))
+  expect(h.node.position.toArray()).toEqual([1,.75,2])
+  expect(h.dragging.mock.calls.map(c=>c[0])).toEqual([true,false])
 })

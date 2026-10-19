@@ -1,0 +1,18 @@
+.wiring-target-chooser {
+  position: absolute;
+  z-index: 32;
+  left: 76px;
+  bottom: 70px;
+  width: min(320px, calc(100% - 92px));
+  padding: 8px;
+  border: 1px solid #d8d1c2;
+  border-radius: 12px;
+  background: #fffdf8;
+  color: #172331;
+  box-shadow: 0 5px 20px #0c11171f;
+}
+.wiring-target-chooser-heading { display: flex; align-items: center; justify-content: space-between; padding-left: 8px; }
+.wiring-target-chooser button { min-height: 34px; padding: 6px 9px; border: 0; border-radius: 6px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.wiring-target-chooser-options { display: grid; max-height: 200px; overflow: auto; gap: 2px; }
+.wiring-target-chooser-options button { overflow-wrap: anywhere; }
+.wiring-target-chooser button:hover, .wiring-target-chooser button:focus-visible { background: #ff7a451f; outline: 2px solid #ff7a45; outline-offset: -2px; }

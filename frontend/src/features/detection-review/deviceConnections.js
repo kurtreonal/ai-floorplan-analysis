@@ -48,13 +48,24 @@ export function connectTouchingWireEndpoints(draft, presentations = {}) {
   return changed ? {...draft,wirings} : draft
 }
 
-export function findWireDeviceSnap(point, wireId, pointIndex, draft, presentations = {}, threshold = 14, distanceToSymbol = null) {
-  if (!point || ![point.x, point.y].every(Number.isFinite)) return null
+export function findWireDeviceSnap(point, wireId, pointIndex, draft, presentations = {}, threshold = 14, distanceToSymbol = null, targetSymbolId = null) {
+  const candidates = findWireDeviceTargets(point, wireId, pointIndex, draft, presentations, threshold, distanceToSymbol, targetSymbolId)
+  if (!candidates.length || (candidates[1] && Math.abs(candidates[0].distance - candidates[1].distance) < 1e-6)) return null
+  // Preserve the legacy symbol-only shape for old inspector callers.
+  const { terminalId, ...candidate } = candidates[0]
+  return terminalId === 'design-anchor' ? candidate : candidates[0]
+}
+
+export function findWireDeviceTargets(point, wireId, pointIndex, draft, presentations = {}, threshold = 14, distanceToSymbol = null, targetSymbolId = null) {
+  if (!point || ![point.x, point.y].every(Number.isFinite)) return []
   const wire = (draft.wirings || []).find(w => w.id === wireId && w.disposition !== 'rejected')
-  if (!wire || ![0, wire.points.length - 1].includes(pointIndex) || !Number.isFinite(threshold) || threshold < 0) return null
-  if (wire.junction_attachments?.some(a => a.point_index === pointIndex)) return null
+  if (!wire || ![0, wire.points.length - 1].includes(pointIndex) || !Number.isFinite(threshold) || threshold < 0) return []
+  if (wire.junction_attachments?.some(a => a.point_index === pointIndex)) return []
   const candidates = []
   for (const symbol of draft.symbols || []) {
+    // An explicit inspector choice disambiguates co-located devices by stable ID.
+    // Automatic magnets still reject equally close ports and never pick one by ID.
+    if (targetSymbolId && symbol.id !== targetSymbolId) continue
     if (symbol.disposition === 'rejected' || presentations[symbol.id]?.family === 'annotation'
       || !symbol.center || ![symbol.center.x, symbol.center.y].every(Number.isFinite)) continue
     // Do not bridge unrelated runs or close a loop through the same device.
@@ -64,12 +75,30 @@ export function findWireDeviceSnap(point, wireId, pointIndex, draft, presentatio
         : circuit && (w.circuit_id || w.circuit_ref) && (w.circuit_id || w.circuit_ref) !== circuit)))) continue
     const neighbor = wire.points[pointIndex === 0 ? 1 : pointIndex - 1]
     if (neighbor.x === symbol.center.x && neighbor.y === symbol.center.y) continue
-    const distance = distanceToSymbol ? distanceToSymbol(symbol) : Math.hypot(point.x - symbol.center.x, point.y - symbol.center.y)
-    if (Number.isFinite(distance) && distance <= threshold) candidates.push({ symbolId: symbol.id, point: {...symbol.center}, distance })
+    // Existing explicit terminals are real identities, not one merged device port.
+    // Unspecified legacy bindings do not manufacture electrical pins.
+    const terminals = new Map()
+    for (const other of draft.wirings || []) {
+      if (other.disposition === 'rejected' || other.suppression_reason) continue
+      for (const attachment of other.device_attachments || []) {
+        if (attachment.symbol_id !== symbol.id || !attachment.terminal_id) continue
+        const anchor = other.points[attachment.point_index]
+        if (!anchor || ![anchor.x,anchor.y].every(Number.isFinite)) continue
+        const previous = terminals.get(attachment.terminal_id)
+        // The current review contract stores terminals at the canonical device
+        // anchor. Unsupported offsets stay unresolved, not an unsaveable snap.
+        terminals.set(attachment.terminal_id, previous === null || anchor.x !== symbol.center.x || anchor.y !== symbol.center.y
+          || (previous && (previous.x !== anchor.x || previous.y !== anchor.y)) ? null : anchor)
+      }
+    }
+    if (!terminals.size) terminals.set('design-anchor', symbol.center)
+    for (const [terminalId, anchor] of terminals) {
+      if (!anchor || (neighbor.x === anchor.x && neighbor.y === anchor.y)) continue
+      const distance = distanceToSymbol ? distanceToSymbol({...symbol,center:anchor,terminalId}) : Math.hypot(point.x-anchor.x,point.y-anchor.y)
+      if (Number.isFinite(distance) && distance <= threshold) candidates.push({symbolId:symbol.id,terminalId,point:{...anchor},distance})
+    }
   }
-  candidates.sort((a,b) => a.distance - b.distance || a.symbolId.localeCompare(b.symbolId))
-  if (!candidates.length || (candidates[1] && Math.abs(candidates[0].distance - candidates[1].distance) < 1e-6)) return null
-  return candidates[0]
+  return candidates.sort((a,b) => a.distance-b.distance || a.symbolId.localeCompare(b.symbolId) || a.terminalId.localeCompare(b.terminalId))
 }
 
 export function moveConnectedWirePoint(draft, wireId, pointIndex, point, width, height, snap = null, presentations = {}) {
@@ -87,7 +116,9 @@ export function moveConnectedWirePoint(draft, wireId, pointIndex, point, width, 
   let updated
   if (snap) {
     // Revalidate against current shared state on commit, not a stale UI preview.
-    const valid = findWireDeviceSnap(snap.point, wireId, pointIndex, draft, presentations, 0)
+    const valid = snap.terminalId
+      ? findWireDeviceTargets(snap.point, wireId, pointIndex, draft, presentations, 0, null, snap.symbolId).find(c => c.terminalId === snap.terminalId)
+      : findWireDeviceSnap(snap.point, wireId, pointIndex, draft, presentations, 0, null, snap.symbolId)
     if (!valid || valid.symbolId !== snap.symbolId || valid.point.x < 0 || valid.point.x > width
       || valid.point.y < 0 || valid.point.y > height) return draft
     updated = {...wire, points: wire.points.map((p,i) => i === pointIndex ? valid.point : p),
@@ -103,7 +134,7 @@ export function moveConnectedWirePoint(draft, wireId, pointIndex, point, width, 
     if(updated.points.some((p,i)=>i>0&&p.x===updated.points[i-1].x&&p.y===updated.points[i-1].y))return draft
   }
   updated.device_attachments = [...(wire.device_attachments || []).filter(a => a.point_index !== pointIndex),
-    ...(snap ? [{symbol_id: snap.symbolId, point_index: pointIndex}] : [])]
+    ...(snap ? [{symbol_id: snap.symbolId, point_index: pointIndex, ...(snap.terminalId ? {terminal_id:snap.terminalId} : {})}] : [])]
   updated.auto_connect_disabled_endpoints = [...new Set([
     ...(wire.auto_connect_disabled_endpoints || []).filter(i => i !== pointIndex),
     ...(!snap && wire.device_attachments?.some(a => a.point_index === pointIndex) ? [pointIndex] : []),

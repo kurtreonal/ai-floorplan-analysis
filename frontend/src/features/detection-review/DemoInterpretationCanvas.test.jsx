@@ -159,6 +159,39 @@ describe('DemoInterpretationCanvas', () => {
     expect(onMove).not.toHaveBeenCalled()
     expect(container.querySelector('[name="wire-device-magnet"]')).toBeNull()
   })
+  it('chooses exactly one overlapping device on release, previews its identity and cancels without edits', () => {
+    const onMove=vi.fn()
+    const source={...mockDraft,symbols:[...mockDraft.symbols,{...mockDraft.symbols[0],id:'sym-0002'}],
+      wirings:[{id:'w',points:[{x:40,y:100},{x:200,y:100}]}]}
+    const before=structuredClone(source)
+    const {container,rerender}=render(<DemoInterpretationCanvas width={400} height={300} draft={source}
+      selected={{kind:'wiring',id:'w'}} layers={{wirings:true,symbols:true}} onMoveWirePoint={onMove} />)
+    const release=()=>{
+      const handle=container.querySelector('[name="wiring-point-0"]').konvaProps
+      let pos={x:100,y:100}
+      const target={x:()=>pos.x,y:()=>pos.y,position:p=>{pos=p}}
+      act(()=>{handle.onDragStart({target});handle.onDragMove({target});handle.onDragEnd({target})})
+    }
+    release()
+    expect(onMove).not.toHaveBeenCalled()
+    expect(screen.getByRole('group',{name:'Choose connection target'})).toBeTruthy()
+    const choice=screen.getByRole('button',{name:'sym-0002 · design anchor'})
+    fireEvent.focus(choice)
+    expect(container.querySelector('[name="wire-target-label"]').textContent).toContain('sym-0002')
+    fireEvent.click(choice)
+    expect(onMove).toHaveBeenCalledExactlyOnceWith('w',0,{x:100,y:100},expect.objectContaining({symbolId:'sym-0002',terminalId:'design-anchor'}))
+    expect(source).toEqual(before)
+    onMove.mockClear()
+    release()
+    fireEvent.keyDown(window,{key:'Escape'})
+    expect(screen.queryByRole('group',{name:'Choose connection target'})).toBeNull()
+    expect(onMove).not.toHaveBeenCalled()
+    release()
+    // A changed document invalidates the pending chooser instead of committing a stale target.
+    rerender(<DemoInterpretationCanvas width={400} height={300} draft={{...source,symbols:source.symbols.slice(0,1)}}
+      selected={{kind:'wiring',id:'w'}} layers={{wirings:true,symbols:true}} onMoveWirePoint={onMove} />)
+    expect(screen.queryByRole('group',{name:'Choose connection target'})).toBeNull()
+  })
   it('keeps a top wall-drawing hit surface over devices and existing walls without double dispatch', () => {
     const onAddWall=vi.fn()
     const {container,rerender}=render(<DemoInterpretationCanvas width={400} height={300}

@@ -1,10 +1,11 @@
 /* @vitest-environment jsdom */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Canvas } from '@react-three/fiber'
 import { Viewer3DCanvas } from './Viewer3DCanvas.jsx'
+import { DraftWiring3D } from './DraftWiring3D.jsx'
 
 vi.mock('@react-three/fiber', () => ({
   Canvas: vi.fn(({ fallback, frameloop }) => (
@@ -39,5 +40,25 @@ describe('3D canvas foundation', () => {
     fireEvent.click(screen.getByRole('button',{name:'Free fly'}))
     expect(screen.getByRole('button',{name:'Orbit'}).getAttribute('aria-pressed')).toBe('false')
     expect(screen.getByText(/Drag to orbit/)).toBeTruthy()
+  })
+  it('uses a compact exact-terminal chooser for 3D overlaps and invalidates stale scenes', () => {
+    const scene={previewOnly:true,sourceScale:.1,target:[0,0,0],extent:10,elevation:0,walls:[],symbols:[],draftWires:[]}
+    const move=vi.fn()
+    const {rerender}=render(<Viewer3DCanvas scene={scene} selectedWireId="wire1" onMoveWirePoint={move} />)
+    const wiringProps=()=>Canvas.mock.calls.at(-1)[0].children.find(child=>child?.type===DraftWiring3D).props
+    const choices=['device-a','device-b'].map(symbolId=>({kind:'device',symbolId,terminalId:'design-anchor',point:{x:10,y:20},displayPosition:[1,.5,2]}))
+    // The R3F child requests the HTML chooser after releasing pointer capture.
+    fireEvent.click(screen.getByRole('button',{name:'Free fly'}))
+    const {onChooseWireTarget}=wiringProps()
+    act(()=>onChooseWireTarget('wire1',0,choices))
+    expect(move).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button',{name:'device-b · design anchor'}))
+    expect(move).toHaveBeenCalledExactlyOnceWith('wire1',0,{x:1,y:2},{kind:'device',symbolId:'device-b',terminalId:'design-anchor',point:{x:10,y:20}})
+    act(()=>wiringProps().onChooseWireTarget('wire1',0,choices))
+    fireEvent.keyDown(screen.getByRole('button',{name:'device-a · design anchor'}),{key:'Escape'})
+    expect(screen.queryByRole('group',{name:'Choose connection target'})).toBeNull()
+    act(()=>wiringProps().onChooseWireTarget('wire1',0,choices))
+    rerender(<Viewer3DCanvas scene={{...scene}} selectedWireId="wire1" onMoveWirePoint={move} />)
+    expect(screen.queryByRole('group',{name:'Choose connection target'})).toBeNull()
   })
 })

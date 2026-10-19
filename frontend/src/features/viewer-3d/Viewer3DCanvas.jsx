@@ -1,15 +1,24 @@
 import { Canvas } from '@react-three/fiber'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { ViewerCameraControls } from './ViewerCameraControls.jsx'
 import { CanonicalScene } from './CanonicalScene.jsx'
 import { RouteLines3D } from '../routing/RouteLines3D.jsx'
 import { DraftWiring3D } from './DraftWiring3D.jsx'
 import { routeDeviceConnectors } from './routeDeviceConnectors.js'
+import { WiringTargetChooser } from '../detection-review/WiringTargetChooser.jsx'
+import { WiringTargetMarker3D } from './WiringTargetMarker3D.jsx'
 
 
-export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof = false, routeSegments = [], inspectUnderground = false, selectedSymbolId, onSelectSymbol, onMoveSymbol, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, navigationMode = 'select' }) {
+export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof = false, routeSegments = [], inspectUnderground = false, selectedSymbolId, onSelectSymbol, onMoveSymbol, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, presentations = {}, navigationMode = 'select' }) {
   const [draggingDevice, setDraggingDevice] = useState(false)
+  const [pendingTarget,setPendingTarget] = useState(null)
+  const handleDragging = useCallback(dragging => {
+    setDraggingDevice(dragging)
+    if (dragging) setPendingTarget(null)
+  }, [])
+  const activeTarget = pendingTarget && pendingTarget.scene === scene && pendingTarget.selectionId === selectedWireId
+    && navigationMode !== 'pan' ? pendingTarget : null
   const [freeFly, setFreeFly] = useState(true)
   const fallback = (
     <div className="viewer-3d-webgl-fallback" role="status">
@@ -40,11 +49,23 @@ export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof =
           onMoveSymbol={onMoveSymbol} onDraggingChange={setDraggingDevice} />}
         <RouteLines3D segments={[...routeSegments, ...routeDeviceConnectors(scene,routeSegments)]} inspectUnderground={inspectUnderground} />
         {scene?.previewOnly && <DraftWiring3D scene={scene} selectedWireId={selectedWireId} onSelectWire={onSelectWire}
-          onMoveWirePoint={onMoveWirePoint} onFindWireDeviceSnap={onFindWireDeviceSnap} onDraggingChange={setDraggingDevice} />}
+          onMoveWirePoint={onMoveWirePoint} onFindWireDeviceSnap={onFindWireDeviceSnap}
+          onChooseWireTarget={(wireId,index,choices) => setPendingTarget({scene,selectionId:selectedWireId,wireId,index,choices})}
+          onDraggingChange={handleDragging} />}
+        {activeTarget?.highlighted?.displayPosition && <WiringTargetMarker3D position={activeTarget.highlighted.displayPosition} />}
         <gridHelper position={scene?.target} args={[scene ? scene.extent * 2 : 20, 20, '#b1b9b9', '#dee1de']} />
         <ViewerCameraControls ref={controlsRef} onReady={onControlsReady} target={scene?.target} extent={scene?.extent}
-          enabled={!draggingDevice} panMode={navigationMode === 'pan'} freeFly={freeFly} />
+          enabled={!draggingDevice && !activeTarget} panMode={navigationMode === 'pan'} freeFly={freeFly} />
       </Canvas>
+      {activeTarget && <WiringTargetChooser choices={activeTarget.choices} presentations={presentations}
+        onPreview={highlighted=>setPendingTarget(current=>current?{...current,highlighted}:null)}
+        onCancel={()=>setPendingTarget(null)} onChoose={target=>{
+          const snap = {...target}
+          delete snap.displayPosition
+          setPendingTarget(null)
+          onMoveWirePoint?.(activeTarget.wireId,activeTarget.index,
+            {x:snap.point.x*scene.sourceScale,y:snap.point.y*scene.sourceScale},snap)
+        }} />}
       <button className="studio-camera-mode" type="button" aria-pressed={freeFly} onClick={() => setFreeFly(value => !value)}>
         {freeFly ? 'Free fly' : 'Orbit'}
       </button>

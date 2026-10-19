@@ -4,7 +4,7 @@ import { Viewer3DErrorBoundary } from '../viewer-3d/Viewer3DErrorBoundary.jsx'
 import { buildDraftRoomScene } from './draftRoomScene.js'
 import { Button } from '../../components/ui/button.jsx'
 import { clampDevicePoint } from './devicePresentation.js'
-import { findWireEndpointSnap } from './wirePathSnap.js'
+import { findWireEndpointSnap, findWireEndpointTargets } from './wirePathSnap.js'
 import { useUserPreferences } from '../settings/useUserPreferences.js'
 
 export function DraftRoomPreview({ draft, layers, width, height, projectId, presentations, selected, onSelect, onUpdateSymbol, onMoveWirePoint, navigationMode, routingContext }) {
@@ -50,8 +50,9 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
         <Viewer3DCanvas scene={result.scene} showRoof={showRoof} controlsRef={controlsRef} onControlsReady={setReady}
           selectedWireId={selected?.kind === 'wiring' ? selected.id : null}
           onSelectWire={(id) => onSelect?.({ kind: 'wiring', id })}
-          onFindWireDeviceSnap={(id,index,point,distanceToSymbol,threshold,distanceToPath) =>
-            preferences.snapping ? findWireEndpointSnap(point,id,index,draft,presentations,threshold,distanceToSymbol,distanceToPath) : null}
+          presentations={presentations}
+          onFindWireDeviceSnap={(id,index,point,distanceToSymbol,threshold,distanceToPath,allTargets=false) =>
+            preferences.snapping ? (allTargets ? findWireEndpointTargets : findWireEndpointSnap)(point,id,index,draft,presentations,threshold,distanceToSymbol,distanceToPath) : allTargets ? [] : null}
           onMoveWirePoint={navigationMode === 'pan' || !onMoveWirePoint ? undefined : (id,index,point,snap) => {
             const sourcePoint = { x: point.x / result.scene.sourceScale, y: point.y / result.scene.sourceScale }
             if (snap) onMoveWirePoint(id,index,snap.point,snap)

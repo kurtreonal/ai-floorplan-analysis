@@ -721,8 +721,10 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               onDetach={index => updateSelected({...selectedEntity,
                 auto_connect_disabled_endpoints:[...new Set([...(selectedEntity.auto_connect_disabled_endpoints || []),index])],
                 device_attachments:(selectedEntity.device_attachments || []).filter(a => a.point_index !== index)})} />
-            {selectedEntity.points.map((point,index) => <NumericPoint key={index} label={`Wire point ${index+1}`} value={point}
-              onChange={p => moveWirePoint(selectedEntity.id,index,p)} />)}
+            <details><summary>Advanced coordinates</summary>
+              {selectedEntity.points.map((point,index) => <NumericPoint key={index} label={`Wire point ${index+1}`} value={point}
+                onChange={p => moveWirePoint(selectedEntity.id,index,p)} />)}
+            </details>
             <label>Wire height (m, optional)<input type="number" min="-1000" max="10000" step="0.1" value={selectedEntity.elevation_meters ?? ''}
               onChange={e => { const value = e.target.value === '' ? null : Number(e.target.value)
                 if (value === null || (Number.isFinite(value) && value >= -1000 && value <= 10000)) updateSelected({ ...selectedEntity, elevation_meters: value }) }} /></label>

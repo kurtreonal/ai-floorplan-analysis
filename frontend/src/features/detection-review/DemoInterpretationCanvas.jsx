@@ -7,7 +7,9 @@ import { DeviceGlyph } from './DeviceGlyph.jsx'
 import { wiringAppearance } from './wiringAppearance.js'
 import { snapWiringPoint } from './wireDrawing.js'
 import { findDeviceWireSnap } from './deviceConnections.js'
-import { findWireEndpointSnap } from './wirePathSnap.js'
+import { findWireEndpointSnap, findWireEndpointTargets } from './wirePathSnap.js'
+import { WiringTargetChooser } from './WiringTargetChooser.jsx'
+import { wiringTargetLabel } from './wiringTargetLabel.js'
 import { appendDrawingVertex } from './connectedWiring.js'
 import { connectedWireIds } from './wireJunctions.js'
 import { clampDevicePoint } from './devicePresentation.js'
@@ -95,6 +97,10 @@ export function DemoInterpretationCanvas({
   const [placementPointer, setPlacementPointer] = useState(null)
   const [deviceSnap, setDeviceSnap] = useState(null)
   const [wireDeviceSnap, setWireDeviceSnap] = useState(null)
+  const [pendingWireTarget, setPendingWireTarget] = useState(null)
+  const activeWireTarget = pendingWireTarget?.draft === draft && pendingWireTarget.session === editingSession
+    && pendingWireTarget.tool === tool && pendingWireTarget.selectionId === selected?.id ? pendingWireTarget : null
+  const wireSnapPreview = activeWireTarget?.highlighted || wireDeviceSnap
   const wireDrag = useRef(null)
   const drawingGesture=useRef(null)
 
@@ -120,6 +126,11 @@ export function DemoInterpretationCanvas({
   // Keyboard handlers: Escape to cancel drawing, Delete/Backspace to delete wall, Shift constraint, Space to pan
   useEffect(() => {
     function handleKeyDown(event) {
+      if (event.key === 'Escape' && activeWireTarget) {
+        event.preventDefault()
+        setPendingWireTarget(null)
+        return
+      }
       if (tool==='wire' && ['Enter','Escape','Backspace'].includes(event.key)) {
         if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName) || event.target?.isContentEditable) return
         event.preventDefault()
@@ -183,7 +194,7 @@ export function DemoInterpretationCanvas({
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [drawingStart, regionAnchor, tool, selected, onDeleteWall, onDeleteSymbol, onToolChange, wireVertices, editingSession,onAddWire,onDrawingPendingChange])
+  }, [drawingStart, regionAnchor, tool, selected, onDeleteWall, onDeleteSymbol, onToolChange, wireVertices, editingSession,onAddWire,onDrawingPendingChange,activeWireTarget])
 
   // Map pointer to source-image pixels via stage inverse transform
   function getSourcePoint(stage) {
@@ -725,7 +736,7 @@ export function DemoInterpretationCanvas({
                 onMouseDown={event => { event.cancelBubble = true }}
                 onTouchStart={event => { event.cancelBubble = true }}
                 onClick={(event) => { event.cancelBubble = true }}
-                onDragStart={(event) => { event.cancelBubble = true; wireDrag.current = {target: event.target, point, cancelled: false} }}
+                onDragStart={(event) => { event.cancelBubble = true; setPendingWireTarget(null); wireDrag.current = {target: event.target, point, cancelled: false} }}
                 onDragMove={(event) => {
                   if (wireDrag.current?.cancelled) return
                   const next = {x: event.target.x(), y: event.target.y()}
@@ -738,9 +749,14 @@ export function DemoInterpretationCanvas({
                   wireDrag.current = null
                   setWireDeviceSnap(null)
                   const next = { x: event.target.x(), y: event.target.y() }
-                  const target = cancelled || !preferences.snapping ? null : findWireEndpointSnap(next, wire.id, index, draft, presentations, snapThreshold)
+                  const choices = cancelled || !preferences.snapping ? [] : findWireEndpointTargets(next, wire.id, index, draft, presentations, snapThreshold)
                   event.target.position(point)
                   if (cancelled) return
+                  if (choices.length > 1) {
+                    setPendingWireTarget({draft,session:editingSession,tool,wireId:wire.id,selectionId:selected?.id,index,choices})
+                    return
+                  }
+                  const target = choices[0]
                   if (target) onMoveWirePoint?.(wire.id,index,target.point,target)
                   else onMoveWirePoint?.(wire.id,index,next)
                 }} />
@@ -780,11 +796,11 @@ export function DemoInterpretationCanvas({
               stroke="#ff7a45" strokeWidth={2/stageTransform.scale} lineCap="round" lineJoin="round" />}
           </Layer>
           <Layer>
-            {wireDeviceSnap && <Group listening={false}>
-              <Circle name="wire-device-magnet" x={wireDeviceSnap.point.x} y={wireDeviceSnap.point.y}
+            {wireSnapPreview && <Group listening={false}>
+              <Circle name="wire-device-magnet" x={wireSnapPreview.point.x} y={wireSnapPreview.point.y}
                 radius={12 / stageTransform.scale} stroke="#13816c" fill="#13816c20" strokeWidth={2 / stageTransform.scale} />
-              <Text x={wireDeviceSnap.point.x+16/stageTransform.scale} y={wireDeviceSnap.point.y-20/stageTransform.scale}
-                text={wireDeviceSnap.kind === 'junction' ? 'Release to join path' : 'Release to connect device'} fill="#13816c" fontSize={12/stageTransform.scale} />
+              <Text name="wire-target-label" x={wireSnapPreview.point.x+16/stageTransform.scale} y={wireSnapPreview.point.y-20/stageTransform.scale}
+                text={`${activeWireTarget ? 'Choose' : 'Release to connect'} · ${wiringTargetLabel(wireSnapPreview,presentations)}`} fill="#13816c" fontSize={12/stageTransform.scale} />
             </Group>}
             {tool === 'place-device' && <Rect name="device-place-hit" x={0} y={0} width={width} height={height}
               fill="rgba(0,0,0,0.001)" onMouseLeave={() => setPlacementPointer(null)} />}
@@ -825,6 +841,13 @@ export function DemoInterpretationCanvas({
             })()}
           </Layer>
         </Stage>
+
+        {activeWireTarget && <WiringTargetChooser choices={activeWireTarget.choices} presentations={presentations}
+          onPreview={highlighted => setPendingWireTarget(current => current ? {...current,highlighted} : null)}
+          onCancel={() => setPendingWireTarget(null)} onChoose={target => {
+            setPendingWireTarget(null)
+            onMoveWirePoint?.(activeWireTarget.wireId,activeWireTarget.index,target.point,target)
+          }} />}
 
         {/* Floating pill for drawing mode: "Press the 'Esc' key to stop drawing walls" */}
         {tool === 'draw' && (

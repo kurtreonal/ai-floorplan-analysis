@@ -9,7 +9,7 @@ import { wiringAppearance } from '../detection-review/wiringAppearance.js'
 import { deviceConnector, devicePlacement } from './devicePlacement.js'
 import { wireHandleRadius } from './wireHandleProjection.js'
 
-export function WireHandle({ position, scene, onMove, onFindSnap, onDraggingChange }) {
+export function WireHandle({ position, scene, onMove, onFindSnap, onChooseTarget, onDraggingChange }) {
   const ref = useRef(null), drag = useRef(null)
   const magnetRef = useRef(null)
   const { invalidate, camera, pointer, size } = useThree()
@@ -41,7 +41,8 @@ export function WireHandle({ position, scene, onMove, onFindSnap, onDraggingChan
     setSnapPreview(null)
     if (commit && current.moved && ref.current) {
       const point = { x: ref.current.position.x, y: ref.current.position.z }
-      if (current.snap) onMove(point,current.snap)
+      if (current.choices?.length > 1) onChooseTarget?.(current.choices)
+      else if (current.snap) onMove(point,current.snap)
       else onMove(point)
     }
     ref.current?.position.set(...position); invalidate()
@@ -62,13 +63,13 @@ export function WireHandle({ position, scene, onMove, onFindSnap, onDraggingChan
       if (!point) return
       current.moved ||= Math.hypot(point.x-position[0],point.z-position[2]) > 0.001
       const targetPositions = new Map()
-      const snap = onFindSnap?.({x:point.x/scene.sourceScale,y:point.z/scene.sourceScale}, symbol => {
+      const result = onFindSnap?.({x:point.x/scene.sourceScale,y:point.z/scene.sourceScale}, symbol => {
         const rendered = scene.symbols.find(s => s.id === symbol.id)
         if (!rendered) return Infinity
         const connector = deviceConnector(devicePlacement(rendered,scene,rendered.presentation?.family || 'unknown'))
         const projected = new Vector3(...connector).project(camera)
         if (projected.z < -1 || projected.z > 1 || Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1) return Infinity
-        targetPositions.set(symbol.id,connector)
+        targetPositions.set(`${symbol.id}:${symbol.terminalId}`,connector)
         return Math.hypot((projected.x-pointer.x)*size.width/2,(projected.y-pointer.y)*size.height/2)
       },16,(sourcePoint,wire) => {
         const rendered = scene.draftWires.find(w => w.id === wire.id)
@@ -78,11 +79,16 @@ export function WireHandle({ position, scene, onMove, onFindSnap, onDraggingChan
         if (projected.z < -1 || projected.z > 1) return Infinity
         targetPositions.set(`path:${wire.id}`,target)
         return Math.hypot((projected.x-pointer.x)*size.width/2,(projected.y-pointer.y)*size.height/2)
-      })
+      },true)
+      const targets = Array.isArray(result) ? result : result ? [result] : []
+      const choices = targets.map(target => ({...target,
+        displayPosition:target.kind === 'junction'
+          ? [target.point.x*scene.sourceScale,targetPositions.get(`path:${target.wireId}`)[1],target.point.y*scene.sourceScale]
+          : targetPositions.get(`${target.symbolId}:${target.terminalId}`)}))
+      current.choices = choices
+      const snap = targets.length === 1 ? targets[0] : null
       current.snap = snap ?? null
-      setSnapPreview(snap ? {position:snap.kind === 'junction'
-        ? [snap.point.x*scene.sourceScale,targetPositions.get(`path:${snap.wireId}`)[1],snap.point.y*scene.sourceScale]
-        : targetPositions.get(snap.symbolId)} : null)
+      setSnapPreview(snap ? {position:choices[0].displayPosition} : null)
       ref.current?.position.set(snap ? snap.point.x*scene.sourceScale : point.x,position[1],
         snap ? snap.point.y*scene.sourceScale : point.z); invalidate()
     }} onPointerUp={e => finish(e,true)} onPointerCancel={e => finish(e,false)} onLostPointerCapture={e => finish(e,false)}>
@@ -94,7 +100,7 @@ export function WireHandle({ position, scene, onMove, onFindSnap, onDraggingChan
   </mesh>}</group>
 }
 
-export function DraftWiring3D({ scene, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, onDraggingChange }) {
+export function DraftWiring3D({ scene, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, onChooseWireTarget, onDraggingChange }) {
   const selectedNetwork=scene.draftWires?.find(w=>w.id===selectedWireId)?.networkId
   // Scale tubing with the devices, not the arbitrary source-page preview size.
   // This is visual thickness only, never a conduit diameter or quantity input.
@@ -111,7 +117,8 @@ export function DraftWiring3D({ scene, selectedWireId, onSelectWire, onMoveWireP
       color={wiringAppearance(wire,selectedWireId===wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork),run.segment).color}
       onClick={event=>{event.stopPropagation();onSelectWire?.(wire.id)}} />)}
     {(selectedWireId === wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork)) && wire.points.map((p,index) => <WireHandle key={index} position={p} scene={scene}
-      onFindSnap={onFindWireDeviceSnap ? (point,distance,threshold,pathDistance) => onFindWireDeviceSnap(wire.id,index,point,distance,threshold,pathDistance) : undefined}
+      onFindSnap={onFindWireDeviceSnap ? (point,distance,threshold,pathDistance,allTargets) => onFindWireDeviceSnap(wire.id,index,point,distance,threshold,pathDistance,allTargets) : undefined}
+      onChooseTarget={choices => onChooseWireTarget?.(wire.id,index,choices)}
       onMove={onMoveWirePoint ? (point,snap) => snap ? onMoveWirePoint(wire.id,index,point,snap) : onMoveWirePoint(wire.id,index,point) : undefined} onDraggingChange={onDraggingChange} />)}
   </group>)}</group>
 }
