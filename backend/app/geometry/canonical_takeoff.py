@@ -3,7 +3,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from app.geometry.route_measurement import measure_metric_network
 
 
-def canonical_path_rows(document, extension=None):
+def canonical_route_groups(document, extension=None):
+    """Shared physical scope from canonical topology, never coincident pixels."""
     routes = {route.id: route for route in document.routes}
     details = {detail.route_id: detail for detail in extension.route_details} if extension else {}
     parents = {identity: identity for identity in routes}
@@ -36,10 +37,16 @@ def canonical_path_rows(document, extension=None):
             parents[max(a,b)] = min(a,b)
     groups = {}
     for identity in routes: groups.setdefault(root(identity), []).append(identity)
+    return tuple(tuple(sorted(groups[key])) for key in sorted(groups))
+
+
+def canonical_path_rows(document, extension=None):
+    routes = {route.id: route for route in document.routes}
+    details = {detail.route_id: detail for detail in extension.route_details} if extension else {}
     rows = []
     def point(p):
         return dict(floor_id=p.project_floor_id,x=p.x,y=p.y,elevation_meters=p.elevation_meters)
-    for identities in groups.values():
+    for identities in canonical_route_groups(document, extension):
         edges, missing = [], []
         for identity in identities:
             for a,b in zip(routes[identity].points,routes[identity].points[1:]):
@@ -55,7 +62,7 @@ def canonical_path_rows(document, extension=None):
         origins = sorted({details[i].route_kind if i in details else 'unresolved' for i in identities})
         origin = origins[0] if len(origins)==1 else 'mixed'
         rows.append(dict(kind='path',name=f'Reviewed wiring path — {origin} provenance; material unassigned',
-            origin=origin,provenance_origins=origins,path_id=f'canonical:{identities[0]}',path_ids=identities,circuit_id=detail.circuit_id if detail else None,
+            origin=origin,provenance_origins=origins,path_id=f'canonical:{identities[0]}',path_ids=list(identities),circuit_id=detail.circuit_id if detail else None,
             quantity=Decimal(str(measured.physical_meters)).quantize(Decimal('.0001'),rounding=ROUND_HALF_UP),unit='meter',
             measurement_revision=measured.measurement_revision,
             horizontal_meters=h,vertical_meters=v,missing_vertical_inputs=sorted(set(missing)),

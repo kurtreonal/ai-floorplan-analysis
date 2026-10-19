@@ -210,3 +210,19 @@ globally to any paths touching the same device/service elevation. Genuine
 independent runs retain their own drops. Original reviews, prices and estimates
 remain immutable. No allowance, conductor count, elevation, or real-world scale
 is invented. Remaining checkpoint-1 integration listed above is still pending.
+
+Verification of the clean staged 1a/1b snapshot: 144 selected backend tests
+(including schema/OpenAPI, permissions and historical snapshots), 15 subtests,
+55 focused frontend tests, scoped lint and build pass. It retains 49 OpenAPI
+operations and 34 tables. The mixed worktree retains an unrelated uncommitted
+50th API operation and its existing count-assertion failure; that change is not
+included or hidden by adjusting the assertion. Live browser controls were
+inspected without approving a real project scale. Full-suite and measured live
+2D/3D/BOM verification remain unclaimed.
+
+The shared-span follow-up reuses canonical explicit route groups in circuit
+takeoff. An explicitly joined overlapping span now measures identically in
+canonical BOM and circuit preview; independent coincident runs remain separate.
+Circuit conductor multiplication remains separate from physical length. The
+clean scoped snapshot passes 157 selected backend tests, including save/reload
+and API contracts, without changing the 49-operation/34-table contract.

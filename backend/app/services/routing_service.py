@@ -38,7 +38,7 @@ def preview_circuit(session, user, project_id, request):
         versions[str(config.floor_id)] = record.id
     generated = (plan_missing_devices(request, documents, extensions, latest_route(session, project_id), versions)
                  if request.routing_mode == 'missing_devices' else plan_circuit(request, documents))
-    generated = circuit_network_takeoff(request, generated, documents)
+    generated = circuit_network_takeoff(request, generated, documents, extensions=extensions)
     # MySQL REPEATABLE READ can keep a nonlocking recheck on its old snapshot.
     # Use the canonical save lock order/current read, without publishing data.
     lock_context(session, project_id, sorted(documents))
@@ -113,7 +113,7 @@ def save_circuit(session, user, project_id, request):
         versions[str(config.floor_id)] = record.id
     planned = (plan_missing_devices(request, documents, extensions, latest_route(session, project_id), versions)
                if request.routing_mode == 'missing_devices' else plan_circuit(request, documents))
-    planned = circuit_network_takeoff(request, planned, documents)
+    planned = circuit_network_takeoff(request, planned, documents, extensions=extensions)
     if not planned.segments:
         raise RoutingError('NO_NEW_ROUTE_TO_SAVE')
     generated = planned.model_dump(mode='json')
