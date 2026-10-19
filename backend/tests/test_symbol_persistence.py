@@ -885,7 +885,7 @@ class SymbolPersistenceTests(unittest.TestCase):
             if method.casefold()
             in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 54)  # Includes five project-scoped pricing operations.
+        self.assertEqual(operations, 55)  # Includes project pricing and project intake editing.
 
 
 if __name__ == "__main__":

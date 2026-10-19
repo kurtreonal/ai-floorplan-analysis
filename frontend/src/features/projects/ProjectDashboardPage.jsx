@@ -92,7 +92,7 @@ export function ProjectDashboardPage({ session }) {
 
       {session.user.role === 'ADMIN' && <AdminLegendPanel />}
       {session.user.role === 'ADMIN' && <AdminMaterialImport />}
-      {isDesigner && <details className="studio-create-project" open><summary><FolderOpen size={18} aria-hidden="true" />Create a project<span>Start with an original floor plan</span></summary><CreateProjectForm onCreated={handleCreated} /></details>}
+      {isDesigner && <details className="studio-create-project" open><summary><FolderOpen size={18} aria-hidden="true" />Create a project<span>Details first · blueprint optional</span></summary><CreateProjectForm onCreated={handleCreated} /></details>}
 
       <section className="project-list-panel" aria-labelledby="project-list-title">
         <div className="project-section-heading project-list-heading">

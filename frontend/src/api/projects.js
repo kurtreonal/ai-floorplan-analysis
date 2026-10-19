@@ -49,6 +49,9 @@ export function createProject(projectData, { signal } = {}) {
   if (projectData.location) {
     payload.location = projectData.location
   }
+  for (const key of ['contact_number', 'service_type', 'service_type_other', 'preferred_start_date', 'blueprint_availability']) {
+    if (projectData[key]) payload[key] = projectData[key]
+  }
 
   return requestProjectJson('/api/projects', {
     method: 'POST',
@@ -60,4 +63,13 @@ export function createProject(projectData, { signal } = {}) {
 
 export function fetchProject(projectId, { signal } = {}) {
   return requestProjectJson(`/api/projects/${encodeURIComponent(projectId)}`, { signal })
+}
+
+export function updateProject(projectId, projectData, { signal } = {}) {
+  const allowed = ['name', 'client_name', 'location', 'contact_number', 'service_type', 'service_type_other',
+    'preferred_start_date', 'blueprint_availability', 'expected_details_revision']
+  const payload = Object.fromEntries(allowed.filter(key => Object.hasOwn(projectData, key)).map(key => [key, projectData[key]]))
+  return requestProjectJson(`/api/projects/${encodeURIComponent(projectId)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal,
+  })
 }

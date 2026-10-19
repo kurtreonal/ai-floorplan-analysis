@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { fetchProject, ProjectApiError } from '../../api/projects.js'
 import { ProjectFloorUploadPanel } from './ProjectFloorUploadPanel.jsx'
 import { getEstimateHref } from '../../routes/projectRoutes.js'
 import { Button } from '../../components/ui/button.jsx'
 import { Calculator } from 'lucide-react'
+import { BLUEPRINT_AVAILABILITY, SERVICE_TYPES } from './projectIntake.js'
+import { ProjectIntakeEditor } from './ProjectIntakeEditor.jsx'
 
 
 function formatTimestamp(value) {
@@ -35,6 +37,7 @@ export function ProjectDetailPage({ projectId, session }) {
   const [loadState, setLoadState] = useState(projectId ? 'loading' : 'invalid')
   const [error, setError] = useState(projectId ? null : 'The project address is invalid.')
   const [refreshKey, setRefreshKey] = useState(0)
+  const uploadPanel = useRef(null)
 
   useEffect(() => {
     if (!projectId) return undefined
@@ -46,6 +49,7 @@ export function ProjectDetailPage({ projectId, session }) {
       setError(null)
       try {
         const projectData = await fetchProject(projectId, { signal: controller.signal })
+        if (controller.signal.aborted) return
         setProject(projectData)
         setLoadState('ready')
       } catch (requestError) {
@@ -107,10 +111,18 @@ export function ProjectDetailPage({ projectId, session }) {
         <div><dt>Owner ID</dt><dd>{project.owner_id}</dd></div>
         <div><dt>Client</dt><dd>{project.client_name || 'Not specified'}</dd></div>
         <div><dt>Location</dt><dd>{project.location || 'Not specified'}</dd></div>
+        <div><dt>Contact number</dt><dd>{project.contact_number || 'Not specified'}</dd></div>
+        <div><dt>Project / service type</dt><dd>{project.service_type === 'other' ? project.service_type_other : SERVICE_TYPES.find(([value]) => value === project.service_type)?.[1] || 'Not specified'}</dd></div>
+        <div><dt>Preferred start date</dt><dd>{project.preferred_start_date || 'Not specified'}</dd></div>
+        <div><dt>Blueprint availability</dt><dd>{BLUEPRINT_AVAILABILITY.find(([value]) => value === project.blueprint_availability)?.[1] || 'Not specified'}</dd></div>
         <div><dt>Created</dt><dd>{formatTimestamp(project.created_at)}</dd></div>
         <div><dt>Last updated</dt><dd>{formatTimestamp(project.updated_at)}</dd></div>
       </dl>
-      {session && <ProjectFloorUploadPanel projectId={project.id} session={session} />}
+      {session?.user?.role === 'DESIGNER' && <ProjectIntakeEditor key={project.id} project={project} onSaved={setProject} onReload={() => setRefreshKey(key => key + 1)} />}
+      {session?.user?.role === 'DESIGNER' && project.blueprint_availability === 'available_now' && <Button variant="outline" onClick={() => {
+        uploadPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); uploadPanel.current?.focus({ preventScroll: true })
+      }}>Add floors &amp; upload blueprint</Button>}
+      {session && <div ref={uploadPanel} tabIndex={-1} aria-label="Floors and original uploads"><ProjectFloorUploadPanel projectId={project.id} session={session} /></div>}
     </article>
   )
 }

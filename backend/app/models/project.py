@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, String, func
+from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -68,6 +68,11 @@ class Project(Base):
         String(500),
         nullable=True,
     )
+    contact_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    service_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    service_type_other: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    preferred_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    blueprint_availability: Mapped[str | None] = mapped_column(String(24), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

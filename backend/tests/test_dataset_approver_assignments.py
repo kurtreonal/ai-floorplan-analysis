@@ -177,7 +177,7 @@ class DatasetApproverAssignmentTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 54)  # Includes five project-scoped pricing operations.
+        self.assertEqual(operations, 55)  # Includes project pricing and project intake editing.
 
     def test_safe_current_read_and_admin_authorization(self) -> None:
         current_path = "/api/dataset-approver-assignment"

@@ -450,3 +450,65 @@ disabled. Live authenticated project 10219 confirms import controls and the
 existing missing-measured-route gate without saving real project data. Temporary
 verification records were removed by exact IDs. API and frontend were restarted
 normally after they were found stopped; no automatic analysis jobs were started.
+
+## Project intake checkpoint 5A (October 20)
+
+After checkpoint 6, the authorized checkpoint 5 is split into intake/editing (5A)
+and recoverable floor-plan deletion (5B). This slice completes intake only; it
+does not implement or claim deletion, job fencing, restore or DWG support. BDO
+work remains paused. Existing project name/client/location fields are reused.
+Five nullable project columns retain contact_number as a string, service_type,
+service_type_other, preferred_start_date as DATE, and blueprint_availability.
+No values are inferred for legacy projects. The Other option requires a supplied
+description. Dates are date-only, within MySQL's supported range, with no timezone
+conversion or invented start date. Available now/Later/Unavailable are metadata,
+not a requirement to upload before creating a project.
+
+Create and edit share the same intake controls. Available-now projects hand off
+to the existing floors/upload panel without creating a floor or duplicating an
+upload. Designer owners can PATCH only metadata; Admin remains read-only.
+Owner, status and server-managed fields are rejected. An expected content-based
+details revision and current row lock prevent lost updates even with second-
+precision MySQL timestamps. A retry of already-applied values returns the current
+result, while a conflicting newer edit returns 409. Uncertain UI saves lock
+inputs for identical retry; conflicts retain inputs until explicit discard/reload.
+Audit logging contains project/user IDs, not contact details.
+
+Development schema initialization remains explicit, never an HTTP startup write.
+The existing app.core.schema initializer now adds only these missing nullable
+columns, validates definitions already present, and can be rerun after a partial
+DDL application. It does not reset, populate, drop or rewrite data, and refuses
+production mode or incompatible existing definitions. Back up first and use a
+local DDL-capable configuration for this explicit development step; the normal
+ved_app CRUD grants and application DATABASE_URL are not changed. No Alembic or
+separate migration framework/files are introduced. Older code can keep using the
+expanded table; rollback retains the nullable columns and any entered intake data.
+
+Before live model activation, a private logical backup was taken under ignored
+tmp/checkpoint5a-db-before and the expansion was verified against the restricted
+database first. Original-column project values/counts match their pre-expansion
+hash; all 34 other application tables retain identical counts/extended checksums.
+The four real projects retain NULL in all five new fields. The table count stays
+35; clean API count is 55 (56 in the mixed live worktree due to the unrelated,
+uncommitted canvas-BOM endpoint). Existing schema readers and ved_app access
+were checked before activating/restarting only the local API, with workers off.
+
+A disposable browser fixture created a project without a blueprint/floor,
+preserved a formatted phone/date/Other description, changed to Maintenance and
+Available now, then reloaded with the literal phone 000123 and date 2027-01-05.
+Upload handoff focused the existing empty floor panel without creating anything.
+This is synthetic workflow proof, not a real client intake change. Fixture data
+was cleaned by exact synthetic identity. Screenshots/backups remain private,
+Git-ignored diagnostics. Originals, reviews, estimates, client price versions,
+unrelated changes and stash@{0} are preserved. Full suites, reboot behavior and
+5B floor-plan deletion are not established by this checkpoint.
+
+The exact staged snapshot passes 438 selected backend tests and 234 subtests
+(one skip), 47 frontend tests, scoped lint and production build. Checks cover
+nullable legacy records, phone strings, dates, invalid Other combinations,
+permissions, stale edits, identical uncertain-save retry, schema idempotence and
+incompatible-definition refusal. Checkpoint-6 import/estimate and route regressions
+remain passing. Existing large-chunk and backend deprecation warnings remain.
+The live legacy project page shows new fields as Not specified without changing
+its original metadata or uploads. The next separately verified ticket is 5B;
+its dependency review and deletion implementation have not started in this slice.

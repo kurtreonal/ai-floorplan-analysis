@@ -18,6 +18,7 @@ from app.core.config import Settings, get_settings
 from app.core.database import get_db, get_engine
 from app.main import create_app
 from app.models import Project, Role, User
+from app.schemas.project import ProjectResponse
 from app.services.project_service import get_accessible_project
 
 
@@ -209,6 +210,7 @@ class ProjectCreationTests(unittest.TestCase):
                 "status",
                 "client_name",
                 "location",
+                "contact_number", "service_type", "service_type_other", "preferred_start_date", "blueprint_availability", "details_revision",
                 "created_at",
                 "updated_at",
             },
@@ -332,6 +334,9 @@ class ProjectCreationTests(unittest.TestCase):
                 "status": "draft",
                 "client_name": "D3 Client",
                 "location": "D3 Location",
+                "contact_number": None, "service_type": None, "service_type_other": None,
+                "preferred_start_date": None, "blueprint_availability": None,
+                "details_revision": ProjectResponse.model_validate(project).details_revision,
                 "created_at": project.created_at.isoformat(),
                 "updated_at": project.updated_at.isoformat(),
             },
@@ -565,6 +570,7 @@ class ProjectCreationTests(unittest.TestCase):
                 "status",
                 "client_name",
                 "location",
+                "contact_number", "service_type", "service_type_other", "preferred_start_date", "blueprint_availability", "details_revision",
                 "created_at",
                 "updated_at",
             },
@@ -732,7 +738,7 @@ class ProjectCreationTests(unittest.TestCase):
             get_schema["items"]["$ref"],
             "#/components/schemas/ProjectResponse",
         )
-        self.assertEqual(set(detail_path), {"get"})
+        self.assertEqual(set(detail_path), {"get", "patch"})
         self.assertEqual(
             detail_path["get"]["responses"]["200"]["content"][
                 "application/json"
@@ -760,7 +766,7 @@ class ProjectCreationTests(unittest.TestCase):
                 "/api/projects/{project_id}/bom": {"get"},
                 "/api/projects/{project_id}/bom.csv": {"get"},
                 "/api/projects/{project_id}/estimates/{estimate_id}/bom.csv": {"get"},
-                "/api/projects/{project_id}": {"get"},
+                "/api/projects/{project_id}": {"get", "patch"},
                 "/api/projects/{project_id}/floor-plans": {"get", "post"},
                 "/api/projects/{project_id}/floors": {"get", "post"},
                 "/api/projects/{project_id}/floors/{project_floor_id}/layouts": {

@@ -86,7 +86,7 @@
 .project-form label small { margin-left: 5px; color: var(--ink-soft); font-weight: 400; }
 .project-form-wide, .project-alert, .project-submit { grid-column: 1 / -1; }
 
-.project-form input {
+.project-form :is(input, select) {
   width: 100%;
   min-height: 46px;
   padding: 10px 12px;
@@ -97,7 +97,7 @@
   font: inherit;
 }
 
-.project-form input:focus-visible,
+.project-form :is(input, select):focus-visible,
 .project-open-link:focus-visible,
 .project-back-link:focus-visible,
 .project-app a:focus-visible,
@@ -106,7 +106,9 @@
   outline-offset: 3px;
 }
 
-.project-form input:disabled { cursor: wait; opacity: 0.7; }
+.project-form :is(input, select):disabled { cursor: not-allowed; opacity: 0.7; }
+.project-intake-editor { margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--paper-line); border-radius: 8px; }
+.project-intake-editor summary { cursor: pointer; font-weight: 600; }
 .project-alert { padding: 12px 14px; border: 1px solid; }
 .project-alert-error { border-color: rgba(201, 78, 40, 0.4); color: #8d351c; background: rgba(255, 106, 61, 0.08); }
 .project-alert-success { border-color: rgba(45, 119, 93, 0.4); color: #205f48; background: rgba(45, 119, 93, 0.08); }

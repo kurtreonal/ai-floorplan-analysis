@@ -777,7 +777,7 @@ class DetectionResultsApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 54)  # Includes five project-scoped pricing operations.
+        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
 
     def test_schema_and_storage_remain_stable(self) -> None:
         self.assertEqual(tuple(sorted(Wall.metadata.tables)), TABLES)

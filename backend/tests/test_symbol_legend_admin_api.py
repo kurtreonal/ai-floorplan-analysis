@@ -284,7 +284,7 @@ class SymbolLegendAdminApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 54)  # Includes five project-scoped pricing operations.
+        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
         self.assertTrue({
             (self.path, "get"),
             (self.path, "post"),

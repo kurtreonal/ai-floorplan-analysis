@@ -171,7 +171,7 @@ class ProcessingExecutionTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 54)  # Includes five project-scoped pricing operations.
+        self.assertEqual(operations, 55)  # Includes project pricing and project intake editing.
 
     def test_concurrent_claim_has_exactly_one_active_owner(self) -> None:
         job_id = self._job()

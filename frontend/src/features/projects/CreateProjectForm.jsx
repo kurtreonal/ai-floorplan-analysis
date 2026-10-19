@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 
 import { createProject, ProjectApiError } from '../../api/projects.js'
 import { getProjectHref } from '../../routes/projectRoutes.js'
+import { ProjectIntakeFields } from './ProjectIntakeFields.jsx'
+import { intakePayload, intakeValues } from './projectIntake.js'
 
 
-const INITIAL_VALUES = { name: '', clientName: '', location: '' }
+const INITIAL_VALUES = intakeValues()
 
 function getCreateErrorMessage(error) {
   if (error instanceof ProjectApiError) {
@@ -30,16 +32,13 @@ export function CreateProjectForm({ onCreated }) {
 
   function updateField(event) {
     const { name, value } = event.target
-    setValues((current) => ({ ...current, [name]: value }))
+    setValues((current) => ({ ...current, [name]: value,
+      ...(name === 'serviceType' && value !== 'other' ? { serviceTypeOther: '' } : {}) }))
   }
 
   async function handleSubmit(event) {
     event.preventDefault()
-    const projectData = {
-      name: values.name.trim(),
-      client_name: values.clientName.trim(),
-      location: values.location.trim(),
-    }
+    const projectData = intakePayload(values)
 
     if (!projectData.name) {
       setError('Project name is required.')
@@ -73,49 +72,17 @@ export function CreateProjectForm({ onCreated }) {
       <div className="project-section-heading">
         <span className="project-kicker mono">NEW PROJECT</span>
         <h2 id="create-project-title">Start a project workspace</h2>
-        <p>Set the project metadata now. Floor plans and analysis are added in later stages.</p>
+        <p>Start with the project details. A blueprint is not required.</p>
       </div>
 
       <form className="project-form" onSubmit={handleSubmit}>
-        <label>
-          <span>Project name</span>
-          <input
-            name="name"
-            value={values.name}
-            onChange={updateField}
-            required
-            maxLength={255}
-            autoComplete="off"
-            disabled={isSubmitting}
-          />
-        </label>
-        <label>
-          <span>Client name <small>Optional</small></span>
-          <input
-            name="clientName"
-            value={values.clientName}
-            onChange={updateField}
-            maxLength={255}
-            autoComplete="organization"
-            disabled={isSubmitting}
-          />
-        </label>
-        <label className="project-form-wide">
-          <span>Location <small>Optional</small></span>
-          <input
-            name="location"
-            value={values.location}
-            onChange={updateField}
-            maxLength={500}
-            autoComplete="street-address"
-            disabled={isSubmitting}
-          />
-        </label>
+        <ProjectIntakeFields values={values} onChange={updateField} disabled={isSubmitting} />
 
         {error && <div className="project-alert project-alert-error" role="alert">{error}</div>}
         {createdProject && (
           <div className="project-alert project-alert-success" role="status">
             Project created. <a href={getProjectHref(createdProject.id)}>Open {createdProject.name}</a>
+            {createdProject.blueprint_availability === 'available_now' && <span> · <a href={getProjectHref(createdProject.id)}>Continue to floors &amp; upload</a></span>}
           </div>
         )}
 

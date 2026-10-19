@@ -7,6 +7,7 @@ import {
   fetchProject,
   listProjects,
   ProjectApiError,
+  updateProject,
 } from './projects.js'
 
 
@@ -23,6 +24,16 @@ afterEach(() => {
 })
 
 describe('project API client', () => {
+  it('sends only authorized metadata and a revision for an explicit project edit', async () => {
+    const fetcher = vi.fn().mockResolvedValue(successfulResponse({ id: 12 }))
+    vi.stubGlobal('fetch', fetcher)
+    await updateProject(12, { name: 'Updated', contact_number: '000123', preferred_start_date: '2027-01-05',
+      blueprint_availability: null, expected_details_revision: 'a'.repeat(64), owner_id: 999, status: 'archived' })
+    expect(fetcher.mock.calls[0][0]).toBe('http://localhost:8000/api/projects/12')
+    expect(fetcher.mock.calls[0][1].method).toBe('PATCH')
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ name: 'Updated', contact_number: '000123',
+      preferred_start_date: '2027-01-05', blueprint_availability: null, expected_details_revision: 'a'.repeat(64) })
+  })
   it('lists projects with the credentialed cookie flow', async () => {
     const projects = [{ id: 7, status: 'draft' }]
     const fetchMock = vi.fn().mockResolvedValue(successfulResponse(projects))

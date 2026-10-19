@@ -51,6 +51,7 @@ EXISTING_OPERATIONS = {
     ("get", "/api/projects/{project_id}/client-pricing/{version_id}"),
     ("post", "/api/projects"),
     ("get", "/api/projects/{project_id}"),
+    ("patch", "/api/projects/{project_id}"),
     ("get", "/api/projects/{project_id}/floors"),
     ("post", "/api/projects/{project_id}/floors"),
     ("post", "/api/projects/{project_id}/floor-plans"),
@@ -419,7 +420,7 @@ class ProcessingJobApiTests(unittest.TestCase):
                 ("post", "/api/admin/symbol-legends/import-trained"),
             },
         )
-        self.assertEqual(len(operations), 54)  # Includes five project-scoped pricing operations.
+        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
 
     def test_owning_designer_creates_durable_queued_job(self) -> None:
         response = self._post(

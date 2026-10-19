@@ -364,7 +364,7 @@ class ReviewImageApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 54)  # Includes five project-scoped pricing operations.
+        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
         self.assertEqual(len(__import__("sqlalchemy").inspect(self.engine).get_table_names()), 35)
 
 
