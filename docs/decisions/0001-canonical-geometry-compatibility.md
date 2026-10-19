@@ -324,3 +324,42 @@ is retained under ignored `tmp/` after the verification tab is closed.
 The 3D canvas stays mounted after a drawing session even if undo removes the
 last shape, so that operation does not discard the camera/viewport. A focused
 empty-scene regression covers that lifecycle in addition to keyboard ownership.
+
+## Searchable object lists checkpoint 4 (October 19)
+
+The review inspector now has separate Devices, Wiring and Walls tabs. Each keeps
+its own local search. Searches use existing labels/types/IDs, wire names and
+circuit IDs/references, and wall names/IDs; stable IDs distinguish co-located
+devices. Natural display ordering never sorts source arrays. Arrow/Home/End
+navigation, native result buttons, clear-search focus and bounded scrolling keep
+the lists keyboard usable. The collapsed all-items selector retains room access
+and removed-item restoration. Selection is disabled during pending strokes/saves.
+
+Result selection uses the shared selected kind/ID and enables only its view
+layer. Existing device/wire highlighting is reused; joined and legacy 3D walls
+now highlight the exact selected wall without altering footprints, dimensions,
+meshes' stored identities, or camera configuration. Search never writes a draft,
+changes undo history, filters BOM input, approves geometry or changes provenance.
+Automatic camera focusing and saved search preferences are not added.
+
+The clean scoped snapshot passes 95 focused frontend tests, 80 restricted-database
+backend tests plus 15 subtests, scoped lint and production build. Tests include
+co-located identities, field searches, independent queries, keyboard/disabled
+states, unchanged geometry/BOM inputs, exact 2D/3D selection, wall highlighting,
+undo/redo, review save/reload and existing authorization/history contracts. The
+API/table contract remains 49/34; unrelated mixed-worktree additions are excluded.
+An initial mixed-worktree run had additional UI/test mismatches (12 failures
+outside the scoped snapshot); a new list-ordering failure and an export dependency on an
+uncommitted helper were corrected. This does not claim those unrelated failures
+are resolved or that the full suites pass.
+
+Live lighting job 24339 verifies exact device-ID search/2D highlighting, independent
+wall/wire queries, keyboard tab switching and selected-wall highlighting in an
+actually rendered 3D scene. Search/selection left Undo disabled and the draft
+without unsaved changes. Reload was read-only; no real project save, calibration,
+review, estimate or original upload was written. Browser screenshots are local
+diagnostics under ignored tmp/, not inference evidence. Existing large-chunk and
+backend deprecation warnings remain. BDO stays paused; originals, historical
+reviews, unrelated edits and stash@{0} are preserved. Full suites, screen-reader
+testing and a production measured BOM remain NOT TESTED. Checkpoints 5–7 and the
+previously listed measurement integration are not completed by this slice.

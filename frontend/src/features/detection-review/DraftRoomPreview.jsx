@@ -55,6 +55,7 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
         <Viewer3DCanvas scene={result.scene} showRoof={showRoof} controlsRef={controlsRef} onControlsReady={setReady}
           drawing={drawing} floorElevation={routingContext?.floor_elevation_meters}
           selectedWireId={selected?.kind === 'wiring' ? selected.id : null}
+          selectedWallId={selected?.kind === 'wall' ? selected.id : null}
           onSelectWire={(id) => onSelect?.({ kind: 'wiring', id })}
           presentations={presentations}
           onFindWireDeviceSnap={(id,index,point,distanceToSymbol,threshold,distanceToPath,allTargets=false) =>

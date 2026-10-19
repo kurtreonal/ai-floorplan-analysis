@@ -39,6 +39,7 @@ import { WireJunctionEditor } from './WireJunctionEditor.jsx'
 import { WiringRecoveryStatus } from './WiringRecoveryStatus.jsx'
 import { updateWireNetwork } from './wireJunctions.js'
 import { commitWiringPath } from './connectedWiring.js'
+import { ObjectBrowser } from './ObjectBrowser.jsx'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
 
@@ -678,8 +679,14 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         </fieldset>}
         <h2 id="demo-tools-title">Edit item</h2>
 
+        <ObjectBrowser key={`${floorPlanId}:${processingJobId}`} draft={draft} presentations={presentations}
+          selected={selected} disabled={drawingPending || saveState.status === 'saving'} onSelect={item => {
+            setSelected(item)
+            setLayers(current => ({ ...current, [`${item.kind}s`]: true }))
+          }} />
+        <details><summary>All items / rooms</summary>
         <label>Select item
-          <select value={selected ? `${selected.kind}:${selected.id}` : ''} onChange={(event) => {
+          <select disabled={drawingPending || saveState.status === 'saving'} value={selected ? `${selected.kind}:${selected.id}` : ''} onChange={(event) => {
             const [kind, id] = event.target.value.split(':')
             setSelected(event.target.value ? { kind, id } : null)
             if (event.target.value) setLayers((current) => ({ ...current, [`${kind}s`]: true }))
@@ -688,6 +695,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             {orderNamed(['symbol', 'wall', 'room', 'wiring'].flatMap(kind => draft[`${kind}s`].map(item => ({kind,item,id:`${kind}:${item.id}`,label:kind === 'symbol' ? presentations[item.id].label : item.name || `${kind} ${item.id}`}))), choice => choice.label).map(({kind,item,id,label}) => <option key={id} value={`${kind}:${item.id}`}>{label}{item.origin === 'generated' ? ' · Automatic A* draft' : ''}{item.disposition === 'rejected' ? ' · removed' : ''}</option>)}
           </select>
         </label>
+        </details>
         {selectedEntity && <div className="demo-selected-editor">
           <h3>{selected.kind === 'symbol' ? presentations[selectedEntity.id].name : `${selected.kind} ${selectedEntity.id}`}</h3>
           {selected.kind === 'symbol' && <p className="studio-device-provenance">{presentations[selectedEntity.id].mapped ? 'Catalog class linked automatically or saved' : 'No unique catalog match; choose the class below'} · Class and price edits apply to {relatedSymbolIds(draft.symbols,selectedEntity.id,state.record).length} matching devices in this plan.</p>}

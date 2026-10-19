@@ -8,6 +8,7 @@ import { Viewer3DCanvas } from './Viewer3DCanvas.jsx'
 import { DraftWiring3D } from './DraftWiring3D.jsx'
 import { ViewerCameraControls } from './ViewerCameraControls.jsx'
 import { DrawingPlane3D } from './DrawingPlane3D.jsx'
+import { CanonicalScene } from './CanonicalScene.jsx'
 
 vi.mock('@react-three/fiber', () => ({
   Canvas: vi.fn(({ fallback, frameloop }) => (
@@ -22,6 +23,16 @@ afterEach(() => {
 })
 
 describe('3D canvas foundation', () => {
+  it('passes exact wall selection to the canonical renderer without changing the scene or camera', () => {
+    const scene={target:[0,0,0],extent:10,elevation:0,walls:[],symbols:[]}
+    const {rerender}=render(<Viewer3DCanvas scene={scene} selectedWallId="wall-1" />)
+    const first=Canvas.mock.calls.at(-1)[0]
+    expect(first.children.find(child=>child?.type===CanonicalScene).props).toMatchObject({scene,selectedWallId:'wall-1'})
+    rerender(<Viewer3DCanvas scene={scene} selectedWallId="wall-2" />)
+    const next=Canvas.mock.calls.at(-1)[0]
+    expect(next.children.find(child=>child?.type===CanonicalScene).props.selectedWallId).toBe('wall-2')
+    expect(next.camera).toEqual(first.camera)
+  })
   it('keeps navigation disabled while drawing on an explicit plane, without adding a separate route model',()=>{
     const drawing={active:true,enabled:true,vertices:[],settings:{elevation:'2.8',circuit:'',axis:'none'},config:{sceneElevation:2.8},setOption:vi.fn(),finish:vi.fn(),cancel:vi.fn()}
     render(<Viewer3DCanvas scene={{previewOnly:true,target:[0,0,0],extent:10,elevation:0,draftWires:[]}} drawing={drawing} navigationMode="wire" />)

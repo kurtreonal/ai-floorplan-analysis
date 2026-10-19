@@ -8,6 +8,7 @@ import { fetchCurrentLayout } from '../../api/layouts.js'
 import { fetchReviewImage } from '../../api/reviewImages.js'
 import { fetchSymbolLegends } from '../../api/symbolLegends.js'
 import { DemoInterpretationPage } from './DemoInterpretationPage.jsx'
+import { BOMPanel } from '../estimation/BOMPanel.jsx'
 
 
 vi.mock('../../api/demoInterpretation.js', async () => ({
@@ -17,7 +18,7 @@ vi.mock('../../api/demoInterpretation.js', async () => ({
 vi.mock('../../api/layouts.js', async () => ({
   ...(await vi.importActual('../../api/layouts.js')), fetchCurrentLayout: vi.fn(),
 }))
-vi.mock('../estimation/BOMPanel.jsx', () => ({BOMPanel: () => <div>Automatic draft BOM</div>}))
+vi.mock('../estimation/BOMPanel.jsx', () => ({BOMPanel: vi.fn(() => <div>Automatic draft BOM</div>)}))
 vi.mock('../../api/reviewImages.js', async () => ({
   ...(await vi.importActual('../../api/reviewImages.js')), fetchReviewImage: vi.fn(),
 }))
@@ -25,7 +26,7 @@ vi.mock('../../api/symbolLegends.js', async () => ({
   ...(await vi.importActual('../../api/symbolLegends.js')), fetchSymbolLegends: vi.fn(),
 }))
 vi.mock('./DemoInterpretationCanvas.jsx', () => ({
-  DemoInterpretationCanvas: ({ draft, onSelect, onUpdateSymbol, onUpdateWall, onAddWire, onMoveWirePoint, onPlaceDevice, placementPresentation, tool }) => <div data-testid="demo-canvas">
+  DemoInterpretationCanvas: ({ draft, selected, onSelect, onUpdateSymbol, onUpdateWall, onAddWire, onMoveWirePoint, onPlaceDevice, placementPresentation, tool }) => <div data-testid="demo-canvas" data-selection={JSON.stringify(selected)} data-geometry={JSON.stringify(draft)}>
     {draft.walls.length}/{draft.rooms.length}/{draft.symbols.length}
     <button type="button" onClick={() => onSelect({ kind: 'symbol', id: 'symbol-0001' })}>Select first symbol</button>
     <button type="button" onClick={() => onUpdateSymbol({ ...draft.symbols[0], center: { x: 85, y: 65 } })}>Drag first symbol</button>
@@ -35,7 +36,7 @@ vi.mock('./DemoInterpretationCanvas.jsx', () => ({
     {tool === 'place-device' && placementPresentation && <button onClick={() => onPlaceDevice({x:200,y:150})}>Place preview device</button>}
   </div>,
 }))
-vi.mock('./DraftRoomPreview.jsx', () => ({ DraftRoomPreview: ({ draft, onSelect, onUpdateSymbol, onMoveWirePoint, onAddWire, onAddWall, navigationMode }) => <div data-testid="draft-3d">{draft.rooms.length} draft rooms
+vi.mock('./DraftRoomPreview.jsx', () => ({ DraftRoomPreview: ({ draft, selected, onSelect, onUpdateSymbol, onMoveWirePoint, onAddWire, onAddWall, navigationMode }) => <div data-testid="draft-3d" data-selection={JSON.stringify(selected)} data-geometry={JSON.stringify(draft)}>{draft.rooms.length} draft rooms
   {navigationMode==='wire'&&<button onClick={()=>onAddWire([{x:20,y:30},{x:80,y:30},{x:80,y:90}],undefined,{elevation_meters:14.8})}>Finish 3D stroke</button>}
   {navigationMode==='draw'&&<button onClick={()=>onAddWall({start:{x:120,y:30},end:{x:150,y:70},height_meters:3,thickness_meters:.2,estimated_thickness_pixels:2})}>Commit 3D wall</button>}
   <button onClick={() => onSelect({ kind: 'symbol', id: 'symbol-0001' })}>Inspect 3D device</button>
@@ -91,6 +92,37 @@ afterEach(() => {
 
 
 describe('unified demo interpretation review', () => {
+  it('searches and selects exact objects across 2D/3D without altering geometry, undo or BOM inputs', async () => {
+    const source=structuredClone(record)
+    source.candidate.payload.symbols.items.push({id:'symbol-0002',center:{x:50,y:50}})
+    source.candidate.payload.observed_routes={segments:[{id:'segment-0001',points:[{x:10,y:200},{x:100,y:200}]}]}
+    fetchDemoInterpretation.mockResolvedValue(source)
+    render(<DemoInterpretationPage projectId={1} floorPlanId={3} processingJobId={4} />)
+    await screen.findByText('Select first symbol')
+    const reopen=screen.queryByRole('button',{name:'Reopen Item inspector'})
+    if(reopen)fireEvent.click(reopen)
+    const geometry=screen.getByTestId('demo-canvas').dataset.geometry
+    const bomInputs=BOMPanel.mock.calls.at(-1)[0]
+    fireEvent.change(screen.getByLabelText('Search devices'),{target:{value:'symbol-0002'}})
+    fireEvent.click(within(screen.getByRole('list',{name:'Devices results'})).getByRole('button',{name:/symbol-0002/}))
+    expect(JSON.parse(screen.getByTestId('demo-canvas').dataset.selection)).toEqual({kind:'symbol',id:'symbol-0002'})
+    fireEvent.click(screen.getByRole('tab',{name:'Wiring'}))
+    fireEvent.change(screen.getByLabelText('Search wiring'),{target:{value:'segment-0001'}})
+    fireEvent.click(within(screen.getByRole('list',{name:'Wiring results'})).getByRole('button'))
+    fireEvent.click(screen.getByRole('button',{name:'3D · Draft preview'}))
+    const canvas=await screen.findByTestId('draft-3d')
+    expect(JSON.parse(canvas.dataset.selection)).toEqual({kind:'wiring',id:'segment-0001'})
+    fireEvent.click(screen.getByRole('tab',{name:'Walls'}))
+    fireEvent.change(screen.getByLabelText('Search walls'),{target:{value:'wall-0001'}})
+    fireEvent.click(within(screen.getByRole('list',{name:'Walls results'})).getByRole('button'))
+    expect(JSON.parse(canvas.dataset.selection)).toEqual({kind:'wall',id:'wall-0001'})
+    expect(canvas.dataset.geometry).toBe(geometry)
+    expect(BOMPanel.mock.calls.at(-1)[0]).toEqual(bomInputs)
+    expect(screen.getByRole('button',{name:'Undo'}).disabled).toBe(true)
+    expect(saveDemoReview).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('tab',{name:'Devices'}))
+    expect(screen.getByLabelText('Search devices').value).toBe('symbol-0002')
+  })
   it('saves 3D strokes through shared commands, undo/redo and reload without approving source geometry',async()=>{
     const view=render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
     fireEvent.click(await screen.findByRole('button',{name:'3D · Draft preview'}))

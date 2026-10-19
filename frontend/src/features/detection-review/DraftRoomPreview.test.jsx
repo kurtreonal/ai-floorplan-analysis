@@ -5,6 +5,16 @@ import { DraftRoomPreview } from './DraftRoomPreview.jsx'
 const capture = vi.hoisted(() => ({ props: null }))
 vi.mock('../viewer-3d/Viewer3DCanvas.jsx', () => ({ Viewer3DCanvas: (props) => { capture.props = props; return <div>Scene</div> } }))
 afterEach(cleanup)
+it('preserves exact wall selection through the shared preview without rebuilding geometry',()=>{
+  const draft={rooms:[],walls:[{id:'wall-1',start:{x:10,y:20},end:{x:100,y:20}}],symbols:[],wirings:[]}
+  const layers={walls:true},props={draft,layers,width:400,height:300}
+  const {rerender}=render(<DraftRoomPreview {...props} selected={{kind:'wall',id:'wall-1'}} />)
+  const scene=capture.props.scene
+  expect(capture.props.selectedWallId).toBe('wall-1')
+  rerender(<DraftRoomPreview {...props} selected={{kind:'symbol',id:'device'}} />)
+  expect(capture.props.selectedWallId).toBeNull()
+  expect(capture.props.scene).toBe(scene)
+})
 it('keeps the canvas mounted after drawing and last-shape undo, preserving camera ownership',()=>{
   const draft={rooms:[],walls:[],symbols:[],wirings:[]},context={pixels_per_meter:10,floor_elevation_meters:12}
   const add=vi.fn(),{rerender}=render(<DraftRoomPreview draft={draft} width={400} height={300} routingContext={context} navigationMode="wire" onAddWire={add} />)

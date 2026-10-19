@@ -12,7 +12,7 @@ import { DrawingPlane3D } from './DrawingPlane3D.jsx'
 import { SpatialDrawingControls } from './SpatialDrawingControls.jsx'
 
 
-export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof = false, routeSegments = [], inspectUnderground = false, selectedSymbolId, onSelectSymbol, onMoveSymbol, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, presentations = {}, navigationMode = 'select',drawing=null,floorElevation=null }) {
+export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof = false, routeSegments = [], inspectUnderground = false, selectedSymbolId, onSelectSymbol, onMoveSymbol, selectedWireId, selectedWallId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, presentations = {}, navigationMode = 'select',drawing=null,floorElevation=null }) {
   const [draggingDevice, setDraggingDevice] = useState(false)
   const [pendingTarget,setPendingTarget] = useState(null)
   const handleDragging = useCallback(dragging => {
@@ -47,7 +47,7 @@ export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof =
         <ambientLight intensity={1.15} />
         <directionalLight position={[10, 20, 10]} intensity={1.7} color="#fff7e9" />
         <directionalLight position={[-10, 8, -5]} intensity={.45} color="#dce6ee" />
-        {scene && <CanonicalScene scene={scene} showRoof={showRoof} selectedSymbolId={selectedSymbolId} onSelectSymbol={onSelectSymbol}
+        {scene && <CanonicalScene scene={scene} showRoof={showRoof} selectedWallId={selectedWallId} selectedSymbolId={selectedSymbolId} onSelectSymbol={onSelectSymbol}
           onMoveSymbol={drawing?.active?undefined:onMoveSymbol} onDraggingChange={setDraggingDevice} />}
         <RouteLines3D segments={[...routeSegments, ...routeDeviceConnectors(scene,routeSegments)]} inspectUnderground={inspectUnderground} />
         {scene?.previewOnly && <DraftWiring3D scene={scene} selectedWireId={selectedWireId} onSelectWire={onSelectWire}
