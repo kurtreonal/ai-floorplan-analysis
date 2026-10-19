@@ -192,3 +192,21 @@ This slice does not complete checkpoint 1: draft paper assumptions and incomplet
 drop pricing still need tightening; allowances/purchase rounding, physical-path
 identity in all editing commands, and live transformed-view calibration require
 further integration/verification. Checkpoints 2–7 remain separate authorized work.
+
+## Measurement checkpoint 1b (October 19)
+
+The normal draft BOM no longer derives pixels/metre by fitting an arbitrary
+image to A-series/custom paper at 1:100. Paper dimensions remain metadata;
+without matching reviewed calibration, route quantities remain source pixels
+and unpriced. A trusted physical page/render calibration is not implemented by
+that dropdown. Missing device drops/rises also block catalog and custom route
+pricing instead of showing a partial length as a complete cost.
+
+Conduit SKU selection no longer equates a purchased `length` with one metre.
+Non-metre products remain unresolved without an explicit purchase conversion;
+the saved-estimate flow retains its existing explicit conversion fields. Drop
+deduplication is scoped to an explicit connected path group and terminal, not
+globally to any paths touching the same device/service elevation. Genuine
+independent runs retain their own drops. Original reviews, prices and estimates
+remain immutable. No allowance, conductor count, elevation, or real-world scale
+is invented. Remaining checkpoint-1 integration listed above is still pending.

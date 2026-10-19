@@ -6,6 +6,7 @@ import { orderNamed, orderList } from '../../utils/listOrder.js'
 
 const pricingLabels = {
   electrical_assignment_required:'Electrical assignment required',
+  measurement_incomplete:'Complete route measurements required',
   network_material_review_required: 'Review overlapping path materials',
   scale_required: 'Set plan scale once', classification_required: 'Unclassified',
   material_not_found: 'No matching catalog material', ambiguous_material: 'Multiple matching materials',
@@ -63,10 +64,10 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
       <label className="studio-field">Conduit product for this draft
         <select value={chosen.conduit || ''} onChange={event => setCalculation({...chosen,sourceKey,conduit:event.target.value})}>
           <option value="">Use saved mappings / exact matches</option>
-          {orderNamed(planningOptions.conduit_materials || []).map(material => <option key={material.id} value={material.id}>{material.name} · {money(material.unit_price,material.currency)} per metre</option>)}
+          {orderNamed(planningOptions.conduit_materials || []).map(material => <option key={material.id} value={material.id}>{material.name} · {money(material.unit_price,material.currency)} per {material.unit}</option>)}
         </select>
       </label>
-      <p>Draft conduit calculation: route metres × database price. One listed “length” = 1 metre, as specified. Cable conductors are calculated separately from saved circuit specifications.</p>
+      <p>Conduit uses measured route length. Stick, roll or other purchase units require an explicit conversion; they are not assumed to equal one metre. Conductor quantities remain separate.</p>
       {!planningOptions.conduit_materials?.length && <p role="note">No priced conduit products yet. Admin must import the Excel catalog before conduit costs can be shown.</p>}
       </div>
       <div className="studio-bom-setting"><h3>Wire / cable</h3>
@@ -92,10 +93,10 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
       <p role="note">Wire cost = cable route metres × price per metre. No extra allowance is added. Roll price is divided by metres per roll; a custom PHP price overrides it for this draft only. Conductor quantities still use saved circuit specifications.</p>
       </div>
       {floorPlanId && <div className="studio-bom-setting"><h3>Plan scale</h3>
-      {floorPlanId && <label className="studio-field">Assumed paper size at 1:100
+      {floorPlanId && <label className="studio-field">Paper metadata (not calibration)
         <select value={paperChoice} onChange={event => setCalculation({...chosen,sourceKey,paper:event.target.value})}>
           <option value="">Use measured scale; otherwise leave unscaled</option>
-          {['A4','A3','A2','A1','A0'].map(size => <option key={size} value={size}>{size} · assumed full sheet</option>)}
+          {['A4','A3','A2','A1','A0'].map(size => <option key={size} value={size}>{size}</option>)}
           <option value="CUSTOM">Custom sheet dimensions</option>
         </select>
       </label>}
@@ -108,7 +109,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
         <label className="studio-field">Sheet height (mm)<input key={`${sourceKey}:height`} name="height" type="number" min="0.01" max="10000" step="any" required defaultValue={customHeightMm ?? ''} /></label>
         <Button type="submit" variant="outline">Apply custom dimensions</Button>
       </form>}
-      {paperChoice && <p role="note">Paper size is an estimate at 1:100, not a measured calibration. The long image edge is fitted to the long sheet edge; cropped images remain approximate. A saved measured scale takes precedence.</p>}
+      {paperChoice && <p role="note">Paper size alone cannot calibrate source pixels. Review a known real-world dimension in the project scale settings; uncalibrated path quantities remain pixels.</p>}
       </div>}
     </div>}
     {bom?.planning && <>

@@ -353,7 +353,7 @@ class DemoInterpretationApiTests(unittest.TestCase):
             payload['symbols'][0]['custom_unit_price']=bad
             self.assertEqual(self.client.post(url+'/reviews',json=payload).status_code,422)
 
-    def test_all_paper_assumptions_and_custom_size_allow_mismatches_without_scale_writes(self):
+    def test_paper_metadata_never_calibrates_mismatched_source_pixels_or_writes_scale(self):
         self._login()
         with Session(self.engine) as session:
             scale=session.scalar(select(PageScaleSetting).where(PageScaleSetting.floor_plan_page_id==self.ids['page']))
@@ -368,8 +368,9 @@ class DemoInterpretationApiTests(unittest.TestCase):
                 response=self.client.get(url,params=params)
                 self.assertEqual(response.status_code,200,response.text)
                 source=response.json()['planning']['sources'][0]
-                self.assertAlmostEqual(source['pixels_per_meter'],400/(long_mm/10))
-                self.assertEqual(source['scale_basis'],'assumed_full_paper_1_100')
+                self.assertIsNone(source['pixels_per_meter'])
+                self.assertEqual(source['scale_basis'],'unresolved')
+                self.assertIsNone(source['assumed_paper_size'])
                 self.assertIsNone(source['scale_revision_id'])
             self.assertEqual(self._counts(),before)
         finally:

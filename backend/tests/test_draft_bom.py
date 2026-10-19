@@ -86,10 +86,10 @@ def test_saved_elevations_add_drop_to_both_conduit_and_wire_cost_without_display
     result=price_rows(rows,[material(),material('Conduit','meter','10',2)])
     assert result['items'][1]['line_total']==Decimal('86.0000')
     assert result['items'][2]['line_total']==Decimal('86.0000')
-    # Same device / service level has one physical drop, not one per branch.
+    # Distinct logical paths do not prove that the physical drop is shared.
     source['observed_wiring'].append({**source['observed_wiring'][0],'id':'segment-0002'})
     paths=[r for r in document_takeoff(source,scale=10,floor_elevation=6) if r['kind']=='path']
-    assert sum(r['vertical_meters'] for r in paths)==pytest.approx(1.6)
+    assert sum(r['vertical_meters'] for r in paths)==pytest.approx(3.2)
 
 
 def test_missing_drop_measurements_keep_2d_quantities_and_flag_incomplete_price():
@@ -97,6 +97,26 @@ def test_missing_drop_measurements_keep_2d_quantities_and_flag_incomplete_price(
     row=document_takeoff(source,scale=10)[1]
     assert row['quantity']==7 and row['vertical_meters']==0
     assert row['missing_vertical_inputs'] and 'INCOMPLETE' in row['basis']
+    priced=price_rows([row],[material('Conduit','meter','10')])['items'][0]
+    assert priced['pricing_state']=='measurement_incomplete' and priced['line_total'] is None
+    apply_wire_choice([row],[],None,price_per_meter=10)
+    row.update(material_kind='wire',custom_wire_price_per_meter=10)
+    assert price_rows([row],[])['priced_subtotals']=={}
+
+
+def test_explicitly_joined_branches_share_one_drop_but_independent_paths_do_not():
+    source=joined_document()
+    source['symbols'][0]['mounting_height_meters']=1.2
+    for wire in source['observed_wiring']:
+        wire.update(elevation_meters=3,device_attachments=[dict(
+            symbol_id='symbol-0001',terminal_id='terminal-a',point_index=1)])
+    joined=[r for r in document_takeoff(source,scale=10,floor_elevation=0) if r['kind']=='path']
+    assert len(joined)==1 and joined[0]['vertical_meters']==pytest.approx(1.8)
+    for wire in source['observed_wiring']:
+        wire.pop('junction_attachments')
+        wire['device_attachments'][0].pop('terminal_id')
+    separate=[r for r in document_takeoff(source,scale=10,floor_elevation=0) if r['kind']=='path']
+    assert len(separate)==2 and sum(r['vertical_meters'] for r in separate)==pytest.approx(3.6)
 
 
 @pytest.mark.parametrize('catalog,state', [([], 'material_not_found'),
@@ -179,16 +199,17 @@ def test_full_paper_assumption_at_one_to_one_hundred_is_orientation_independent(
     with pytest.raises(ValueError): paper_scale(width,height,'unknown')
 
 
-def test_explicit_one_metre_conduit_choice_prices_trace_not_cable_or_devices():
+def test_conduit_purchase_length_requires_conversion_not_an_implicit_metre():
     source=document(); before=deepcopy(source)
     source['observed_wiring'][0]['wiring_legend_name']='Raceway conduit concealed in ceiling'
     rows=document_takeoff(source,scale=10)
     conduit={**material('EMT pipe 1/2 inch, per length','length','360',9), 'category':'CONDUIT - EMT'}
     apply_conduit_choice(rows,[material(),conduit],9)
     result=price_rows(rows,[material(),conduit])
-    assert result['items'][1]['quantity']==7 and result['items'][1]['unit']=='length'
-    assert result['items'][1]['line_total']==Decimal('2520')
-    assert 'one purchase length = one metre' in result['items'][1]['basis']
+    assert result['items'][1]['quantity']==7 and result['items'][1]['unit']=='meter'
+    assert result['items'][1]['line_total'] is None
+    assert result['items'][1]['pricing_state']=='purchase_unit_required'
+    assert 'requires an explicit conversion' in result['items'][1]['basis']
     assert result['items'][0]['material_id']==1
     assert before['observed_wiring'][0]['points']==source['observed_wiring'][0]['points']
     unscaled=document_takeoff(source)

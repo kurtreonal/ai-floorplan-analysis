@@ -69,7 +69,7 @@ it('automatically shows priced draft devices and missing scale without approval 
   click.mockRestore()
 })
 
-it('calculates with an explicit conduit SKU and labelled paper assumption without approving geometry',async()=>{
+it('retains conduit selection and paper metadata without treating paper size as calibration',async()=>{
   const planning={items:[],priced_subtotals:{},unpriced_items:0,basis:[],catalog_materials:1,
     conduit_materials:[{id:9,name:'EMT half-inch',unit:'length',unit_price:'360',currency:'PHP'}]}
   fetchBOM.mockResolvedValue({planning})
@@ -77,9 +77,9 @@ it('calculates with an explicit conduit SKU and labelled paper assumption withou
   const conduit=await screen.findByLabelText('Conduit product for this draft')
   fireEvent.change(conduit,{target:{value:'9'}})
   await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({conduitMaterialId:9})))
-  fireEvent.change(screen.getByLabelText('Assumed paper size at 1:100'),{target:{value:'A3'}})
+  fireEvent.change(screen.getByLabelText('Paper metadata (not calibration)'),{target:{value:'A3'}})
   await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({conduitMaterialId:9,paperSize:'A3'})))
-  expect(screen.getByText(/Paper size is an estimate/)).toBeTruthy()
+  expect(screen.getByText(/Paper size alone cannot calibrate/)).toBeTruthy()
   expect(screen.queryByRole('checkbox')).toBeNull()
   view.rerender(<BOMPanel projectId={2} floorPlanId={5} processingJobId={6} />)
   await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(2,expect.objectContaining({conduitMaterialId:undefined,paperSize:'A3'})))
@@ -92,7 +92,7 @@ it('uses independent wire selection and custom dimensions only after apply, rese
   render(<BOMPanel projectId={1} floorPlanId={3} processingJobId={4} />)
   fireEvent.change(await screen.findByLabelText('Conduit product for this draft'),{target:{value:'9'}})
   fireEvent.change(screen.getByLabelText('Wire / cable product for this draft'),{target:{value:'10'}})
-  fireEvent.change(screen.getByLabelText('Assumed paper size at 1:100'),{target:{value:'CUSTOM'}})
+  fireEvent.change(screen.getByLabelText('Paper metadata (not calibration)'),{target:{value:'CUSTOM'}})
   fireEvent.change(screen.getByLabelText('Sheet width (mm)'),{target:{value:'300'}})
   fireEvent.change(screen.getByLabelText('Sheet height (mm)'),{target:{value:'600'}})
   fireEvent.click(screen.getByText('Apply custom dimensions'))

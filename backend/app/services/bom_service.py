@@ -99,11 +99,11 @@ def planning_csv(bom):
         if m['id'] == bom['planning'].get('selected_conduit_material_id')), None)
     if selected:
         writer.writerow(['DRAFT CONDUIT CHOICE', selected['id'], safe(selected['name']),
-            'One listed length = one metre (user-specified); not a saved circuit specification.'])
+            'Purchase-unit conversion required for non-metre products; not a saved circuit specification.'])
     if bom['planning'].get('requested_paper_size'):
         writer.writerow(['REQUESTED PAPER ASSUMPTION', bom['planning']['requested_paper_size'],
             bom['planning'].get('custom_width_mm'), bom['planning'].get('custom_height_mm'),
-            '1:100, long image edge fitted to long sheet edge; cropped images approximate; measured scale takes precedence.'])
+            'Paper metadata only; not a pixel calibration. Reviewed source calibration is required.'])
     wire = next((m for m in bom['planning'].get('wire_materials', [])
         if m['id'] == bom['planning'].get('selected_wire_material_id')), None)
     if wire:

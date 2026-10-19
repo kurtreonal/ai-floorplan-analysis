@@ -57,7 +57,7 @@ def conduit_choices(materials):
 
 
 def apply_conduit_choice(rows, materials, material_id):
-    """Explicit draft SKU, with the user's stated one-metre length price basis."""
+    """Explicit draft SKU; never equate a purchase stick/length with one metre."""
     matches = [m for m in conduit_choices(materials) if m['id'] == material_id]
     if len(matches) != 1:
         raise ValueError('Choose an active priced conduit material.')
@@ -65,8 +65,8 @@ def apply_conduit_choice(rows, materials, material_id):
     for row in rows:
         if (row['kind'] == 'path' and row.get('origin') in ('observed', 'generated', 'manual', 'mixed')
                 and row['unit'] == 'meter' and re.search(r'\bconduit\b', row['name'], re.I)):
-            row.update(preferred_material_id=material_id, unit=material['unit'],
-                       basis=row['basis'] + ' Draft material choice; one purchase length = one metre, as specified by the user.')
+            row.update(preferred_material_id=material_id,
+                       basis=row['basis'] + ' Draft material choice; a non-metre purchase unit requires an explicit conversion.')
 
 
 def wire_choices(materials):
@@ -133,8 +133,8 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
         row['symbol_ids'].append(symbol['id'])
     rows = list(groups.values())
     symbols = {s['id']: s for s in document.get('symbols', []) if s.get('disposition') != 'rejected'}
-    drops = set()
     for group in takeoff_path_groups(document):
+        drops = set()  # Only this explicitly connected physical group shares drops.
         wire = group[0]
         length = unique_paths_length([w['points'] for w in group])
         if not math.isfinite(length) or length <= 0:
@@ -151,7 +151,7 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
             if not measured or floor_elevation is None or height is None or service is None:
                 missing.append(f"{symbol['id']}: scale, floor elevation, wire elevation and device mounting height are required for the drop/rise")
                 continue
-            key = (symbol['id'], service)
+            key = (symbol['id'], attachment.get('terminal_id'), service)
             if key not in drops:
                 vertical += abs(service - (floor_elevation + height))
                 drops.add(key)
@@ -199,6 +199,11 @@ def price_rows(rows, materials):
     for row in rows:
         row.update(material_id=None, material_name=None, unit_price=None, currency=None, line_total=None,
                    price_revision_id=None, pricing_state='material_not_found')
+        # Partial geometry may be displayed, but neither catalog nor custom
+        # prices may turn missing measurements into a complete-looking cost.
+        if row.get('missing_vertical_inputs'):
+            row['pricing_state'] = 'measurement_incomplete'
+            continue
         matches = [m for m in materials if m['id'] == row['preferred_material_id']] if row.get('preferred_material_id') else index.get(material_key(row['name']), [])
         if row.get('material_kind') == 'wire' and row['unit'] == 'meter' and len(matches) == 1 and row.get('wire_meters_per_unit'):
             material = dict(matches[0])
@@ -242,7 +247,7 @@ def price_rows(rows, materials):
     return dict(items=rows, priced_subtotals=totals, unpriced_items=sum(r['line_total'] is None for r in rows),
                 basis=[
                     'Devices: count active saved symbols, including unresolved draft detections; exclude removed items and circuit notations.',
-                    'Paths: unique centerline spans within explicit junction-connected material/installation groups. Independent paths remain separate. Use measured scale or an explicitly labelled full-paper 1:100 assumption; display-only 3D spacing is excluded.',
+                    'Paths: unique centerline spans within explicit junction-connected material/installation groups. Independent paths remain separate. Use a reviewed source calibration; paper size or printed scale alone does not calibrate image pixels. Display-only 3D spacing is excluded.',
                     'Costs: quantity × current database unit price imported by Admin from Excel, unless explicitly overridden by a saved draft device price or calculator-only wire PHP/metre price. Catalog prices are unchanged.',
                     'Attached drops/rises use saved elevations only. Missing drop measurements are flagged and excluded; illustrative 3D offsets, cable gauge, conductor count and allowances are not inferred. Subtotals exclude unpriced items.',
                     'Read-only planning BOM; no per-item confirmation, layout approval or training approval is created. Saved estimate prices remain fixed.'
@@ -358,13 +363,9 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
             scale.reference_width_pixels, scale.reference_height_pixels) == (plane.width_pixels, plane.height_pixels) else None
         scale_basis = 'measured_page' if ppm else 'unresolved'
         if ppm is None and paper_size:
-            ppm = paper_scale(plane.width_pixels, plane.height_pixels, paper_size, custom_width_mm, custom_height_mm)
-            scale_basis = 'assumed_full_paper_1_100'
-            short, long = sorted(dimensions)
-            pixel_short, pixel_long = sorted((plane.width_pixels, plane.height_pixels))
-            mismatch = abs((pixel_short / pixel_long) / (short / long) - 1) > .05
-            missing_inputs.append(f'Plan {run.floor_plan_id}: {paper_size} {dimensions[0]} × {dimensions[1]} mm at 1:100; long image edge assumed to span long sheet edge, not measured.'
-                + (' Image proportions differ: cropped-image lengths are approximate.' if mismatch else ' Accuracy requires the complete sheet at its stated scale.'))
+            missing_inputs.append(f'Plan {run.floor_plan_id}: paper metadata {paper_size} '
+                f'{dimensions[0]} × {dimensions[1]} mm does not establish image scale. '
+                'Calibrate a known real-world dimension; paths remain source pixels until then.')
         elevation = latest_elevation(session, floor_id)
         items = document_takeoff(document, scale=ppm, floor_elevation=float(elevation.elevation_meters)
                                 if elevation and elevation.elevation_meters is not None else None)
@@ -372,16 +373,12 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
         if missing_drops:
             missing_inputs.append(f'Plan {run.floor_plan_id}: {len(missing_drops)} attached devices have unmeasured drops/rises. '
                 'Subtotal excludes these lengths. Save floor elevation, wire elevation and device mounting heights; a scale is required.')
-        if scale_basis == 'assumed_full_paper_1_100':
-            for item in items:
-                if item['kind'] == 'path':
-                    item['basis'] += f' ASSUMED full {paper_size} page at 1:100; not a measured scale.'
         rows.extend(dict(row, floor_id=floor_id, floor_plan_id=run.floor_plan_id, page_id=run.floor_plan_page_id) for row in items)
         sources.append(dict(floor_id=floor_id, floor_plan_id=run.floor_plan_id, page_id=run.floor_plan_page_id,
             processing_job_id=run.processing_job_id, review_revision=review.revision_number if review else None,
             state='saved_draft' if review else 'detected_draft', pixels_per_meter=ppm,
             scale_revision_id=scale.id if scale and scale_basis == 'measured_page' else None,
-            scale_basis=scale_basis, assumed_paper_size=paper_size if scale_basis == 'assumed_full_paper_1_100' else None))
+            scale_basis=scale_basis, assumed_paper_size=None))
     reused = saved_circuit_takeoff(session, user, project_id, rows, materials) if floor_plan_id is None else False
     if not reused:
         missing_inputs.append('Wire purchasing quantities require saved circuit specifications for a current measured project route; missing or stale specifications are not assumed.')
