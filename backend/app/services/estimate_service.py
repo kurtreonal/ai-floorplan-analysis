@@ -12,6 +12,7 @@ from app.routing.contracts import RouteResult
 from app.routing.measurements import measure_material_lengths
 from app.services.material_quantity_service import retrieve_component_quantities
 from app.services.project_service import get_accessible_project
+from app.services import project_pricing_service as project_pricing
 
 
 class EstimateError(ValueError):
@@ -54,7 +55,7 @@ def components_for_route(session, user, project_id, route):
     return grouped, snapshots
 
 
-def estimate_options(session, user, project_id):
+def estimate_options(session, user, project_id, project_price_version_id=None):
     get_accessible_project(session, current_user=user, project_id=project_id)
     route = latest_route(session, project_id)
     route_blocker = 'CIRCUIT_ESTIMATION_NOT_CONFIGURED' if route and route.result.get('status') == 'saved_planning' else None
@@ -62,13 +63,19 @@ def estimate_options(session, user, project_id):
     grouped = components_for_route(session, user, project_id, route)[0] if route and not stale and not route_blocker else {}
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     materials = []
+    project_version = project_pricing.get_version(session, user, project_id, project_price_version_id) if project_price_version_id else None
+    project_rows = project_pricing.accepted_rows(project_version) if project_version else {}
     for material in repository.catalog(session):
-        price = prices.latest_price(session, material.id, at=now)
+        price = prices.latest_price(session, material.id, at=now) if project_version is None else None
+        quote = project_rows.get(material.id)
         materials.append({"id": material.id, "code": material.code, "name": material.name, "unit": material.unit,
-                          "has_price": bool(price and price.unit == material.unit), "currency": price.currency if price else None})
+                          "has_price": bool(quote and quote['catalog_unit'] == material.unit) if project_version else bool(price and price.unit == material.unit),
+                          "currency": quote['currency'] if quote else price.currency if price else None,
+                          "price_unit": quote['unit'] if quote else material.unit})
     return dict(route_version_id=route.id if route else None, stale=stale, route_blocker=route_blocker,
         floors=sorted(int(k) for k in route.layout_versions) if route else [],
-        components=[grouped[k] for k in sorted(grouped)], materials=materials)
+        components=[grouped[k] for k in sorted(grouped)], materials=materials,
+        price_source='project' if project_version else 'catalog', project_price_version_id=project_price_version_id)
 
 
 def generate_estimate(session, user, project_id, request):
@@ -77,7 +84,7 @@ def generate_estimate(session, user, project_id, request):
     get_accessible_project(session, current_user=user, project_id=project_id)
     # Same project/floor lock order as route publication; no inference under locks.
     lock_context(session, project_id, repository.floor_ids(session, project_id))
-    request_document = request.model_dump(mode="json")
+    request_document = request.model_dump(mode="json", exclude={'price_source','project_price_version_id'} if request.price_source == 'catalog' else set())
     request_hash = sha256(json.dumps(request_document, sort_keys=True).encode()).hexdigest()
     retry = repository.retry(session, project_id, str(request.request_id))
     if retry:
@@ -94,6 +101,8 @@ def generate_estimate(session, user, project_id, request):
     if route.result.get('status') == 'saved_planning':
         raise EstimateError('CIRCUIT_ESTIMATION_NOT_CONFIGURED')
     grouped, snapshots = components_for_route(session, user, project_id, route)
+    project_version = project_pricing.get_version(session, user, project_id, request.project_price_version_id) if request.price_source == 'project' else None
+    project_rows = project_pricing.accepted_rows(project_version) if project_version else {}
     if set(grouped) != {item.class_id for item in request.components}:
         raise EstimateError("COMPLETE_COMPONENT_MAPPING_REQUIRED")
     lengths = measure_material_lengths(RouteResult.model_validate(route.result), conductor_count=request.conductor_count)
@@ -104,7 +113,7 @@ def generate_estimate(session, user, project_id, request):
     raw_lines.extend((item.material_id, item.quantity, None, False) for item in request.additional_materials)
     locked = {key: prices.lock_material(session, key) for key in sorted({item[0] for item in raw_lines})}
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    lines, price_ids, currencies = [], [], set()
+    lines, price_ids, currencies, price_sources = [], [], set(), []
     with localcontext() as context:
         context.prec = 48
         for material_id, raw_quantity, meters_per_unit, meter_required in raw_lines:
@@ -117,20 +126,36 @@ def generate_estimate(session, user, project_id, request):
                 if material.unit == 'meter' and meters_per_unit != 1:
                     raise EstimateError('METER_UNIT_CONVERSION_MUST_BE_ONE')
                 raw_quantity /= meters_per_unit
-            price = prices.latest_price(session, material_id, at=now, lock=True)
-            if price is None or price.unit != material.unit:
-                raise EstimateError("MISSING_MATERIAL_PRICE")
-            currencies.add(price.currency)
+            if project_version:
+                quote = project_rows.get(material_id)
+                if quote is None:
+                    raise EstimateError('MISSING_PROJECT_MATERIAL_PRICE')
+                if (quote['catalog_unit'], quote['catalog_code'], quote['catalog_name']) != (material.unit, material.code, material.name):
+                    raise EstimateError('PROJECT_MATERIAL_IDENTITY_CHANGED')
+                raw_quantity /= Decimal(quote['units_per_purchase'])
+                unit_price, currency, unit = Decimal(quote['unit_price']), quote['currency'], quote['unit']
+                price_sources.append(dict(material_id=material_id, kind='project', row_id=quote['row_id'],
+                    catalog_unit=quote['catalog_unit'], units_per_purchase=quote['units_per_purchase'], quoted_unit=unit))
+            else:
+                price = prices.latest_price(session, material_id, at=now, lock=True)
+                if price is None or price.unit != material.unit:
+                    raise EstimateError("MISSING_MATERIAL_PRICE")
+                unit_price, currency, unit = price.unit_price, price.currency, material.unit
+                price_ids.append(price.id)
+                price_sources.append(dict(material_id=material_id, kind='catalog', catalog_unit=unit,
+                    units_per_purchase='1', quoted_unit=unit, price_revision_id=price.id))
+            currencies.add(currency)
             quantity = raw_quantity.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-            total = quantity * price.unit_price
+            total = quantity * unit_price
             if quantity >= Decimal("1e12") or total >= Decimal("1e22"):
                 raise EstimateError("ESTIMATE_NUMERIC_LIMIT")
             lines.append(dict(material_id=material.id, material_code=material.code, material_name=material.name,
-                quantity=quantity, unit=material.unit, captured_unit_price=price.unit_price, line_total=total))
-            price_ids.append(price.id)
+                quantity=quantity, unit=unit, captured_unit_price=unit_price, line_total=total))
         if len(currencies) != 1:
             raise EstimateError("MIXED_CURRENCIES")
-        total = sum((line["line_total"] for line in lines), Decimal(0))
+        # Match the stored numeric scale on the initial response and reload.
+        # Products already have at most eight decimals; this only pads zeros.
+        total = sum((line["line_total"] for line in lines), Decimal(0)).quantize(Decimal('0.00000001'))
         if total >= Decimal("1e22"):
             raise EstimateError("ESTIMATE_NUMERIC_LIMIT")
     record = repository.save(session, dict(project_id=project_id, version_number=repository.next_version(session, project_id),
@@ -138,6 +163,10 @@ def generate_estimate(session, user, project_id, request):
         dict(request_id=str(request.request_id), request_hash=request_hash, snapshot={
             "configuration": request_document, "layouts": snapshots, "route_version_id": route.id,
             "lengths": asdict(lengths), "price_revision_ids": price_ids,
+            "price_source": request.price_source, "price_sources": price_sources,
+            "project_pricing": dict(id=project_version.id, version_number=project_version.version_number,
+                filename=project_version.filename, file_sha256=project_version.file_sha256, kind=project_version.kind,
+                document=project_version.document) if project_version else None,
             "scope": "Reviewed components on route floors plus one saved route; planning only.",
             "quantity_precision": "4 decimals, ROUND_HALF_UP; no waste or monetary rounding added"}))
     result = response(session, record)

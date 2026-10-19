@@ -363,3 +363,90 @@ backend deprecation warnings remain. BDO stays paused; originals, historical
 reviews, unrelated edits and stash@{0} are preserved. Full suites, screen-reader
 testing and a production measured BOM remain NOT TESTED. Checkpoints 5–7 and the
 previously listed measurement integration are not completed by this slice.
+
+## Project client pricing checkpoint 6 (October 20)
+
+Checkpoint 6 is explicitly prioritized ahead of checkpoint 5; project intake and
+floor-plan deletion remain on hold. BDO detection, annotation and training remain
+paused. This slice does not change detection, canvas geometry, calibration,
+electrical routing rules, allowances, or the shared Admin catalog.
+
+The estimate page now supports project-owned XLSX and UTF-8 comma-separated CSV
+imports. A price list supplies prices for backend-calculated quantities; a client
+BOM additionally retains source quantities for comparison, never as replacement
+calculated quantities. Designers explicitly map worksheet/header, columns,
+catalog materials and catalog units per quoted purchase unit. No material match,
+wire gauge, conduit size, roll/pack factor, currency conversion or missing price
+is guessed. Identical units use identity conversion only. Duplicate codes or
+material bindings, formulas, missing values and invalid conversions require
+correction or explicit row exclusion. Zero prices are valid; blank prices are not.
+
+The Admin import's bounded ZIP/XML safety envelope is shared without changing
+its catalog-write workflow. Client imports reject macros and external workbook
+links, never evaluate formulas (including cached numeric formula results), and
+never execute CSV cells. Limits are 5 MB source, 1,000 selected data rows per
+worksheet, bounded cells, and the existing ZIP expansion/member limits. The UI
+shows at most 5,000 catalog choices and the latest 100 import versions; older
+versions remain addressable by ID. PDF/scanned BOM extraction is not supported.
+
+One additive table, project_price_versions, retains immutable source bytes,
+SHA-256, mapped/excluded rows, actor and per-project version. Owner/Designer
+access is enforced server-side; Admin has read-only project inspection. Apply
+reparses the source, checks the preview fingerprint and current material identity,
+serializes on the project lock, and rejects stale versions. Identical concurrent
+retry UUIDs return one saved version; changed retry inputs conflict. No update or
+delete endpoint is provided. Uncertain saves lock UI inputs for identical retry.
+
+New estimates explicitly choose the Admin catalog or one client import version.
+No fallback is made for a missing client material price. Existing route/layout
+measurement gates remain required. Catalog quantities are converted to the quoted
+purchase unit with the confirmed factor; the existing four-decimal quantity
+policy remains unchanged, with no purchase rounding or waste added. Prices,
+conversion factors, row IDs, import version, file identity and source document
+are captured in the estimate snapshot. Later imports cannot reprice history.
+Quantity comparison is displayed as calculated minus client in the
+import's purchase unit; unreconcilable or absent estimate materials are explicit,
+not fabricated zeros. Legacy catalog retry hashes remain compatible. Initial and
+reloaded totals now share the stored eight-decimal scale (zero padding only).
+
+Deployment used an isolated HEAD export, then an additive table before code
+activation. A private logical backup is retained under ignored
+tmp/checkpoint6-db-before. All 34 pre-existing live table counts and extended
+checksums were identical before/after creation; the 35th table was empty and
+readable by ved_app. No existing table was altered, reset or dropped, and no
+permissions or credentials changed. Rollback can run the prior code while
+retaining the unused table and any future imports; do not drop imported history.
+
+Verification includes restricted-MySQL API tests for explicit mapping, invalid
+files/formulas/macros/links, ownership, zero/missing prices, duplicate decisions,
+stale catalog/preview rejection, real concurrent identical imports, save/reload,
+pack conversions and historical estimate preservation. A disposable browser
+project completed CSV upload, column/material mapping, explicit 10 m/roll,
+validation/confirmation, save and estimate generation. The actual 2 m synthetic
+route with three conductors produced 0.6 roll of wire, two device units and 2 m
+conduit: PHP 30 total. Reload retained that estimate, its captured client version
+and client/calculated differences (9 versus 2 devices, 20 versus 2 m conduit,
+1 versus 0.6 roll). This is workflow/known-answer proof, not detection accuracy
+or independent real-client workbook validation. Screenshots/fixtures remain
+private diagnostics under ignored tmp/; synthetic records are cleaned by exact IDs.
+
+Client prices apply to saved measured estimates and saved BOM exports. The draft
+canvas/catalog BOM preview is unchanged and may still show missing catalog
+prices; it is not silently repriced by an import. Full-suite, arbitrary client
+workbook, PDF import and computer-reboot verification remain NOT TESTED. Existing
+large frontend chunks and backend deprecation warnings remain. The clean API/
+table contract is 54 operations/35 tables; the live mixed worktree has one
+additional pre-existing uncommitted canvas-BOM endpoint (55 operations). Unrelated
+edits, originals, historical reviews/estimates and stash@{0} are preserved.
+Checkpoint 5 and checkpoint 7 have not started in this slice.
+
+Final staged gate: 421 backend tests and 234 subtests pass, one skip; 25 focused
+frontend tests, scoped lint and production build pass. The expanded gate first
+identified exact table/operation enumerations needing the additive contract;
+five unrelated development-only legend-import checks also required explicit
+APP_ENV=development instead of the isolated copy's production-default setting.
+Their application behavior was not changed, and all analysis workers remained
+disabled. Live authenticated project 10219 confirms import controls and the
+existing missing-measured-route gate without saving real project data. Temporary
+verification records were removed by exact IDs. API and frontend were restarted
+normally after they were found stopped; no automatic analysis jobs were started.

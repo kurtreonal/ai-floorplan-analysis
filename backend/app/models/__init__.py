@@ -1,6 +1,7 @@
 from app.models.base import Base
 from app.models.estimate import Estimate, EstimateItem
 from app.models.estimate_source import EstimateSource
+from app.models.project_price_version import ProjectPriceVersion
 from app.models.material import Material
 from app.models.material_price import MaterialPrice
 from app.models.generated_route import GeneratedRouteVersion
@@ -38,6 +39,7 @@ __all__ = (
     "Estimate",
     "EstimateItem",
     "EstimateSource",
+    "ProjectPriceVersion",
     "Material",
     "MaterialPrice",
     "FloorElevationSetting",

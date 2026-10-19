@@ -42,6 +42,11 @@ F2_OPERATIONS = {
     ("get", "/api/auth/login"),
     ("get", "/api/auth/callback"),
     ("get", "/api/projects"),
+    ("get", "/api/projects/{project_id}/client-pricing"),
+    ("post", "/api/projects/{project_id}/client-pricing/inspect"),
+    ("post", "/api/projects/{project_id}/client-pricing/preview"),
+    ("post", "/api/projects/{project_id}/client-pricing/apply"),
+    ("get", "/api/projects/{project_id}/client-pricing/{version_id}"),
     ("post", "/api/projects"),
     ("get", "/api/projects/{project_id}"),
     ("get", "/api/projects/{project_id}/floors"),
@@ -596,7 +601,7 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
                 ("post", "/api/admin/symbol-legends/import-trained"),
             },
         )
-        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
+        self.assertEqual(len(operations), 54)  # Includes five project-scoped pricing operations.
 
 
 if __name__ == "__main__":

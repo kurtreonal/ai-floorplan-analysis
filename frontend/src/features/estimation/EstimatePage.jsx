@@ -6,6 +6,7 @@ import { getProjectHref } from '../../routes/projectRoutes.js'
 import { Button } from '../../components/ui/button.jsx'
 import { Input } from '../../components/ui/input.jsx'
 import { BOMPanel } from './BOMPanel.jsx'
+import { ClientPricingPanel } from './ClientPricingPanel.jsx'
 
 function money(value, currency) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(Number(value))
@@ -17,6 +18,8 @@ function failure(error) {
     if (error.status === 403) return 'Your account cannot perform this estimate operation.'
     if (error.status === 404) return 'This project or estimate is unavailable.'
     if (error.code === 'STALE_ROUTE') return 'The route changed. Reload the estimate inputs before generating a snapshot.'
+    if (error.code === 'MISSING_PROJECT_MATERIAL_PRICE') return 'The selected client version has no price for a mapped material. Choose a complete version or explicitly select the shared catalog.'
+    if (error.code === 'PROJECT_MATERIAL_IDENTITY_CHANGED') return 'A mapped material changed. Reimport and confirm the client price mappings.'
     if (error.status === 422) return 'Review all material mappings, current prices and route inputs. The server did not accept this estimate.'
   }
   return 'The estimate service is unavailable. Saved prices have not been changed.'
@@ -26,7 +29,7 @@ function MaterialSelect({ label, materials, value, onChange, required = true }) 
   return <label className="studio-field"><span>{label}</span><select required={required} value={value} onChange={(event) => onChange(event.target.value)}><option value="">Choose priced material…</option>{orderNamed(materials).map((material) => <option key={material.id} value={material.id}>{material.code} · {material.name} ({material.unit})</option>)}</select></label>
 }
 
-export function EstimatePage({ projectId, session }) {
+function EstimateWorkspace({ projectId, session }) {
   const [records, setRecords] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [historyState, setHistoryState] = useState('loading')
@@ -42,6 +45,8 @@ export function EstimatePage({ projectId, session }) {
   const [conduitUnitLength, setConduitUnitLength] = useState('')
   const [additionalMaterials, setAdditionalMaterials] = useState([])
   const [confirmed, setConfirmed] = useState(false)
+  const [priceVersions, setPriceVersions] = useState([])
+  const [priceVersion, setPriceVersion] = useState('')
   const [saveState, setSaveState] = useState('idle')
   const [saveError, setSaveError] = useState(null)
   const retryPayload = useRef(null)
@@ -58,13 +63,13 @@ export function EstimatePage({ projectId, session }) {
       if (controller.signal.aborted) return
       setRecords([...items].sort((a, b) => b.version_number - a.version_number)); setHistoryState('ready')
     }).catch((error) => { if (!controller.signal.aborted) { setHistoryError(failure(error)); setHistoryState('error') } })
-    fetchEstimateOptions(projectId, { signal: controller.signal }).then((value) => {
+    fetchEstimateOptions(projectId, { signal: controller.signal, projectPriceVersionId: priceVersion ? Number(priceVersion) : null }).then((value) => {
       if (controller.signal.aborted) return
       setOptions({...value,components:orderNamed(value.components, item => item.class_name)}); setBindings({}); setConduit(''); setWire(''); setConductors(''); setConfirmed(false)
       setWireUnitLength(''); setConduitUnitLength(''); setAdditionalMaterials([])
     }).catch((error) => { if (!controller.signal.aborted) setOptionsError(failure(error)) })
     return () => controller.abort()
-  }, [projectId, attempt])
+  }, [projectId, attempt, priceVersion])
   useEffect(() => () => saveController.current?.abort(), [])
 
   function reloadInputs() {
@@ -83,6 +88,7 @@ export function EstimatePage({ projectId, session }) {
       additional_materials: additionalMaterials.map((row) => ({ material_id: Number(row.material), quantity: row.quantity })),
       wire_meters_per_unit: pricedMaterials.find((row) => row.id === Number(wire))?.unit === 'meter' ? null : wireUnitLength,
       conduit_meters_per_unit: pricedMaterials.find((row) => row.id === Number(conduit))?.unit === 'meter' ? null : conduitUnitLength,
+      price_source: priceVersion ? 'project' : 'catalog', project_price_version_id: priceVersion ? Number(priceVersion) : null,
     }
     retryPayload.current = payload
     inFlight.current = true
@@ -111,14 +117,22 @@ export function EstimatePage({ projectId, session }) {
       <section><ShieldCheck aria-hidden="true" /><span>Route readiness</span><strong>{options ? options.route_version_id && !options.stale ? 'Current' : 'Needs review' : 'Unavailable'}</strong><small>{options?.route_version_id ? `Route version ID ${options.route_version_id}` : 'Save a measured route first'}</small></section>
     </div>
     <BOMPanel projectId={projectId} estimate={selected} refreshKey={attempt} />
+    <ClientPricingPanel key={projectId} projectId={projectId} designer={designer} disabled={saveState !== 'idle'}
+      estimateId={selected?.id} onVersionsChange={setPriceVersions} />
     <div className="studio-estimate-workbench">
       <section className="studio-panel" aria-labelledby="estimate-history-title"><div className="studio-panel-heading"><h2 id="estimate-history-title">Estimate breakdown</h2><span className="mono">CAPTURED PRICES</span></div>
         {historyState === 'loading' && <p role="status">Loading saved estimates…</p>}
         {historyError && <p role="alert">{historyError}</p>}
+        {selected && <p className="studio-panel-note">Captured price source: {selected.source?.project_pricing
+          ? `Client version ${selected.source.project_pricing.version_number} · ${selected.source.project_pricing.filename}`
+          : 'Shared Admin catalog'}</p>}
         {historyState === 'ready' && !records.length && <div className="project-empty-state"><Calculator size={28} aria-hidden="true" /><h3>No saved estimates yet.</h3><p>Save reviewed geometry and a measured route, then map materials to create a price snapshot.</p></div>}
         {selected && <><label className="studio-field"><span>Estimate version</span><select value={selected.id} onChange={(event) => setSelectedId(Number(event.target.value))}>{records.map((record) => <option key={record.id} value={record.id}>Version {record.version_number} · {money(record.total, record.currency)}</option>)}</select></label><div className="studio-table-scroll"><table className="studio-estimate-table"><thead><tr><th>Material</th><th>Quantity</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>{selected.items.map((item) => <tr key={item.line_number}><td><strong>{item.material_name}</strong><small>{item.material_code}</small></td><td>{item.quantity} {item.unit}</td><td>{money(item.captured_unit_price, selected.currency)}</td><td>{money(item.line_total, selected.currency)}</td></tr>)}</tbody><tfoot><tr><th colSpan="3">Captured total</th><td>{money(selected.total, selected.currency)}</td></tr></tfoot></table></div><p className="studio-panel-note">Snapshot #{selected.id}. Later material-price updates do not alter these captured amounts. Planning estimate, not professional approval.</p></>}
       </section>
       <aside className="studio-panel" aria-labelledby="estimate-inputs-title"><div className="studio-panel-heading"><h2 id="estimate-inputs-title">Generate snapshot</h2><span className="mono">EXPLICIT MAPPINGS</span></div>
+        <label className="studio-field">Price source for next estimate<select value={priceVersion} disabled={!designer || saveState !== 'idle'} onChange={event => {
+          setOptions(null); setOptionsError(null); setConfirmed(false); setPriceVersion(event.target.value)
+        }}><option value="">Shared Admin catalog</option>{priceVersions.map(version => <option key={version.id} value={version.id}>Client version {version.version_number} · {version.filename}</option>)}</select></label>
         {!designer && <p role="note">Admin read-only view. A Designer generates estimates.</p>}
         {optionsError && <p role="alert">{optionsError}</p>}
         {options && (!options.route_version_id || options.stale) && <p role="note">Save a current route against reviewed layouts before generating an estimate. Existing snapshots remain available.</p>}
@@ -149,4 +163,8 @@ export function EstimatePage({ projectId, session }) {
       </aside>
     </div>
   </article>
+}
+
+export function EstimatePage(props) {
+  return <EstimateWorkspace key={props.projectId} {...props} />
 }

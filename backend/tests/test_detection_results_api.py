@@ -68,6 +68,7 @@ TABLES = (
     "processing_job_cancellations",
     "processing_jobs",
     "project_floors",
+    "project_price_versions",
     "projects",
     "roles",
     "symbol_legend_history",
@@ -776,7 +777,7 @@ class DetectionResultsApiTests(unittest.TestCase):
             for method in definition
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
+        self.assertEqual(len(operations), 54)  # Includes five project-scoped pricing operations.
 
     def test_schema_and_storage_remain_stable(self) -> None:
         self.assertEqual(tuple(sorted(Wall.metadata.tables)), TABLES)

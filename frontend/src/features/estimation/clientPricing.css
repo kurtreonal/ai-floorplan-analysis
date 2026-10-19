@@ -1,0 +1,15 @@
+.client-pricing { margin: 1rem 0; min-width: 0; }
+.client-pricing details { margin: .75rem 0; }
+.client-pricing summary { cursor: pointer; padding: .5rem 0; }
+.client-pricing fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.client-pricing label { display: grid; gap: .35rem; margin: .75rem 0; font-size: .85rem; }
+.client-pricing input:not([type="checkbox"]), .client-pricing select { width: 100%; min-width: 0; min-height: 38px; padding: .45rem; color: var(--ink); background: var(--white); border: 1px solid var(--paper-line); border-radius: 6px; font: inherit; }
+.client-column-map { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: .25rem 1rem; }
+.client-price-table { overflow-x: auto; max-height: 26rem; overflow-y: auto; margin: .75rem 0; }
+.client-price-table table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: .8rem; }
+.client-price-table :is(th,td) { text-align: left; padding: .65rem; border-bottom: 1px solid var(--paper-line); vertical-align: top; overflow-wrap: anywhere; }
+.client-price-table th { position: sticky; top: 0; background: var(--paper); }
+.client-price-table small { display: block; margin-top: .25rem; color: var(--ink-soft); }
+.client-price-table .client-row-error { color: #b04428; }
+.client-price-table select { max-width: 25rem; }
+.client-pricing .studio-confirmation { display: flex; align-items: center; }

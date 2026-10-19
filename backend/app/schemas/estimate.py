@@ -32,9 +32,13 @@ class EstimateWrite(BaseModel):
     additional_materials: Annotated[list[AdditionalMaterial], Field(max_length=200)] = []
     wire_meters_per_unit: Annotated[Decimal | None, Field(gt=0, le=100000, decimal_places=4, allow_inf_nan=False)] = None
     conduit_meters_per_unit: Annotated[Decimal | None, Field(gt=0, le=100000, decimal_places=4, allow_inf_nan=False)] = None
+    price_source: Literal['catalog', 'project'] = 'catalog'
+    project_price_version_id: Identifier | None = None
 
     @model_validator(mode="after")
     def unique_classes(self):
+        if (self.price_source == 'project') != (self.project_price_version_id is not None):
+            raise ValueError('Explicitly select one project price version, or the shared catalog.')
         if len({item.class_id for item in self.components}) != len(self.components):
             raise ValueError("Each class requires exactly one material mapping.")
         if len({item.material_id for item in self.additional_materials}) != len(self.additional_materials):
@@ -73,3 +77,5 @@ class EstimateOptions(BaseModel):
     floors: list[int]
     components: list[dict]
     materials: list[dict]
+    price_source: str = 'catalog'
+    project_price_version_id: int | None = None

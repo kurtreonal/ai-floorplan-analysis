@@ -69,8 +69,8 @@ class DetectionReviewModelTests(unittest.TestCase):
                 "ix_detection_reviews_reviewer_user_id",
             },
         )
-        self.assertEqual(len(Base.metadata.tables), 34)
-        self.assertEqual(len(inspect(get_engine()).get_table_names()), 34)
+        self.assertEqual(len(Base.metadata.tables), 35)
+        self.assertEqual(len(inspect(get_engine()).get_table_names()), 35)
         self.assertEqual(
             DetectedSymbol.reviews.property.back_populates,
             "detected_symbol",
@@ -536,7 +536,7 @@ class DetectionReviewApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
+        self.assertEqual(len(operations), 54)  # Includes five project-scoped pricing operations.
 
 
 if __name__ == "__main__":

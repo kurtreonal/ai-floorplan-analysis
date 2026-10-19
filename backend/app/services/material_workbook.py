@@ -16,9 +16,19 @@ class WorkbookError(ValueError):
     pass
 
 
+def validate_archive(archive):
+    """Shared safety envelope for Admin and project-owned workbook readers."""
+    infos = archive.infolist()
+    if (len(infos) > 256 or len({i.filename for i in infos}) != len(infos)
+            or sum(i.file_size for i in infos) > 30_000_000
+            or any(i.file_size > 8_000_000 or i.flag_bits & 1 for i in infos)
+            or any('vbaproject' in i.filename.lower() for i in infos)):
+        raise WorkbookError('Workbook exceeds safe limits or contains macros.')
+
+
 def _xml(archive, path):
     data = archive.read(path)
-    if b'<!DOCTYPE' in data.upper() or b'<!ENTITY' in data.upper():
+    if b'\x00' in data or b'<!DOCTYPE' in data.upper() or b'<!ENTITY' in data.upper():
         raise WorkbookError('XML declarations are not supported.')
     return ET.fromstring(data)
 
@@ -32,12 +42,7 @@ def extract_prices(data):
         raise WorkbookError('Choose an XLSX file up to 5 MB.')
     try:
         with ZipFile(BytesIO(data)) as archive:
-            infos = archive.infolist()
-            if (len(infos) > 256 or len({i.filename for i in infos}) != len(infos)
-                    or sum(i.file_size for i in infos) > 30_000_000
-                    or any(i.file_size > 8_000_000 or i.flag_bits & 1 for i in infos)
-                    or any('vbaproject' in i.filename.lower() for i in infos)):
-                raise WorkbookError('Workbook exceeds safe limits or contains macros.')
+            validate_archive(archive)
             strings = []
             if 'xl/sharedStrings.xml' in archive.namelist():
                 strings = [''.join(item.itertext()) for item in _xml(archive, 'xl/sharedStrings.xml')]

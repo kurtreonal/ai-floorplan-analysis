@@ -51,7 +51,10 @@ export async function listEstimates(projectId, options) {
 }
 
 export async function fetchEstimateOptions(projectId, options) {
-  const record = await request(projectId, 'estimate-options', options)
+  const { projectPriceVersionId, ...requestOptions } = options || {}
+  if (projectPriceVersionId != null && !identifier(projectPriceVersionId)) throw new EstimateApiError(422)
+  const suffix = 'estimate-options' + (projectPriceVersionId ? '?project_price_version_id=' + projectPriceVersionId : '')
+  const record = await request(projectId, suffix, requestOptions)
   if (!record || (record.route_version_id !== null && !identifier(record.route_version_id)) || typeof record.stale !== 'boolean'
     || !Array.isArray(record.floors) || !record.floors.every(identifier)
     || !Array.isArray(record.components) || record.components.some((item) => !Number.isSafeInteger(item.class_id) || item.class_id < 0 || typeof item.class_name !== 'string' || !amount(item.quantity))

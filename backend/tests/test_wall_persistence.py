@@ -346,6 +346,7 @@ class WallPersistenceTests(unittest.TestCase):
                 "users",
                 "projects",
                 "project_floors",
+                "project_price_versions",
                 "floor_plans",
                 "floor_plan_pages",
                 "floor_plan_sources",
@@ -631,7 +632,7 @@ class WallPersistenceTests(unittest.TestCase):
             for method in methods
             if method.casefold() in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 49)  # Includes draft BOM CSV as well as material import.
+        self.assertEqual(operations, 54)  # Includes five project-scoped pricing operations.
 
 
 if __name__ == "__main__":

@@ -33,12 +33,14 @@ class BOMResponse(BaseModel):
 def execute(session, action):
     try:
         return action()
-    except (service.EstimateError, LayoutServiceError, DemoInterpretationError, ProjectNotFoundError, SQLAlchemyError, ValueError) as error:
+    except (service.EstimateError, LayoutServiceError, DemoInterpretationError, ProjectNotFoundError, SQLAlchemyError, ValueError, LookupError) as error:
         session.rollback()
         if isinstance(error, SQLAlchemyError):
             code, status = "ESTIMATE_STORAGE_UNAVAILABLE", 503
         elif isinstance(error, ProjectNotFoundError):
             code, status = "PROJECT_NOT_FOUND", 404
+        elif isinstance(error, LookupError):
+            code, status = 'PROJECT_PRICING_NOT_FOUND', 404
         elif isinstance(error, (service.EstimateError, LayoutServiceError, DemoInterpretationError)):
             code = error.code
             status = 403 if code == "AUTHORIZATION_DENIED" else 404 if code.endswith("NOT_FOUND") else 409 if code in {"STALE_ROUTE", "ESTIMATE_RETRY_CONFLICT"} else 422
@@ -49,8 +51,9 @@ def execute(session, action):
 
 
 @router.get("/{project_id}/estimate-options", response_model=EstimateOptions)
-def options(project_id: ProjectId, user: User = Depends(require_roles("ADMIN", "DESIGNER")), session: Session = Depends(get_db)):
-    return execute(session, lambda: service.estimate_options(session, user, project_id))
+def options(project_id: ProjectId, project_price_version_id: Annotated[int | None, Query(gt=0)] = None,
+        user: User = Depends(require_roles("ADMIN", "DESIGNER")), session: Session = Depends(get_db)):
+    return execute(session, lambda: service.estimate_options(session, user, project_id, project_price_version_id))
 
 
 @router.get('/{project_id}/bom', response_model=BOMResponse)

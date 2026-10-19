@@ -331,7 +331,7 @@ class FloorPlanDiscoveryApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
+        self.assertEqual(len(operations), 54)  # Includes five project-scoped pricing operations.
 
 
 if __name__ == "__main__":

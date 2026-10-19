@@ -3,12 +3,15 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createEstimate, EstimateApiError, fetchEstimateOptions, listEstimates } from '../../api/estimates.js'
 import { EstimatePage } from './EstimatePage.jsx'
+import { listProjectPrices } from '../../api/projectPricing.js'
 
 vi.mock('../../api/estimates.js', async () => ({ ...await vi.importActual('../../api/estimates.js'), createEstimate: vi.fn(), fetchEstimateOptions: vi.fn(), listEstimates: vi.fn() }))
+vi.mock('../../api/projectPricing.js', async () => ({ ...await vi.importActual('../../api/projectPricing.js'),
+  listProjectPrices: vi.fn(), fetchProjectPrice: vi.fn() }))
 const designer = { user: { role: 'DESIGNER' } }
 const record = { id: 4, project_id: 15, version_number: 2, currency: 'PHP', total: '1234.56', items: [{ line_number: 1, material_id: 5, material_name: 'Reviewed fixture', material_code: 'L5', unit: 'piece', quantity: '2', captured_unit_price: '50', line_total: '100' }] }
 const options = { route_version_id: 11, stale: false, floors: [2], components: [{ class_id: 7, class_name: 'Troffer', quantity: 2 }], materials: [{ id: 5, name: 'Fixture', code: 'L5', unit: 'piece', has_price: true }, { id: 6, name: 'Conduit', code: 'C6', unit: 'meter', has_price: true }, { id: 7, name: 'Wire', code: 'W7', unit: 'meter', has_price: true }, { id: 8, name: 'Unpriced material', unit: 'piece', has_price: false }] }
-beforeEach(() => { listEstimates.mockResolvedValue([]); fetchEstimateOptions.mockResolvedValue(options) })
+beforeEach(() => { listEstimates.mockResolvedValue([]); fetchEstimateOptions.mockResolvedValue(options); listProjectPrices.mockResolvedValue([]) })
 afterEach(() => { cleanup(); vi.resetAllMocks() })
 
 async function fillMappings() {
@@ -31,6 +34,13 @@ it('shows captured backend totals rather than recalculating them from line items
   expect(screen.getByText(/Later material-price updates do not alter/)).toBeTruthy()
 })
 
+it('shows the captured client version independently of the next estimate price choice', async () => {
+  listEstimates.mockResolvedValue([{ ...record, source: { project_pricing: { version_number: 2, filename: 'saved-client.xlsx' } } }])
+  render(<EstimatePage projectId={15} session={designer} />)
+  expect(await screen.findByText('Captured price source: Client version 2 · saved-client.xlsx')).toBeTruthy()
+  expect(screen.getByLabelText('Price source for next estimate').value).toBe('')
+})
+
 it('does not expose generation to Admin or imply missing routes are ready', async () => {
   fetchEstimateOptions.mockResolvedValue({ ...options, route_version_id: null })
   render(<EstimatePage projectId={15} session={{ user: { role: 'ADMIN' } }} />)
@@ -48,6 +58,30 @@ it('requires explicit mappings and sends only reviewed inputs to the existing AP
   fireEvent.click(screen.getByRole('button', { name: 'Generate estimate snapshot' }))
   await screen.findByText('Reviewed fixture')
   expect(createEstimate).toHaveBeenCalledWith(15, expect.objectContaining({ request_id: expect.any(String), route_version_id: 11, components: [{ class_id: 7, material_id: 5, units_per_symbol: '1' }], conduit_material_id: 6, wire_material_id: 7, conductor_count: 3, mappings_confirmed: true }), expect.objectContaining({ signal: expect.any(AbortSignal) }))
+})
+
+it('selects a client version explicitly and pins it to generation without changing saved history', async () => {
+  listProjectPrices.mockResolvedValue([{ id: 22, version_number: 3, filename: 'client.xlsx', kind: 'price_list' }])
+  createEstimate.mockResolvedValue(record)
+  render(<EstimatePage projectId={15} session={designer} />)
+  await screen.findByRole('option', { name: 'Client version 3 · client.xlsx' })
+  expect(screen.getByLabelText('Price source for next estimate').value).toBe('')
+  fireEvent.change(screen.getByLabelText('Price source for next estimate'), { target: { value: '22' } })
+  await waitFor(() => expect(fetchEstimateOptions).toHaveBeenLastCalledWith(15, expect.objectContaining({ projectPriceVersionId: 22 })))
+  await fillMappings()
+  fireEvent.click(screen.getByRole('button', { name: 'Generate estimate snapshot' }))
+  await screen.findByText('Reviewed fixture')
+  expect(createEstimate).toHaveBeenCalledWith(15, expect.objectContaining({ price_source: 'project', project_price_version_id: 22 }), expect.any(Object))
+})
+
+it('resets project price selection when opening another project', async () => {
+  listProjectPrices.mockResolvedValue([{ id: 22, version_number: 3, filename: 'client.xlsx' }])
+  const { rerender } = render(<EstimatePage projectId={15} session={designer} />)
+  await screen.findByRole('option', { name: 'Client version 3 · client.xlsx' })
+  fireEvent.change(screen.getByLabelText('Price source for next estimate'), { target: { value: '22' } })
+  rerender(<EstimatePage projectId={16} session={designer} />)
+  expect(screen.getByLabelText('Price source for next estimate').value).toBe('')
+  await waitFor(() => expect(fetchEstimateOptions).toHaveBeenLastCalledWith(16, expect.objectContaining({ projectPriceVersionId: null })))
 })
 
 it('locks uncertain inputs and retries exactly the same request identity and payload', async () => {

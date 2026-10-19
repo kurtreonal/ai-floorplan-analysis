@@ -83,6 +83,7 @@ class SymbolLegendModelTests(unittest.TestCase):
             "floor_elevation_settings",
             "page_scale_settings",
             "project_floors",
+            "project_price_versions",
             "projects",
             "roles",
             "symbol_legends",
@@ -92,7 +93,7 @@ class SymbolLegendModelTests(unittest.TestCase):
         }
         self.assertEqual(set(Base.metadata.tables), expected)
         self.assertEqual(set(inspect(self.engine).get_table_names()), expected)
-        self.assertEqual(len(Base.metadata.tables), 34)
+        self.assertEqual(len(Base.metadata.tables), 35)
 
 
 class SymbolLegendApiTests(unittest.TestCase):
@@ -365,7 +366,7 @@ class SymbolLegendApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 49)  # Includes draft BOM CSV as well as material import.
+        self.assertEqual(len(operations), 54)  # Includes five project-scoped pricing operations.
         self.assertIn(("post", "/api/admin/symbol-legends/import-trained"), operations)
 
 

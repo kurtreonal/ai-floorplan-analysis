@@ -748,6 +748,11 @@ class ProjectCreationTests(unittest.TestCase):
             project_paths,
             {
                 "/api/projects": {"get", "post"},
+                "/api/projects/{project_id}/client-pricing": {"get"},
+                "/api/projects/{project_id}/client-pricing/inspect": {"post"},
+                "/api/projects/{project_id}/client-pricing/preview": {"post"},
+                "/api/projects/{project_id}/client-pricing/apply": {"post"},
+                "/api/projects/{project_id}/client-pricing/{version_id}": {"get"},
                 "/api/projects/{project_id}/routes": {"get", "post"},
                 "/api/projects/{project_id}/estimate-options": {"get"},
                 "/api/projects/{project_id}/estimates": {"get", "post"},
