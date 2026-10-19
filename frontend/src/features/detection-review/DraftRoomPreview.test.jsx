@@ -1,10 +1,21 @@
 /* @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { DraftRoomPreview } from './DraftRoomPreview.jsx'
 const capture = vi.hoisted(() => ({ props: null }))
 vi.mock('../viewer-3d/Viewer3DCanvas.jsx', () => ({ Viewer3DCanvas: (props) => { capture.props = props; return <div>Scene</div> } }))
 afterEach(cleanup)
+it('keeps the canvas mounted after drawing and last-shape undo, preserving camera ownership',()=>{
+  const draft={rooms:[],walls:[],symbols:[],wirings:[]},context={pixels_per_meter:10,floor_elevation_meters:12}
+  const add=vi.fn(),{rerender}=render(<DraftRoomPreview draft={draft} width={400} height={300} routingContext={context} navigationMode="wire" onAddWire={add} />)
+  act(()=>capture.props.drawing.setOption('elevation','14.8'))
+  for(const point of [{x:20,y:30},{x:80,y:30}])act(()=>capture.props.drawing.pointer(point,{},true))
+  act(()=>capture.props.drawing.finish())
+  expect(add).toHaveBeenCalledTimes(1)
+  rerender(<DraftRoomPreview draft={{...draft}} width={400} height={300} routingContext={context} navigationMode="select" editingSession={2} />)
+  expect(screen.getByText('Scene')).toBeTruthy()
+  expect(screen.queryByText(/No geometry yet/)).toBeNull()
+})
 it('shows and edits a wire-only whole-page draft without a layout approval gate', () => {
   const draft = { rooms: [], walls: [], symbols: [], wirings: [{ id: 'wire', points: [{ x: 40, y: 50 }, { x: 250, y: 150 }], disposition: 'unresolved', elevation_meters: null }] }
   const onSelect = vi.fn(), onMoveWirePoint = vi.fn()

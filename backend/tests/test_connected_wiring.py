@@ -119,6 +119,31 @@ def test_manual_continuation_does_not_double_count_an_explicitly_shared_canonica
 
 
 class ConnectedWiringApiTests(DemoInterpretationApiTests):
+    def test_work_plane_stroke_and_physical_wall_dimensions_survive_review_without_approval(self):
+        self._login()
+        url=f"/api/floor-plans/{self.ids['floor_plan']}/interpretation"
+        original=self.client.get(url).json()['candidate']
+        payload=self._review_payload(complete=False,approved=False)
+        route=wire('manual-wiring-0001',[(20,30),(80,30),(80,90)])
+        route.update(path_origin='manual',elevation_meters=14.8,installation_method='concealed_in_ceiling')
+        payload['observed_wiring']=[route]
+        payload['walls'].append(dict(id='manual-wall-0001',disposition='added',start=dict(x=120,y=30),end=dict(x=150,y=70),
+            height_meters=3,thickness_meters=.2,estimated_thickness_pixels=2))
+        response=self.client.post(url+'/reviews',json=payload)
+        self.assertEqual(response.status_code,201,response.text)
+        loaded=self.client.get(url).json()
+        self.assertEqual(loaded['candidate'],original)
+        self.assertFalse(loaded['review']['approved_for_layout'])
+        self.assertEqual(loaded['review']['observed_wiring'][0]['elevation_meters'],14.8)
+        self.assertEqual(loaded['review']['observed_wiring'][0]['points'],route['points'])
+        self.assertEqual(loaded['review']['walls'][-1]['height_meters'],3)
+        self.assertEqual(loaded['review']['walls'][-1]['thickness_meters'],.2)
+        invalid=deepcopy(payload)
+        invalid['expected_revision_number']=1
+        invalid['observed_wiring'][0]['elevation_meters']=10001
+        self.assertEqual(self.client.post(url+'/reviews',json=invalid).status_code,422)
+        self.assertEqual(self.client.get(url).json()['review'],loaded['review'])
+
     def test_overlapping_devices_keep_separate_terminal_connections_after_save_reload(self):
         self._login()
         url=f"/api/floor-plans/{self.ids['floor_plan']}/interpretation"

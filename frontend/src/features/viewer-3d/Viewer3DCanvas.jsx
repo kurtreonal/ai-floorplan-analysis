@@ -8,9 +8,11 @@ import { DraftWiring3D } from './DraftWiring3D.jsx'
 import { routeDeviceConnectors } from './routeDeviceConnectors.js'
 import { WiringTargetChooser } from '../detection-review/WiringTargetChooser.jsx'
 import { WiringTargetMarker3D } from './WiringTargetMarker3D.jsx'
+import { DrawingPlane3D } from './DrawingPlane3D.jsx'
+import { SpatialDrawingControls } from './SpatialDrawingControls.jsx'
 
 
-export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof = false, routeSegments = [], inspectUnderground = false, selectedSymbolId, onSelectSymbol, onMoveSymbol, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, presentations = {}, navigationMode = 'select' }) {
+export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof = false, routeSegments = [], inspectUnderground = false, selectedSymbolId, onSelectSymbol, onMoveSymbol, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, presentations = {}, navigationMode = 'select',drawing=null,floorElevation=null }) {
   const [draggingDevice, setDraggingDevice] = useState(false)
   const [pendingTarget,setPendingTarget] = useState(null)
   const handleDragging = useCallback(dragging => {
@@ -18,7 +20,7 @@ export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof =
     if (dragging) setPendingTarget(null)
   }, [])
   const activeTarget = pendingTarget && pendingTarget.scene === scene && pendingTarget.selectionId === selectedWireId
-    && navigationMode !== 'pan' ? pendingTarget : null
+    && navigationMode !== 'pan' && !drawing?.active ? pendingTarget : null
   const [freeFly, setFreeFly] = useState(true)
   const fallback = (
     <div className="viewer-3d-webgl-fallback" role="status">
@@ -46,17 +48,19 @@ export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof =
         <directionalLight position={[10, 20, 10]} intensity={1.7} color="#fff7e9" />
         <directionalLight position={[-10, 8, -5]} intensity={.45} color="#dce6ee" />
         {scene && <CanonicalScene scene={scene} showRoof={showRoof} selectedSymbolId={selectedSymbolId} onSelectSymbol={onSelectSymbol}
-          onMoveSymbol={onMoveSymbol} onDraggingChange={setDraggingDevice} />}
+          onMoveSymbol={drawing?.active?undefined:onMoveSymbol} onDraggingChange={setDraggingDevice} />}
         <RouteLines3D segments={[...routeSegments, ...routeDeviceConnectors(scene,routeSegments)]} inspectUnderground={inspectUnderground} />
         {scene?.previewOnly && <DraftWiring3D scene={scene} selectedWireId={selectedWireId} onSelectWire={onSelectWire}
-          onMoveWirePoint={onMoveWirePoint} onFindWireDeviceSnap={onFindWireDeviceSnap}
+          onMoveWirePoint={drawing?.active?undefined:onMoveWirePoint} onFindWireDeviceSnap={onFindWireDeviceSnap}
           onChooseWireTarget={(wireId,index,choices) => setPendingTarget({scene,selectionId:selectedWireId,wireId,index,choices})}
           onDraggingChange={handleDragging} />}
         {activeTarget?.highlighted?.displayPosition && <WiringTargetMarker3D position={activeTarget.highlighted.displayPosition} />}
+        {drawing?.enabled&&<DrawingPlane3D scene={scene} drawing={drawing} tool={navigationMode} />}
         <gridHelper position={scene?.target} args={[scene ? scene.extent * 2 : 20, 20, '#b1b9b9', '#dee1de']} />
         <ViewerCameraControls ref={controlsRef} onReady={onControlsReady} target={scene?.target} extent={scene?.extent}
-          enabled={!draggingDevice && !activeTarget} panMode={navigationMode === 'pan'} freeFly={freeFly} />
+          enabled={!draggingDevice && !activeTarget && !drawing?.enabled} panMode={navigationMode === 'pan'} freeFly={freeFly} />
       </Canvas>
+      {drawing&&<SpatialDrawingControls drawing={drawing} tool={navigationMode} floorElevation={floorElevation} presentations={presentations} />}
       {activeTarget && <WiringTargetChooser choices={activeTarget.choices} presentations={presentations}
         onPreview={highlighted=>setPendingTarget(current=>current?{...current,highlighted}:null)}
         onCancel={()=>setPendingTarget(null)} onChoose={target=>{

@@ -266,3 +266,61 @@ Full suites are not claimed. Live 2D chooser/undo/redo and discard/reload pass;
 live 3D interaction is BLOCKED by this browser's WebGL fallback, despite passing
 handle/chooser unit tests. Original images, reviews and estimates were not
 written; the verification tab was closed and stash@{0} retained.
+
+## Work-plane drawing checkpoint 3a (October 19)
+
+3D wall and multi-point wiring drawing now call the existing shared wall and
+connected-wire commands. The first slice is deliberately a horizontal plane on
+the current calibrated source view, not arbitrary screen coordinates or a new
+Three.js-only model. Camera rays intersect that explicit plane; parallel,
+backwards and out-of-page hits reject. Camera/device dragging and competing 2D
+keyboard handlers are suspended appropriately while drawing. Finish, cancel,
+Backspace and existing undo/redo preserve transaction boundaries. Failed commits
+retain the stroke for correction. Tool/session changes invalidate pending targets.
+
+Wiring requires an explicit service elevation from the project datum and uses
+compatible path/device magnets, including the overlap chooser. An optional
+designer-entered circuit ID is not inferred from nearby circuits. One continuous
+path retains manual provenance, vertex/terminal identities and one stored route
+elevation; existing shared projection/measurement handles supported device drops.
+Walls use the configured floor plane and explicit height/thickness, optional
+exact metric length, axis constraints and existing corner/edge splitting. Existing
+opening and mounted-device protections remain in the shared commands.
+
+Missing approved scale or floor elevation blocks this measured 3D drawing slice,
+not 2D editing. Preview dimensions and illustrative mounting presets never become
+stored measurements. Per-vertex varying elevations, arbitrary sloped/multi-floor
+drawing and off-center electrical pins are not added to the current review
+contract. Final quantities still require existing measurement and approval gates.
+
+Correction to the previous browser assessment: the accessibility tree exposes
+the canvas fallback text even while WebGL renders successfully. That text was
+not evidence of WebGL failure. Visual inspection at this checkpoint confirms a
+rendered live scene; checkpoint-2 live 3D drag remained NOT TESTED, rather than
+proven blocked. The live uncalibrated plan correctly disables measured drawing.
+
+In an isolated synthetic browser fixture (10 pixels/metre, floor datum 12 m),
+actual pointer clicks created one three-point wire at datum 14.8 m and two
+connected 5 m walls of thickness 0.2 m/height 3 m. JSON save/reload and 2D/3D
+switching retained identical records, one wire and two walls; both wall lengths
+computed as 5 m from the displayed source coordinates and the known fixture
+scale. Whole-wire undo/redo passed. This fixture is editor proof, not independent
+detection ground truth, a production project save or a final live BOM result.
+Separate restricted-database tests verify real review endpoint persistence,
+invalid-elevation rejection, unchanged candidate/history and permission contracts.
+No real project calibration, upload, review or estimate was written. BDO remains
+paused; unrelated changes and stash@{0} are retained. Checkpoints 4–7 and remaining
+measurement integration are not completed by this slice.
+
+Scoped verification: 116 selected frontend tests, 61 restricted-database backend
+tests, scoped lint and production build pass. The live synthetic fixture also
+cancelled an actual two-point 3D stroke with Escape and retained identical
+committed geometry. Large bundle and existing backend deprecation warnings
+remain. Full suites and a measured production-project BOM are NOT TESTED. The
+API/table contract is unchanged (49/34 in the clean snapshot; unrelated mixed
+worktree additions excluded). Browser fixtures/screenshots are local diagnostics,
+not shipped application routes or new project records; temporary fixture source
+is retained under ignored `tmp/` after the verification tab is closed.
+The 3D canvas stays mounted after a drawing session even if undo removes the
+last shape, so that operation does not discard the camera/viewport. A focused
+empty-scene regression covers that lifecycle in addition to keyboard ownership.

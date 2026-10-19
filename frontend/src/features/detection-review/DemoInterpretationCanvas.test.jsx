@@ -25,6 +25,17 @@ vi.mock('react-konva', () => {
 import { DemoInterpretationCanvas } from './DemoInterpretationCanvas.jsx'
 
 describe('DemoInterpretationCanvas', () => {
+  it('does not consume editing shortcuts while the 3D view owns keyboard input',()=>{
+    const remove=vi.fn(),change=vi.fn()
+    const {rerender}=render(<DemoInterpretationCanvas active={false} width={400} height={300} draft={mockDraft}
+      selected={{kind:'wall',id:'wall-0001'}} tool="draw" onDeleteWall={remove} onToolChange={change} />)
+    fireEvent.keyDown(window,{key:'Delete'});fireEvent.keyDown(window,{key:'Escape'})
+    expect(remove).not.toHaveBeenCalled();expect(change).not.toHaveBeenCalled()
+    rerender(<DemoInterpretationCanvas active width={400} height={300} draft={mockDraft}
+      selected={{kind:'wall',id:'wall-0001'}} tool="select" onDeleteWall={remove} />)
+    fireEvent.keyDown(window,{key:'Delete'})
+    expect(remove).toHaveBeenCalledWith('wall-0001')
+  })
   afterEach(() => {
     cleanup()
     vi.clearAllMocks()

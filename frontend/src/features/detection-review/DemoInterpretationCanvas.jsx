@@ -29,6 +29,7 @@ function roomPoints(boundary) {
 }
 
 export function DemoInterpretationCanvas({
+  active = true,
   image,
   width,
   height,
@@ -125,6 +126,7 @@ export function DemoInterpretationCanvas({
 
   // Keyboard handlers: Escape to cancel drawing, Delete/Backspace to delete wall, Shift constraint, Space to pan
   useEffect(() => {
+    if (!active) return
     function handleKeyDown(event) {
       if (event.key === 'Escape' && activeWireTarget) {
         event.preventDefault()
@@ -194,7 +196,7 @@ export function DemoInterpretationCanvas({
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [drawingStart, regionAnchor, tool, selected, onDeleteWall, onDeleteSymbol, onToolChange, wireVertices, editingSession,onAddWire,onDrawingPendingChange,activeWireTarget])
+  }, [active,drawingStart, regionAnchor, tool, selected, onDeleteWall, onDeleteSymbol, onToolChange, wireVertices, editingSession,onAddWire,onDrawingPendingChange,activeWireTarget])
 
   // Map pointer to source-image pixels via stage inverse transform
   function getSourcePoint(stage) {

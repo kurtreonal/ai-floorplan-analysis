@@ -418,6 +418,14 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     editWireNetwork(current => moveConnectedWirePoint(current, id, index, point, plane.width_pixels, plane.height_pixels, snap, presentations))
   }
 
+  function handleAddWire(points,vertices=points.map(point=>({point})),attributes={}) {
+    if (saveState.status === 'saving' || draft.wirings.length >= 2048) return false
+    try { pushDraft(commitWiringPath(draft,vertices,{...withWiringMethod({},drawingWireMethod),...attributes}),{autoConnect:false}) }
+    catch(error){setSaveState({status:'error',message:error.message});return false}
+    setLayers((current) => ({ ...current, wirings: true }))
+    return true
+  }
+
   function editWireNetwork(edit) {
     if (saveState.status === 'saving') return
     try { pushDraft(edit(draft)) }
@@ -561,7 +569,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       <ViewportFrame title="Plan workspace" status={saveState.message || 'Shared editable draft · save before leaving'}>
       <div className="studio-review-headerbar">
         <div className="studio-review-mode" role="group" aria-label="Preview mode">
-          <Button variant={view === '2d' ? 'secondary' : 'ghost'} size="sm" aria-pressed={view === '2d'} aria-label="2D · Review rooms" onClick={() => setView('2d')}><Layers3 aria-hidden="true" />Edit 2D</Button>
+          <Button variant={view === '2d' ? 'secondary' : 'ghost'} size="sm" disabled={drawingPending} aria-pressed={view === '2d'} aria-label="2D · Review rooms" onClick={() => setView('2d')}><Layers3 aria-hidden="true" />Edit 2D</Button>
           <Button variant={view === '3d' ? 'secondary' : 'ghost'} size="sm" disabled={drawingPending} aria-pressed={view === '3d'} aria-label="3D · Draft preview" onClick={() => { setOpened3d(true); setView('3d'); setTool('select') }}><Box aria-hidden="true" />View 3D</Button>
         </div>
         <Button variant="ghost" size="icon" aria-label="Undo" disabled={historyIndex <= 0} onClick={handleUndo}><Undo2 aria-hidden="true" /></Button>
@@ -577,7 +585,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       }} onAdd={addEntity}
         layers={layers} setLayers={setLayers} opacity={blueprintOpacity} onOpacityChange={setBlueprintOpacity}
         wiringControls={<>
-          {view === '2d' && tool === 'wire' && <fieldset className="studio-wire-method">
+          {tool === 'wire' && <fieldset className="studio-wire-method" disabled={drawingPending}>
             <legend>New wiring</legend>
             <label>Wiring placement<select value={drawingWireMethod} onChange={event => setDrawingWireMethod(event.target.value)}>
               <option value="concealed_in_ceiling">Ceiling</option>
@@ -596,7 +604,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         <p className="demo-next-step">
           {view === '2d'
             ? tool === 'wire' ? 'Click to add points. Enter or Done finishes; Backspace removes the last point. Escape finishes without the preview.' : tool === 'draw' ? 'Click A → B → C to keep drawing walls. Escape finishes; Shift keeps it straight.' : 'Click a device or wire to edit. Save when ready.'
-            : 'Click a wire and drag its blue points. Devices and wiring share the same 2D/3D draft.'}
+            : ['wire','draw'].includes(tool) ? 'Configure the work plane, then click points. Done finishes; Escape cancels the active stroke.' : 'Click a wire and drag its blue points. Devices and wiring share the same 2D/3D draft.'}
         </p>
 
         <div hidden={view !== '2d'}>
@@ -605,6 +613,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               <p role="status">No walls detected. Click &quot;Draw Walls&quot; above to draw walls directly over the blueprint.</p>
             )}
             <DemoInterpretationCanvas
+              active={view==='2d'}
               image={state.image}
               width={plane.width_pixels}
               height={plane.height_pixels}
@@ -637,12 +646,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               presentations={presentations}
               blueprintOpacity={blueprintOpacity}
               onDrawingPendingChange={setDrawingPending}
-              onAddWire={(points,vertices=points.map(point=>({point}))) => {
-                if (saveState.status === 'saving' || draft.wirings.length >= 2048) return false
-                try { pushDraft(commitWiringPath(draft,vertices,withWiringMethod({},drawingWireMethod)),{autoConnect:false}) }
-                catch(error){setSaveState({status:'error',message:error.message});return false}
-                setLayers((current) => ({ ...current, wirings: true }))
-              }}
+              onAddWire={handleAddWire}
             />
         </div>
         {(opened3d || view === '3d') && <div hidden={view !== '3d'}>
@@ -650,7 +654,9 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             <DraftRoomPreview draft={draft} layers={layers} width={plane.width_pixels} height={plane.height_pixels} projectId={projectId}
               routingContext={state.record.routing_context}
               presentations={presentations} selected={selected} onSelect={setSelected} onUpdateSymbol={updateSymbol}
-              onMoveWirePoint={moveWirePoint} navigationMode={tool} />
+              onMoveWirePoint={moveWirePoint} navigationMode={view==='3d'?tool:'select'}
+              onAddWire={handleAddWire} onAddWall={handleAddWall} onToolChange={setTool} editingSession={editingSession}
+              onDrawingPendingChange={setDrawingPending} drawingWireMethod={drawingWireMethod} drawingDisabled={saveState.status==='saving'} />
           </Suspense>
         </div>}
         {staleRoomsWarning && (

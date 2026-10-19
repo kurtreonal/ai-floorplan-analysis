@@ -19,6 +19,10 @@ export function ReviewToolRail({ view, tool, onToolChange, onAdd, layers, setLay
         {['draw','move','delete'].includes(tool)&&<Button variant="outline" onClick={()=>onToolChange('select')}>Done editing walls</Button>}
       </>}
     </div>
+    {view === '3d' && <div className="studio-rail-tools">
+      <Button variant="ghost" className="studio-rail-tool" aria-pressed={tool === 'draw'} onClick={() => onToolChange('draw')}><Pencil aria-hidden="true" />Draw walls</Button>
+      <Button variant="ghost" className="studio-rail-tool" aria-pressed={tool === 'wire'} onClick={() => onToolChange('wire')}><Pencil aria-hidden="true" />Draw wiring</Button>
+    </div>}
     {wiringControls && <div className="studio-rail-wiring">{wiringControls}</div>}
     <fieldset className="studio-rail-layers"><legend><Layers size={14} aria-hidden="true" />Visible layers</legend>
       {[["walls", 'Architecture'], ['wallFootprints', 'Wall footprints'], ['rooms', 'Rooms'], ['symbols', 'Devices'], ['names', 'Device names'], ['dimensions', 'Wall measurements'], ['source', 'Original blueprint']].map(([key, label]) =>

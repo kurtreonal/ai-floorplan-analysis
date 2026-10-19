@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Canvas } from '@react-three/fiber'
 import { Viewer3DCanvas } from './Viewer3DCanvas.jsx'
 import { DraftWiring3D } from './DraftWiring3D.jsx'
+import { ViewerCameraControls } from './ViewerCameraControls.jsx'
+import { DrawingPlane3D } from './DrawingPlane3D.jsx'
 
 vi.mock('@react-three/fiber', () => ({
   Canvas: vi.fn(({ fallback, frameloop }) => (
@@ -20,6 +22,15 @@ afterEach(() => {
 })
 
 describe('3D canvas foundation', () => {
+  it('keeps navigation disabled while drawing on an explicit plane, without adding a separate route model',()=>{
+    const drawing={active:true,enabled:true,vertices:[],settings:{elevation:'2.8',circuit:'',axis:'none'},config:{sceneElevation:2.8},setOption:vi.fn(),finish:vi.fn(),cancel:vi.fn()}
+    render(<Viewer3DCanvas scene={{previewOnly:true,target:[0,0,0],extent:10,elevation:0,draftWires:[]}} drawing={drawing} navigationMode="wire" />)
+    expect(screen.getByRole('group',{name:'3D drawing controls'})).toBeTruthy()
+    const children=Canvas.mock.calls.at(-1)[0].children
+    expect(children.find(c=>c?.type===DrawingPlane3D).props.drawing).toBe(drawing)
+    expect(children.find(c=>c?.type===ViewerCameraControls).props.enabled).toBe(false)
+    expect(children.find(c=>c?.type===DraftWiring3D).props.onMoveWirePoint).toBeUndefined()
+  })
   it('uses demand rendering, a bounded camera, and a visible WebGL fallback', () => {
     render(<Viewer3DCanvas controlsRef={{ current: null }} onControlsReady={vi.fn()} />)
     expect(screen.getByRole('region', { name: '3D viewer' })).toBeTruthy()

@@ -35,7 +35,9 @@ vi.mock('./DemoInterpretationCanvas.jsx', () => ({
     {tool === 'place-device' && placementPresentation && <button onClick={() => onPlaceDevice({x:200,y:150})}>Place preview device</button>}
   </div>,
 }))
-vi.mock('./DraftRoomPreview.jsx', () => ({ DraftRoomPreview: ({ draft, onSelect, onUpdateSymbol, onMoveWirePoint }) => <div data-testid="draft-3d">{draft.rooms.length} draft rooms
+vi.mock('./DraftRoomPreview.jsx', () => ({ DraftRoomPreview: ({ draft, onSelect, onUpdateSymbol, onMoveWirePoint, onAddWire, onAddWall, navigationMode }) => <div data-testid="draft-3d">{draft.rooms.length} draft rooms
+  {navigationMode==='wire'&&<button onClick={()=>onAddWire([{x:20,y:30},{x:80,y:30},{x:80,y:90}],undefined,{elevation_meters:14.8})}>Finish 3D stroke</button>}
+  {navigationMode==='draw'&&<button onClick={()=>onAddWall({start:{x:120,y:30},end:{x:150,y:70},height_meters:3,thickness_meters:.2,estimated_thickness_pixels:2})}>Commit 3D wall</button>}
   <button onClick={() => onSelect({ kind: 'symbol', id: 'symbol-0001' })}>Inspect 3D device</button>
   <button onClick={() => onUpdateSymbol({ ...draft.symbols[0], center: { x: 85, y: 65 } })}>Move 3D device</button>
   <button onClick={()=>onMoveWirePoint('segment-0002',0,{x:50,y:20},{kind:'junction',wireId:'segment-0001',segmentIndex:0,t:.5,point:{x:50,y:20}})}>Drag endpoint onto path</button>
@@ -89,6 +91,32 @@ afterEach(() => {
 
 
 describe('unified demo interpretation review', () => {
+  it('saves 3D strokes through shared commands, undo/redo and reload without approving source geometry',async()=>{
+    const view=render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
+    fireEvent.click(await screen.findByRole('button',{name:'3D · Draft preview'}))
+    await screen.findByTestId('draft-3d')
+    const flyout=screen.queryByRole('button',{name:'Wiring',exact:true})
+    if(flyout)fireEvent.click(flyout)
+    fireEvent.click(screen.getByRole('button',{name:'Draw wiring'}))
+    fireEvent.click(screen.getByText('Finish 3D stroke'))
+    fireEvent.click(screen.getByRole('button',{name:'Undo'}))
+    fireEvent.click(screen.getByRole('button',{name:'Redo'}))
+    fireEvent.click(screen.getByRole('button',{name:/^Draw walls$/i}))
+    fireEvent.click(screen.getByText('Commit 3D wall'))
+    fireEvent.click(screen.getByRole('button',{name:'Save unfinished draft'}))
+    await screen.findByText('Review revision 1 saved.')
+    const body=saveDemoReview.mock.calls[0][1]
+    expect(body).toMatchObject({review_complete:false,approved_for_layout:false,
+      observed_wiring:[{elevation_meters:14.8,path_origin:'manual',points:[{x:20,y:30},{x:80,y:30},{x:80,y:90}]}]})
+    expect(body.walls.at(-1)).toMatchObject({start:{x:120,y:30},end:{x:150,y:70},height_meters:3,thickness_meters:.2})
+    const saved=await saveDemoReview.mock.results[0].value
+    fetchDemoInterpretation.mockResolvedValue(saved)
+    view.unmount()
+    render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
+    fireEvent.change(await screen.findByLabelText('Select item'),{target:{value:'wiring:manual-wiring-0001'}})
+    expect(screen.getByLabelText('Wire height (m, optional)').value).toBe('14.8')
+    expect(saveDemoLayout).not.toHaveBeenCalled()
+  })
   it('opens detection diagnostics explicitly while unfinished saving keeps uncertainty',async()=>{
     const source=structuredClone(record)
     source.candidate.payload.walls.truncated=true

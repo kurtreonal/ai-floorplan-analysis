@@ -6,8 +6,10 @@ import { Button } from '../../components/ui/button.jsx'
 import { clampDevicePoint } from './devicePresentation.js'
 import { findWireEndpointSnap, findWireEndpointTargets } from './wirePathSnap.js'
 import { useUserPreferences } from '../settings/useUserPreferences.js'
+import { useSpatialDrawing } from '../viewer-3d/useSpatialDrawing.js'
 
-export function DraftRoomPreview({ draft, layers, width, height, projectId, presentations, selected, onSelect, onUpdateSymbol, onMoveWirePoint, navigationMode, routingContext }) {
+export function DraftRoomPreview({ draft, layers, width, height, projectId, presentations, selected, onSelect, onUpdateSymbol, onMoveWirePoint, navigationMode, routingContext,
+  onAddWire,onAddWall,onDrawingPendingChange,onToolChange,editingSession=0,drawingWireMethod='concealed_in_ceiling',drawingDisabled=false }) {
   const { preferences } = useUserPreferences()
   const controlsRef = useRef(null)
   const [ready, setReady] = useState(false)
@@ -27,6 +29,9 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
     }
     catch (error) { return { error: error.message } }
   }, [draft, layers, width, height, wallHeight, longSideMeters, presentations, routingContext,measuredLength,confirmedScale])
+  const drawing=useSpatialDrawing({tool:navigationMode,scene:result.scene,draft,context:routingContext,presentations,
+    method:drawingWireMethod,editingSession,onAddWire,onAddWall,onPendingChange:onDrawingPendingChange,onToolChange,
+    snapping:preferences.snapping,disabled:drawingDisabled})
   const connectedDevices = new Set(result.scene?.draftWires.flatMap(w => w.deviceIds) || [])
   const unmeasuredDevices = new Set(result.scene?.draftWires.flatMap(w => w.unmeasuredDeviceIds) || [])
   return <section aria-label="Unfinished room preview">
@@ -45,9 +50,10 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
       <label>Wall height (m)<input type="number" min="2" max="6" step="0.1" value={wallHeight} onChange={(event) => { const value = Number(event.target.value); if (value >= 2 && value <= 6) setWallHeight(value) }} /></label>
       <p>Adjust the page length to match your drawing. Defaults: 600 × 1200 mm troffers, 180 mm walls. Mounting presets use each floor's finished-floor reference, not an assumed floor-to-floor height. Roof cover is illustrative.</p>
     </details>
-    {result.error ? <p role="alert">{result.error}</p> : result.scene.rooms.length === 0 && result.scene.walls.length === 0 && result.scene.symbols.length === 0 && result.scene.draftWires.length === 0 ? <p>No geometry yet. Return to 2D to add walls, devices or wiring.</p> :
+    {result.error ? <p role="alert">{result.error}</p> : !drawing.active && !drawing.keepCanvas && result.scene.rooms.length === 0 && result.scene.walls.length === 0 && result.scene.symbols.length === 0 && result.scene.draftWires.length === 0 ? <p>No geometry yet. Return to 2D to add walls, devices or wiring.</p> :
       <Viewer3DErrorBoundary projectId={projectId} title="Draft 3D preview unavailable">
         <Viewer3DCanvas scene={result.scene} showRoof={showRoof} controlsRef={controlsRef} onControlsReady={setReady}
+          drawing={drawing} floorElevation={routingContext?.floor_elevation_meters}
           selectedWireId={selected?.kind === 'wiring' ? selected.id : null}
           onSelectWire={(id) => onSelect?.({ kind: 'wiring', id })}
           presentations={presentations}
