@@ -576,3 +576,89 @@ create symlinks. No failed gate is silently counted as a pass. Live `/health`
 returns 200; the existing three-column project list and its new Trash section
 load with the original uploads intact. The unrelated live worktree and
 stash@{0} remain preserved; scoped commits do not publish those edits.
+
+### Checkpoint 7a — explicit DWG unavailability and feature audit (2026-10-20)
+
+Full DWG import is BLOCKED, not implemented or advertised by this checkpoint.
+The live application contains no DWG converter/parser integration. Local PATH
+and the standard program directories have no ODA File Converter/LibreDWG tool;
+the backend environment has no ezdxf. AutoCAD 2026 Core Console and vendor DWG
+samples are installed, but its licence for unattended application/server use
+has not been established. It was not launched and no application/security
+settings or licences were changed. No new dependency or hosted converter is used.
+
+Primary-source checks: ODA's [converter page](https://www.opendesign.com/guestfiles/oda_file_converter)
+documents Windows x64 and directory-based conversion. Its
+[licensing FAQ](https://www.opendesign.com/faq/question/what-are-oda-viewer-and-oda-file-converter)
+limits non-member use to non-commercial applications; a free download alone is
+not deployment/redistribution clearance for VED. The MIT-licensed
+[ezdxf parser](https://ezdxf.readthedocs.io/en/stable/introduction.html) supports
+DXF through R2018, but does not itself convert DWG. Its
+[ODA adapter](https://ezdxf.readthedocs.io/en/stable/addons/odafc.html) invokes an
+external application and warns about executable-path security. No default
+PATH-discovered converter, automatic download or licence acceptance is added.
+
+The smallest safe application change gives a DWG-specific actionable error:
+export PDF/PNG/JPEG in the CAD application or have an administrator configure a
+licensed local importer. The server returns DWG_IMPORT_UNAVAILABLE (503), after
+normal authorization and before storing a file/plan/job. The client shows the
+same message on DWG selection. The supported-format map and file picker still
+advertise only JPEG/PNG/PDF. A DWG-looking header in a synthetic test is *not*
+content validation or conversion proof. A real installed vendor sample was
+selected in the live browser and rejected locally; it was not uploaded or run.
+
+Converter isolation, bounded job cancellation/timeouts, real DWG integrity
+validation, model/paper-space selection, block/unit transforms, preview/vector
+extraction, and font/entity/XREF handling remain BLOCKED/NOT TESTED. No units,
+device classes, geometry or measured quantities are inferred from CAD names.
+The deployment choice/licence confirmation was requested; unrelated verification
+continued without waiting or resuming BDO work.
+
+#### Cross-feature verification (not a universal completion claim)
+
+| Area | Evidence and status |
+| --- | --- |
+| Authentication / authorization | PASS for existing session, owner/Admin isolation and synthetic OIDC/role contracts. No new provider consent/login or live permission change. |
+| Measurement / routing / BOM | PASS for known lengths, shared branches, independent coincident routes, slopes, configured drops, explicit risers, calibration transforms, current/stale routing and price snapshots. Live unscaled geometry remains source pixels; incomplete drops and unmatched materials stay unpriced. Full transformed-view UI calibration, configurable allowances/purchase rounding and physical-path identity through every editing command remain earlier documented integration limitations. |
+| Magnets / overlapping devices | PASS in geometry/interaction tests for explicit targets, split/join, crossing separation, distinct terminal identities, compatibility, undo/redo and save/reload. No new manual correction of a private plan. |
+| 2D / 3D editing | PASS for committed work-plane, camera, wall/wire commands and canonical round trips in controlled tests. The live 3D scene renders; selection and workspace-only fullscreen/Escape preserve the no-unsaved-changes state. No real measured drawing was fabricated; arbitrary varying-elevation/sloped editing is not added. |
+| Search / navigation / settings | PASS in committed frontend tests. Live device-ID search, independent wiring/wall queries, selected-wall 3D highlight, panel reopening and browser-preserving fullscreen were exercised without saved edits. |
+| Project intake / lifecycle | PASS for nullable legacy fields, no-blueprint creation, phone/date/Other validation, concurrency, Trash/restore, cancelled late writes, original/review/estimate preservation. Previous disposable browser proof remains applicable; no real plan is removed. |
+| Client pricing / estimate / export | PASS for CSV/XLSX safety, explicit mappings/pack units, project ownership, immutable versions, known totals, client/calculated quantity separation, historical estimates and CSV exports. Prior checkpoint-6 browser proof remains applicable because these source files are unchanged. PDF report generation is not present in the current API and is not established by this audit. |
+| DWG | PASS only for safe unavailable handling. Full support is BLOCKED on an approved local conversion deployment and implementation/fixture validation. |
+
+The clean checkpoint snapshot passes all 847 frontend tests and full source
+lint (zero errors/warnings), plus 1,041 backend tests and 356 subtests across 72
+explicit feature modules. Two file-symlink checks are NOT TESTED on this host.
+The backend selection deliberately excludes BDO recognition, annotation,
+training/model evaluation and private-drawing tuning; it is not the full backend
+suite. The broad gate exposed an omitted checkpoint-5B project OpenAPI
+expectation; the four already-existing lifecycle operations were added to that
+test. No production API/geometry change was needed for that failure.
+
+The mixed live worktree is **FAIL**, not release-ready merely because the clean
+snapshot passes: 1,020 backend tests pass and 21 fail due to the unrelated
+uncommitted POST /bom/preview changing the expected 59-operation contract to
+60. All 356 subtests pass; the same two symlink checks skip. Its complete
+frontend run has 820 passing / 39 failing tests (859 total). Failures span the
+changed viewport/sidebar, canvas/inspector controls and mocks, editor/viewer and
+project table. Many assert removed controls; a saved-route provenance expectation
+also remains unresolved and is not dismissed as cosmetic. Live source lint has
+six errors in the untracked DeviceMeshCatalog.jsx (unused React import, mixed
+exports and conditional hooks). That catalog is not imported by current source,
+but must be corrected before integration. These unrelated edits were preserved,
+not reverted, staged or silently made passing by changing expectations.
+
+Both clean and mixed-live production builds pass with existing large-chunk
+warnings; backend deprecation warnings remain. Runtime browser proof confirms a
+rendered scene, not electrical approval or complete wiring recognition. No real
+scale, elevation, review, estimate, upload or original is written. Database/table
+contract remains 36 tables / 59 clean operations (60 mixed live); no schema
+expansion in 7a. Original-file and data fingerprints, restricted verification
+cleanup, preserved stash and scoped publication state are checked at handoff.
+BDO detection/annotation/training remains paused. Reboot durability and complete
+future-upload recognition are not established by these feature checks.
+Both live analysis auto-start flags remain disabled, as at the prior checkpoint.
+New live analysis requests can queue but will not be automatically consumed in
+this state; automatic live upload-to-recognition is therefore PAUSED/NOT TESTED,
+not counted as a working end-to-end feature. No real upload was submitted.

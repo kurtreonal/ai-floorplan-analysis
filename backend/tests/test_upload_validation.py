@@ -80,6 +80,15 @@ class UploadValidationTests(unittest.TestCase):
         self.assertEqual((result.width, result.height), (12, 8))
         self.assertIsNone(result.page_count)
 
+    def test_dwg_is_explicitly_unavailable_not_claimed_valid_or_supported(self):
+        from app.services.upload_validation import FORMAT_BY_EXTENSION
+        for name in ('plan.dwg', 'PLAN.DWG'):
+            with self.subTest(name=name):
+                error = self.assert_validation_error('DWG_IMPORT_UNAVAILABLE', filename=name,
+                    mime_type='application/acad', content=b'AC1032-not-a-real-drawing')
+                self.assertIn('licensed local DWG importer', error.message)
+        self.assertNotIn('.dwg', FORMAT_BY_EXTENSION)
+
     def test_valid_jpeg_and_uppercase_extensions_pass(self) -> None:
         jpeg_result = self.validate(filename="floor-plan.jpeg")
         uppercase_result = self.validate(filename="FLOOR-PLAN.JPG")

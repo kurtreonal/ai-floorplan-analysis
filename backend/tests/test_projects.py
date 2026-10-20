@@ -768,6 +768,10 @@ class ProjectCreationTests(unittest.TestCase):
                 "/api/projects/{project_id}/estimates/{estimate_id}/bom.csv": {"get"},
                 "/api/projects/{project_id}": {"get", "patch"},
                 "/api/projects/{project_id}/floor-plans": {"get", "post"},
+                "/api/projects/{project_id}/floor-plan-trash": {"get"},
+                "/api/projects/{project_id}/floor-plans/{floor_plan_id}/lifecycle": {"get"},
+                "/api/projects/{project_id}/floor-plans/{floor_plan_id}": {"delete"},
+                "/api/projects/{project_id}/floor-plans/{floor_plan_id}/restore": {"post"},
                 "/api/projects/{project_id}/floors": {"get", "post"},
                 "/api/projects/{project_id}/floors/{project_floor_id}/layouts": {
                     "get",
