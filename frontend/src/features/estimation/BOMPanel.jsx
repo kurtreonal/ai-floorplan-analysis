@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { fetchBOM, downloadBOM, downloadDraftBOM } from '../../api/bom.js'
 import { Button } from '../../components/ui/button.jsx'
 import { legendDescription } from '../../api/legendChoices.js'
 import { orderNamed, orderList } from '../../utils/listOrder.js'
+import { ClientPricingPanel } from './ClientPricingPanel.jsx'
 
 const pricingLabels = {
   electrical_assignment_required:'Electrical assignment required',
@@ -18,11 +19,14 @@ function money(value, currency) {
   return value == null ? '—' : new Intl.NumberFormat(undefined, {style:'currency',currency}).format(Number(value))
 }
 
-export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, refreshKey = 0 }) {
+export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, refreshKey = 0, designer = false }) {
   const [loadedBOM, setBOM] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [calculation, setCalculation] = useState({})
+  const [pricingState, setPricingState] = useState('unopened')
+  const [pricingRevision, setPricingRevision] = useState(0)
+  const pricingPanelId = useId()
   const download = useRef(null)
   const sourceKey = `${projectId}:${floorPlanId || ''}:${processingJobId || ''}`
   const chosen = calculation.sourceKey === sourceKey ? calculation : {}
@@ -34,7 +38,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
   const customWidthMm = paperChoice === 'CUSTOM' ? chosen.custom?.width : undefined
   const customHeightMm = paperChoice === 'CUSTOM' ? chosen.custom?.height : undefined
   const paperSize = paperChoice === 'CUSTOM' ? (chosen.custom ? 'CUSTOM' : undefined) : paperChoice || undefined
-  const scopeKey = `${sourceKey}:${refreshKey}:${conduitMaterialId || ''}:${wireMaterialId || ''}:${paperSize || ''}:${customWidthMm || ''}:${customHeightMm || ''}:${wireMetersPerUnit ?? ''}:${wirePricePerMeter ?? ''}`
+  const scopeKey = `${sourceKey}:${refreshKey}:${pricingRevision}:${conduitMaterialId || ''}:${wireMaterialId || ''}:${paperSize || ''}:${customWidthMm || ''}:${customHeightMm || ''}:${wireMetersPerUnit ?? ''}:${wirePricePerMeter ?? ''}`
   const bom = loadedBOM?.scopeKey === scopeKey ? loadedBOM.value : null
   const planningOptions = loadedBOM?.sourceKey === sourceKey ? loadedBOM.value?.planning : null
   useEffect(() => {
@@ -59,8 +63,14 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
     finally { if (!controller.signal.aborted) setBusy(false) }
   }
   return <section className="studio-panel studio-bom-panel" aria-labelledby="bom-title"><div className="studio-panel-heading"><h2 id="bom-title">Bill of materials</h2>
-    <div><Button variant="outline" disabled={!bom?.planning || busy} onClick={() => exportSnapshot(true)}>Download draft BOM</Button>
+    <div>{floorPlanId && designer && <Button variant="outline" aria-expanded={pricingState === 'open'} aria-controls={pricingPanelId}
+      onClick={() => setPricingState(current => current === 'open' ? 'closed' : 'open')}>Upload BOM pricing</Button>}
+    <Button variant="outline" disabled={!bom?.planning || busy} onClick={() => exportSnapshot(true)}>Download draft BOM</Button>
     {!floorPlanId && <Button variant="outline" disabled={!estimate || busy} onClick={() => exportSnapshot()}>{busy ? 'Downloading…' : 'Download saved BOM'}</Button>}</div></div>
+    {floorPlanId && designer && pricingState !== 'unopened' && <div id={pricingPanelId} hidden={pricingState !== 'open'}>
+      <ClientPricingPanel key={projectId} projectId={projectId} designer defaultImportOpen disabled={busy}
+        onApplied={() => setPricingRevision(current => current + 1)} />
+    </div>}
     {planningOptions && <div className="studio-material-binding studio-bom-settings">
       <div className="studio-bom-setting"><h3>Conduit</h3>
       <label className="studio-field">Conduit product for this draft

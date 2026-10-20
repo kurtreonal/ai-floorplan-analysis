@@ -6,7 +6,8 @@ import './clientPricing.css'
 const emptyMapping = { kind: 'price_list', sheet: '', header_row: 1, columns: {}, currency: '' }
 const fieldLabels = { name: 'Description', code: 'Code', specification: 'Specification', unit: 'Purchase unit', unit_price: 'Unit price', currency: 'Currency', quantity: 'Client quantity' }
 
-export function ClientPricingPanel({ projectId, designer, disabled = false, estimateId, onVersionsChange, onApplied }) {
+export function ClientPricingPanel({ projectId, designer, disabled = false, estimateId, onVersionsChange, onApplied, defaultImportOpen = false }) {
+  const [importOpen, setImportOpen] = useState(defaultImportOpen)
   const [file, setFile] = useState(null)
   const [mapping, setMapping] = useState(emptyMapping)
   const [inspection, setInspection] = useState(null)
@@ -99,7 +100,7 @@ export function ClientPricingPanel({ projectId, designer, disabled = false, esti
   return <section className="studio-panel client-pricing" aria-labelledby="client-pricing-title">
     <div className="studio-panel-heading"><h2 id="client-pricing-title">Client BOM pricing</h2></div>
     <p>Upload the client’s materials and prices. Confirmed mappings automatically price matching draft items. Client quantities remain separate from calculated quantities.</p>
-    {designer && <details><summary>Upload BOM pricing (XLSX or CSV)</summary>
+    {designer && <details open={importOpen} onToggle={event => setImportOpen(event.currentTarget.open)}><summary>Upload BOM pricing (XLSX or CSV)</summary>
       <fieldset disabled={locked}><legend className="sr-only">Client import</legend>
         <label>Client file<input type="file" accept=".xlsx,.csv" onChange={event => {
           setFile(event.target.files?.[0] || null); setMapping(emptyMapping); setInspection(null); setProposal(null); setChoices({}); invalidate(); setError('')

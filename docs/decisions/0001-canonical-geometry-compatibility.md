@@ -697,3 +697,17 @@ estimate or supplier quote. No real project import or price is saved during this
 verification. All 35 existing table fingerprints, 44 uploaded files and stash@{0}
 remain unchanged. Unrelated pending canvas/BOM preview edits are preserved and
 excluded from the scoped checkpoint.
+
+Workspace placement follow-up: the plan workspace BOM now exposes **Upload BOM
+pricing** beside **Download draft BOM** for authenticated Designers. It opens the
+same import component inline with its file controls expanded. Close/reopen retains
+pending input; a confirmed import invalidates only the BOM price request, retaining
+calculator choices and the canvas draft, viewport and undo state. Session role is
+passed through the protected shell; backend Designer/ownership checks are unchanged.
+The Cost estimation page retains its existing separate import without duplication.
+PASS: 31 focused frontend tests, scoped lint and isolated production build (existing
+large-chunk warnings). Browser PASS on the actual workspace: button visible, file
+input opens, close/reopen works, editor remains “No unsaved changes.” No real import,
+geometry save or backend mutation is performed. No backend/API/schema changes;
+backend/full-suite gates are not rerun for this placement-only change. Unrelated
+pending auth/canvas/BOM-preview edits and stash@{0} are excluded and preserved.

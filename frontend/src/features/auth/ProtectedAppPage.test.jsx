@@ -9,6 +9,9 @@ const viewerState = vi.hoisted(() => ({ shouldThrow: false }))
 
 vi.mock('../projects/ProjectDashboardPage.jsx', () => ({ ProjectDashboardPage: () => <p>dashboard</p> }))
 vi.mock('../projects/ProjectDetailPage.jsx', () => ({ ProjectDetailPage: () => <p>project</p> }))
+vi.mock('../detection-review/DemoInterpretationPage.jsx', () => ({
+  DemoInterpretationPage: ({session}) => <p>workspace role {session?.user?.role}</p>,
+}))
 vi.mock('../detection-review/DetectionReviewPage.jsx', () => ({
   DetectionReviewPage: ({ projectId, floorPlanId, processingJobId }) => (
     <p>review {projectId}/{floorPlanId}/{processingJobId}</p>
@@ -31,6 +34,12 @@ afterEach(() => {
 })
 
 describe('protected app detection route', () => {
+  it('passes the authenticated role to the workspace for BOM pricing controls', () => {
+    const session = { status:'authenticated',user:{display_name:'Designer',role:'DESIGNER'},
+      signOut:vi.fn(),retry:vi.fn(),error:null,isSigningOut:false }
+    render(<ProtectedAppPage route="/app/projects/15/floors/2/floor-plans/81/interpretation/103" session={session} />)
+    expect(screen.getByText('workspace role DESIGNER')).toBeTruthy()
+  })
   it('renders the detection review view with parsed identifiers', () => {
     const session = {
       status: 'authenticated', user: { display_name: 'Designer', role: 'DESIGNER' },

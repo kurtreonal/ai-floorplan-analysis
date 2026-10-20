@@ -152,7 +152,7 @@ function NumericPoint({ label, value, onChange }) {
 }
 
 
-export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId, processingJobId }) {
+export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId, processingJobId, session }) {
   const [state, setState] = useState({ status: 'loading', record: null, image: null, legends: [], error: null })
   const [draft, setDraft] = useState(null)
   const [selected, setSelected] = useState(null)
@@ -815,6 +815,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       </details>
       <section className="studio-review-estimation" aria-label="Plan estimation">
         <BOMPanel projectId={projectId} floorPlanId={floorPlanId} processingJobId={state.record.processing_job_id}
+          designer={session?.user?.role === 'DESIGNER'}
           refreshKey={state.record.review?.revision_number || 0} />
       </section>
     </article>

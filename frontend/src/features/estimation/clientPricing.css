@@ -1,4 +1,5 @@
 .client-pricing { margin: 1rem 0; min-width: 0; }
+.studio-bom-panel > .studio-panel-heading > div { display: flex; flex-wrap: wrap; gap: .5rem; }
 .client-pricing details { margin: .75rem 0; }
 .client-pricing summary { cursor: pointer; padding: .5rem 0; }
 .client-pricing fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }

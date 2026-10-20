@@ -90,6 +90,7 @@ export function ProtectedAppPage({ route, session }) {
             projectFloorId={projectRoute.projectFloorId}
             floorPlanId={projectRoute.floorPlanId}
             processingJobId={projectRoute.processingJobId}
+            session={session}
           />
         )}
         {projectRoute.view === 'layout' && (
