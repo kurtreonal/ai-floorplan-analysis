@@ -835,3 +835,29 @@ and mounted-wall deletion NOT TESTED; those have focused command/API tests.
 No backend schema/route change in this checkpoint; originals, historical versions,
 unrelated edits and stash are preserved. BDO remains paused. Checkpoints 3–5 are
 not part of this deletion checkpoint.
+
+### UX checkpoint 3 — searchable Add Device picker
+
+Add Device now searches the approved, active placement choices, separately from
+placed-object search. Display names, existing alias records, family/type text,
+class codes and supplied catalog-code/specification metadata are searchable;
+gang/outlet distinctions remain visible in the full description. The current
+legend API exposes ID/class/name only, so absent catalog-code or semantic-alias
+metadata is not invented. Existing source-tag aliases and their exact selected
+record IDs are retained. Wiring legends, annotations and inactive entries remain
+unavailable. Search never rewrites a class or adds catalog data.
+
+The compact native list supports keyboard navigation: Down transfers focus from
+search, arrows choose, Enter returns to pointer-follow placement and Escape
+cancels. Clear and empty-result states are explicit. Filtering does not silently
+change the pending selected class. The existing canvas magnet/placement/save
+commands are reused unchanged. Styling follows the existing workspace tokens.
+
+PASS: 67 focused frontend tests, scoped lint and clean build; existing Konva DOM
+double and chunk-size warnings remain. Browser PASS: search approved entries,
+choose by keyboard, click to place, save revision 3 and reload the same named
+manual device. Alias/variant/inactive edge cases have component tests, not an
+independent catalog-quality evaluation. Backend/full suites NOT TESTED again for
+this frontend-only checkpoint. No route/table change (62/37 clean; mixed API 63).
+Originals, unrelated edits and stash are preserved; BDO remains paused. The
+synthetic fixture remains active only for the following 3D gesture checks.

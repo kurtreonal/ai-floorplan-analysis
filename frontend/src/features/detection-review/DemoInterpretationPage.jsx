@@ -31,13 +31,14 @@ import { Button } from '../../components/ui/button.jsx'
 import { Box, Layers3, Undo2, Redo2, Save, Trash2 } from 'lucide-react'
 import { ReviewToolRail } from './ReviewToolRail.jsx'
 import { orderNamed } from '../../utils/listOrder.js'
-import { autoLinkSymbols, clampDevicePoint, describeReviewSymbol, deviceFamily, relatedSymbolIds, updateRelatedSymbols, reviewGeometryPayload } from './devicePresentation.js'
+import { autoLinkSymbols, clampDevicePoint, describeReviewSymbol, relatedSymbolIds, updateRelatedSymbols, reviewGeometryPayload } from './devicePresentation.js'
 import { addConnectedWall, moveConnectedWall, deleteConnectedWall } from './wallDrawing.js'
 import { WallDimensionEditor } from './WallDimensionEditor.jsx'
 import { pastedDevice, useDeviceClipboard } from './useDeviceClipboard.js'
 import { WireJunctionEditor } from './WireJunctionEditor.jsx'
 import { WiringRecoveryStatus } from './WiringRecoveryStatus.jsx'
 import { updateWireNetwork, applyWireEdits } from './wireJunctions.js'
+import { DevicePicker } from './DevicePicker.jsx'
 import { commitWiringPath } from './connectedWiring.js'
 import { ObjectBrowser } from './ObjectBrowser.jsx'
 
@@ -673,9 +674,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
 
       <WorkspacePanel title="Item inspector" className="demo-review-tools" labelledBy="demo-tools-title">
         {tool === 'place-device' && <fieldset><legend>Add device</legend>
-          <label>Device to place<select aria-label="Device to place" value={placementLegendId} onChange={event => setPlacementLegendId(event.target.value)}>
-            <option value="">Choose a device</option>{groupLegendChoices(state.legends).filter(l => l.is_active !== false && !isWiringLegend(l) && deviceFamily(l.displayName) !== 'annotation').map(l => <option key={l.id} value={l.id}>{l.displayName}</option>)}
-          </select></label>
+          <DevicePicker legends={state.legends} value={placementLegendId} onChange={setPlacementLegendId}
+            disabled={saveState.status==='saving'} onCancel={()=>setTool('select')} />
           <p>Click the blueprint to place one device. Escape cancels. Touching wire endpoints connect automatically.</p>
           <Button variant="outline" onClick={() => setTool('select')}>Cancel placement</Button>
         </fieldset>}
