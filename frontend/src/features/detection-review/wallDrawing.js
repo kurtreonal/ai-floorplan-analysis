@@ -110,12 +110,14 @@ export function moveConnectedWall(draft,wall,options={}) {
   return next
 }
 
-export function deleteConnectedWall(draft,id) {
+export function deleteConnectedWall(draft,id,{detachMounted=false}={}) {
   const wall=draft.walls.find(w=>w.id===id)
-  if((draft.symbols||[]).some(s=>active(s)&&s.mounting_wall_id===id)||
+  if((!detachMounted&&(draft.symbols||[]).some(s=>active(s)&&s.mounting_wall_id===id))||
     [...(draft.openings||[]),...(draft.source_openings||[])].some(o=>active(o)&&o.points?.every(p=>onWall(p,wall))))
     throw new Error('Detach or reassign mounted devices/openings before deleting their wall.')
-  return {...draft,walls:draft.walls.map(w=>w.id===id?{...w,disposition:'rejected'}:w)}
+  return {...draft,walls:draft.walls.map(w=>w.id===id?{...w,disposition:'rejected'}:w),
+    symbols:(draft.symbols||[]).map(s=>active(s)&&s.mounting_wall_id===id ? {...s,mounting_wall_id:null,
+      disposition:s.disposition==='added'?'added':'corrected'} : s)}
 }
 
 export function resizeWall(wall,length) {

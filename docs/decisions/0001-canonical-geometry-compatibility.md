@@ -801,3 +801,37 @@ Deployment verified all 36 pre-existing table counts/checksums unchanged. Origin
 unrelated pending edits and stash@{0} are preserved. BDO remains paused. This
 checkpoint does not implement UX checkpoints 2–5 (deletion, Add Device search,
 3D gestures, compact Plan Information); those remain separate responsibilities.
+
+### UX checkpoint 2 — active-view deletion
+
+Rejected items remain only in draft/save history for undo and audit. The 2D wall
+loop now excludes them before creating stroke/hit nodes, matching the existing
+3D draft builder. Object search, counts, the all-item selector and numeric wiring
+editor exclude deleted records and expose no restore/deletion markers. Mutations
+clear deleted selections, and stale selections cannot open their properties.
+Undo/redo restores the prior complete snapshot rather than editing tombstones.
+
+Numeric wire removal now uses the same junction-aware commands as canvas edits,
+clearing orphaned junction contacts while preserving surviving branches. Device
+detachment retains other devices/paths and invalidates affected generated proposal
+assignments. An explicit **Keep devices in place & delete wall** action clears
+mounting-wall bindings without moving/deleting devices or changing wire geometry;
+openings still require reassignment before wall deletion. Unsaved edits visibly
+separate saved BOM data (or identify a live preview when that pending feature is
+present); deleted entities are already excluded by the shared server takeoff.
+
+PASS: clean checkpoint 128 frontend tests (2D/3D filtering, search, junctions,
+device dependencies, mounting, undo/redo and reload), 67 backend tests (review
+persistence, inherited deletions, BOM and pricing), scoped lint and build.
+The obsolete schema/operation-count assertion is updated for checkpoint 1's 37
+tables/62 operations; mixed worktree has the separate uncommitted 63rd operation.
+Build retains existing chunk warnings; Konva DOM test doubles emit known prop
+warnings and backend tests emit two deprecations. Full unrelated suites NOT TESTED.
+Browser PASS in a disposable synthetic project: delete one of two devices, see
+one active search item and BOM quantity one; undo restores both, redo removes it,
+save/reload retains removal. Delete a wall, see four active walls instead of five,
+no stale inspector, and verify the synchronized 3D scene. Browser wire deletion
+and mounted-wall deletion NOT TESTED; those have focused command/API tests.
+No backend schema/route change in this checkpoint; originals, historical versions,
+unrelated edits and stash are preserved. BDO remains paused. Checkpoints 3–5 are
+not part of this deletion checkpoint.

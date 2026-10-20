@@ -426,7 +426,7 @@ export function DemoInterpretationCanvas({
 
           {/* Walls Layer */}
           <Layer>
-            {layers.walls && draft.walls.map((wall) => {
+            {layers.walls && draft.walls.filter(wall => wall.disposition !== 'rejected').map((wall) => {
               const isSelected = selected?.kind === 'wall' && selected?.id === wall.id
               const isRejected = wall.disposition === 'rejected'
               const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y)

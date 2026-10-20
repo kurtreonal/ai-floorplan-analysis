@@ -193,6 +193,8 @@ export function moveConnectedDevice(draft, symbol, snap = null) {
 
 export function detachDevice(draft, symbolId) {
   return {...draft, wirings: (draft.wirings || []).map(w => ({...w,
+    ...(w.origin === 'generated' && (w.source_device_id === symbolId || w.target_kind === 'device' && w.target_id === symbolId)
+      ? {assignment_state:'unresolved'} : {}),
     auto_connect_disabled_endpoints: [...new Set([...(w.auto_connect_disabled_endpoints || []),
       ...(w.device_attachments || []).filter(a => a.symbol_id === symbolId).map(a => a.point_index)])],
     device_attachments: (w.device_attachments || []).filter(a => a.symbol_id !== symbolId)}))}

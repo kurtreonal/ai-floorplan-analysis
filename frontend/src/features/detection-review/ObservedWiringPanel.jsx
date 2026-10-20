@@ -47,13 +47,12 @@ export function ObservedWiringPanel({ wires, width, height, onChange, visible, o
     {view === '3d' && <p role="note">Draft heights are illustrative unless set. Click wiring to edit its points; saving does not approve a circuit.</p>}
     <details><summary>Edit wiring points</summary>
     <p>Drawing traces and automatic A* drafts stay separate. Drafts are not measured circuits.</p>
-    {orderNamed(wires, wire => wire.id).map((wire) => <details key={wire.id}>
-      <summary>{wire.id} · {wire.disposition === 'rejected' ? 'removed' : wire.origin === 'generated' ? 'Automatic A* draft' : wire.path_origin === 'manual' ? 'Drawn path' : 'Drawing trace'}</summary>
+    {orderNamed(wires.filter(wire => wire.disposition !== 'rejected'), wire => wire.id).map((wire) => <details key={wire.id}>
+      <summary>{wire.id} · {wire.origin === 'generated' ? 'Automatic A* draft' : wire.path_origin === 'manual' ? 'Drawn path' : 'Drawing trace'}</summary>
       <WireEditor key={JSON.stringify(wire)} wire={wire} width={width} height={height}
         disabled={disabled}
         onApply={(updated) => onChange(wires.map((item) => item.id === wire.id ? updated : item))}
         onRemove={() => onChange(wires.map((item) => item.id === wire.id ? { ...item, disposition: 'rejected', ...(item.origin === 'generated' ? {suppression_reason:null} : {}) } : item))} />
-      {wire.disposition === 'rejected' && <Button variant="outline" disabled={disabled} onClick={() => onChange(wires.map(item => item.id === wire.id ? { ...item, disposition: 'corrected', ...(item.origin === 'generated' ? {suppression_reason:null} : {}) } : item))}>Restore wiring</Button>}
     </details>)}
     <Button variant="outline" disabled={disabled || adding || wires.length >= 2048} onClick={() => { setAdding(true); setError(null) }}>Add visible wiring trace</Button>
     {error && <p role="alert">{error}</p>}

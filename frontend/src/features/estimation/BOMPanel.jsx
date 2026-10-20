@@ -69,6 +69,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
       onClick={() => setPricingState(current => current === 'open' ? 'closed' : 'open')}>Upload BOM pricing</Button>}
     <Button variant="outline" disabled={!bom?.planning || busy} onClick={() => exportSnapshot(true)}>Download draft BOM</Button>
     {!floorPlanId && <Button variant="outline" disabled={!estimate || busy} onClick={() => exportSnapshot()}>{busy ? 'Downloading…' : 'Download saved BOM'}</Button>}</div></div>
+    {unsaved && <p role="status">Unsaved changes: this BOM shows saved items. Save to refresh quantities.</p>}
     {floorPlanId && designer && pricingState !== 'unopened' && <div id={pricingPanelId} hidden={pricingState !== 'open'}>
       <ClientPricingPanel key={projectId} projectId={projectId} designer defaultImportOpen disabled={busy}
         onApplied={() => setPricingRevision(current => current + 1)} />

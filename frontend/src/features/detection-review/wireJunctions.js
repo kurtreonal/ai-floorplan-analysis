@@ -156,3 +156,12 @@ export function updateWireNetwork(draft, replacement) {
   return validateResult({ ...draft, wirings: draft.wirings.map(w => w.id === replacement.id ? replacement
     : ids.has(w.id) && keys.length ? changed({...w,...patch}) : w) })
 }
+
+// The optional numeric editor uses the same dependency-aware commands as the canvas.
+export function applyWireEdits(draft, wires) {
+  return wires.reduce((next, wire) => {
+    const original = draft.wirings.find(item => item.id === wire.id)
+    return original === wire ? next : original ? updateWireNetwork(next, wire)
+      : validateResult({...next,wirings:[...next.wirings,wire]})
+  },draft)
+}

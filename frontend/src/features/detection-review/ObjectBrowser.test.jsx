@@ -34,7 +34,7 @@ it.each(['outlet', 'receptacle', 's-10', ' ＯＵＴＬＥＴ  s-10 '])('searche
   expect(results('Devices').getByRole('button', { name: /s-10/ })).toBeTruthy()
 })
 
-it('retains an independent query per tab and searches circuit, name and ID including removed items', () => {
+it('retains independent queries but excludes deleted items from search and active counts', () => {
   const select = vi.fn(), before = structuredClone(draft)
   render(<ObjectBrowser draft={draft} presentations={presentations} onSelect={select} />)
   fireEvent.change(screen.getByLabelText('Search devices'), { target: { value: 'duplex' } })
@@ -45,8 +45,10 @@ it('retains an independent query per tab and searches circuit, name and ID inclu
     expect(results('Wiring').getByRole('button').textContent).toContain('w-1')
   }
   fireEvent.change(screen.getByLabelText('Search wiring'), { target: { value: 'lp-3' } })
-  fireEvent.click(results('Wiring').getByRole('button', { name: /Removed/ }))
-  expect(select).toHaveBeenCalledExactlyOnceWith({ kind: 'wiring', id: 'w-2' })
+  expect(results('Wiring').queryByRole('button')).toBeNull()
+  expect(screen.getByText('0 of 1')).toBeTruthy()
+  expect(screen.getByText('No matching wiring.')).toBeTruthy()
+  expect(select).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('tab', { name: 'Walls' }))
   for (const query of ['partition', 'wall-1']) {
     fireEvent.change(screen.getByLabelText('Search walls'), { target: { value: query } })

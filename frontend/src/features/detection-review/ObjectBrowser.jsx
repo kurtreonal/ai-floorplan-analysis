@@ -16,7 +16,7 @@ export function ObjectBrowser({ draft, presentations = {}, selected, onSelect, d
   const searchInput = useRef(null)
   const [kind, setKind] = useState('symbol')
   const [queries, setQueries] = useState({ symbol: '', wiring: '', wall: '' })
-  const rows = useMemo(() => orderNamed((draft[`${kind}s`] ?? []).map(item => {
+  const rows = useMemo(() => orderNamed((draft[`${kind}s`] ?? []).filter(item => item.disposition !== 'rejected').map(item => {
     const presentation = kind === 'symbol' ? presentations[item.id] : null
     const label = presentation?.label || item.name || item.label || (kind === 'symbol' ? 'Device' : kind === 'wiring' ? 'Wire' : 'Wall')
     const circuit = kind === 'wiring' ? item.circuit_id ?? item.circuit_ref : null
@@ -61,7 +61,7 @@ export function ObjectBrowser({ draft, presentations = {}, selected, onSelect, d
             <button type="button" disabled={disabled} aria-pressed={selected?.kind === kind && selected.id === item.id}
               onClick={() => onSelect({ kind, id: item.id })}>
               <span>{label}</span>
-              <small>{item.id}{circuit != null && circuit !== '' ? ` · ${circuit}` : ''}{item.disposition === 'rejected' ? ' · Removed' : ''}</small>
+              <small>{item.id}{circuit != null && circuit !== '' ? ` · ${circuit}` : ''}</small>
             </button>
           </li>)}
         </ul>

@@ -5,6 +5,14 @@ import { ObservedWiringPanel } from './ObservedWiringPanel.jsx'
 
 afterEach(cleanup)
 describe('visible wiring review', () => {
+  it('removes deleted rows and selection controls while keeping the internal record for undo',()=>{
+    const wire={id:'segment-0001',points:[{x:10,y:20},{x:30,y:20}],disposition:'rejected',completeness:'partial'}
+    render(<ObservedWiringPanel wires={[wire]} width={400} height={300} onChange={vi.fn()} visible onVisibilityChange={vi.fn()} view="2d" />)
+    expect(screen.getByText('Wiring · 0 paths')).toBeTruthy()
+    expect(screen.queryByText(/segment-0001/)).toBeNull()
+    expect(screen.queryByText(/Restore/)).toBeNull()
+    expect(wire.disposition).toBe('rejected')
+  })
   it('creates only explicit valid source traces, unresolved with no invented elevation', () => {
     const onChange = vi.fn(), onVisibilityChange = vi.fn()
     render(<ObservedWiringPanel wires={[]} width={400} height={300} onChange={onChange} visible={false} onVisibilityChange={onVisibilityChange} view="2d" />)

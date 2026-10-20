@@ -10,6 +10,12 @@ vi.mock('./ClientPricingPanel.jsx', () => ({ ClientPricingPanel: vi.fn(({onAppli
   <button onClick={() => onApplied({id:7})}>Apply confirmed client import</button>
 </div>) }))
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals() })
+it('explicitly separates saved BOM quantities when the canvas has unsaved edits',async()=>{
+  fetchBOM.mockResolvedValue({planning:{items:[],priced_subtotals:{},unpriced_items:0,basis:[],conduit_materials:[]}})
+  render(<BOMPanel projectId={1} floorPlanId={3} unsaved />)
+  expect(screen.getByText('Unsaved changes: this BOM shows saved items. Save to refresh quantities.')).toBeTruthy()
+  expect(await screen.findByText('No saved devices or wiring yet.')).toBeTruthy()
+})
 it('opens workspace pricing inline and refreshes takeoff without discarding canvas or calculator choices', async () => {
   fetchBOM.mockResolvedValue({planning:{items:[],priced_subtotals:{},unpriced_items:0,basis:[],
     conduit_materials:[{id:9,name:'Conduit',unit:'meter',unit_price:10,currency:'PHP'}]}})

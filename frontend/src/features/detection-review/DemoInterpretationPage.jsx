@@ -37,7 +37,7 @@ import { WallDimensionEditor } from './WallDimensionEditor.jsx'
 import { pastedDevice, useDeviceClipboard } from './useDeviceClipboard.js'
 import { WireJunctionEditor } from './WireJunctionEditor.jsx'
 import { WiringRecoveryStatus } from './WiringRecoveryStatus.jsx'
-import { updateWireNetwork } from './wireJunctions.js'
+import { updateWireNetwork, applyWireEdits } from './wireJunctions.js'
 import { commitWiringPath } from './connectedWiring.js'
 import { ObjectBrowser } from './ObjectBrowser.jsx'
 
@@ -279,7 +279,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
 
 
   const selectedEntity = useMemo(() => (
-    selected && draft ? draft[`${selected.kind}s`].find((item) => item.id === selected.id) : null
+    selected && draft ? draft[`${selected.kind}s`].find((item) => item.id === selected.id && item.disposition !== 'rejected') : null
   ), [draft, selected])
   const presentations = useMemo(() => draft && state.record
     ? Object.fromEntries(draft.symbols.map((symbol) => [symbol.id, describeReviewSymbol(symbol, state.record, state.legends)])) : {},
@@ -295,6 +295,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
 
   function pushDraft(nextDraft, { wallChange = false, autoConnect = true } = {}) {
     if (saveState.status === 'saving' || nextDraft === draft) return
+    if (selected && !nextDraft[`${selected.kind}s`]?.some(item => item.id === selected.id && item.disposition !== 'rejected')) setSelected(null)
     const nextPresentations = Object.fromEntries(nextDraft.symbols.map(s => [s.id, describeReviewSymbol(s,state.record,state.legends)]))
     if (autoConnect) nextDraft = connectTouchingWireEndpoints(nextDraft,nextPresentations)
     setHistory((prev) => [...prev.slice(0, historyIndex + 1), nextDraft])
@@ -357,10 +358,11 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     }catch(error){setSaveState({status:'error',message:error.message})}
   }
 
-  function handleDeleteWall(wallId) {
+  function handleDeleteWall(wallId, detachMounted = false) {
     if(saveState.status==='saving')return
-    try {pushDraft(deleteConnectedWall(draft,wallId), { wallChange: true })}
-    catch(error){setSaveState({status:'error',message:error.message});return}
+    try {pushDraft(deleteConnectedWall(draft,wallId,{detachMounted}), { wallChange: true })}
+    catch(error){setSelected({kind:'wall',id:wallId});setSaveState({status:'error',message:error.message});return}
+    if (detachMounted) setSaveState({status:'idle',message:'Devices kept in place. Select a device to choose its new mounting wall.'})
     if (selected?.id === wallId) setSelected(null)
   }
 
@@ -597,7 +599,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           <ObservedWiringPanel wires={draft.wirings} width={plane.width_pixels} height={plane.height_pixels}
             disabled={saveState.status === 'saving'}
             view={view} visible={Boolean(layers.wirings)} onVisibilityChange={(visible) => setLayers((current) => ({ ...current, wirings: visible }))}
-            onChange={(wirings) => { if (saveState.status !== 'saving') pushDraft({ ...draft, wirings }) }} />
+            onChange={wirings => editWireNetwork(current => applyWireEdits(current,wirings))} />
         </>} />
       </WorkspacePanel>
       <section className="demo-preview-workspace" aria-label="Wall-first workspace">
@@ -692,7 +694,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             if (event.target.value) setLayers((current) => ({ ...current, [`${kind}s`]: true }))
           }}>
             <option value="">Choose an item</option>
-            {orderNamed(['symbol', 'wall', 'room', 'wiring'].flatMap(kind => draft[`${kind}s`].map(item => ({kind,item,id:`${kind}:${item.id}`,label:kind === 'symbol' ? presentations[item.id].label : item.name || `${kind} ${item.id}`}))), choice => choice.label).map(({kind,item,id,label}) => <option key={id} value={`${kind}:${item.id}`}>{label}{item.origin === 'generated' ? ' · Automatic A* draft' : ''}{item.disposition === 'rejected' ? ' · removed' : ''}</option>)}
+            {orderNamed(['symbol', 'wall', 'room', 'wiring'].flatMap(kind => draft[`${kind}s`].filter(item=>item.disposition!=='rejected').map(item => ({kind,item,id:`${kind}:${item.id}`,label:kind === 'symbol' ? presentations[item.id].label : item.name || `${kind} ${item.id}`}))), choice => choice.label).map(({kind,item,id,label}) => <option key={id} value={`${kind}:${item.id}`}>{label}{item.origin === 'generated' ? ' · Automatic A* draft' : ''}</option>)}
           </select>
         </label>
         </details>
@@ -703,7 +705,6 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             && draft.wirings.some(w => w.source_evidence_required)
             && !draft.wirings.some(w => w.disposition!=='rejected' && w.device_attachments?.some(a => a.symbol_id===selectedEntity.id))
             && <p role="note">No source-supported wire connection was resolved for this device. Edit its wiring; nearby lines are not electrical connections.</p>}
-          {selectedEntity.disposition === 'rejected' && <Button variant="outline" onClick={() => updateSelected({ ...selectedEntity, disposition: 'corrected' })}>Restore item</Button>}
           {selected.kind === 'wall' && (
             <>
               <WallDimensionEditor key={selectedEntity.id} wall={selectedEntity} pixelsPerMeter={state.record.routing_context?.pixels_per_meter}
@@ -711,6 +712,8 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               <NumericPoint label="Start point" value={selectedEntity.start} onChange={(start) => updateSelected({ ...selectedEntity, start })} />
               <NumericPoint label="End point" value={selectedEntity.end} onChange={(end) => updateSelected({ ...selectedEntity, end })} />
               <button type="button" className="btn btn-outline-danger" onClick={() => handleDeleteWall(selectedEntity.id)}>Delete wall</button>
+              {draft.symbols.some(s=>s.disposition!=='rejected' && s.mounting_wall_id===selectedEntity.id) &&
+                <Button variant="outline" onClick={()=>handleDeleteWall(selectedEntity.id,true)}>Keep devices in place & delete wall</Button>}
             </>
           )}
           {selected.kind === 'wiring' && <>
@@ -778,7 +781,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               <option value="">Not specified</option>{orderNamed(draft.walls.filter(w => w.disposition !== 'rejected'),w => w.id)
                 .map(w => <option key={w.id} value={w.id}>{w.id}</option>)}
             </select></label>
-            <Button variant="outline" disabled={!draft.wirings.some(w => (w.device_attachments || []).some(a => a.symbol_id === selectedEntity.id))}
+            <Button variant="outline" disabled={!draft.wirings.some(w => w.disposition!=='rejected' && (w.device_attachments || []).some(a => a.symbol_id === selectedEntity.id))}
               onClick={() => pushDraft(detachDevice(draft,selectedEntity.id))}>Detach from wiring</Button>
             <label>Custom device unit price (PHP, optional)<input type="number" min="0" max="1000000000" step="0.01"
               value={selectedEntity.custom_unit_price ?? ''} onChange={event => {

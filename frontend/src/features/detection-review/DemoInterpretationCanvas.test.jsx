@@ -25,6 +25,15 @@ vi.mock('react-konva', () => {
 import { DemoInterpretationCanvas } from './DemoInterpretationCanvas.jsx'
 
 describe('DemoInterpretationCanvas', () => {
+  it('does not render or leave hit targets for deleted walls, even with stale selection',()=>{
+    const before=structuredClone(mockDraft)
+    const {container}=render(<DemoInterpretationCanvas width={400} height={300} draft={mockDraft}
+      layers={{walls:true,symbols:false,rooms:false,source:false}} selected={{kind:'wall',id:'wall-0002'}} tool="select" />)
+    expect(container.querySelector('[name="wall-centerline-wall-0001"]')).not.toBeNull()
+    expect(container.querySelector('[name="wall-centerline-wall-0002"]')).toBeNull()
+    expect(container.querySelector('[name="wall-description-wall-0002"]')).toBeNull()
+    expect(mockDraft).toEqual(before)
+  })
   it('does not consume editing shortcuts while the 3D view owns keyboard input',()=>{
     const remove=vi.fn(),change=vi.fn()
     const {rerender}=render(<DemoInterpretationCanvas active={false} width={400} height={300} draft={mockDraft}
