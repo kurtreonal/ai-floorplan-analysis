@@ -578,6 +578,10 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
                 ("put", "/api/projects/{project_id}/floors/{floor_id}/analysis-settings/elevation"),
                 ("put", "/api/projects/{project_id}/floors/{floor_id}/analysis-settings/pages/{page_id}/scale"),
                 ("get", "/api/admin/symbol-legends"),
+                ("get", "/api/projects/{project_id}/floor-plan-trash"),
+                ("get", "/api/projects/{project_id}/floor-plans/{floor_plan_id}/lifecycle"),
+                ("delete", "/api/projects/{project_id}/floor-plans/{floor_plan_id}"),
+                ("post", "/api/projects/{project_id}/floor-plans/{floor_plan_id}/restore"),
                 ("post", "/api/admin/symbol-legends"),
                 ("put", "/api/admin/symbol-legends/{legend_id}"),
                 ("post", "/api/processing-jobs/{job_id}/cancel"),
@@ -602,7 +606,7 @@ class ProcessingJobStatusApiTests(unittest.TestCase):
                 ("post", "/api/admin/symbol-legends/import-trained"),
             },
         )
-        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
+        self.assertEqual(len(operations), 59)  # Includes project pricing, intake and plan lifecycle.
 
 
 if __name__ == "__main__":

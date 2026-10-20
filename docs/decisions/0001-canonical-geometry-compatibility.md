@@ -512,3 +512,67 @@ remain passing. Existing large-chunk and backend deprecation warnings remain.
 The live legacy project page shows new fields as Not specified without changing
 its original metadata or uploads. The next separately verified ticket is 5B;
 its dependency review and deletion implementation have not started in this slice.
+
+### Checkpoint 5B — recoverable floor-plan removal (2026-10-20)
+
+Floor-plan removal is an append-only lifecycle transition, not a file, floor,
+review or layout DELETE. `floor_plan_lifecycle_events` records the plan, actor,
+action, monotonically increasing revision and unique request identity. Plans
+without events remain active without fabricated metadata. Owner Designers may
+preview the exact target, move it to Trash and restore it; Admin access remains
+read-only. Stale requests return 409. An uncertain request can be retried with
+the same identity, but cannot undo a later restore/removal (ABA protection).
+
+Removal locks floor -> plan -> jobs and atomically cancels unfinished jobs,
+active leases and unfinished selected pages. Completed pages/jobs remain history.
+Restore never requeues cancelled work. Job claims, heartbeats, completion and
+publication share the parent-first order. The legacy demo worker previously
+committed candidates before its final cancellation check; it now reuses the
+production publication fence. Production page initialization is also fenced
+after claim, preventing a late initializer from reviving cancelled page state.
+Artifact registration also rejects cancelled jobs after plan restore; legacy
+wall/symbol persistence checks the active plan.
+Review edits and canonical saves reject removed plans while retaining history.
+
+Active upload lists, calibration-page selection, current layouts, draft BOM and
+routing inputs exclude trashed plans explicitly. Historical current markers,
+canonical documents, original upload paths/bytes, review revisions and captured
+estimates are not rewritten. A saved route becomes stale when its current source
+plan is removed; restoring the unchanged source makes it current again. Saving
+a new current layout on another upload still supersedes the old marker normally.
+
+Deployment adds only the new table through the existing explicit prototype
+schema mechanism; no ALTER, Alembic, reset or HTTP-startup DDL. A private SQL
+backup precedes deployment. All 35 existing table counts/extended checksums and
+44 uploaded-file hashes matched before/after; history starts empty in the real
+database. The create operation is idempotent. Code rollback must preserve the
+history table: older code ignores lifecycle state and would show removed plans
+again, but no original or historical content is lost. This is recoverable
+removal, not a permanent purge or archival-retention policy.
+
+Browser verification used a disposable project in the restricted verification
+database: inspect target/consequences -> remove -> reload -> Trash -> restore ->
+reload, with the sibling upload unchanged. Exact synthetic rows and temporary
+servers were cleaned; screenshots/backups stay private and Git-ignored. No real
+plan was removed/restored and no BDO analysis/training was started. Both live
+workers remain disabled. The clean API has 59 operations and 36 tables (the
+mixed live API has 60 due to the unrelated uncommitted canvas-BOM operation).
+
+Focused checks cover owner/Admin access, request validation, stale/identical
+retry, rollback of partial cancellation, concurrent completion/removal, late
+candidate/artifact/page writes, restore without job resurrection, current-layout
+and route eligibility, unchanged review history and captured estimates. The
+existing upload integration test's obsolete recovery-v2 assertion also failed
+on the pre-change baseline; its assertion now names the already-implemented v3
+contract. No detector configuration/model or recovery algorithm changed here.
+Full-suite and reboot behavior are not established by this checkpoint; existing
+large frontend chunk and backend deprecation warnings remain. Checkpoint 7
+(local DWG dependency investigation) is next and has not started.
+
+The exact staged scope passes 422 selected backend tests plus 219 subtests and
+47 frontend tests, scoped lint and both isolated/live frontend production builds.
+One review-image symlink check is NOT TESTED because the environment cannot
+create symlinks. No failed gate is silently counted as a pass. Live `/health`
+returns 200; the existing three-column project list and its new Trash section
+load with the original uploads intact. The unrelated live worktree and
+stash@{0} remain preserved; scoped commits do not publish those edits.

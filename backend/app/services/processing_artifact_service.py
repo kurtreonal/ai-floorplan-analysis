@@ -7,6 +7,8 @@ from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
 from app.models import ProcessingArtifact, ProcessingJob
+from app.repositories.floor_plan_lifecycle_repository import lock_active_plan
+from app.repositories.processing_execution_repository import lock_processing_job, find_cancellation
 from app.models.processing_artifact import ARTIFACT_KINDS
 from app.repositories.processing_artifact_repository import (
     add_processing_artifact,
@@ -92,6 +94,12 @@ def register_processing_artifact(
     relative_path: str,
     mime_type: str,
 ) -> ProcessingArtifact:
+    if lock_active_plan(database_session, floor_plan_id) is None:
+        raise ProcessingArtifactError("The floor plan is no longer active.")
+    job = lock_processing_job(database_session, job_id=processing_job.id)
+    if (job is None or job.floor_plan_id != floor_plan_id or job.status == "cancelled"
+            or find_cancellation(database_session, job_id=job.id) is not None):
+        raise ProcessingArtifactError("The processing job no longer accepts artifacts.")
     if (
         artifact_kind not in ARTIFACT_KINDS
         or processing_job.id is None

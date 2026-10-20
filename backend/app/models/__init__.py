@@ -11,6 +11,7 @@ from app.models.detected_symbol import DetectedSymbol
 from app.models.detection_review import DetectionReview
 from app.models.dataset_approver_assignment import DatasetApproverAssignment
 from app.models.floor_plan import FloorPlan
+from app.models.floor_plan_lifecycle import FloorPlanLifecycleEvent
 from app.models.floor_plan_page import FloorPlanPage
 from app.models.floor_plan_source import FloorPlanSource
 from app.models.floor_plan_interpretation_run import FloorPlanInterpretationRun
@@ -49,6 +50,7 @@ __all__ = (
     "DetectionReview",
     "DatasetApproverAssignment",
     "FloorPlan",
+    "FloorPlanLifecycleEvent",
     "FloorPlanPage",
     "FloorPlanSource",
     "FloorPlanInterpretationRun",

@@ -153,6 +153,10 @@ def claim_processing_job(
         job = lock_processing_job(database_session, job_id=job_id)
         if job is None:
             _fail("PROCESSING_JOB_NOT_FOUND")
+        from app.repositories.floor_plan_lifecycle_repository import latest_event
+        lifecycle = latest_event(database_session, job.floor_plan_id, lock=True)
+        if lifecycle is not None and lifecycle.action == "removed":
+            _fail("PROCESSING_JOB_NOT_CLAIMABLE")
         attempt = active_attempt(database_session, job_id=job.id)
         if attempt is not None:
             if attempt.lease_expires_at > now:

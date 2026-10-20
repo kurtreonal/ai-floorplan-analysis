@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, load_only, raiseload
 
 from app.models import FloorPlan, Project, ProjectFloor
+from app.repositories.floor_plan_lifecycle_repository import active_floor_plan, lock_active_plan
 
 
 def add_floor_plan(
@@ -33,7 +34,7 @@ def list_floor_plans_by_project(
             ),
             raiseload("*"),
         )
-        .where(ProjectFloor.project_id == project_id)
+        .where(ProjectFloor.project_id == project_id, active_floor_plan())
         .order_by(
             ProjectFloor.sort_order.asc(),
             ProjectFloor.id.asc(),
@@ -53,7 +54,7 @@ def find_floor_plan_by_id(
     return database_session.scalar(
         select(FloorPlan)
         .options(load_only(FloorPlan.id), raiseload("*"))
-        .where(FloorPlan.id == floor_plan_id)
+        .where(FloorPlan.id == floor_plan_id, active_floor_plan())
         .execution_options(populate_existing=True)
     )
 
@@ -72,6 +73,7 @@ def find_floor_plan_by_id_and_owner(
         .where(
             FloorPlan.id == floor_plan_id,
             Project.owner_id == owner_id,
+            active_floor_plan(),
         )
         .execution_options(populate_existing=True)
     )
@@ -83,7 +85,7 @@ def find_owned_floor_plan_for_update(
     floor_plan_id: int,
     owner_id: int,
 ) -> FloorPlan | None:
-    return database_session.scalar(
+    plan = database_session.scalar(
         select(FloorPlan)
         .join(
             ProjectFloor,
@@ -95,6 +97,6 @@ def find_owned_floor_plan_for_update(
             FloorPlan.id == floor_plan_id,
             Project.owner_id == owner_id,
         )
-        .with_for_update()
         .execution_options(populate_existing=True)
     )
+    return lock_active_plan(database_session, floor_plan_id) if plan is not None else None

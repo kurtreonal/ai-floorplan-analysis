@@ -61,6 +61,7 @@ class SymbolLegendModelTests(unittest.TestCase):
             "detection_class_corrections",
             "detection_reviews",
             "floor_plans",
+            "floor_plan_lifecycle_events",
             "floor_plan_pages",
             "floor_plan_sources",
             "floor_plan_interpretation_reviews",
@@ -93,7 +94,7 @@ class SymbolLegendModelTests(unittest.TestCase):
         }
         self.assertEqual(set(Base.metadata.tables), expected)
         self.assertEqual(set(inspect(self.engine).get_table_names()), expected)
-        self.assertEqual(len(Base.metadata.tables), 35)
+        self.assertEqual(len(Base.metadata.tables), 36)
 
 
 class SymbolLegendApiTests(unittest.TestCase):
@@ -366,7 +367,7 @@ class SymbolLegendApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
+        self.assertEqual(len(operations), 59)  # Includes project pricing, intake and plan lifecycle.
         self.assertIn(("post", "/api/admin/symbol-legends/import-trained"), operations)
 
 

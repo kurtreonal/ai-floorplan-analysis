@@ -10,6 +10,7 @@ from app.models import FloorPlan, ProjectFloor, FloorPlanInterpretationRun, Layo
 from app.repositories.floor_plan_interpretation_repository import find_latest_review
 from app.services.demo_interpretation_service import _candidate, _review_document
 from app.services.wiring_legend_service import annotate_wiring
+from app.repositories.floor_plan_lifecycle_repository import active_floor_plan
 
 
 def draft_wiring_types(session, project_id):
@@ -22,7 +23,7 @@ def draft_wiring_types(session, project_id):
                      & (FloorPlanInterpretationRun.processing_job_id==latest.c.job_id))
         .join(FloorPlan,FloorPlan.id==FloorPlanInterpretationRun.floor_plan_id)
         .join(ProjectFloor,ProjectFloor.id==FloorPlan.project_floor_id)
-        .where(ProjectFloor.project_id==project_id).order_by(FloorPlanInterpretationRun.id))
+        .where(ProjectFloor.project_id==project_id, active_floor_plan()).order_by(FloorPlanInterpretationRun.id))
     values={}
     for run,floor_id in rows:
         review=find_latest_review(session,interpretation_run_id=run.id)
@@ -51,7 +52,7 @@ def reviewed_bom(session, user, project_id, *, floor_plan_id=None, processing_jo
     if paper_size != 'CUSTOM' and (custom_width_mm is not None or custom_height_mm is not None):
         raise ValueError('Custom dimensions require CUSTOM paper size.')
     if floor_plan_id is not None and session.scalar(select(FloorPlan.id).join(ProjectFloor)
-        .where(FloorPlan.id == floor_plan_id, ProjectFloor.project_id == project_id)) is None:
+        .where(FloorPlan.id == floor_plan_id, ProjectFloor.project_id == project_id, active_floor_plan())) is None:
         raise ProjectNotFoundError()
     if processing_job_id is not None and session.scalar(select(FloorPlanInterpretationRun.id).where(
         FloorPlanInterpretationRun.floor_plan_id == floor_plan_id,

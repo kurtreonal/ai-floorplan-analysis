@@ -32,9 +32,58 @@ from app.services.floor_plan_upload import (
 )
 from app.services.project_service import ProjectNotFoundError
 from app.services.upload_validation import UploadValidationError
+from app.schemas.floor_plan_lifecycle import FloorPlanLifecycleRequest, FloorPlanLifecycleResponse
+from app.services.floor_plan_lifecycle_service import (
+    FloorPlanLifecycleError, change_plan_state, inspect_plan, list_removed,
+)
 
 
 router = APIRouter(prefix="/api/projects", tags=["floor plans"])
+
+
+def _lifecycle_operation(session, operation, **kwargs):
+    try:
+        return operation(session, **kwargs)
+    except ProjectNotFoundError:
+        session.rollback()
+        raise _api_error(status_code=404, code="PROJECT_NOT_FOUND", message="The project was not found.") from None
+    except FloorPlanLifecycleError as error:
+        session.rollback()
+        raise _api_error(status_code=error.status, code=error.code, message=error.message) from None
+    except SQLAlchemyError:
+        session.rollback()
+        raise _api_error(status_code=503, code="FLOOR_PLAN_CHANGE_UNAVAILABLE",
+                         message="Floor-plan management is temporarily unavailable. Retry this request.") from None
+
+
+@router.get("/{project_id}/floor-plan-trash", response_model=list[FloorPlanLifecycleResponse])
+def removed_plans_endpoint(project_id: Annotated[int, Path(gt=0)],
+    current_user: User = Depends(require_roles("ADMIN", "DESIGNER")),
+    database_session: Session = Depends(get_db)):
+    return _lifecycle_operation(database_session, list_removed, current_user=current_user, project_id=project_id)
+
+
+@router.get("/{project_id}/floor-plans/{floor_plan_id}/lifecycle", response_model=FloorPlanLifecycleResponse)
+def inspect_plan_endpoint(project_id: Annotated[int, Path(gt=0)], floor_plan_id: Annotated[int, Path(gt=0)],
+    current_user: User = Depends(require_roles("ADMIN", "DESIGNER")), database_session: Session = Depends(get_db)):
+    return _lifecycle_operation(database_session, inspect_plan, current_user=current_user,
+                               project_id=project_id, floor_plan_id=floor_plan_id)
+
+
+@router.delete("/{project_id}/floor-plans/{floor_plan_id}", response_model=FloorPlanLifecycleResponse)
+def remove_plan_endpoint(project_id: Annotated[int, Path(gt=0)], floor_plan_id: Annotated[int, Path(gt=0)],
+    request: FloorPlanLifecycleRequest, current_user: User = Depends(require_roles("DESIGNER")),
+    database_session: Session = Depends(get_db)):
+    return _lifecycle_operation(database_session, change_plan_state, current_user=current_user,
+                               project_id=project_id, floor_plan_id=floor_plan_id, request=request, remove=True)
+
+
+@router.post("/{project_id}/floor-plans/{floor_plan_id}/restore", response_model=FloorPlanLifecycleResponse)
+def restore_plan_endpoint(project_id: Annotated[int, Path(gt=0)], floor_plan_id: Annotated[int, Path(gt=0)],
+    request: FloorPlanLifecycleRequest, current_user: User = Depends(require_roles("DESIGNER")),
+    database_session: Session = Depends(get_db)):
+    return _lifecycle_operation(database_session, change_plan_state, current_user=current_user,
+                               project_id=project_id, floor_plan_id=floor_plan_id, request=request, remove=False)
 
 UNSUPPORTED_MEDIA_CODES = frozenset(
     {

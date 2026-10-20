@@ -1,5 +1,6 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from app.repositories.floor_plan_lifecycle_repository import active_floor_plan
 
 from app.models import FloorElevationSetting, FloorPlan, FloorPlanPage, FloorPlanSource, PageScaleSetting, ProjectFloor
 
@@ -16,7 +17,7 @@ def list_pages(session: Session, floor_id: int):
         select(FloorPlanPage, FloorPlan.id)
         .join(FloorPlanSource, FloorPlanSource.id == FloorPlanPage.floor_plan_source_id)
         .join(FloorPlan, FloorPlan.id == FloorPlanSource.floor_plan_id)
-        .where(FloorPlan.project_floor_id == floor_id)
+        .where(FloorPlan.project_floor_id == floor_id, active_floor_plan())
         .order_by(FloorPlan.id, FloorPlanPage.page_number)
     ).all()
 

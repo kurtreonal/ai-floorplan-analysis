@@ -531,9 +531,15 @@ def process_interpretation_job(
     except ProcessingExecutionError as error:
         raise InterpretationProcessingError(error.code) from None
     try:
-        job = session.get(ProcessingJob, job_id)
+        job = lock_processing_job(session, job_id=job_id)
         if job is None or job.job_type != "floor_plan_analysis":
             raise InterpretationProcessingError("PROCESSING_CONTEXT_NOT_FOUND")
+        attempt = lock_attempt(session, attempt_id=claim.attempt_id)
+        if (job.status != "processing" or attempt is None or attempt.status != "active"
+                or attempt.active_marker is not True or attempt.worker_identity != worker_identity
+                or attempt.lease_expires_at <= datetime.now(UTC).replace(tzinfo=None)
+                or find_cancellation(session, job_id=job_id) is not None):
+            raise InterpretationProcessingError("PROCESSING_ATTEMPT_NOT_ACTIVE")
         outcomes = list_page_outcomes(session, processing_job_id=job.id)
         if not outcomes:
             pages = list_pages_for_floor_plan(session, floor_plan_id=job.floor_plan_id)

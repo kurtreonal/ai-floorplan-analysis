@@ -122,6 +122,10 @@ def _authorized_run(
     role = getattr(getattr(current_user, "role", None), "name", None)
     if role not in ({"DESIGNER"} if write else {"ADMIN", "DESIGNER"}):
         _fail("AUTHORIZATION_DENIED")
+    if write:
+        from app.repositories.floor_plan_lifecycle_repository import lock_active_plan
+        if lock_active_plan(session, floor_plan_id) is None:
+            _fail("INTERPRETATION_NOT_FOUND")
     statement = (
         select(FloorPlanInterpretationRun)
         .join(FloorPlan, FloorPlanInterpretationRun.floor_plan_id == FloorPlan.id)

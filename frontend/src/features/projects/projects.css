@@ -389,3 +389,18 @@
   .project-card:hover { transform: none; }
   .processing-job-panel .auth-spinner { animation: none; }
 }
+.plan-lifecycle-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  padding: 1.5rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 12px;
+  background: var(--white, #fff);
+  color: var(--ink, #10161d);
+}
+.plan-lifecycle-dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.plan-lifecycle-dialog strong { overflow-wrap: anywhere; }
+.plan-lifecycle-actions { display: flex; justify-content: flex-end; gap: .75rem; flex-wrap: wrap; }
+.floor-plan-trash { margin-top: 1rem; }
+.floor-plan-trash li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: .75rem 0; }

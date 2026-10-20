@@ -34,7 +34,6 @@ from app.models import (
     ProcessingJob,
 )
 from app.repositories.floor_plan_interpretation_repository import (
-    add_run,
     find_by_processing_job,
 )
 from app.services.image_normalization import normalize_image
@@ -303,9 +302,7 @@ def process_demo_job(
             ),
         )
         serialized = candidate.model_dump_json()
-        run = add_run(
-            session,
-            FloorPlanInterpretationRun(
+        run = FloorPlanInterpretationRun(
                 candidate_run_id=run_id,
                 processing_job_id=job.id,
                 floor_plan_id=floor_plan.id,
@@ -314,22 +311,17 @@ def process_demo_job(
                 provider=PROVIDER,
                 candidate_sha256=sha256(serialized.encode("utf-8")).hexdigest(),
                 candidate_json=serialized,
-            ),
-        )
-        session.commit()
+            )
         _heartbeat(
             session,
             attempt_id=claim.attempt_id,
             worker_identity=worker_identity,
             stage="persistence",
         )
-        finish_processing_attempt(
-            session,
-            attempt_id=claim.attempt_id,
-            worker_identity=worker_identity,
-            outcome="succeeded",
-        )
-        return run
+        # Reuse the production publication fence, not a pre-fence candidate commit.
+        from app.services.interpretation_processing_service import _persist_fenced_run
+        return _persist_fenced_run(session, claim=claim, worker_identity=worker_identity,
+                                   run=run, provider=PROVIDER)
     except DemoProcessingError as error:
         if error.code != "PROCESSING_CANCELLED":
             finish_processing_attempt(

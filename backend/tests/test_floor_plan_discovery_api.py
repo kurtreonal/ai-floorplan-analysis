@@ -331,7 +331,7 @@ class FloorPlanDiscoveryApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
+        self.assertEqual(len(operations), 59)  # Includes project pricing, intake and plan lifecycle.
 
 
 if __name__ == "__main__":

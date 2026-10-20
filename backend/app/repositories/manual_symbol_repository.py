@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, load_only, raiseload
+from app.repositories.floor_plan_lifecycle_repository import lock_active_plan
 
 from app.models import (
     FloorPlan,
@@ -18,7 +19,7 @@ def lock_owned_manual_symbol_context(
     processing_job_id: int,
     owner_id: int,
 ) -> ProcessingJob | None:
-    return database_session.scalar(
+    job = database_session.scalar(
         select(ProcessingJob)
         .join(FloorPlan, ProcessingJob.floor_plan_id == FloorPlan.id)
         .join(ProjectFloor, FloorPlan.project_floor_id == ProjectFloor.id)
@@ -37,9 +38,12 @@ def lock_owned_manual_symbol_context(
             ProcessingJob.job_type == "floor_plan_analysis",
             Project.owner_id == owner_id,
         )
-        .with_for_update()
         .execution_options(populate_existing=True)
     )
+    if job is None or lock_active_plan(database_session, floor_plan_id) is None:
+        return None
+    return database_session.scalar(select(ProcessingJob).where(ProcessingJob.id == job.id)
+        .with_for_update().execution_options(populate_existing=True))
 
 
 def lock_manual_symbol_legend(

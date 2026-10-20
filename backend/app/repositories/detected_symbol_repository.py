@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, load_only, raiseload
+from app.repositories.floor_plan_lifecycle_repository import lock_active_plan
 
 from app.models import (
     DetectedSymbol,
@@ -17,13 +18,7 @@ def lock_floor_plan(
     *,
     floor_plan_id: int,
 ) -> FloorPlan | None:
-    return database_session.scalar(
-        select(FloorPlan)
-        .options(load_only(FloorPlan.id), raiseload("*"))
-        .where(FloorPlan.id == floor_plan_id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    )
+    return lock_active_plan(database_session, floor_plan_id)
 
 
 def find_processing_job(

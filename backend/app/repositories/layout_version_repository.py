@@ -2,6 +2,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, load_only, raiseload
 
 from app.models import FloorPlan, LayoutSaveRequest, LayoutVersion, ProjectFloor
+from app.repositories.floor_plan_lifecycle_repository import active_floor_plan, lock_active_plan
 
 
 LAYOUT_VERSION_COLUMNS = tuple(
@@ -38,6 +39,8 @@ def find_floor_plan_for_floor(
     floor_plan_id: int,
     project_floor_id: int,
 ) -> FloorPlan | None:
+    if lock_active_plan(database_session, floor_plan_id) is None:
+        return None
     return database_session.scalar(
         select(FloorPlan)
         .options(
@@ -76,6 +79,7 @@ def list_current_versions(
             .where(
                 LayoutVersion.project_floor_id == project_floor_id,
                 LayoutVersion.is_current.is_(True),
+                active_floor_plan(LayoutVersion.floor_plan_id),
             )
             .order_by(LayoutVersion.version_number.asc(), LayoutVersion.id.asc())
             .execution_options(populate_existing=True)

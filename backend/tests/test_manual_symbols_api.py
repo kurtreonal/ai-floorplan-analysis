@@ -109,7 +109,7 @@ class ManualSymbolModelTests(unittest.TestCase):
                 "ix_manual_symbols_symbol_legend_id",
             },
         )
-        self.assertEqual(len(Base.metadata.tables), 35)
+        self.assertEqual(len(Base.metadata.tables), 36)
         self.assertEqual(set(inspect(self.engine).get_table_names()), set(Base.metadata.tables))
         self.assertEqual(FloorPlan.manual_symbols.property.back_populates, "floor_plan")
         self.assertEqual(ProcessingJob.manual_symbols.property.back_populates, "processing_job")
@@ -481,7 +481,7 @@ class ManualSymbolApiTests(unittest.TestCase):
         path = "/api/floor-plans/{floor_plan_id}/manual-symbols"
         self.assertEqual(set(schema["paths"][path]), {"post"})
         operations = {(method, route) for route, definitions in schema["paths"].items() for method in definitions if method in {"get", "post", "put", "patch", "delete"}}
-        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
+        self.assertEqual(len(operations), 59)  # Includes project pricing, intake and plan lifecycle.
 
 
 if __name__ == "__main__":

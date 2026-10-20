@@ -263,7 +263,7 @@ class SymbolLegendAdminApiTests(unittest.TestCase):
         self.assertEqual(empty.json(), [])
         inspector = inspect(get_engine())
         self.assertEqual(set(inspector.get_table_names()), set(Base.metadata.tables))
-        self.assertEqual(len(Base.metadata.tables), 35)
+        self.assertEqual(len(Base.metadata.tables), 36)
         table = SymbolLegendHistory.__table__
         self.assertEqual(
             {constraint.name for constraint in table.constraints if constraint.name},
@@ -284,7 +284,7 @@ class SymbolLegendAdminApiTests(unittest.TestCase):
             for method in definitions
             if method in {"get", "post", "put", "patch", "delete"}
         }
-        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
+        self.assertEqual(len(operations), 59)  # Includes project pricing, intake and plan lifecycle.
         self.assertTrue({
             (self.path, "get"),
             (self.path, "post"),

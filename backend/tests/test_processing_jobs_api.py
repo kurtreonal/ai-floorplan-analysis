@@ -396,6 +396,10 @@ class ProcessingJobApiTests(unittest.TestCase):
                 ("put", "/api/projects/{project_id}/floors/{floor_id}/analysis-settings/elevation"),
                 ("put", "/api/projects/{project_id}/floors/{floor_id}/analysis-settings/pages/{page_id}/scale"),
                 ("get", "/api/admin/symbol-legends"),
+                ("get", "/api/projects/{project_id}/floor-plan-trash"),
+                ("get", "/api/projects/{project_id}/floor-plans/{floor_plan_id}/lifecycle"),
+                ("delete", "/api/projects/{project_id}/floor-plans/{floor_plan_id}"),
+                ("post", "/api/projects/{project_id}/floor-plans/{floor_plan_id}/restore"),
                 ("post", "/api/admin/symbol-legends"),
                 ("put", "/api/admin/symbol-legends/{legend_id}"),
                 ("post", "/api/processing-jobs/{job_id}/cancel"),
@@ -420,7 +424,7 @@ class ProcessingJobApiTests(unittest.TestCase):
                 ("post", "/api/admin/symbol-legends/import-trained"),
             },
         )
-        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
+        self.assertEqual(len(operations), 59)  # Includes project pricing, intake and plan lifecycle.
 
     def test_owning_designer_creates_durable_queued_job(self) -> None:
         response = self._post(
@@ -666,22 +670,24 @@ class ProcessingJobApiTests(unittest.TestCase):
 
     def test_owned_floor_plan_query_uses_for_update(self) -> None:
         mock_session = Mock(spec=Session)
-        mock_session.scalar.return_value = self.floor_plan
+        mock_session.scalar.side_effect = [self.floor_plan, self.floor_plan.project_floor_id,
+                                          None, self.floor_plan, None]
         result = find_owned_floor_plan_for_update(
             mock_session,
             floor_plan_id=self.floor_plan.id,
             owner_id=self.designer.id,
         )
         self.assertIs(result, self.floor_plan)
-        statement = mock_session.scalar.call_args.args[0]
-        compiled = str(
-            statement.compile(
+        statements = [call.args[0] for call in mock_session.scalar.call_args_list]
+        compiled = [str(statement.compile(
                 dialect=mysql.dialect(),
                 compile_kwargs={"literal_binds": True},
-            )
-        )
-        self.assertIn("FOR UPDATE", compiled.upper())
-        self.assertIn("projects.owner_id", compiled)
+            )) for statement in statements]
+        self.assertIn("projects.owner_id", compiled[0])
+        self.assertIn("project_floors", compiled[2])
+        self.assertIn("FOR UPDATE", compiled[2].upper())
+        self.assertIn("FOR UPDATE", compiled[3].upper())
+        self.assertIn("floor_plan_lifecycle_events", compiled[4])
 
     def test_failure_state_persists_safely_without_floor_plan_side_effects(self) -> None:
         job = self._add_job(status="processing")

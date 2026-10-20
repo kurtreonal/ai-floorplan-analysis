@@ -8,6 +8,7 @@ from app.models import (
     InterpretationPageOutcome,
     FloorPlanInterpretationRun,
 )
+from app.repositories.floor_plan_lifecycle_repository import lock_plan
 
 
 def lock_processing_job(
@@ -15,6 +16,9 @@ def lock_processing_job(
     *,
     job_id: int,
 ) -> ProcessingJob | None:
+    plan_id = database_session.scalar(select(ProcessingJob.floor_plan_id).where(ProcessingJob.id == job_id))
+    if plan_id is not None:
+        lock_plan(database_session, plan_id)
     return database_session.scalar(
         select(ProcessingJob)
         .where(ProcessingJob.id == job_id)

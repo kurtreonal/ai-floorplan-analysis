@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, load_only, raiseload
+from app.repositories.floor_plan_lifecycle_repository import lock_active_plan
 
 from app.models import (
     DetectedSymbol,
@@ -34,6 +35,8 @@ def lock_owned_detection_for_classification(
         )
     )
     if accessible_id is None:
+        return None
+    if lock_active_plan(database_session, floor_plan_id) is None:
         return None
     columns = tuple(
         getattr(DetectedSymbol, column.name)

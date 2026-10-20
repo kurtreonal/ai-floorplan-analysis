@@ -15,6 +15,7 @@ import { FloorPlanUploadForm } from './FloorPlanUploadForm.jsx'
 import { ProcessingJobPanel } from './ProcessingJobPanel.jsx'
 import { AnalysisSettingsPanel } from './AnalysisSettingsPanel.jsx'
 import { orderFloors, orderNamed } from '../../utils/listOrder.js'
+import { FloorPlanLifecycleControls, FloorPlanTrash } from './FloorPlanLifecycleControls.jsx'
 
 
 function getFloorListError(error) {
@@ -155,6 +156,12 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
       },
     ])
     setPlanRefreshKey((key) => key + 1)
+  }
+
+  function handlePlanChanged(planId) {
+    setSessionUploads(uploads => uploads.filter(plan => plan.id !== planId))
+    setPersistedPlans(plans => plans.filter(plan => plan.id !== planId))
+    setPlanRefreshKey(key => key + 1)
   }
 
   // A floor switch renders before its effect starts. Never relabel old cards
@@ -352,7 +359,9 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                       <div><dt>File size</dt><dd>{upload.file_size.toLocaleString()} bytes</dd></div>
                       <div><dt>Floor-plan ID</dt><dd>{upload.id}</dd></div>
                       <div><dt>Job history</dt><dd>{upload.history.length}</dd></div>
-                    </dl></details></td>
+                    </dl></details>
+                    {isDesigner && <FloorPlanLifecycleControls projectId={projectId} planId={upload.id} onChanged={handlePlanChanged} />}
+                    </td>
                   </tr>
                 ))}
                 </tbody>
@@ -360,6 +369,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
               </div>
             </section>
           )}
+          <FloorPlanTrash key={projectId} projectId={projectId} refreshKey={planRefreshKey} onChanged={handlePlanChanged} canEdit={isDesigner} />
         </>
       )}
     </section>

@@ -6,6 +6,7 @@ import re
 
 from sqlalchemy import func, select
 from app.models import FloorPlan, FloorPlanInterpretationRun, ProjectFloor, SymbolLegend
+from app.repositories.floor_plan_lifecycle_repository import active_floor_plan
 from app.repositories import material_catalog_repository as catalog, material_price_repository as prices
 from app.repositories.analysis_settings_repository import latest_scales, latest_elevation
 from app.routing.endpoint_connections import connect_touching_endpoints
@@ -332,7 +333,7 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
     query = (select(FloorPlanInterpretationRun, ProjectFloor.id, FloorPlan.original_filename)
         .join(FloorPlan, FloorPlan.id == FloorPlanInterpretationRun.floor_plan_id)
         .join(ProjectFloor, ProjectFloor.id == FloorPlan.project_floor_id)
-        .where(ProjectFloor.project_id == project_id)
+        .where(ProjectFloor.project_id == project_id, active_floor_plan())
         .order_by(FloorPlanInterpretationRun.id))
     query = query.where(FloorPlanInterpretationRun.processing_job_id == processing_job_id) if processing_job_id is not None else query.where(FloorPlanInterpretationRun.id.in_(latest))
     if floor_plan_id is not None:

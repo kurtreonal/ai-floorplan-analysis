@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from app.models import Project, ProjectFloor, LayoutVersion
 from app.models.generated_route import GeneratedRouteVersion
+from app.repositories.floor_plan_lifecycle_repository import active_floor_plan
 
 
 def latest_route(session, project_id, lock=False):
@@ -19,7 +20,7 @@ def circuit_retry(session, project_id, request_id, lock=False):
 def current_layout_ids(session, project_id, floor_ids, lock=False):
     query = select(LayoutVersion).where(
         LayoutVersion.project_id == project_id, LayoutVersion.project_floor_id.in_(floor_ids),
-        LayoutVersion.is_current.is_(True))
+        LayoutVersion.is_current.is_(True), active_floor_plan(LayoutVersion.floor_plan_id))
     return {str(row.project_floor_id): row.id for row in session.scalars(query.with_for_update() if lock else query)}
 
 

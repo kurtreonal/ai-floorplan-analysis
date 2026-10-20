@@ -309,7 +309,8 @@ class FloorPlanUploadApiTests(unittest.TestCase):
             run=process_interpretation_job(self.database_session,job_id=job_id,worker_identity='new-upload-test',settings=self.settings)
         candidate=FloorPlanInterpretationCandidate.model_validate_json(run.candidate_json)
         self.assertIsNotNone(candidate.payload.observed_routes.recovery)
-        self.assertEqual(candidate.payload.observed_routes.recovery.version,'targeted-source-recovery-v2')
+        # The existing production recovery contract is v3; lifecycle work does not change it.
+        self.assertEqual(candidate.payload.observed_routes.recovery.version,'targeted-source-recovery-v3')
         parameters={p.name:p.value for p in candidate.provenance.inference_parameters}
         self.assertIn('input-pixel-profile',parameters)
         saved=run.candidate_json

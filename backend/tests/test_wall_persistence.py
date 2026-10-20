@@ -348,6 +348,7 @@ class WallPersistenceTests(unittest.TestCase):
                 "project_floors",
                 "project_price_versions",
                 "floor_plans",
+                "floor_plan_lifecycle_events",
                 "floor_plan_pages",
                 "floor_plan_sources",
                 "floor_plan_interpretation_reviews",
@@ -632,7 +633,7 @@ class WallPersistenceTests(unittest.TestCase):
             for method in methods
             if method.casefold() in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
         )
-        self.assertEqual(operations, 55)  # Includes project pricing and project intake editing.
+        self.assertEqual(operations, 59)  # Includes project pricing, intake and plan lifecycle.
 
 
 if __name__ == "__main__":

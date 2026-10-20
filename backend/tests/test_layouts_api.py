@@ -365,11 +365,11 @@ class LayoutApiTests(unittest.TestCase):
             for method in item
             if method in {"get", "post", "put", "patch", "delete"}
         ]
-        self.assertEqual(len(operations), 55)  # Includes project pricing and project intake editing.
+        self.assertEqual(len(operations), 59)  # Includes project pricing, intake and plan lifecycle.
         self.assertFalse(
             any("history" in path or "current" in path for path in schema["paths"])
         )
-        self.assertEqual(len(Base.metadata.tables), 35)
+        self.assertEqual(len(Base.metadata.tables), 36)
         self.assertEqual(
             set(inspect(self.engine).get_table_names()), set(Base.metadata.tables)
         )
