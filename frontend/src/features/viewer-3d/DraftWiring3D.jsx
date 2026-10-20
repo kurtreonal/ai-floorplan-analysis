@@ -21,7 +21,7 @@ export function WireHandle({ position, scene, onMove, onFindSnap, onChooseTarget
   useEffect(() => () => { if (drag.current) onDraggingChange?.(false) }, [onDraggingChange])
   useEffect(() => {
     function cancel(event) {
-      if (event.key !== 'Escape' || !drag.current) return
+      if (event.type !== 'blur' && event.key !== 'Escape' || !drag.current) return
       const current = drag.current
       drag.current = null
       current.target.releasePointerCapture?.(current.pointerId)
@@ -31,7 +31,8 @@ export function WireHandle({ position, scene, onMove, onFindSnap, onChooseTarget
       invalidate()
     }
     window.addEventListener('keydown',cancel)
-    return () => window.removeEventListener('keydown',cancel)
+    window.addEventListener('blur',cancel)
+    return () => {cancel({type:'blur'});window.removeEventListener('keydown',cancel);window.removeEventListener('blur',cancel)}
   }, [invalidate, onDraggingChange, position])
   function finish(event, commit) {
     const current = drag.current
@@ -115,8 +116,8 @@ export function DraftWiring3D({ scene, selectedWireId, onSelectWire, onMoveWireP
     {runs.filter(run=>run.ownerId===wire.id).map(run => <WiringTube3D key={run.id} run={run} radius={radius}
       xray={wire.installationMethod==='concealed_under_floor' || selectedWireId===wire.id}
       color={wiringAppearance(wire,selectedWireId===wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork),run.segment).color}
-      onClick={event=>{event.stopPropagation();onSelectWire?.(wire.id)}} />)}
-    {(selectedWireId === wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork)) && wire.points.map((p,index) => <WireHandle key={index} position={p} scene={scene}
+      onClick={onSelectWire ? event=>{event.stopPropagation();onSelectWire(wire.id,event)} : undefined} />)}
+    {onMoveWirePoint && (selectedWireId === wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork)) && wire.points.map((p,index) => <WireHandle key={index} position={p} scene={scene}
       onFindSnap={onFindWireDeviceSnap ? (point,distance,threshold,pathDistance,allTargets) => onFindWireDeviceSnap(wire.id,index,point,distance,threshold,pathDistance,allTargets) : undefined}
       onChooseTarget={choices => onChooseWireTarget?.(wire.id,index,choices)}
       onMove={onMoveWirePoint ? (point,snap) => snap ? onMoveWirePoint(wire.id,index,point,snap) : onMoveWirePoint(wire.id,index,point) : undefined} onDraggingChange={onDraggingChange} />)}

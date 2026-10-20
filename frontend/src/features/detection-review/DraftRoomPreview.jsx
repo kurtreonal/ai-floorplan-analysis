@@ -67,6 +67,7 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
           }}
           selectedSymbolId={selected?.kind === 'symbol' ? selected.id : null} navigationMode={navigationMode}
           onSelectSymbol={(id) => onSelect?.({ kind: 'symbol', id })}
+          onSelectWall={id=>onSelect?.({kind:'wall',id})}
           onMoveSymbol={navigationMode === 'pan' ? undefined : (id, point) => {
             const symbol = draft.symbols.find((item) => item.id === id)
             const center = clampDevicePoint({ x: point.x / result.scene.sourceScale, y: point.y / result.scene.sourceScale }, width, height)

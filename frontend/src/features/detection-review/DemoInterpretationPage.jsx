@@ -573,7 +573,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       <ViewportFrame title="Plan workspace" status={saveState.message || 'Shared editable draft · save before leaving'}>
       <div className="studio-review-headerbar">
         <div className="studio-review-mode" role="group" aria-label="Preview mode">
-          <Button variant={view === '2d' ? 'secondary' : 'ghost'} size="sm" disabled={drawingPending} aria-pressed={view === '2d'} aria-label="2D · Review rooms" onClick={() => setView('2d')}><Layers3 aria-hidden="true" />Edit 2D</Button>
+          <Button variant={view === '2d' ? 'secondary' : 'ghost'} size="sm" disabled={drawingPending} aria-pressed={view === '2d'} aria-label="2D · Review rooms" onClick={() => {setView('2d');if(tool==='transform')setTool('select')}}><Layers3 aria-hidden="true" />Edit 2D</Button>
           <Button variant={view === '3d' ? 'secondary' : 'ghost'} size="sm" disabled={drawingPending} aria-pressed={view === '3d'} aria-label="3D · Draft preview" onClick={() => { setOpened3d(true); setView('3d'); setTool('select') }}><Box aria-hidden="true" />View 3D</Button>
         </div>
         <Button variant="ghost" size="icon" aria-label="Undo" disabled={historyIndex <= 0} onClick={handleUndo}><Undo2 aria-hidden="true" /></Button>

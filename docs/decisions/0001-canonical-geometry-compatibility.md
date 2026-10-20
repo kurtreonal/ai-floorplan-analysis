@@ -861,3 +861,26 @@ independent catalog-quality evaluation. Backend/full suites NOT TESTED again for
 this frontend-only checkpoint. No route/table change (62/37 clean; mixed API 63).
 Originals, unrelated edits and stash are preserved; BDO remains paused. The
 synthetic fixture remains active only for the following 3D gesture checks.
+
+### UX checkpoint 4 — separate 3D selection, orbit and movement
+
+Normal Select uses a five-screen-pixel click tolerance: a click selects, a left
+drag orbits and never selects on release. The gesture tracks maximum displacement,
+pointer cancellation, capture loss, outside release and multiple pointers.
+Move selected in 3D explicitly enables device dragging and wire handles. Drawing
+reserves the left button; middle-drag orbit, right-drag pan and wheel zoom remain
+available. Escape/blur cancel object previews without committing coordinates.
+Switching back to 2D resets the 3D-only Move tool. Wall selection shares the
+existing inspector; this does not introduce 3D wall translation.
+
+PASS: 73 focused frontend tests, scoped lint and clean build (existing chunk
+warnings). Browser PASS: dragging directly on a selected device orbits without
+changing coordinates/save state; clicking a wall selects it; explicit Move changes
+the device coordinates with a stationary camera; Undo restores the exact position.
+Workspace expansion and Escape exit PASS with inspector closed. An open floating
+inspector can obscure the expansion button in the pending canvas-first layout;
+this layout overlap is carried into checkpoint 5, not reported as a passing gate.
+Physical touch and right/middle hardware gestures NOT TESTED in browser; mapping,
+multi-pointer and cancellation events have focused tests. Backend/full unrelated
+suites NOT TESTED again: no API/schema change (62 operations/37 tables clean).
+Originals, history, unrelated work and stash remain preserved. BDO remains paused.

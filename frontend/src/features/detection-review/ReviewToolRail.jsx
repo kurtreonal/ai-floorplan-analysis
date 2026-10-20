@@ -5,9 +5,10 @@ export function ReviewToolRail({ view, tool, onToolChange, onAdd, layers, setLay
   return <aside className="studio-review-rail" aria-label="Plan editing tools">
     <span className="mono studio-rail-kicker">{view === '3d' ? '3D NAVIGATION' : 'EDIT PLAN'}</span>
     <div className="studio-rail-tools">
-      {[[MousePointer2, 'select', 'Select & move devices'], [Hand, 'pan', 'Pan']].map(([Icon, value, label]) =>
+      {[[MousePointer2, 'select', view === '3d' ? 'Select' : 'Select & move devices'], [Hand, 'pan', 'Pan']].map(([Icon, value, label]) =>
         <Button key={value} variant="ghost" className="studio-rail-tool" aria-pressed={tool === value}
           onClick={() => onToolChange(value)}><Icon aria-hidden="true" />{label}</Button>)}
+      <Button variant="ghost" className="studio-rail-tool" disabled={view === '2d'} title="Move selected devices or wire points in 3D" aria-label="Move selected in 3D" aria-pressed={tool === 'transform'} onClick={()=>onToolChange('transform')}><Move aria-hidden="true" />Move selected in 3D</Button>
       {view === '2d' && <>
         {[[Move, 'move', 'Move Walls'], [Pencil, 'draw', 'Draw Walls'], [Trash2, 'delete', 'Delete Walls']].map(([Icon, value, label]) =>
           <Button key={value} variant="ghost" className="studio-rail-tool" aria-pressed={tool === value}

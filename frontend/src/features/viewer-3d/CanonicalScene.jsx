@@ -26,7 +26,7 @@ function RoomSurface({ room, elevation, roof = false }) {
   </mesh>
 }
 
-export function CanonicalScene({ scene, showRoof = false, selectedSymbolId, selectedWallId, onSelectSymbol, onMoveSymbol, onDraggingChange }) {
+export function CanonicalScene({ scene, showRoof = false, selectedSymbolId, selectedWallId, onSelectSymbol, onSelectWall, onMoveSymbol, onDraggingChange }) {
   const runs=useMemo(()=>{
     const routes=new Map()
     for(const segment of scene.routeSegments ?? []) {
@@ -44,7 +44,9 @@ export function CanonicalScene({ scene, showRoof = false, selectedSymbolId, sele
     </mesh>
     {scene.rooms.map((room) => <RoomSurface key={room.id} room={room} elevation={scene.elevation} />)}
     {showRoof && roofPreview(scene).map((room) => <RoomSurface key={`roof-${room.id}`} room={room} elevation={room.elevation} roof />)}
-    {scene.walls.map((wall) => wall.footprints ? <JoinedWallMesh key={wall.id} wall={wall} selected={wall.id === selectedWallId} /> : <mesh key={wall.id} position={wall.position} rotation={wall.rotation}>
+    {scene.walls.map((wall) => wall.footprints ? <JoinedWallMesh key={wall.id} wall={wall} selected={wall.id === selectedWallId}
+      onClick={onSelectWall ? event=>{event.stopPropagation();onSelectWall(wall.id,event)} : undefined} /> : <mesh key={wall.id} position={wall.position} rotation={wall.rotation}
+      onClick={onSelectWall ? event=>{event.stopPropagation();onSelectWall(wall.id,event)} : undefined}>
       <boxGeometry args={wall.size} />
       <meshStandardMaterial color={wall.id === selectedWallId ? '#ff7a45' : WALL_APPEARANCE.normal} roughness={.82} />
     </mesh>)}

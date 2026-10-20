@@ -46,8 +46,8 @@ it('renders selectable tubes and editing handles for each original vertex, not d
   const event = { stopPropagation: vi.fn() }
   tubes[0].props.onClick(event)
   expect(event.stopPropagation).toHaveBeenCalled()
-  expect(onSelectWire).toHaveBeenCalledWith('wire1')
+  expect(onSelectWire).toHaveBeenCalledWith('wire1',event)
   handles[1].props.onMove({ x: 4, y: 5 })
   expect(onMoveWirePoint).toHaveBeenCalledWith('wire1',1,{ x: 4, y: 5 })
-  expect(DraftWiring3D({ scene }).props.children[0].props.children[1]).toBe(false)
+  expect(DraftWiring3D({ scene }).props.children[0].props.children[1]).toBeUndefined()
 })

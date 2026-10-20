@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ViewerCameraControls } from './ViewerCameraControls.jsx'
-import { MOUSE, Quaternion, Vector3 } from 'three'
+import { MOUSE, TOUCH, Quaternion, Vector3 } from 'three'
 
 const mocks = vi.hoisted(() => ({
   camera: { name: 'camera', position: { set: vi.fn() } },
@@ -29,7 +29,7 @@ vi.mock('three/addons/controls/OrbitControls.js', () => ({
     constructor(camera, domElement) {
       Object.assign(this, {
         camera, domElement, target: new Vector3(2,1,3), update: vi.fn(), saveState: vi.fn(),
-        reset: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispose: vi.fn(), mouseButtons: {},
+        reset: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispose: vi.fn(), mouseButtons: {}, touches:{},
       })
       vi.spyOn(this.target,'set')
       mocks.instances.push(this)
@@ -49,6 +49,18 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('3D camera controls', () => {
+  it('uses left orbit in Select, reserves editing clicks, and retains alternate desktop/touch camera gestures',()=>{
+    const view=render(<ViewerCameraControls freeFly={false}/>)
+    const controls=mocks.instances[0]
+    expect(controls.mouseButtons).toEqual({LEFT:MOUSE.ROTATE,MIDDLE:MOUSE.ROTATE,RIGHT:MOUSE.PAN})
+    expect(controls.touches).toEqual({ONE:TOUCH.ROTATE,TWO:TOUCH.DOLLY_PAN})
+    view.rerender(<ViewerCameraControls freeFly={false} leftOrbit={false}/>)
+    expect(mocks.instances).toHaveLength(1)
+    expect(controls.mouseButtons.LEFT).toBeNull()
+    expect(controls.mouseButtons.MIDDLE).toBe(MOUSE.ROTATE)
+    expect(controls.touches).toEqual({ONE:null,TWO:TOUCH.DOLLY_ROTATE})
+    expect(controls.enableZoom).toBe(true);expect(controls.enablePan).toBe(true)
+  })
   it('moves only the focused viewport, ignores input/disabled controls and cleans up its keyboard listener', () => {
     const viewport = document.createElement('section'), input = document.createElement('input')
     viewport.setAttribute('aria-label','3D viewer'); viewport.tabIndex = 0

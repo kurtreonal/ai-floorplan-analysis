@@ -1,12 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { MOUSE, Vector3 } from 'three'
+import { MOUSE, TOUCH, Vector3 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { advanceCameraMovement, isMovementKey, turnSpectatorCamera } from './cameraMovement.js'
 
 
 export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
-  { onReady, target, extent, enabled = true, panMode = false, freeFly = true },
+  { onReady, target, extent, enabled = true, panMode = false, freeFly = true, leftOrbit = true },
   ref,
 ) {
   const { camera, gl, invalidate } = useThree()
@@ -71,9 +71,13 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
     if (!controlsRef.current) return
     controlsRef.current.enabled = enabled
     controlsRef.current.enableRotate = !freeFly
-    controlsRef.current.mouseButtons.LEFT = panMode ? MOUSE.PAN : MOUSE.ROTATE
+    controlsRef.current.mouseButtons.LEFT = panMode ? MOUSE.PAN : leftOrbit ? MOUSE.ROTATE : null
+    controlsRef.current.mouseButtons.MIDDLE = MOUSE.ROTATE
+    controlsRef.current.mouseButtons.RIGHT = MOUSE.PAN
+    controlsRef.current.touches.ONE = leftOrbit ? TOUCH.ROTATE : null
+    controlsRef.current.touches.TWO = leftOrbit ? TOUCH.DOLLY_PAN : TOUCH.DOLLY_ROTATE
     stop()
-  }, [enabled, panMode, freeFly, targetX, targetY, targetZ, extent, stop])
+  }, [enabled, panMode, freeFly, leftOrbit, targetX, targetY, targetZ, extent, stop])
 
   useFrame((_, delta) => {
     if (!enabled || !freeFly || !controlsRef.current) return
