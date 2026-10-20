@@ -125,17 +125,32 @@ def preview(session, user, project_id, data, name, request, lock=False):
                 (row['material_id'] and ids[row['material_id']] > 1)):
             row['reasons'].append('Duplicate source code or material mapping. Explicitly exclude a duplicate or correct the source.')
     document = dict(mapping=mapping.model_dump(mode='json'), rows=rows)
+    if request.automatic:
+        document['matching_method'] = 'automatic_exact_identity'
     return dict(file_sha256=sha256(data).hexdigest(), preview_token=_hash(document),
         expected_version=repository.latest_version(session, project_id, lock=lock), document=document,
         ready=bool(selected) and all(not row['reasons'] for row in selected),
         materials=[dict(id=row.id, code=row.code, name=row.name, unit=row.unit) for row in materials.values() if row.is_active])
 
 
+def automatic_preview(session, user, project_id, data, name):
+    from app.services.project_pricing_auto import selection
+    _access(session, user, project_id, write=True)
+    result = preview(session, user, project_id, data, name, selection(session, data, name))
+    for row in result['document']['rows']:
+        if row['reasons']:
+            raise WorkbookError(f'{row["row_id"]}: {row["reasons"][0]} Use the catalog purchase unit and literal prices.')
+    if not result['ready']:
+        raise WorkbookError('The file contains no usable material prices.')
+    return result
+
+
 def apply(session, user, project_id, data, name, request):
     _access(session, user, project_id, write=True)
     name = filename(name)
     source_hash = sha256(data).hexdigest()
-    identity = request.model_dump(mode='json') | {'actual_file_sha256': source_hash, 'filename': name}
+    # Keep the request identity of pre-automatic imports compatible for retries.
+    identity = request.model_dump(mode='json', exclude={'automatic'} if not request.automatic else set()) | {'actual_file_sha256': source_hash, 'filename': name}
     request_hash = _hash(identity)
     repository.lock_project(session, project_id)
     previous = repository.retry(session, project_id, str(request.request_id))
@@ -144,6 +159,11 @@ def apply(session, user, project_id, data, name, request):
             raise PricingConflict('This retry contains different inputs. Preview again.')
         session.commit()
         return VersionSummary.model_validate(previous)
+    if request.automatic:
+        from app.services.project_pricing_auto import selection
+        recognized = selection(session, data, name)
+        if recognized.mapping != request.mapping or recognized.choices != request.choices:
+            raise PricingConflict('The recognized materials changed. Upload the file again.')
     result = preview(session, user, project_id, data, name, request, lock=True)
     if source_hash != request.file_sha256 or result['preview_token'] != request.preview_token:
         raise PricingConflict('The source or material mapping changed. Preview again.')

@@ -56,6 +56,96 @@ def save_import(client, project_id, data, payload):
     return saved.json(),request
 
 
+def automatic_data(materials, *, headers=None, change=None):
+    rows = [['Code', 'Description', 'Unit', 'Unit price', 'Currency', 'Quantity'],
+        *[[material.code, material.name, material.unit, price, 'PHP', '9']
+            for material, price in zip(materials, ('4', '2', '3'))]]
+    if headers:
+        rows[0] = headers
+    if change:
+        change(rows)
+    return workbook(rows)
+
+
+def automatic_request(result):
+    return dict(automatic=True, mapping=result['document']['mapping'], choices=[{
+        key: row[key] for key in ('row_id', 'material_id', 'units_per_purchase', 'excluded')
+    } for row in result['document']['rows']], request_id=str(uuid4()), confirmed=True,
+        file_sha256=result['file_sha256'], preview_token=result['preview_token'], expected_version=result['expected_version'])
+
+
+def test_upload_automatically_recognizes_columns_products_and_updates_prices_not_old_estimates(estimate_context):
+    ctx, payload, materials = estimate_context
+    client, _, _, session, layout, *_ = ctx
+    root = f'/api/projects/{layout.project_id}'
+    old = client.post(root + '/estimates', json=payload).json()
+    catalog_prices = [p.unit_price for p in session.scalars(select(MaterialPrice))]
+    data = automatic_data(materials)
+    preview = upload(client, root + '/client-pricing', 'preview', data)
+    assert preview.status_code == 200, preview.text
+    result = preview.json()
+    assert result['ready'] and result['document']['mapping']['kind'] == 'client_bom'
+    assert result['document']['matching_method'] == 'automatic_exact_identity'
+    request = automatic_request(result)
+    saved = upload(client, root + '/client-pricing', 'apply', data, request)
+    assert saved.status_code == 200, saved.text
+    assert upload(client, root + '/client-pricing', 'apply', data, request).json() == saved.json()
+    assert Decimal(client.get(root + '/bom').json()['planning']['priced_subtotals']['PHP']) == 30
+    assert client.get(root + f'/estimates/{old["id"]}').json() == old
+    assert [p.unit_price for p in session.scalars(select(MaterialPrice))] == catalog_prices
+    assert len(client.get(root + '/client-pricing').json()) == 1
+
+
+@pytest.mark.parametrize('defect', ['unknown_code', 'duplicate', 'formula', 'unit', 'missing_currency', 'total_not_price', 'negative', 'two_tables'])
+def test_automatic_import_fails_closed_without_partial_price_changes(estimate_context, defect):
+    ctx, _, materials = estimate_context
+    client, _, _, _, layout, *_ = ctx
+    def change(rows):
+        if defect == 'unknown_code': rows[1][0] = 'UNKNOWN-SKU'
+        if defect == 'duplicate': rows[2][0] = rows[1][0]
+        if defect == 'formula': rows[1][3] = '=SUM(1,2)'
+        if defect == 'unit': rows[1][2] = 'pack'
+        if defect == 'missing_currency': rows[1][4] = ''
+        if defect == 'total_not_price': rows[0][3] = 'Line total'
+        if defect == 'negative': rows[1][3] = '-1'
+        if defect == 'two_tables': rows.extend([list(rows[0]), list(rows[1])])
+    url = f'/api/projects/{layout.project_id}/client-pricing'
+    response = upload(client, url, 'preview', automatic_data(materials, change=change))
+    assert response.status_code == 422, response.text
+    assert client.get(url).json() == []
+
+
+def test_automatic_name_matching_currency_header_and_leading_notes_are_supported(estimate_context):
+    ctx, _, materials = estimate_context
+    client, _, _, session, layout, *_ = ctx
+    materials[0].name = 'Specific lamp 20W'; session.commit()
+    data = b'Client quotation\nDescription,UOM,Rate (PHP)\n  specific LAMP 20w ,pcs,4\n'
+    url = f'/api/projects/{layout.project_id}/client-pricing'
+    response = upload(client, url, 'preview', data, name='quote.csv')
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result['document']['mapping']['header_row'] == 2
+    assert result['document']['rows'][0]['material_id'] == materials[0].id
+    assert result['document']['rows'][0]['currency'] == 'PHP'
+    assert result['document']['mapping']['kind'] == 'price_list'
+    saved = upload(client, url, 'apply', data, automatic_request(result), name='quote.csv')
+    assert saved.status_code == 200, saved.text
+
+
+def test_automatic_ambiguous_descriptions_and_forged_product_choices_are_rejected(estimate_context):
+    ctx, _, materials = estimate_context
+    client, _, _, _, layout, *_ = ctx
+    url = f'/api/projects/{layout.project_id}/client-pricing'
+    ambiguous = b'Description,Unit,Unit price,Currency\nSynthetic,piece,4,PHP\n'
+    assert upload(client, url, 'preview', ambiguous, name='quote.csv').status_code == 422
+    data = automatic_data(materials)
+    result = upload(client, url, 'preview', data).json()
+    request = automatic_request(result)
+    request['choices'][0]['material_id'] = materials[1].id
+    assert upload(client, url, 'apply', data, request).status_code == 409
+    assert client.get(url).json() == []
+
+
 def test_unmapped_rows_are_reviewable_not_catalog_writes(estimate_context):
     ctx, _, materials=estimate_context
     client,_,_,session,layout,*_=ctx

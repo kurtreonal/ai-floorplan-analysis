@@ -711,3 +711,42 @@ input opens, close/reopen works, editor remains “No unsaved changes.” No rea
 geometry save or backend mutation is performed. No backend/API/schema changes;
 backend/full-suite gates are not rerun for this placement-only change. Unrelated
 pending auth/canvas/BOM-preview edits and stash@{0} are excluded and preserved.
+
+One-step pricing follow-up: choosing an XLSX/CSV now automatically recognizes and
+applies project prices in both the workspace and Cost estimation import. The
+normal UI no longer exposes worksheet/header/column mapping, material selectors,
+preview, confirmation or save controls. History remains optional and read-only.
+The upload action authorizes pricing application, not geometry or engineering
+approval. Stored provenance records `automatic_exact_identity`.
+
+Recognition scans the first 20 populated rows per worksheet for one pricing table
+with known Description, Unit, Unit price and explicit Currency headers (currency
+may instead appear in the price header). A supplied code must exactly identify an
+active catalog product; without a code, a unique normalized exact description is
+required. Purchase units must match the catalog: no fuzzy product selection,
+pack/roll conversion, currency guessing or new catalog product is inferred.
+Formulas, duplicates, unknown identities, incompatible units, ambiguous tables
+and invalid amounts reject the whole upload with an actionable error. No partial
+subset is silently applied. Client quantities remain separate from takeoff.
+
+The existing preview/apply API is reused; manual API clients remain compatible.
+Automatic matches are revalidated on apply, while project locking, version checks,
+source fingerprints, retry identities and historical manual retry hashes remain
+intact. Uncertain saves expose one retry action using the same request identity.
+Designer/ownership authorization and immutable estimate snapshots are unchanged.
+No new route, table, dependency, detection/model change or global price mutation.
+BDO remains paused and DWG remains cancelled.
+
+PASS: clean-snapshot 81 focused backend tests; 31 frontend/API tests; scoped source
+lint; production build (existing large-chunk warnings). Full unrelated suites NOT
+TESTED in this checkpoint; previously recorded unrelated failures are not claimed
+resolved. Browser PASS: selecting the Downloads synthetic XLSX alone creates one
+project import, changes live device/wire/conduit prices to PHP 125/3,000/120 and
+draft priced subtotal from PHP 26.864 to 389.104, without changing quantities.
+Reload retains pricing; the saved estimate remains PHP 26.864 and the unmeasured
+path remains unpriced. These mappings validate software, not product suitability.
+The disposable fixture records/services were removed. No real project price
+version was created. All 44 previously checked original files remain byte-identical;
+one newer upload and other newer project/job records exist since the older
+integrity snapshot and were left untouched, not rolled back. No analysis job is
+active. Unrelated edits and stash@{0} remain outside the scoped checkpoint.

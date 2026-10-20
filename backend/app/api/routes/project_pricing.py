@@ -47,9 +47,10 @@ def inspect(project_id: ProjectId, file: Annotated[UploadFile, File()],
 
 @router.post('/preview', response_model=ProjectImportPreview)
 def preview(project_id: ProjectId, file: Annotated[UploadFile, File()],
-        selection: Annotated[str, Form(max_length=300000)],
+        selection: Annotated[str | None, Form(max_length=300000)] = None,
         user: User = Depends(require_roles('DESIGNER')), session: Session = Depends(get_db)):
-    return execute(session, lambda: service.preview(session, user, project_id,
+    return execute(session, lambda: service.automatic_preview(session, user, project_id,
+        contents(file), file.filename) if selection is None else service.preview(session, user, project_id,
         contents(file), file.filename, PreviewRequest.model_validate_json(selection)))
 
 

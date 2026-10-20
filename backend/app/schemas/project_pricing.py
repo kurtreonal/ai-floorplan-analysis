@@ -55,6 +55,7 @@ class RowChoice(StrictModel):
 
 
 class PreviewRequest(StrictModel):
+    automatic: bool = False
     mapping: ImportMapping
     choices: list[RowChoice] = Field(default_factory=list, max_length=1000)
 
