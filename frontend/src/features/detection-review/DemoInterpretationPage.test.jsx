@@ -92,6 +92,21 @@ afterEach(() => {
 
 
 describe('unified demo interpretation review', () => {
+  it('keeps plan diagnostics optional across view changes without selecting or approving items',async()=>{
+    render(<DemoInterpretationPage projectId={1} projectFloorId={2} floorPlanId={3} processingJobId={4} />)
+    await screen.findByTestId('demo-canvas')
+    const before=screen.getByTestId('demo-canvas').dataset.geometry
+    const trigger=screen.getByLabelText('Plan information'),details=trigger.closest('details')
+    expect(details.open).toBe(false)
+    expect(screen.queryByLabelText('VED legend class')).toBeNull()
+    fireEvent.click(trigger)
+    expect(details.open).toBe(true)
+    fireEvent.keyDown(trigger,{key:'Escape'})
+    fireEvent.click(screen.getByRole('button',{name:'3D · Draft preview'}))
+    expect((await screen.findByTestId('draft-3d')).dataset.geometry).toBe(before)
+    expect(details.open).toBe(false)
+    expect(saveDemoReview).not.toHaveBeenCalled()
+  })
   it('searches and selects exact objects across 2D/3D without altering geometry, undo or BOM inputs', async () => {
     const source=structuredClone(record)
     source.candidate.payload.symbols.items.push({id:'symbol-0002',center:{x:50,y:50}})
@@ -320,7 +335,7 @@ describe('unified demo interpretation review', () => {
     const props={projectId:1,floorPlanId:3,processingJobId:4}
     const view=render(<DemoInterpretationPage {...props} />)
     fireEvent.click(await screen.findByText('Select first symbol'))
-    expect(screen.getByText(/The original one-gang count was defaulted, not read/)).toBeTruthy()
+    expect(screen.getByText(/Assumed gang count: confirm the switch class/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button',{name:'Record switch class correction'}))
     fireEvent.click(screen.getByRole('button',{name:'Save unfinished draft'}))
     await screen.findByText('Review revision 1 saved.')
@@ -331,7 +346,7 @@ describe('unified demo interpretation review', () => {
     fetchDemoInterpretation.mockResolvedValue({...current,review:{...body,revision_number:1}})
     render(<DemoInterpretationPage {...props} />)
     fireEvent.click(await screen.findByText('Select first symbol'))
-    expect(screen.getByText(/Your class correction is recorded/)).toBeTruthy()
+    expect(screen.getByText(/Switch class correction recorded/)).toBeTruthy()
     expect(screen.queryByRole('button',{name:'Record switch class correction'})).toBeNull()
   })
   it('moves a shared wall junction in one undoable persisted revision and reloads it',async()=>{

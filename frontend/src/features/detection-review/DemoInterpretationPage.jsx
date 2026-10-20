@@ -41,6 +41,7 @@ import { updateWireNetwork, applyWireEdits } from './wireJunctions.js'
 import { DevicePicker } from './DevicePicker.jsx'
 import { commitWiringPath } from './connectedWiring.js'
 import { ObjectBrowser } from './ObjectBrowser.jsx'
+import { PlanInformation } from './PlanInformation.jsx'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
 
@@ -549,9 +550,10 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       </nav>
       <header className="detection-review-header">
         <div>
-          <h1>Plan editor</h1>
+          <h1>Plan editor</h1><span>Plan {floorPlanId}</span>
         </div>
       </header>
+      <PlanInformation title={`Plan ${floorPlanId}`}>
       <details className="demo-detection-details"><summary>Diagnostics</summary>
       <p>{activeWallsCount} wall segments / {activeRoomsCount} rooms / analysis #{processingJobId}</p>
       <WiringRecoveryStatus report={state.record.candidate.payload.observed_routes?.recovery} presentations={presentations} />
@@ -570,6 +572,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
         onRegionChange={setAnalysisRegion} onSelectRegion={() => { setView('2d'); setTool('region') }}
         onFreezeRegion={() => setTool('select')}
         projectId={projectId} projectFloorId={projectFloorId} floorPlanId={floorPlanId} />
+      </PlanInformation>
       <ViewportFrame title="Plan workspace" status={saveState.message || 'Shared editable draft · save before leaving'}>
       <div className="studio-review-headerbar">
         <div className="studio-review-mode" role="group" aria-label="Preview mode">
@@ -755,22 +758,20 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
           </>}
           {selected.kind === 'symbol' && <>
             {presentations[selectedEntity.id].gangProposal?.basis==='user_requested_default' && <div>
-              <p role="note" className="studio-device-provenance">The original one-gang count was defaulted, not read from the drawing. Original prediction is retained; this draft is not training truth.
-                {selectedEntity.gang_count_confirmed ? ' Your class correction is recorded.' : ' Correct the VED class before final approval; unfinished saving is available.'}</p>
+              <p role="note" className="studio-device-provenance">{selectedEntity.gang_count_confirmed ? 'Switch class correction recorded.' : 'Assumed gang count: confirm the switch class before final approval.'}</p>
               {!selectedEntity.gang_count_confirmed && <Button variant="outline" disabled={!selectedEntity.symbol_legend_id}
                 onClick={()=>updateDeviceType({symbol_legend_id:selectedEntity.symbol_legend_id,gang_count_confirmed:true})}>Record switch class correction</Button>}
             </div>}
-            {presentations[selectedEntity.id].trainingLegend && <div className="studio-device-provenance">
+            {presentations[selectedEntity.id].trainingLegend && <details className="studio-device-provenance"><summary>Detection reference</summary>
               Trained legend: {presentations[selectedEntity.id].trainingLegend.name}<br />
               Drawing entry: {presentations[selectedEntity.id].trainingLegend.legend_entry} · Model class {presentations[selectedEntity.id].trainingLegend.model_class_id}
               {!presentations[selectedEntity.id].mapped && <p>No unique active catalog match for this drawing entry.</p>}
-            </div>}
+            </details>}
             <NumericPoint label="Symbol center (source pixels)" value={selectedEntity.center} onChange={(center) => updateSymbol({ ...selectedEntity, center })} />
             <label>VED legend class<select value={selectedEntity.symbol_legend_id || ''} onChange={(event) => updateDeviceType({symbol_legend_id: event.target.value ? Number(event.target.value) : null,custom_unit_price:null,
               ...(presentations[selectedEntity.id].gangProposal?.basis==='user_requested_default' ? {gang_count_confirmed:Boolean(event.target.value)} : {})})}>
               <option value="">Unmapped</option>{groupLegendChoices(state.legends, { selectedId: selectedEntity.symbol_legend_id }).map((legend) => <option key={legend.id} value={legend.id} disabled={isWiringLegend(legend)}>{legend.class_id} — {legend.displayName}{isWiringLegend(legend) ? ' — Wiring reference, not a device' : ''}</option>)}
             </select></label>
-            <p className="studio-device-provenance">Use Select &amp; move devices to drag. Release on the green endpoint preview to attach; proximity alone does not connect.</p>
             <label>Mounting height above floor (m, optional)<input type="number" min="0" max="100" step="0.01"
               value={selectedEntity.mounting_height_meters ?? ''} onChange={event => {
                 const value = event.target.value === '' ? null : Number(event.target.value)
@@ -792,7 +793,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             <Button variant="outline" className="studio-remove-device" disabled={selectedEntity.disposition === 'rejected'} onClick={() => removeSymbol(selectedEntity.id)}><Trash2 aria-hidden="true" />Remove device</Button>
           </>}
         </div>}
-        {!selectedEntity && <p className="studio-inspector-empty">Select a named device in the canvas or list to move, classify or remove it. Changes stay in the shared draft until saved.</p>}
+        {!selectedEntity && <p className="studio-inspector-empty">Select an item to edit.</p>}
       </WorkspacePanel>
 
       </div>

@@ -98,7 +98,7 @@ export function Viewer3DCanvas({ controlsRef, onControlsReady, scene, showRoof =
       <button className="studio-camera-mode" type="button" disabled={editing} aria-pressed={effectiveFly} onClick={() => setFreeFly(value => !value)}>
         {effectiveFly ? 'Free fly' : 'Orbit'}
       </button>
-      <p className="studio-navigation-hint">{effectiveFly ? 'Right-drag to look · WASD / arrows to fly' : editing ? 'Middle-drag orbit · right-drag pan · scroll zoom' : 'Click selects · left-drag orbits · right-drag pans · scroll zoom'}</p>
+      <details className="studio-navigation-help"><summary>Camera help</summary><p>{effectiveFly ? 'Right-drag to look · WASD / arrows to fly' : editing ? 'Middle-drag orbit · right-drag pan · scroll zoom' : 'Click selects · left-drag orbits · right-drag pans · scroll zoom'}</p></details>
     </section>
   )
 }

@@ -884,3 +884,47 @@ Physical touch and right/middle hardware gestures NOT TESTED in browser; mapping
 multi-pointer and cancellation events have focused tests. Backend/full unrelated
 suites NOT TESTED again: no API/schema change (62 operations/37 tables clean).
 Originals, history, unrelated work and stash remain preserved. BDO remains paused.
+
+### UX checkpoint 5 — compact optional plan information
+
+Plan Information is a small, initially closed, keyboard-accessible control.
+Diagnostics, recovery statistics, source-view controls and limitations remain
+available only on request. Escape closes the panel and restores trigger focus.
+The 3D preview removes its default connected-device summary and repeated editing
+paragraphs. Illustrative dimensions and their measurement caveat are in optional
+3D settings; camera instructions are in optional Camera help. Selected detection
+provenance is collapsed, while an assumed switch class still has a concise
+correction action. Identity, tools, view controls, save/unsaved state, actionable
+errors and measured-operation gates remain unchanged. No approval is inferred.
+
+The existing floating inspector now leaves a bottom control strip clear, resolving
+checkpoint 4's covered fullscreen button. Canvas-first workspace expansion uses
+the full viewport height rather than the legacy 200-pixel header deduction;
+Plan Information remains reachable above the expanded frame. Styling reuses the
+existing tokens and original workspace palette under either theme preference.
+
+PASS: 52 focused clean-checkpoint frontend tests, scoped lint and production
+build; 29 focused live-worktree integration tests. Browser PASS on the disposable
+synthetic project: initially collapsed diagnostics; Enter opens and Escape closes
+information; optional settings/help; unchanged save state and source geometry;
+light/dark preferences (original System preference restored); fullscreen with an
+open inspector and a 720-pixel canvas in a 720-pixel viewport. Physical touch
+hardware and the full unrelated suites remain NOT TESTED. Existing chunk-size
+warnings remain; no dependency, API, schema, detector or approval change.
+
+Final combined gates PASS: 128 focused frontend tests across pricing, deletion,
+search, topology, 3D gestures and compact information; 138 isolated backend tests
+across item/project pricing, material import, BOM, historical estimate snapshots,
+review persistence and observed-wire review. Backend emits two existing
+deprecations. The verification database is empty again except reference roles;
+only the exact disposable fixture and its temporary servers/tab were removed.
+No real item-price assignment was applied. Live schema remains 37 tables; clean
+OpenAPI remains 62 operations (mixed worktree has the separate pending 63rd).
+All 44 originals in the earlier integrity baseline retain identical bytes; a
+newer 45th original and concurrent user-created project/pricing records remain
+untouched. Historical table fingerprints differ only in those newer workflow
+records; this is not represented as an unchanged whole-database snapshot.
+Stash remains bb78854e87833124a1725b51f0be6099a8ac0cfa.
+
+All five authorized UX responsibilities are now implemented and separately
+verified. BDO detection/training remains paused. No further roadmap work started.

@@ -3,6 +3,8 @@ import { Viewer3DCanvas } from '../viewer-3d/Viewer3DCanvas.jsx'
 import { Viewer3DErrorBoundary } from '../viewer-3d/Viewer3DErrorBoundary.jsx'
 import { buildDraftRoomScene } from './draftRoomScene.js'
 import { Button } from '../../components/ui/button.jsx'
+import { Settings2 } from 'lucide-react'
+import './planInformation.css'
 import { clampDevicePoint } from './devicePresentation.js'
 import { findWireEndpointSnap, findWireEndpointTargets } from './wirePathSnap.js'
 import { useUserPreferences } from '../settings/useUserPreferences.js'
@@ -32,11 +34,8 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
   const drawing=useSpatialDrawing({tool:navigationMode,scene:result.scene,draft,context:routingContext,presentations,
     method:drawingWireMethod,editingSession,onAddWire,onAddWall,onPendingChange:onDrawingPendingChange,onToolChange,
     snapping:preferences.snapping,disabled:drawingDisabled})
-  const connectedDevices = new Set(result.scene?.draftWires.flatMap(w => w.deviceIds) || [])
   const unmeasuredDevices = new Set(result.scene?.draftWires.flatMap(w => w.unmeasuredDeviceIds) || [])
   return <section aria-label="Unfinished room preview">
-    <p className="demo-preview-notice">Draft 3D · {connectedDevices.size} connected devices. Unset dimensions use illustrative heights; only saved elevations contribute drops/rises to BOM.</p>
-    {unmeasuredDevices.size>0 && <p role="note">{unmeasuredDevices.size} connections use planning presets, not measured drops/rises. Switches: 1.2 m above each floor; outlets: 0.45 m accessibility-oriented assumption. Saved heights override these; preset-only drops are excluded from measured BOM.</p>}
     <div className="studio-3d-hud" role="group" aria-label="3D camera views">
       <Button variant="outline" size="sm" disabled={!ready} onClick={() => controlsRef.current?.reset()}>Perspective</Button>
       <Button variant="outline" size="sm" disabled={!ready} onClick={() => controlsRef.current?.top()}>Top view</Button>
@@ -44,7 +43,9 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
       <Button variant="ghost" size="sm" disabled={!ready} onClick={() => controlsRef.current?.reset()}>Reset view</Button>
       <Button variant="outline" size="sm" aria-pressed={showRoof} onClick={() => setShowRoof((value) => !value)}>{showRoof ? 'Hide roof' : 'Show roof'}</Button>
     </div>
-    <details className="studio-preview-dimensions"><summary>Preview dimensions · {measuredLength??longSideMeters} m plan length · {wallHeight} m default walls</summary>
+    <details className="studio-preview-dimensions"><summary><Settings2 size={16} aria-hidden="true" />3D settings</summary>
+      <p>Preview dimensions are illustrative unless a confirmed scale and saved elevations are available. They do not approve or calibrate this plan.</p>
+      {unmeasuredDevices.size>0 && <p role="note">Save actual mounting and route elevations to include vertical connections in measured BOM. Planning presets are excluded.</p>}
       <label>Source page long side (m)<input type="number" disabled={measuredLength!=null} min="5" max="500" step="1" value={measuredLength??longSideMeters} onChange={(event) => { const value = Number(event.target.value); if (value >= 5 && value <= 500) setLongSideMeters(value) }} /></label>
       {measuredLength!=null&&<p>Confirmed page scale is active. Per-wall dimensions override illustrative defaults.</p>}
       <label>Wall height (m)<input type="number" min="2" max="6" step="0.1" value={wallHeight} onChange={(event) => { const value = Number(event.target.value); if (value >= 2 && value <= 6) setWallHeight(value) }} /></label>
@@ -76,6 +77,5 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
       </Viewer3DErrorBoundary>}
     {result.scene?.invalidSymbolCount > 0 && <p role="alert">{result.scene.invalidSymbolCount} invalid device positions omitted. Correct them in the inspector.</p>}
     {result.scene?.invalidWiringCount > 0 && <p role="alert">{result.scene.invalidWiringCount} invalid wiring traces omitted. Correct their points in the inspector.</p>}
-    <p>Click wiring, then drag a blue endpoint toward a device. Green means release to connect. Drag away to detach. Both views edit the same draft.</p>
   </section>
 }

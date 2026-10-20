@@ -1,0 +1,13 @@
+.studio-review-page { position: relative; }
+.studio-plan-information { position: absolute; top: 16px; right: 14px; z-index: 26; }
+.studio-review-page > .studio-plan-information { z-index: 46; }
+.studio-plan-information > details > summary { list-style: none; width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--paper-line); border-radius: 50%; background: var(--white); color: var(--ink); cursor: pointer; }
+.studio-plan-information-body { position: absolute; top: 46px; right: 0; width: min(420px, calc(100vw - 40px)); max-height: 70dvh; overflow: auto; padding: 20px; border-radius: 12px; border: 1px solid var(--paper-line); background: var(--white); color: var(--ink); box-shadow: 0 8px 30px #18273620; font-size: 13px; }
+.studio-plan-information-body h2 { font-size: 18px; margin: 0 0 16px; }
+.studio-plan-information summary:focus-visible, .studio-preview-dimensions summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.studio-preview-dimensions > summary { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.studio-canvas-first .studio-device-workbench > .demo-review-tools[data-collapsed="false"] { max-height: calc(100dvh - 155px) !important; }
+.studio-canvas-first .studio-viewport-frame.is-expanded :is(.viewer-3d-canvas, .demo-canvas-grid-wrap) { height: 100dvh; min-height: 0; }
+@media (max-width: 760px) {
+  .studio-canvas-first .studio-device-workbench > .demo-review-tools[data-collapsed="false"] { max-height: calc(100dvh - 180px) !important; }
+}
