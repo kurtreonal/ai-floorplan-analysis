@@ -62,7 +62,9 @@ export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8, 
     && symbol.center.x >= 0 && symbol.center.y >= 0 && symbol.center.x <= width && symbol.center.y <= height)
     .map((symbol) => ({ id: symbol.id, status: symbol.disposition,
       ...(Number.isFinite(symbol.mounting_height_meters) ? {installation:{provenance:'designer_supplied_planning',
-        elevation_meters:symbol.mounting_height_meters,wall_id:symbol.mounting_wall_id}} : {}),
+        elevation_meters:symbol.mounting_height_meters+(symbol.terminal_offset_meters??0),wall_id:symbol.mounting_wall_id,
+        ...(symbol.mounting_reference || symbol.terminal_offset_meters!=null ? {mounting_reference:symbol.mounting_reference || 'legacy_unspecified',mounting_elevation_meters:symbol.mounting_height_meters}:{}),
+        ...(symbol.terminal_offset_meters!=null ? {terminal_offset_meters:symbol.terminal_offset_meters}:{})}} : {}),
       position: [symbol.center.x * scale, 0, symbol.center.y * scale], presentation: presentations[symbol.id] }))
   const scene = { width: width * scale, depth: height * scale, elevation: 0, sourceScale: scale,
     unitsPerMeter, ceilingElevation: relativeHeight, mountingWalls: walls,

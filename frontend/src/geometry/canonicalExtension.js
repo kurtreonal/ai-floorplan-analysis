@@ -142,11 +142,19 @@ function symbolDetail(value, validSymbolIds, version = 2, validWallIds = null) {
   const provenance = name(data.provenance, { nullable: true, maximum: 255 })
   let installation
   if (hasInstallation) {
-    const mount = exactObject(data.installation, ['elevation_meters', 'wall_id'])
+    const extra=version>=7 ? ['mounting_reference','mounting_elevation_meters','terminal_offset_meters'].filter(k=>Object.hasOwn(data.installation,k)) : []
+    const mount = exactObject(data.installation, ['elevation_meters', 'wall_id',...extra])
     const level = finiteNumber(mount.elevation_meters)
     const wallId = mount.wall_id === null ? null : identifier(mount.wall_id)
     if (wallId !== null && validWallIds && !validWallIds.has(wallId)) fail()
     installation = {elevation_meters: level, wall_id: wallId}
+    if(extra.length){
+      if(!['device_center','box_bottom','connection_terminal','legacy_unspecified'].includes(mount.mounting_reference))fail()
+      const mounting=finiteNumber(mount.mounting_elevation_meters)
+      const offset=Object.hasOwn(mount,'terminal_offset_meters') ? finiteNumber(mount.terminal_offset_meters) : null
+      if(offset!==null && Math.abs(offset)>10 || !close(level,mounting+(offset??0)))fail()
+      Object.assign(installation,{mounting_reference:mount.mounting_reference,mounting_elevation_meters:mounting,...(offset!==null ? {terminal_offset_meters:offset}:{})})
+    }
   }
   return {
     symbol_id: symbolId,
@@ -244,7 +252,7 @@ export function normalizeCanonicalExtension(value, baseGeometry = null) {
     'symbol_details',
     'route_details',
   ])
-  if (![2, 3, 4, 5, 6].includes(data.extension_schema_version) || !Number.isSafeInteger(data.extension_schema_version)) {
+  if (![2, 3, 4, 5, 6, 7].includes(data.extension_schema_version) || !Number.isSafeInteger(data.extension_schema_version)) {
     fail()
   }
   if (data.base_schema_version !== BASE_SCHEMA_VERSION || !Number.isSafeInteger(data.base_schema_version)) {

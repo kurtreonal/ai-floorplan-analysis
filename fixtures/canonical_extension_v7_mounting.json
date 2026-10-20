@@ -1,0 +1,17 @@
+{
+  "extension_schema_version": 7,
+  "base_schema_version": 1,
+  "source_plane_reference": {"floor_plan_page_id": 81, "source_artifact_id": 103, "width_pixels": 640, "height_pixels": 480},
+  "openings": [],
+  "panels": [],
+  "symbol_details": [{
+    "symbol_id": "detected:501", "orientation_degrees": null, "bounds": null,
+    "provenance": "Synthetic testing only: explicit center and terminal offset",
+    "installation": {
+      "elevation_meters": -1.1, "wall_id": null,
+      "mounting_reference": "device_center", "mounting_elevation_meters": -1.2,
+      "terminal_offset_meters": 0.1
+    }
+  }],
+  "route_details": []
+}

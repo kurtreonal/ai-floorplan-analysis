@@ -127,9 +127,15 @@ class CanonicalSymbolBounds:
 class CanonicalDeviceInstallation:
     elevation_meters: float
     wall_id: int | None = None
+    mounting_reference: str | None = None
+    mounting_elevation_meters: float | None = None
+    terminal_offset_meters: float | None = None
 
     def to_dict(self):
-        return {'elevation_meters': self.elevation_meters, 'wall_id': self.wall_id}
+        result={'elevation_meters': self.elevation_meters, 'wall_id': self.wall_id}
+        for key in ('mounting_reference','mounting_elevation_meters','terminal_offset_meters'):
+            if getattr(self,key) is not None:result[key]=getattr(self,key)
+        return result
 
 
 @dataclass(frozen=True)
@@ -347,14 +353,25 @@ def _symbol_detail(
     provenance = _name(data["provenance"], "INVALID_SYMBOL_DETAIL", nullable=True, maximum=255)
     installation = None
     if 'installation' in data:
-        mount = _exact_keys(data['installation'], {'elevation_meters', 'wall_id'}, 'INVALID_SYMBOL_DETAIL')
+        extra={key for key in ('mounting_reference','mounting_elevation_meters','terminal_offset_meters') if key in data['installation']} if version>=7 and isinstance(data['installation'],dict) else set()
+        mount = _exact_keys(data['installation'], {'elevation_meters', 'wall_id'}|extra, 'INVALID_SYMBOL_DETAIL')
         level = _number(mount['elevation_meters'], 'INVALID_SYMBOL_DETAIL')
         wall_id = mount['wall_id']
         if wall_id is not None:
             wall_id = _identifier(wall_id, 'INVALID_SYMBOL_DETAIL')
             if valid_wall_ids is not None and wall_id not in valid_wall_ids:
                 _fail('EXTENSION_CROSS_REFERENCE_FAILED')
-        installation = CanonicalDeviceInstallation(level, wall_id)
+        reference=mount.get('mounting_reference')
+        mounting=mount.get('mounting_elevation_meters')
+        offset=mount.get('terminal_offset_meters')
+        if extra:
+            if reference not in ('device_center','box_bottom','connection_terminal','legacy_unspecified') or mounting is None:
+                _fail('INVALID_SYMBOL_DETAIL')
+            mounting=_number(mounting,'INVALID_SYMBOL_DETAIL')
+            offset=_number(offset,'INVALID_SYMBOL_DETAIL') if 'terminal_offset_meters' in mount else None
+            if offset is not None and abs(offset)>10 or not _close(level,mounting+(offset or 0)):
+                _fail('INVALID_SYMBOL_DETAIL')
+        installation = CanonicalDeviceInstallation(level, wall_id,reference,mounting,offset)
     return CanonicalSymbolDetail(
         symbol_id=symbol_id,
         orientation_degrees=orientation,
@@ -472,7 +489,7 @@ def canonical_extension_from_dict(
         "INVALID_EXTENSION_DOCUMENT",
     )
     version = data['extension_schema_version']
-    if type(version) is not int or version not in (2, 3, 4, 5, 6):
+    if type(version) is not int or version not in (2, 3, 4, 5, 6, 7):
         _fail("UNSUPPORTED_EXTENSION_VERSION")
     if type(data["base_schema_version"]) is not int or data["base_schema_version"] != BASE_SCHEMA_VERSION:
         _fail("INVALID_EXTENSION_DOCUMENT")

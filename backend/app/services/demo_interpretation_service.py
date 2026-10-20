@@ -44,6 +44,7 @@ from app.services.layout_service import LayoutServiceError, save_owned_layout
 from app.services.wiring_legend_service import annotate_wiring
 from app.routing.endpoint_connections import connect_touching_endpoints
 from app.repositories.analysis_settings_repository import latest_elevation, latest_scales
+from app.geometry.device_mounting import VED_CENTER_HEIGHTS, mounting_document, connection_height
 
 
 SAFE_ERROR_MESSAGE = "The demo interpretation operation could not be completed."
@@ -78,7 +79,7 @@ def _routing_context(session, run):
         scale.reference_width_pixels,scale.reference_height_pixels)==(plane.width_pixels,plane.height_pixels) else None
     return {'floor_elevation_meters': float(elevation.elevation_meters)
             if elevation and elevation.elevation_meters is not None else None,
-            'pixels_per_meter':ppm}
+            'pixels_per_meter':ppm,'mounting_defaults':dict(VED_CENTER_HEIGHTS)}
 
 
 def _fail(code: str) -> None:
@@ -397,6 +398,7 @@ def append_interpretation_review(
             }
             for symbol in payload.symbols
         ]
+        document=mounting_document(document,legends)
         document.pop("expected_revision_number")
         # Compatibility: older clients detach by removing an attachment. Persist
         # that intent as an endpoint opt-out instead of immediately reattaching.
@@ -654,6 +656,7 @@ def save_approved_interpretation_layout(
             _fail("SYMBOL_MAPPING_REQUIRED")
 
         symbols = []
+        accepted_symbols=mounting_document({'symbols':accepted_symbols},legends)['symbols']
         symbol_id_map = {}
         for symbol in accepted_symbols:
             # K1 remains frozen: an accepted interpretation proposal is persisted as
@@ -760,8 +763,12 @@ def save_approved_interpretation_layout(
                 })
 
         installations = {symbol_id_map[s['id']]: {
-            'elevation_meters': float(elevation) + s['mounting_height_meters'],
+            'elevation_meters': float(elevation) + connection_height(s),
             'wall_id': wall_id_map.get(s.get('mounting_wall_id')),
+            **({'mounting_reference':s.get('mounting_reference') or 'legacy_unspecified',
+                'mounting_elevation_meters':float(elevation)+s['mounting_height_meters'],
+                **({'terminal_offset_meters':s['terminal_offset_meters']} if s.get('terminal_offset_meters') is not None else {})}
+               if s.get('mounting_reference') or s.get('terminal_offset_meters') is not None else {}),
         } for s in accepted_symbols if s.get('mounting_height_meters') is not None}
         for symbol in accepted_symbols:
             wall_id = wall_id_map.get(symbol.get('mounting_wall_id'))
@@ -786,7 +793,7 @@ def save_approved_interpretation_layout(
         ]
 
         extension = {
-            "extension_schema_version": 6 if any(d.get('route_kind') == 'manual' or d.get('vertex_ids') or d.get('network_lineage') or any(c.get('terminal_id') for c in d.get('device_connections',[])) for d in route_details) else 5 if any('junction_connections' in detail for detail in route_details) else 4 if connection_v4 else 3 if installations else 2,
+            "extension_schema_version": 7 if any('mounting_reference' in m for m in installations.values()) else 6 if any(d.get('route_kind') == 'manual' or d.get('vertex_ids') or d.get('network_lineage') or any(c.get('terminal_id') for c in d.get('device_connections',[])) for d in route_details) else 5 if any('junction_connections' in detail for detail in route_details) else 4 if connection_v4 else 3 if installations else 2,
             "base_schema_version": 1,
             "source_plane_reference": {
                 "floor_plan_page_id": run.floor_plan_page_id,

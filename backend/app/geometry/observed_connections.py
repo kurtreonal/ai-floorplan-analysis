@@ -1,4 +1,5 @@
 """Canonical installation connections, not a second viewer-side route graph."""
+from app.geometry.device_mounting import connection_height
 
 
 def observed_connection_routes(wires, symbols, symbol_ids, *, floor_id, floor_elevation, scale, provenance):
@@ -8,6 +9,7 @@ def observed_connection_routes(wires, symbols, symbol_ids, *, floor_id, floor_el
         for a in w.get('device_attachments',[])) for w in active)
     version5 = any(w.get('path_origin') or w.get('junction_attachments') or w.get('circuit_id') or w.get('vertex_ids')
         or any(a.get('terminal_id') for a in w.get('device_attachments',[])) for w in active)
+    version5 |= any(s.get('mounting_reference') or s.get('terminal_offset_meters') is not None for s in symbols.values())
     version4 |= version5  # Keep vertex indices stable when generating device drops.
     routes=[];details=[];drops=set()
     for wire in active:
@@ -19,7 +21,7 @@ def observed_connection_routes(wires, symbols, symbol_ids, *, floor_id, floor_el
         for attachment in wire.get('device_attachments',[]):
             symbol=symbols[attachment['symbol_id']]
             index=attachment['point_index'];service=source_points[index]
-            mounted={**service,'elevation_meters':float(floor_elevation)+symbol['mounting_height_meters']}
+            mounted={**service,'elevation_meters':float(floor_elevation)+connection_height(symbol)}
             if version4:
                 anchor={k:mounted[k] for k in ('x','y','elevation_meters')}
                 binding=dict(symbol_id=symbol_ids[symbol['id']],point_index=index,anchor=anchor)

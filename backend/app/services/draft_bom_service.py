@@ -16,6 +16,7 @@ from app.services.wiring_legend_service import annotate_wiring
 from app.ai.floor_plan_interpretation.reviewed_reference import inherit_review_draft
 from app.geometry.path_lengths import unique_paths_length
 from app.geometry.wire_network import takeoff_path_groups
+from app.geometry.device_mounting import resolved_mounting, connection_height
 
 
 def material_key(name):
@@ -140,7 +141,7 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
         row['quantity'] += 1
         row['symbol_ids'].append(symbol['id'])
     rows = list(groups.values())
-    symbols = {s['id']: s for s in document.get('symbols', []) if s.get('disposition') != 'rejected'}
+    symbols = {s['id']: resolved_mounting(s) for s in document.get('symbols', []) if s.get('disposition') != 'rejected'}
     for group in takeoff_path_groups(document):
         drops = set()  # Only this explicitly connected physical group shares drops.
         wire = group[0]
@@ -155,7 +156,7 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
             if symbol is None:
                 missing.append('attached device unavailable')
                 continue
-            height, service = symbol.get('mounting_height_meters'), wire.get('elevation_meters')
+            height, service = connection_height(symbol), wire.get('elevation_meters')
             absent = [name for name, value in [('plan scale', scale), ('floor elevation', floor_elevation),
                 ('wire elevation', service), ('device mounting height', height)] if value is None]
             if unassigned:

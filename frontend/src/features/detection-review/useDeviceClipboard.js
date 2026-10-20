@@ -8,6 +8,7 @@ export function deviceClipboardSnapshot(symbol) {
     symbol_legend_id: symbol.symbol_legend_id ?? null,
     custom_unit_price: symbol.custom_unit_price ?? null,
     mounting_height_meters: symbol.mounting_height_meters ?? null,
+    ...Object.fromEntries(['mounting_reference','mounting_height_source','terminal_offset_meters'].filter(k=>symbol[k]!=null).map(k=>[k,symbol[k]])),
   }
 }
 

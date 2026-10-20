@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, model_validator, model_serializer
 
 from app.ai.floor_plan_interpretation import FloorPlanInterpretationCandidate
+from app.geometry.device_mounting import VED_CENTER_HEIGHTS
 
 
 Finite = Annotated[StrictInt | StrictFloat, Field(ge=0, le=1_000_000, allow_inf_nan=False)]
@@ -66,12 +67,17 @@ class DemoSymbolReview(DemoSchema):
     custom_unit_price: Annotated[StrictInt | StrictFloat, Field(ge=0, le=1_000_000_000, allow_inf_nan=False)] | None = None
     mounting_height_meters: Annotated[StrictInt | StrictFloat, Field(ge=0, le=100, allow_inf_nan=False)] | None = None
     mounting_wall_id: EntityId | None = None
+    mounting_reference: Literal['device_center','box_bottom','connection_terminal','legacy_unspecified'] | None = None
+    mounting_height_source: Literal['ved_default','drawing','designer'] | None = None
+    terminal_offset_meters: Annotated[StrictInt | StrictFloat, Field(ge=-10, le=10, allow_inf_nan=False)] | None = None
     gang_count_confirmed: StrictBool = False
 
     @model_serializer(mode='wrap')
     def omit_unset_gang_confirmation(self, handler):
         value=handler(self)
         if not self.gang_count_confirmed:value.pop('gang_count_confirmed',None)
+        for key in ('mounting_reference','mounting_height_source','terminal_offset_meters'):
+            if getattr(self,key) is None:value.pop(key,None)
         return value
 
 
@@ -308,6 +314,7 @@ class DemoReviewResponse(DemoSchema):
 
 
 class DemoRoutingContext(DemoSchema):
+    mounting_defaults: dict[str,float] = Field(default_factory=lambda:dict(VED_CENTER_HEIGHTS))
     pixels_per_meter: Annotated[StrictInt | StrictFloat, Field(gt=0, le=1_000_000, allow_inf_nan=False)] | None = None
     floor_elevation_meters: Annotated[float, Field(ge=-10000, le=10000, allow_inf_nan=False)] | None = None
 

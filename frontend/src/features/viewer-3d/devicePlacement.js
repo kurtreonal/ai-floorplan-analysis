@@ -25,7 +25,8 @@ export function sceneCeiling(scene) {
 // Mount geometry uses local +Z as the wall-device front and +Y as fixture top.
 export function deviceConnector(placement) {
   const point = [...placement.position]
-  if (placement.mount === 'ceiling') point[1] += placement.size[1] / 2
+  if(Number.isFinite(placement.connectionElevation))point[1]=placement.connectionElevation
+  if (placement.mount === 'ceiling' && !Number.isFinite(placement.connectionElevation)) point[1] += placement.size[1] / 2
   else if (placement.mount === 'wall') {
     const inset = placement.size[2] * .35
     point[0] -= Math.sin(placement.rotation) * inset
@@ -59,7 +60,7 @@ export function devicePlacement(symbol, scene, family) {
     ? nearest.wall.position[1] + nearest.wall.size[1] / 2 : sceneCeiling(scene))
   if (profile.mount === 'ceiling') position[1] = (installation ? installation.elevation_meters * unit : ceiling) - size[1] / 2
   else if (profile.mount === 'wall') {
-    position[1] = installation ? installation.elevation_meters * unit
+    position[1] = installation ? (installation.mounting_reference==='device_center' ? installation.mounting_elevation_meters : installation.elevation_meters) * unit
       : scene.elevation + Math.min((scene.planningMountingHeights?.[family] ?? profile.height) * unit, Math.max(size[1] / 2, ceiling - scene.elevation - size[1] / 2))
     // Only mount to a nearby wall; never teleport an uncertain device across a room.
     if (nearest && nearest.distance <= 0.6 * unit + nearest.wall.size[2] / 2) {
@@ -76,5 +77,6 @@ export function devicePlacement(symbol, scene, family) {
     }
   } else position[1] = installation ? installation.elevation_meters * unit : scene.elevation + size[1] / 2 + 0.002 * unit
   return { position, size, rotation, mount: profile.mount, mountedWallId,
+    ...(installation?.mounting_reference ? {connectionElevation:installation.elevation_meters*unit}:{}),
     anchorOffset: [position[0] - symbol.position[0], position[2] - symbol.position[2]] }
 }

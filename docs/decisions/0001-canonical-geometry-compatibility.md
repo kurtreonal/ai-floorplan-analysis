@@ -1059,3 +1059,46 @@ clientPricing.css; focused tests and synthetic fixtures above. Stage overlapping
 BOMPanel only from tmp/ux-checkpoints/clean, not the dirty root live-preview edits.
 Next: checkpoint 2 inspection of calibration/upload metadata and mounting/terminal
 defaults. Checkpoints 2–6 have not started; do not claim those features complete.
+
+Checkpoint 1 committed as 9449a44 on codex/vlm-localization-experiment. Checkpoint 2
+has now started (not complete): mounting defaults/reference implementation is in
+the root and ignored clean mirror. Backend supplies the VED policy; mapped outlet/
+switch drafts acquire center-referenced 0.30/1.20 m defaults only when no override
+or conflicting reference exists. Explicit old heights remain unchanged, including
+unspecified historical references. Terminal offsets are separate; absent offsets
+mean the declared reference endpoint, not a manufacturer terminal measurement.
+Review persistence, draft BOM, canonical publication and 3D placement share this
+meaning. Optional reference/offset metadata uses canonical extension v7; v2–v6
+round trips remain unchanged. No historical file/review is rewritten.
+
+Initial focused backend run: 70 passed / two new assertion-type failures; fixed
+Decimal-vs-float test comparison. Subsequent run: 73 PASS, including review and
+canonical save/reload, 3 m service -> 2.7 m outlet / 1.8 m switch, offset handling
+and shared v7 fixture rejection. Focused frontend run: 114 PASS before the final
+shared-v7 fixture assertion was added; final lint/re-run pending. Mounting browser
+verification, full calibration/upload/paper/orientation/ceiling-service settings,
+checkpoint-2 build and publication are still NOT TESTED / unfinished. Preserve
+uncommitted mounting work in device_mounting/deviceMounting, demo review schema/
+service/Page, draft_bom_service, observed_connections, canonical extension Python/JS,
+devicePresentation/clipboard/draftRoomScene/devicePlacement, tests and v7 fixture.
+Continue with the pending focused frontend result and browser mounting proof, then
+the remaining checkpoint-2 measurement settings. Checkpoints 3–6 not started.
+
+Mounting sub-checkpoint 2a gate: 109 backend PASS (mounting, canonical extension,
+observed/canonical contacts, measurement, interpretation API, BOM and item pricing);
+115 focused frontend PASS; scoped lint and authenticated build PASS. Expanded
+gate found a stale pre-existing 36-table assertion (actual schema already 37 from
+item assignments), corrected to 37, and a new legacy-reference/offset canonical
+case missing connection metadata, fixed before the final passing run. Neither
+failure was skipped. Existing deprecation/chunk-size warnings remain.
+Browser PASS: disposable synthetic outlet shows 0.30 m center default and separate
++0.10 m offset. Changing center height to 0.50 m, saving and reloading retains both
+values; at 3.0 m service elevation BOM shows 2.40 m drop + 0.40 m horizontal =
+2.80 m for both components. Proof tmp/ux-checkpoints/mounting-reference-reloaded.png.
+Visual 3D BLOCKED: browser cannot create WebGL. Numeric shared 3D projection and
+canonical contract tests PASS; no rendered-3D claim. Synthetic fixture/tab/servers
+removed; subsequent isolated preflight passed. No models, original files, historical
+reviews or real project data changed; schema/API remain 37/62; stash unchanged.
+This is a bounded mounting sub-checkpoint, not completion of checkpoint 2. Upload
+paper/orientation/scale metadata, separate floor/ceiling/service settings and their
+remaining integration/calibration proofs are next; checkpoints 3–6 remain open.

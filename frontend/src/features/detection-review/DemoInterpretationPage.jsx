@@ -41,6 +41,7 @@ import { updateWireNetwork, applyWireEdits } from './wireJunctions.js'
 import { DevicePicker } from './DevicePicker.jsx'
 import { commitWiringPath } from './connectedWiring.js'
 import { ObjectBrowser } from './ObjectBrowser.jsx'
+import { withMountingDefaults } from './deviceMounting.js'
 import { PlanInformation } from './PlanInformation.jsx'
 
 const DraftRoomPreview = lazy(() => import('./DraftRoomPreview.jsx').then((module) => ({ default: module.DraftRoomPreview })))
@@ -65,6 +66,7 @@ const EXPERIMENTAL_SYMBOL_PROVIDERS = new Set([
 
 function initialDraft(record, legends = []) {
   const draft = rawInitialDraft(record,legends)
+  draft.symbols=draft.symbols.map(s=>withMountingDefaults(s,describeReviewSymbol(s,record,legends),record.routing_context?.mounting_defaults))
   draft.openings=structuredClone(record.review?.openings??record.draft_review?.openings??[])
   draft.source_openings=(record.candidate.payload.openings?.items??[]).map(o=>({id:o.id,points:[o.start,o.end]}))
   if (record.review?.approved_for_layout) return draft
@@ -86,6 +88,7 @@ function rawInitialDraft(record, legends = []) {
         custom_unit_price: symbol.custom_unit_price ?? null,
         mounting_height_meters: symbol.mounting_height_meters ?? null,
         mounting_wall_id: symbol.mounting_wall_id ?? null,
+        ...Object.fromEntries(['mounting_reference','mounting_height_source','terminal_offset_meters'].filter(k=>symbol[k]!=null).map(k=>[k,symbol[k]])),
         ...(symbol.gang_count_confirmed ? {gang_count_confirmed:true} : {}),
       })),record,legends),
     }
@@ -299,6 +302,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
     if (saveState.status === 'saving' || nextDraft === draft) return
     if (selected && !nextDraft[`${selected.kind}s`]?.some(item => item.id === selected.id && item.disposition !== 'rejected')) setSelected(null)
     const nextPresentations = Object.fromEntries(nextDraft.symbols.map(s => [s.id, describeReviewSymbol(s,state.record,state.legends)]))
+    nextDraft={...nextDraft,symbols:nextDraft.symbols.map(s=>withMountingDefaults(s,nextPresentations[s.id],state.record.routing_context?.mounting_defaults))}
     if (autoConnect) nextDraft = connectTouchingWireEndpoints(nextDraft,nextPresentations)
     setHistory((prev) => [...prev.slice(0, historyIndex + 1), nextDraft])
     setHistoryIndex((prev) => prev + 1)
@@ -775,8 +779,14 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
             <label>Mounting height above floor (m, optional)<input type="number" min="0" max="100" step="0.01"
               value={selectedEntity.mounting_height_meters ?? ''} onChange={event => {
                 const value = event.target.value === '' ? null : Number(event.target.value)
-                if (value === null || (Number.isFinite(value) && value >= 0 && value <= 100)) updateSymbol({...selectedEntity,mounting_height_meters:value})
+                if (value === null || (Number.isFinite(value) && value >= 0 && value <= 100)) updateSymbol({...selectedEntity,mounting_height_meters:value,mounting_reference:selectedEntity.mounting_reference || (selectedEntity.mounting_height_meters==null ? 'device_center':'legacy_unspecified'),mounting_height_source:'designer'})
               }} /></label>
+            <label>Mounting measurement reference<select value={selectedEntity.mounting_reference || 'legacy_unspecified'} onChange={event=>updateSymbol({...selectedEntity,mounting_reference:event.target.value,mounting_height_source:'designer'})}>
+              <option value="device_center">Device center above finished floor</option><option value="box_bottom">Box bottom above finished floor</option><option value="connection_terminal">Connection terminal above finished floor</option><option value="legacy_unspecified">Previous reference not recorded</option>
+            </select></label>
+            <label>Terminal offset from mounting reference (m, optional)<input type="number" min="-10" max="10" step="0.001" value={selectedEntity.terminal_offset_meters ?? ''}
+              onChange={event=>{const value=event.target.value==='' ? null:Number(event.target.value);if(value===null || Number.isFinite(value)&&Math.abs(value)<=10)updateSymbol({...selectedEntity,terminal_offset_meters:value})}} /></label>
+            <small>Drops end at the mounting reference unless a terminal offset is entered. Existing heights are preserved.</small>
             <label>Mounting wall (optional)<select value={selectedEntity.mounting_wall_id ?? ''}
               onChange={event => updateSymbol({...selectedEntity,mounting_wall_id:event.target.value || null})}>
               <option value="">Not specified</option>{orderNamed(draft.walls.filter(w => w.disposition !== 'rejected'),w => w.id)
