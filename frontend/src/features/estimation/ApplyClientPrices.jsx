@@ -41,7 +41,7 @@ export function ApplyClientPrices({ projectId, floorId, disabled = false, onAppl
   const entry = entries.find(row=>row.row_id === input.row)
   const currentFloor = input.scope.startsWith('floor:') ? Number(input.scope.slice(6)) : null
   const items = (loaded?.inventory.items || []).filter(row=>!currentFloor || row.floor_id === currentFloor)
-  const visible = items.filter(row=>(!filter.kind || row.item_kind === filter.kind) &&
+  const visible = items.filter(row=>(!filter.kind || (row.kind === 'device' ? 'device' : 'path') === filter.kind) &&
     [row.name,...(row.symbol_ids || []),row.material_name,row.item_kind].join(' ').toLowerCase().includes(filter.query.toLowerCase()))
   const locked = busy || disabled || uncertain
   function change(values) { setInput(current=>({...current,...values})); setPreview(null); setError(''); setMessage('') }
@@ -76,7 +76,7 @@ export function ApplyClientPrices({ projectId, floorId, disabled = false, onAppl
     } finally { inFlight.current = false; if (!request.signal.aborted) setBusy(false) }
   }
   return <details className="client-pricing item-pricing" open={open} onToggle={event=>setOpen(event.currentTarget.open)}><summary>Apply client prices to selected items</summary>
-    <p>Saved items only. Save canvas edits first. Geometry and material specifications stay unchanged.</p>
+    <p>Saved devices and wiring paths. Each wiring path includes wire/cable and conduit; their products and prices are separate. Save canvas edits first.</p>
     {open && <><fieldset disabled={locked || !loaded}>
       <div className="item-price-controls">
         <label>Client price list<select value={input.version} onChange={event=>change({version:event.target.value,row:'',keys:[]})}>
@@ -91,13 +91,13 @@ export function ApplyClientPrices({ projectId, floorId, disabled = false, onAppl
       </div>
       <div className="item-price-controls"><label>Search saved items<input type="search" value={filter.query} onChange={event=>setFilter({...filter,query:event.target.value})}/></label>
         <label>Item type<select value={filter.kind} onChange={event=>setFilter({...filter,kind:event.target.value})}>
-          <option value="">All types</option><option value="device">Devices</option><option value="wire">Conductors / cables</option><option value="conduit">Conduits</option><option value="path">Other wiring paths</option>
+          <option value="">All types</option><option value="device">Devices</option><option value="path">Wiring paths</option>
         </select></label></div>
       <div className="client-price-table"><table aria-label="Saved items for pricing"><thead><tr><th>Select</th><th>Item</th><th>Unit / current price</th></tr></thead><tbody>
         {visible.map(row=><tr key={row.item_key}><td><input type="checkbox" aria-label={`Price ${row.name} ${row.symbol_ids?.join(', ') || row.path_id || row.item_kind}`}
           disabled={!entry || row.material_id !== entry.material_id} checked={input.keys.includes(row.item_key)} onChange={event=>change({mode:'selected',keys:event.target.checked ? [...input.keys,row.item_key] : input.keys.filter(key=>key !== row.item_key)})}/></td>
-          <td>{row.name}<small>{row.material_name}</small><small>{row.symbol_ids?.join(', ') || row.path_id || row.item_kind} · {row.floor_id ? `Floor ${row.floor_id}`:'Project route'}</small>
-            {(!entry || row.material_id !== entry.material_id) && <small>{!entry ? 'Choose a price entry.':'Different or unresolved material/specification.'}</small>}</td>
+          <td>{row.name}<small>{row.kind === 'path' ? `Wiring path · ${row.material_kind === 'wire' || row.item_kind === 'wire' ? 'Wire/cable' : row.material_kind === 'conduit' || row.item_kind === 'conduit' ? 'Conduit' : 'Material not assigned'}` : 'Device'}</small><small>{row.material_name}</small><small>{row.symbol_ids?.join(', ') || row.path_id || row.item_kind} · {row.floor_id ? `Floor ${row.floor_id}`:'Project route'}</small>
+            {(!entry || row.material_id !== entry.material_id) && <small>{!entry ? 'Choose a price entry.' : !row.material_id ? 'Choose the matching product/size for this item first.' : 'This price entry is for a different product/size.'}</small>}</td>
           <td>{row.quantity} {row.unit}<small>{money(row.unit_price,row.currency)} / {row.unit}</small></td></tr>)}
       </tbody></table>{!visible.length && <p>No matching saved items.</p>}</div>
       <div className="item-price-actions"><Button type="button" variant="outline" disabled={!entry || !input.keys.length} onClick={()=>run()}>Preview selected ({input.keys.length})</Button>

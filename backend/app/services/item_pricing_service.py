@@ -15,6 +15,12 @@ def route_key(route_id, kind):
     return pricing._hash(['saved_route', route_id, kind])
 
 
+def path_key(row, *, legacy=False):
+    identity = ['path', row.get('floor_id'), row.get('floor_plan_id'), row.get('page_id'),
+        row.get('candidate_run_id'), sorted(row.get('path_ids') or [])]
+    return pricing._hash(identity if legacy else identity + [row.get('material_kind', 'path')])
+
+
 def expand_items(rows):
     result = []
     for source in rows:
@@ -27,7 +33,7 @@ def expand_items(rows):
             elif source.get('saved_route_version_id'):
                 key = route_key(source['saved_route_version_id'], source['material_kind'])
             else:
-                key = pricing._hash(['path', row.get('floor_id'), row.get('floor_plan_id'), row.get('page_id'), row.get('candidate_run_id'), sorted(row.get('path_ids') or [])])
+                key = path_key(row)
             row['item_key'] = key
             row['item_kind'] = 'device' if source['kind'] == 'device' else source.get('material_kind', 'path')
             result.append(row)
@@ -63,11 +69,21 @@ def apply_prices(session, project_id, result, materials):
     quote_cache = {}
     for row in result['items']:
         assignment = assignments.get(row['item_key'])
+        legacy = False
+        if not assignment and row['kind'] == 'path' and not row.get('saved_route_version_id'):
+            assignment = assignments.get(path_key(row, legacy=True))
+            legacy = assignment is not None
         material = catalog.get(row.get('material_id'))
         if not assignment:
             continue
         quote = assignment_quote(session, project_id, assignment, material, quote_cache) if material else None
-        valid = material and assignment['fingerprint'] == fingerprint(row, material) and quote
+        if legacy:
+            version = quote_cache.get(assignment['price_version_id'])
+            original = next((q for q in version.document['rows'] if q['row_id'] == assignment['price_row_id']), None) if version else None
+            if material is None or original and original['material_id'] != material['id']:
+                continue  # The old shared path key belongs to the other component.
+        valid = material and quote and (assignment['fingerprint'] == fingerprint(row, material)
+            or legacy and assignment['fingerprint'] == fingerprint(dict(row, item_kind='path'), material))
         if not valid:
             row['item_price_warning'] = 'Saved price choice no longer matches this item. Review its material and unit.'
             row.update(pricing_state='item_price_review_required', unit_price=None, line_total=None, currency=None)
@@ -132,8 +148,12 @@ def preview(session, user, project_id, selection):
             for r in all_rows if r['kind'] == 'path' and r.get('floor_id') is None)
     for row in rows:
         reason = None
-        if not compatible or row.get('material_id') != quote['material_id']:
-            reason = 'Different or unresolved material/specification.'
+        if not compatible:
+            reason = 'Client price entry no longer matches the active catalog product.'
+        elif row.get('material_id') is None:
+            reason = 'Choose the product/size for this item before applying its price.'
+        elif row.get('material_id') != quote['material_id']:
+            reason = 'This price entry is for a different product/specification.'
         elif row['unit'] != material.unit and not (row['unit'] == 'meter' and row.get('material_kind') == 'wire' and row.get('wire_meters_per_unit')):
             reason = 'Purchase unit or conversion is unresolved.'
         elif row.get('material_conflict') or row.get('electrical_assignment_required'):

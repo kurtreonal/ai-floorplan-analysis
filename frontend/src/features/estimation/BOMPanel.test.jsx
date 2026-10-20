@@ -10,6 +10,13 @@ vi.mock('./ClientPricingPanel.jsx', () => ({ ClientPricingPanel: vi.fn(({onAppli
   <button onClick={() => onApplied({id:7})}>Apply confirmed client import</button>
 </div>) }))
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals() })
+it('distinguishes an existing connection from the missing vertical measurement input',async()=>{
+  fetchBOM.mockResolvedValue({planning:{items:[{kind:'path',name:'Wire/cable',quantity:10,unit:'meter',pricing_state:'measurement_incomplete',missing_vertical_inputs:['device-1: save device mounting height for the connected drop/rise']}],priced_subtotals:{},unpriced_items:1,basis:[],conduit_materials:[]}})
+  render(<BOMPanel projectId={1} floorPlanId={3}/>)
+  fireEvent.click(await screen.findByText('Connected · drop/rise inputs needed'))
+  expect(screen.getByText('device-1: save device mounting height for the connected drop/rise')).toBeTruthy()
+  expect(screen.getByText('Complete route measurements required')).toBeTruthy()
+})
 it('explicitly separates saved BOM quantities when the canvas has unsaved edits',async()=>{
   fetchBOM.mockResolvedValue({planning:{items:[],priced_subtotals:{},unpriced_items:0,basis:[],conduit_materials:[]}})
   render(<BOMPanel projectId={1} floorPlanId={3} unsaved />)

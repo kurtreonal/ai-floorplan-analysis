@@ -31,13 +31,18 @@ def test_canonical_wiring_and_vertical_length_remain_visible_in_bom_and_csv(cont
     response=client.get(url)
     assert response.status_code==200,response.text
     paths=[row for row in response.json()['planning']['items'] if row['kind']=='path']
-    assert len(paths)==1 and Decimal(paths[0]['quantity'])==Decimal('3.8')
+    assert len(paths)==2 and all(Decimal(row['quantity'])==Decimal('3.8') for row in paths)
+    assert {row['material_kind'] for row in paths}=={'wire','conduit'}
     assert paths[0]['vertical_meters']==1.8 and paths[0]['origin']=='unresolved'
     assert paths[0]['line_total'] is None
     assert 'Saved canonical metric centerlines' in paths[0]['basis']
     csv=client.get(url+'.csv')
     assert csv.status_code==200 and '3.8000' in csv.text
     assert layout.geometry_document==raw
+    inventory=client.get(f'/api/projects/{layout.project_id}/client-pricing/item-assignments')
+    assert inventory.status_code==200,inventory.text
+    keys=[row['item_key'] for row in inventory.json()['items']]
+    assert len(keys)==len(set(keys))
 
 
 def test_draft_calculator_rejects_invalid_choices_and_does_not_replace_saved_snapshot(estimate_context):

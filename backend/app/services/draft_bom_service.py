@@ -64,8 +64,9 @@ def apply_conduit_choice(rows, materials, material_id):
         raise ValueError('Choose an active priced conduit material.')
     material = matches[0]
     for row in rows:
-        if (row['kind'] == 'path' and row.get('origin') in ('observed', 'generated', 'manual', 'mixed')
-                and row['unit'] == 'meter' and re.search(r'\bconduit\b', row['name'], re.I)):
+        if (row['kind'] == 'path' and (row.get('canonical') or row.get('origin') in ('observed', 'generated', 'manual', 'mixed'))
+                and row['unit'] in ('meter', 'source pixel') and (row.get('material_kind') == 'conduit'
+                    or not row.get('material_kind') and re.search(r'\bconduit\b', row['name'], re.I))):
             row.update(preferred_material_id=material_id,
                        basis=row['basis'] + ' Draft material choice; a non-metre purchase unit requires an explicit conversion.')
 
@@ -102,14 +103,20 @@ def apply_wire_choice(rows, materials, material_id, *, meters_per_unit=None, pri
     # Draft route-length pricing, not an extra surcharge or conductor takeoff.
     additions = []
     for row in rows:
-        if row['kind'] == 'path' and row.get('origin') in ('observed', 'generated', 'manual', 'mixed'):
-            additions.append(dict(row, name='Wire/cable — ' + row['name'],
+        if row['kind'] == 'path' and (row.get('canonical') or row.get('origin') in ('observed', 'generated', 'manual', 'mixed')):
+            if row.get('paired_path_component') and row.get('material_kind') != 'wire':
+                continue
+            value = dict(row, name=row['name'] if row.get('paired_path_component') else 'Wire/cable — ' + row['name'],
                 preferred_material_id=material_id, material_kind='wire',
                 wire_meters_per_unit=factor, custom_wire_price_per_meter=price_per_meter,
                 unit='source pixel' if row['unit'] == 'source pixel' else 'meter',
                 basis=row['basis'] + ' Draft cable route length; no extra allowance added. '
                       'Not conductor purchase quantity; gauge/count remain unspecified.'
-                      + (f' Purchase price divided by explicit {factor} metres per unit.' if factor else ' Enter metres per purchase unit for roll pricing.')))
+                      + (f' Purchase price divided by explicit {factor} metres per unit.' if factor else ' Enter metres per purchase unit for roll pricing.'))
+            if row.get('paired_path_component'):
+                row.update(value)
+            else:
+                additions.append(value)
     rows.extend(additions)
 
 
@@ -149,8 +156,12 @@ def document_takeoff(document, *, scale=None, floor_elevation=None):
                 missing.append('attached device unavailable')
                 continue
             height, service = symbol.get('mounting_height_meters'), wire.get('elevation_meters')
-            if not measured or floor_elevation is None or height is None or service is None:
-                missing.append(f"{symbol['id']}: scale, floor elevation, wire elevation and device mounting height are required for the drop/rise")
+            absent = [name for name, value in [('plan scale', scale), ('floor elevation', floor_elevation),
+                ('wire elevation', service), ('device mounting height', height)] if value is None]
+            if unassigned:
+                absent.append('electrical assignment')
+            if absent:
+                missing.append(f"{symbol['id']}: save {', '.join(absent)} for the connected drop/rise")
                 continue
             key = (symbol['id'], attachment.get('terminal_id'), service)
             if key not in drops:
@@ -203,10 +214,12 @@ def price_rows(rows, materials):
                    project_price_row_id=None, pricing_state='material_not_found')
         # Partial geometry may be displayed, but neither catalog nor custom
         # prices may turn missing measurements into a complete-looking cost.
+        matches = [m for m in materials if m['id'] == row['preferred_material_id']] if row.get('preferred_material_id') else index.get(material_key(row['name']), [])
+        if len(matches) == 1:
+            row.update(material_id=matches[0]['id'], material_name=matches[0]['name'])
         if row.get('missing_vertical_inputs'):
             row['pricing_state'] = 'measurement_incomplete'
             continue
-        matches = [m for m in materials if m['id'] == row['preferred_material_id']] if row.get('preferred_material_id') else index.get(material_key(row['name']), [])
         if row.get('material_kind') == 'wire' and row['unit'] == 'meter' and len(matches) == 1 and row.get('wire_meters_per_unit'):
             material = dict(matches[0])
             material.update(unit='meter',unit_price=Decimal(str(material['unit_price'])) / Decimal(str(row['wire_meters_per_unit']))
@@ -398,6 +411,8 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
         scope_floors=verified_floors if floor_plan_id is not None else None)
     if not reused:
         missing_inputs.append('Wire purchasing quantities require saved circuit specifications for a current measured project route; missing or stale specifications are not assumed.')
+    from app.services.wiring_bom_components import paired_wiring_components
+    rows = paired_wiring_components(rows, materials)
     if conduit_material_id is not None:
         apply_conduit_choice(rows, materials, conduit_material_id)
     if wire_material_id is not None or wire_price_per_meter is not None:

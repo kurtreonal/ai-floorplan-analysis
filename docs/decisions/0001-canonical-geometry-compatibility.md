@@ -928,3 +928,49 @@ Stash remains bb78854e87833124a1725b51f0be6099a8ac0cfa.
 
 All five authorized UX responsibilities are now implemented and separately
 verified. BDO detection/training remains paused. No further roadmap work started.
+
+### Wiring BOM follow-up — paired components and precise measurement gaps
+
+The Designer now specifies that every wiring path carries conduit. Planning
+takeoff therefore returns wire/cable and conduit components for every existing
+physical path/network, sharing horizontal and supported vertical geometry.
+This is a BOM policy, not newly detected source geometry or an electrical-code
+claim. Products, gauges/sizes, units and captured prices remain distinct. Cable
+route metres are not an invented conductor count. Existing saved circuit purchase
+quantities/conversions remain untouched; explicit product choices replace their
+component rather than appending another copy. Both workspace and project BOM use
+the same backend. The item-type filter is Devices or Wiring paths (plus All),
+and Wiring paths includes both material components.
+
+Device attachment and measurement were being conflated in feedback. A 2D source
+contact does not establish device mounting height, absolute service elevation or
+floor reference. Drop/rise still uses saved service elevation minus (saved floor
+elevation + mounting height), with absolute length. Missing-input notes now name
+only absent values; a matched material identity is retained even when vertical
+measurement is incomplete. The previous early return hid that identity and made
+some valid matches look like unresolved specifications. Incomplete lengths remain
+excluded from complete costs, and unsupported inter-floor edges are not labelled
+as connected devices. Product/size mismatches and missing product mappings now
+have separate pricing explanations. Wire gauge, conductor count, conduit size
+and heights are not inferred merely from a visible stroke.
+
+Wire/conduit item keys are component-specific to prevent collisions on the same
+path. Older shared-key assignments are read only for their matching product and
+fingerprint; historical assignment records and estimate snapshots are not rewritten.
+
+PASS: 90 isolated backend regressions (paired geometry/drops, idempotency, product
+selection, unit safety, legacy price bindings, permissions, BOM API/reload and
+historical estimate snapshots); 16 focused frontend tests, scoped lint and build
+with VITE_AUTH_ENABLED=true. Existing chunk-size and two backend deprecation
+warnings remain. Browser PASS on a disposable synthetic saved review: Wiring
+paths shows both components at the same 0.4 m route length; connected-drop details
+identify only the missing device mounting height; reload retains both components
+without inventing a vertical distance or price. This is not a new detection-quality
+evaluation. The fixture/tab/servers were removed and test data cleaned. Full
+unrelated suites and the user's particular live drawing are NOT TESTED in this
+follow-up. No schema/API, model, approval or live-project data writes. Clean schema
+and operations remain 37/62 (mixed worktree retains the pending 63rd operation).
+All 44 baseline originals remain byte-identical; the newer 45th original and two
+concurrent real pricing imports are preserved. Unrelated edits and stash remain
+untouched; BDO remains paused. Missing real measurements and unassigned product
+specifications remain explicit limitations, not automatically resolved inputs.

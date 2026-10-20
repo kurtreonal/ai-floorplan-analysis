@@ -138,7 +138,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
           <td>{legendDescription(row.name)}<small>{row.material_kind === 'wire' ? 'Draft cable route length' : row.pricing_state === 'custom_priced' ? 'User-entered device price' : row.origin === 'generated' ? 'Generated path' : row.origin === 'observed' ? 'Drawing trace' : row.kind === 'path' ? 'Saved path · provenance unresolved' : 'Device count'}</small></td>
           <td>{new Intl.NumberFormat(undefined,{maximumFractionDigits:4}).format(Number(row.quantity))} {row.unit}
             {row.vertical_meters > 0 && <small>Includes {new Intl.NumberFormat(undefined,{maximumFractionDigits:3}).format(row.vertical_meters)} m drop/rise</small>}
-            {row.missing_vertical_inputs?.length > 0 && <small>Incomplete · drop/rise measurements missing</small>}</td>
+            {row.missing_vertical_inputs?.length > 0 && <details><summary>{row.missing_vertical_inputs.every(note=>note.includes('connected drop/rise')) ? 'Connected · drop/rise inputs needed' : 'Drop/rise inputs needed'}</summary><ul>{row.missing_vertical_inputs.map(note=><li key={note}>{note}</li>)}</ul></details>}</td>
           <td>{money(row.unit_price,row.currency)}</td><td>{row.line_total == null ? pricingLabels[row.pricing_state] || 'Not priced' : money(row.line_total,row.currency)}</td>
         </tr>)}</tbody><tfoot>{orderList(Object.entries(bom.planning.priced_subtotals), row => row[0]).map(([currency,total]) => <tr key={currency}>
           <th scope="row" colSpan={3}>Priced subtotal ({currency})</th><td>{money(total,currency)}</td>
