@@ -6,7 +6,6 @@ import { getProjectHref } from '../../routes/projectRoutes.js'
 import { Button } from '../../components/ui/button.jsx'
 import { Input } from '../../components/ui/input.jsx'
 import { BOMPanel } from './BOMPanel.jsx'
-import { ClientPricingPanel } from './ClientPricingPanel.jsx'
 
 function money(value, currency) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(Number(value))
@@ -60,18 +59,17 @@ function EstimateWorkspace({ projectId, session }) {
   const lengthMaterials = pricedMaterials.filter((material) => ['meter', 'roll', 'length', 'pack'].includes(material.unit))
   const updatePriceVersions = useCallback((versions) => {
     setPriceVersions(versions)
-    if (!priceSourceChosen.current && versions.length) {
+    const defaults=versions.filter(v=>v.usage!=='item_selection')
+    if (!priceSourceChosen.current && defaults.length) {
       priceSourceChosen.current = true
       setOptions(null); setOptionsError(null); setConfirmed(false)
-      setPriceVersion(String(versions[0].id))
+      setPriceVersion(String(defaults[0].id))
     }
   }, [])
 
-  function applyClientPricing(version) {
-    priceSourceChosen.current = true
-    setPriceVersions(current => [version, ...current.filter(row => row.id !== version.id)])
+  function applyClientPricing() {
     setOptions(null); setOptionsError(null); setConfirmed(false)
-    setPriceVersion(String(version.id)); setAttempt(current => current + 1)
+    setAttempt(current => current + 1)
   }
 
   useEffect(() => {
@@ -143,9 +141,7 @@ function EstimateWorkspace({ projectId, session }) {
       <section><Layers3 aria-hidden="true" /><span>Saved estimates</span><strong>{historyState === 'ready' ? records.length : '—'}</strong><small>Historical unit prices remain fixed</small></section>
       <section><ShieldCheck aria-hidden="true" /><span>Route readiness</span><strong>{options ? options.route_version_id && !options.stale ? 'Current' : 'Needs review' : 'Unavailable'}</strong><small>{options?.route_version_id ? `Route version ID ${options.route_version_id}` : 'Save a measured route first'}</small></section>
     </div>
-    <ClientPricingPanel key={projectId} projectId={projectId} designer={designer} disabled={saveState !== 'idle'}
-      estimateId={selected?.id} onVersionsChange={updatePriceVersions} onApplied={applyClientPricing} />
-    <BOMPanel projectId={projectId} estimate={selected} refreshKey={attempt} designer={designer} />
+    <BOMPanel projectId={projectId} estimate={selected} refreshKey={attempt} designer={designer} onPriceVersionsChange={updatePriceVersions} onPricesApplied={applyClientPricing}/>
     <div className="studio-estimate-workbench">
       <section className="studio-panel" aria-labelledby="estimate-history-title"><div className="studio-panel-heading"><h2 id="estimate-history-title">Estimate breakdown</h2><span className="mono">CAPTURED PRICES</span></div>
         {historyState === 'loading' && <p role="status">Loading saved estimates…</p>}

@@ -1,0 +1,21 @@
+{
+  "label": "Synthetic testing only",
+  "currency": "PHP",
+  "materials": [
+    ["DV-OUTLET-FABLE", "FableVolt Duplex outlet 16 A", "piece", "Devices", 100],
+    ["DV-SWITCH-FABLE", "FableVolt switch 1 gang", "piece", "Devices", 80],
+    ["WR-THHN-35", "FableVolt THHN wire 3.5 mm2", "meter", "Wire", 15],
+    ["WR-CABLE-100", "FableVolt cable 2C 2.5 mm2", "meter", "Cable", 15],
+    ["CD-PVC-20", "NimblePipe PVC conduit 20 mm", "meter", "Conduit", 30],
+    ["CD-EMT-20", "NimblePipe EMT conduit 20 mm", "meter", "Conduit", 30],
+    ["AMB-SWITCH-A", "Ambiguous switch", "piece", "Devices", 80],
+    ["AMB-SWITCH-B", "Ambiguous switch", "piece", "Devices", 80]
+  ],
+  "routes": [
+    [[1, 1, 1], [1, 1, 3], [11, 1, 3], [11, 1, 1]],
+    [[1, 4, 3], [7, 4, 3]]
+  ],
+  "path_products": {"canonical:1": ["WR-THHN-35", "CD-PVC-20"], "canonical:2": ["WR-CABLE-100", "CD-EMT-20"]},
+  "excluded_quote_rows": [10, 11, 12, 13],
+  "expected": {"device_count": 3, "physical_lengths_m": [14, 6], "device_total_php": "240", "path_a_total_php": "518", "path_b_total_php": "222", "priced_total_php": "980"}
+}

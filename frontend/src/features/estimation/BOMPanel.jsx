@@ -1,10 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fetchBOM, downloadBOM, downloadDraftBOM } from '../../api/bom.js'
 import { Button } from '../../components/ui/button.jsx'
-import { legendDescription } from '../../api/legendChoices.js'
 import { orderNamed, orderList } from '../../utils/listOrder.js'
-import { ClientPricingPanel } from './ClientPricingPanel.jsx'
-import { ApplyClientPrices } from './ApplyClientPrices.jsx'
+import { useBOMPricing } from './useBOMPricing.js'
+import { BOMPricingControls } from './BOMPricingControls.jsx'
+import { BOMTable } from './BOMTable.jsx'
 
 const pricingLabels = {
   item_price_review_required:'Review saved client price: material or unit changed',
@@ -21,14 +21,13 @@ function money(value, currency) {
   return value == null ? '—' : new Intl.NumberFormat(undefined, {style:'currency',currency}).format(Number(value))
 }
 
-export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, refreshKey = 0, designer = false, unsaved = false }) {
+export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, refreshKey = 0, designer = false, unsaved = false, onPriceVersionsChange, onPricesApplied }) {
   const [loadedBOM, setBOM] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [calculation, setCalculation] = useState({})
-  const [pricingState, setPricingState] = useState('unopened')
   const [pricingRevision, setPricingRevision] = useState(0)
-  const pricingPanelId = useId()
+  const pricingFile = useRef(null)
   const download = useRef(null)
   const sourceKey = `${projectId}:${floorPlanId || ''}:${processingJobId || ''}`
   const chosen = calculation.sourceKey === sourceKey ? calculation : {}
@@ -43,6 +42,8 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
   const scopeKey = `${sourceKey}:${refreshKey}:${pricingRevision}:${conduitMaterialId || ''}:${wireMaterialId || ''}:${paperSize || ''}:${customWidthMm || ''}:${customHeightMm || ''}:${wireMetersPerUnit ?? ''}:${wirePricePerMeter ?? ''}`
   const bom = loadedBOM?.scopeKey === scopeKey ? loadedBOM.value : null
   const planningOptions = loadedBOM?.sourceKey === sourceKey ? loadedBOM.value?.planning : null
+  const pricing = useBOMPricing({projectId,floorId:floorPlanId ? planningOptions?.sources?.[0]?.floor_id:undefined,disabled:busy || unsaved || !designer,
+    onVersionsChange:onPriceVersionsChange,onApplied:()=>{setPricingRevision(n=>n+1);onPricesApplied?.()}})
   useEffect(() => {
     const controller = new AbortController()
     fetchBOM(projectId, { signal: controller.signal, floorPlanId, processingJobId, conduitMaterialId, paperSize, wireMaterialId, customWidthMm, customHeightMm, wireMetersPerUnit, wirePricePerMeter }).then((value) => { if (!controller.signal.aborted) { setBOM({scopeKey,sourceKey,value}); setError('') } })
@@ -65,17 +66,13 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
     finally { if (!controller.signal.aborted) setBusy(false) }
   }
   return <section className="studio-panel studio-bom-panel" aria-labelledby="bom-title"><div className="studio-panel-heading"><h2 id="bom-title">Bill of materials</h2>
-    <div>{floorPlanId && designer && <Button variant="outline" aria-expanded={pricingState === 'open'} aria-controls={pricingPanelId}
-      onClick={() => setPricingState(current => current === 'open' ? 'closed' : 'open')}>Upload BOM pricing</Button>}
+    <div>{designer && <><input ref={pricingFile} className="sr-only" aria-label="Upload client BOM file" type="file" accept=".xlsx,.csv" disabled={pricing.locked} onChange={event=>{pricing.uploaded(event.target.files?.[0]);event.target.value=''}}/>
+      <Button variant="outline" disabled={pricing.locked} onClick={()=>pricingFile.current?.click()}>Upload BOM</Button>
+      <Button variant="ghost" disabled={pricing.locked} onClick={pricing.existing}>Saved price lists</Button></>}
     <Button variant="outline" disabled={!bom?.planning || busy} onClick={() => exportSnapshot(true)}>Download draft BOM</Button>
     {!floorPlanId && <Button variant="outline" disabled={!estimate || busy} onClick={() => exportSnapshot()}>{busy ? 'Downloading…' : 'Download saved BOM'}</Button>}</div></div>
     {unsaved && <p role="status">Unsaved changes: this BOM shows saved items. Save to refresh quantities.</p>}
-    {floorPlanId && designer && pricingState !== 'unopened' && <div id={pricingPanelId} hidden={pricingState !== 'open'}>
-      <ClientPricingPanel key={projectId} projectId={projectId} designer defaultImportOpen disabled={busy}
-        onApplied={() => setPricingRevision(current => current + 1)} />
-    </div>}
-    {designer && <ApplyClientPrices key={`${sourceKey}:${floorPlanId ? planningOptions?.sources?.[0]?.floor_id : ''}`} projectId={projectId} floorId={floorPlanId ? planningOptions?.sources?.[0]?.floor_id : undefined}
-      disabled={busy || unsaved} onApplied={() => setPricingRevision(current => current + 1)} />}
+    {designer && <BOMPricingControls model={pricing}/>}
     {planningOptions && <div className="studio-material-binding studio-bom-settings">
       <div className="studio-bom-setting"><h3>Conduit</h3>
       <label className="studio-field">Conduit product for this draft
@@ -132,17 +129,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
     {bom?.planning && <>
       {bom.planning.project_pricing && <p>Client prices · Version {bom.planning.project_pricing.version_number} · {bom.planning.project_pricing.filename}</p>}
       <p>Automatic from saved plan data. No per-item approvals. Save edits to update quantities.</p>
-      {bom.planning.items.length ? <div className="studio-table-scroll" role="region" aria-label="Draft material costs" tabIndex={0}><table className="studio-estimate-table studio-bom-table" aria-label="Draft bill of materials"><thead><tr>
-        <th scope="col">Device / wiring</th><th scope="col">Quantity</th><th scope="col">Unit price</th><th scope="col">Cost / missing input</th></tr></thead>
-        <tbody>{orderList(bom.planning.items, row => legendDescription(row.name), row => row.page_id ?? row.floor_id, row => row.class_id, row => row.path_id).map((row,index) => <tr key={`${row.page_id || row.floor_id}:${row.path_id || row.class_id}:${index}`}>
-          <td>{legendDescription(row.name)}<small>{row.material_kind === 'wire' ? 'Draft cable route length' : row.pricing_state === 'custom_priced' ? 'User-entered device price' : row.origin === 'generated' ? 'Generated path' : row.origin === 'observed' ? 'Drawing trace' : row.kind === 'path' ? 'Saved path · provenance unresolved' : 'Device count'}</small></td>
-          <td>{new Intl.NumberFormat(undefined,{maximumFractionDigits:4}).format(Number(row.quantity))} {row.unit}
-            {row.vertical_meters > 0 && <small>Includes {new Intl.NumberFormat(undefined,{maximumFractionDigits:3}).format(row.vertical_meters)} m drop/rise</small>}
-            {row.missing_vertical_inputs?.length > 0 && <details><summary>{row.missing_vertical_inputs.every(note=>note.includes('connected drop/rise')) ? 'Connected · drop/rise inputs needed' : 'Drop/rise inputs needed'}</summary><ul>{row.missing_vertical_inputs.map(note=><li key={note}>{note}</li>)}</ul></details>}</td>
-          <td>{money(row.unit_price,row.currency)}</td><td>{row.line_total == null ? pricingLabels[row.pricing_state] || 'Not priced' : money(row.line_total,row.currency)}</td>
-        </tr>)}</tbody><tfoot>{orderList(Object.entries(bom.planning.priced_subtotals), row => row[0]).map(([currency,total]) => <tr key={currency}>
-          <th scope="row" colSpan={3}>Priced subtotal ({currency})</th><td>{money(total,currency)}</td>
-        </tr>)}</tfoot></table></div> : <p>No saved devices or wiring yet.</p>}
+      {bom.planning.items.length || pricing.active ? <BOMTable planning={bom.planning} pricing={pricing} pricingLabels={pricingLabels}/> : <p>No saved devices or wiring yet.</p>}
       {bom.planning.unpriced_items > 0 && <p role="note">{bom.planning.unpriced_items} items are not costed. Subtotals are incomplete, not a project total.</p>}
       {bom.planning.missing_inputs?.map(note => <p role="note" key={note}>{note}</p>)}
       <details><summary>Calculation basis</summary><ul>{bom.planning.basis.map(note => <li key={note}>{note}</li>)}</ul>

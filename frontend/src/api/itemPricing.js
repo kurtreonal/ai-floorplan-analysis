@@ -5,7 +5,8 @@ async function request(projectId, suffix, body, options = {}) {
   if (!Number.isSafeInteger(projectId) || projectId <= 0) throw new ProjectPricingError(422)
   let response
   try {
-    response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/client-pricing/item-assignments${suffix}`, {
+    const query=!suffix && options.priceVersionId ? `?price_version_id=${encodeURIComponent(options.priceVersionId)}`:''
+    response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/client-pricing/item-assignments${suffix}${query}`, {
       credentials: 'include', method: body ? 'POST' : 'GET', signal: options.signal,
       headers: { Accept: 'application/json', ...(body ? {'Content-Type':'application/json'} : {}) },
       body: body ? JSON.stringify(body) : undefined,

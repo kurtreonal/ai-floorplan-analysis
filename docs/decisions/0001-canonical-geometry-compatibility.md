@@ -974,3 +974,88 @@ All 44 baseline originals remain byte-identical; the newer 45th original and two
 concurrent real pricing imports are preserved. Unrelated edits and stash remain
 untouched; BDO remains paused. Missing real measurements and unassigned product
 specifications remain explicit limitations, not automatically resolved inputs.
+
+### Authorized workspace sequence — integrated pricing through dashboard
+
+Start: branch codex/vlm-localization-experiment, HEAD 99ba8f5 verified present.
+Six new checkpoints are authorized: integrated BOM upload/selection and delivered
+synthetic fixtures; calibration and VED mounting defaults; numeric dimensions and
+angles; copy/paste; approved glyph/product inspector; stored-data dashboard.
+Checkpoint 1 inspection found two separate pricing tables and immediate import
+application. Next: reuse parsing/preview/versioned assignments while moving item
+selection into the existing BOM table, with explicit item-only import usage and
+atomic multi-product assignments. No checkpoint in this sequence is complete yet.
+Confirmed heights are outlet 0.30 m and switch 1.20 m above finished floor,
+measured to device center (user clarification). Service/floor
+elevations, conductor counts, sizes and scale remain independent inputs.
+Autodesk Set Scale or Calibrate confirms known-distance, sheet-specific calibration
+(https://help.autodesk.com/cloudhelp/ENU/Takeoff-Takeoff/files/Set_Scale.html).
+The supplied Quezon City PDF could not be fetched by the web reader (49 MB);
+it is not used as evidence for universal mounting rules. No private data uploaded.
+BDO remains paused. All pre-existing dirty CV/auth/editor files and stash must be
+preserved. The ignored clean checkpoint mirror remains the verification/staging
+surface for overlapping files; do not commit unrelated live-preview/UI changes.
+
+#### Checkpoint 1 — integrated existing-item prices (verified)
+
+PASS: Upload BOM in the shared workspace/Cost BOM opens a source-price preview,
+then selection controls in the SAME BOM table. Devices retain individual stable
+identities; each wiring row groups wire/cable and conduit. Search, All/Devices/
+Wiring paths, select-visible/clear, explicit floor/project scope, compatible
+product suggestions, per-item choices, price-change/skipped previews and atomic
+multi-product application reuse the existing parser/version/assignment services.
+Finish/Cancel leaves applied prices intact; uncertain writes retry identically,
+while definite stale-input rejection allows a fresh preview or cancellation.
+
+New item-selection quote versions do not replace project-wide defaults. Application
+binds existing item keys only; no new database table, endpoint, catalog update,
+client-quantity substitution or estimate-history rewrite. Explicit quote-to-catalog
+conversions support rolls/stock lengths. Conservative checks reject conflicting
+family, known gauge/core count, material, conduit size and unit. Unknown product
+specifications require an explicit compatible selection, not guessed sizing.
+Missing route measurements remain uncosted. Aggregate device cost is divided with
+quantity when expanding per-device selection rows (previously repeated the whole
+group cost in each previous-price preview).
+
+Delivered synthetic-only files: frontend/public/fixtures/ved-synthetic-pricing.xlsx,
+fixtures/synthetic_pricing.json, backend/tests/synthetic_pricing.py and
+scripts/serve_synthetic_pricing_fixture.py. The workbook contains valid and explicit
+duplicate/missing/ambiguous/incompatible examples, plus independently calculated
+expectations. It was authored, recalculated and visually checked with the bundled
+spreadsheet runtime. Local fixture CLI refuses non-restricted/nonempty databases,
+binds localhost:8001 with a test identity, disables workers and removes exact fixture
+IDs on Ctrl+C. Run it with TEST_DATABASE_URL for ved_test/ved_electrical_verify;
+run frontend on 127.0.0.1:5174 with VITE_AUTH_ENABLED=true and
+VITE_API_BASE_URL=http://127.0.0.1:8001. Open the printed URL; upload the workbook,
+exclude Client prices rows 10–13, Check mappings, then Use imported prices.
+Select devices and the JSON's path products, preview/apply and reload.
+
+PASS expected = API actual = browser-reloaded actual: PHP 980 (devices 240;
+14 m path wire/conduit 168+350; 6 m path cable/conduit 72+150). Client quantities
+999 never replace measured quantities. Browser exercised source rejection reasons,
+saved-list resume after interruption, device selection, paired product choices,
+project-wide existing-wiring application, Finish and reload. Proof screenshot:
+tmp/ux-checkpoints/integrated-pricing-reloaded.png (ignored diagnostic artifact).
+Browser fixture/tab/servers removed; verification preflight confirms empty test
+data tables. A test-harness shared-session concurrency failure was corrected with
+independent request sessions; it was not a production pricing defect.
+
+PASS focused clean-snapshot gates: 89 backend tests (integrated/item/project pricing,
+estimates and draft BOM); 38 frontend tests (BOM/estimate/legacy pricing and
+interruption/retry/project switching); scoped lint; authenticated frontend build.
+Existing two backend deprecation and build chunk-size warnings remain. Full unrelated
+suites and live client-drawing browser pricing are NOT TESTED; synthetic pricing
+does not establish electrical approval. Shared workspace component is covered in
+UI tests; full canvas-browser integration is NOT TESTED in this checkpoint.
+Clean schema/API remain 37 tables / 62 operations. Integrity check: all 44 baseline
+originals byte-identical; 45 current originals, two real price imports and subsequent
+concurrent project/job records preserved; no active analysis jobs. Unrelated dirty
+files and stash@{0} bb78854e87833124a1725b51f0be6099a8ac0cfa preserved. BDO paused.
+
+Relevant modules: project_pricing API/schema/model/repository/service/auto parser;
+item_pricing schema/service; product_compatibility; frontend pricing APIs,
+BOMPanel/BOMTable/BOMPricingControls/useBOMPricing/bomPricingRows, EstimatePage and
+clientPricing.css; focused tests and synthetic fixtures above. Stage overlapping
+BOMPanel only from tmp/ux-checkpoints/clean, not the dirty root live-preview edits.
+Next: checkpoint 2 inspection of calibration/upload metadata and mounting/terminal
+defaults. Checkpoints 2–6 have not started; do not claim those features complete.

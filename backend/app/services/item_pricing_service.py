@@ -1,10 +1,11 @@
-"""Price existing identities only; never choose products, circuits or quantities."""
+"""Price existing identities with explicit compatible products; never infer circuits or quantities."""
 from copy import deepcopy
 from decimal import Decimal
 from app.repositories import item_price_repository as repository
 from app.repositories import project_pricing_repository as prices
 from app.services import project_pricing_service as pricing
 from app.services.material_workbook import WorkbookError
+from app.services.product_compatibility import compatible_product
 
 
 def device_key(floor_id, plan_id, symbol_id, page_id=None, candidate_run_id=None):
@@ -29,6 +30,8 @@ def expand_items(rows):
             row = dict(source)
             if identity is not None:
                 row.update(symbol_ids=[identity], quantity=Decimal(str(source['quantity'])) / len(ids))
+                if source.get('line_total') is not None:
+                    row['line_total']=Decimal(str(source['line_total'])) / len(ids)
                 key = device_key(row.get('floor_id'), row.get('floor_plan_id'), identity, row.get('page_id'), row.get('candidate_run_id'))
             elif source.get('saved_route_version_id'):
                 key = route_key(source['saved_route_version_id'], source['material_kind'])
@@ -73,7 +76,7 @@ def apply_prices(session, project_id, result, materials):
         if not assignment and row['kind'] == 'path' and not row.get('saved_route_version_id'):
             assignment = assignments.get(path_key(row, legacy=True))
             legacy = assignment is not None
-        material = catalog.get(row.get('material_id'))
+        material = catalog.get(assignment.get('product_id') or row.get('material_id')) if assignment else None
         if not assignment:
             continue
         quote = assignment_quote(session, project_id, assignment, material, quote_cache) if material else None
@@ -82,7 +85,7 @@ def apply_prices(session, project_id, result, materials):
             original = next((q for q in version.document['rows'] if q['row_id'] == assignment['price_row_id']), None) if version else None
             if material is None or original and original['material_id'] != material['id']:
                 continue  # The old shared path key belongs to the other component.
-        valid = material and quote and (assignment['fingerprint'] == fingerprint(row, material)
+        valid = material and quote and (not assignment.get('product_id') or compatible_product(row,material)) and (assignment['fingerprint'] == fingerprint(row, material)
             or legacy and assignment['fingerprint'] == fingerprint(dict(row, item_kind='path'), material))
         if not valid:
             row['item_price_warning'] = 'Saved price choice no longer matches this item. Review its material and unit.'
@@ -93,7 +96,8 @@ def apply_prices(session, project_id, result, materials):
         row.update(unit_price=amount, currency=quote['currency'], price_source='item_project',
             project_price_version_id=assignment['price_version_id'], project_price_row_id=quote['row_id'],
             item_price_assignment_version=batch.version_number, price_revision_id=None)
-        if row['line_total'] is not None or row['pricing_state'] in ('missing_price', 'missing_project_material_price'):
+        row.update(material_id=material['id'],material_name=material['name'])
+        if row['line_total'] is not None or row['pricing_state'] in ('missing_price', 'missing_project_material_price','material_not_found','ambiguous_material'):
             row.update(line_total=Decimal(str(row['quantity'])) * amount, pricing_state='priced')
     totals = {}
     for row in result['items']:
@@ -115,10 +119,19 @@ def inventory(session, user, project_id):
     return planning
 
 
-def options(session, user, project_id):
+def options(session, user, project_id, price_version_id=None):
     planning = inventory(session, user, project_id)
     from app.repositories.estimate_repository import catalog
-    materials = {m.id: dict(id=m.id, code=m.code, name=m.name, unit=m.unit) for m in catalog(session)}
+    materials = {m.id: dict(id=m.id, code=m.code, name=m.name, unit=m.unit,category=m.category or '') for m in catalog(session)}
+    if price_version_id is not None:
+        version=pricing.get_version(session,user,project_id,price_version_id)
+        quotes=[q for q in version.document['rows'] if not q['excluded']]
+        cache={}
+        for row in planning['items']:
+            key=(row['kind'],row.get('material_kind'),row['name'],row.get('material_name'),row.get('class_id'),row['unit'],row.get('material_id'),bool(row.get('material_conflict')),bool(row.get('electrical_assignment_required')))
+            if key not in cache:
+                cache[key]=[q['row_id'] for q in quotes if q['material_id'] in materials and compatible_product(row,materials[q['material_id']])]
+            row['compatible_prices']=cache[key]
     return dict(items=planning['items'], assignment_version=planning['item_assignment_version'],
         floors=sorted({r['floor_id'] for r in planning['items'] if r.get('floor_id')}),
         materials=list(materials.values()))
@@ -127,34 +140,50 @@ def options(session, user, project_id):
 def preview(session, user, project_id, selection):
     planning = inventory(session, user, project_id)
     version = pricing.get_version(session, user, project_id, selection.price_version_id)
-    quote = next((r for r in version.document['rows'] if r['row_id'] == selection.price_row_id and not r['excluded']), None)
-    if quote is None:
+    quotes = {r['row_id']:r for r in version.document['rows'] if not r['excluded']}
+    bindings = {b.item_key:b.price_row_id for b in selection.bindings}
+    product_bindings={b.item_key:b.material_id for b in selection.bindings if b.material_id is not None}
+    quote_ids = set(bindings.values()) - {None} if bindings else {selection.price_row_id}
+    if not quote_ids <= quotes.keys():
         raise WorkbookError('Choose an available client price entry.')
     all_rows = planning['items']
     rows = [r for r in all_rows if selection.scope == 'project' or r.get('floor_id') == selection.floor_id]
+    keys = set(bindings) if bindings else set(selection.item_keys)
+    if keys and not keys <= {r['item_key'] for r in rows}:
+        raise pricing.PricingConflict('Selected items changed or fall outside this scope. Reload the saved items.')
     if selection.mode == 'selected':
-        if not set(selection.item_keys) <= {r['item_key'] for r in rows}:
+        if not keys:
             raise pricing.PricingConflict('Selected items changed or fall outside this scope. Reload the saved items.')
-        rows = [r for r in rows if r['item_key'] in selection.item_keys]
+        rows = [r for r in rows if r['item_key'] in keys]
     else:
         rows = [r for r in rows if r['kind'] == 'path']
-    from app.repositories.material_price_repository import lock_material
-    material = lock_material(session, quote['material_id'])
-    identity = dict(id=material.id, code=material.code, name=material.name, unit=material.unit) if material and material.is_active else None
-    compatible = identity and (quote['catalog_code'], quote['catalog_name'], quote['catalog_unit']) == (material.code, material.name, material.unit)
+    materials = {m.id:m for m in prices.materials(session, ids=sorted({quotes[q]['material_id'] for q in quote_ids}), lock=True)}
     affected, skipped = [], []
     if selection.mode == 'all_wiring' and selection.scope == 'floor':
         skipped.extend(dict(item_key=r['item_key'], name=r['name'], reason='Project-wide route has no single floor scope; use Entire project.')
             for r in all_rows if r['kind'] == 'path' and r.get('floor_id') is None)
     for row in rows:
+        quote = quotes.get(bindings.get(row['item_key']) if bindings else selection.price_row_id)
+        if selection.mode == 'all_wiring' and bindings and row['item_key'] not in bindings:
+            candidates = [quotes[q] for q in quote_ids if quotes[q]['material_id'] == row.get('material_id')]
+            quote = candidates[0] if len(candidates) == 1 else None
+        if quote is None:
+            skipped.append(dict(item_key=row['item_key'], name=row['name'], reason='No compatible imported product selected.'))
+            continue
+        material = materials.get(quote['material_id'])
+        identity = dict(id=material.id, code=material.code, name=material.name, unit=material.unit) if material and material.is_active else None
+        compatible = identity and (quote['catalog_code'], quote['catalog_name'], quote['catalog_unit']) == (material.code, material.name, material.unit)
+        explicit_product=product_bindings.get(row['item_key'])
+        proposed=dict(id=material.id,name=material.name,unit=material.unit,category=material.category or '') if material else {}
+        product_confirmed=explicit_product==quote['material_id'] and compatible_product(row,proposed)
         reason = None
         if not compatible:
             reason = 'Client price entry no longer matches the active catalog product.'
-        elif row.get('material_id') is None:
+        elif row.get('material_id') is None and not product_confirmed:
             reason = 'Choose the product/size for this item before applying its price.'
-        elif row.get('material_id') != quote['material_id']:
+        elif row.get('material_id') != quote['material_id'] and not product_confirmed:
             reason = 'This price entry is for a different product/specification.'
-        elif row['unit'] != material.unit and not (row['unit'] == 'meter' and row.get('material_kind') == 'wire' and row.get('wire_meters_per_unit')):
+        elif row['unit'] != material.unit and not (row['unit']=='piece' and material.unit=='unit') and not (row['unit'] == 'meter' and row.get('material_kind') == 'wire' and row.get('wire_meters_per_unit')):
             reason = 'Purchase unit or conversion is unresolved.'
         elif row.get('material_conflict') or row.get('electrical_assignment_required'):
             reason = 'Resolve this network’s material/circuit assignment first.'
@@ -167,8 +196,8 @@ def preview(session, user, project_id, selection):
             item_kind=row['item_kind'], quantity=str(row['quantity']), unit=row['unit'], previous_price=str(row['unit_price']) if row['unit_price'] is not None else None,
             previous_currency=row['currency'], unit_price=str(amount), currency=quote['currency'],
             previous_total=str(row['line_total']) if row['line_total'] is not None else None,
-            line_total=str(Decimal(str(row['quantity'])) * amount) if row['line_total'] is not None or row['pricing_state'] in ('missing_price','missing_project_material_price') else None,
-            fingerprint=fingerprint(row, identity)))
+            line_total=str(Decimal(str(row['quantity'])) * amount) if row['line_total'] is not None or row['pricing_state'] in ('missing_price','missing_project_material_price','material_not_found','ambiguous_material') else None,
+            fingerprint=fingerprint(row, identity), price_row_id=quote['row_id'], product_id=material.id if explicit_product else None))
     content = dict(scope=selection.model_dump(mode='json'), affected=affected, skipped=skipped,
         sources=planning['sources'], assignment_version=planning['item_assignment_version'])
     return content | dict(preview_token=pricing._hash(content), ready=bool(affected))
@@ -179,7 +208,7 @@ def apply(session, user, project_id, request):
     from app.repositories.routing_repository import lock_context
     from app.repositories.estimate_repository import floor_ids
     lock_context(session, project_id, floor_ids(session, project_id))
-    request_hash = pricing._hash(request.model_dump(mode='json'))
+    request_hash = pricing._hash(request.model_dump(mode='json', exclude={'bindings'} if not request.bindings else set()))
     previous = repository.retry(session, project_id, str(request.request_id))
     if previous:
         if previous.request_hash != request_hash:
@@ -194,7 +223,7 @@ def apply(session, user, project_id, request):
     assignments = deepcopy(current.document['assignments']) if current else {}
     for row in result['affected']:
         assignments[row['item_key']] = dict(price_version_id=request.price_version_id,
-            price_row_id=request.price_row_id, fingerprint=row['fingerprint'])
+            price_row_id=row['price_row_id'], fingerprint=row['fingerprint'], **({'product_id':row['product_id']} if row.get('product_id') else {}))
     if len(assignments) > 20000:
         raise WorkbookError('This project has reached the saved item-price limit.')
     record = repository.append(session, project_id=project_id, version_number=(current.version_number if current else 0) + 1,

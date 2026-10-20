@@ -8,6 +8,10 @@ from app.models.base import Base
 
 class ProjectPriceVersion(Base):
     __tablename__ = 'project_price_versions'
+
+    @property
+    def usage(self):
+        return self.document.get('usage', 'project_default')
     __table_args__ = (
         UniqueConstraint('project_id', 'version_number', name='uq_project_price_version'),
         UniqueConstraint('project_id', 'request_id', name='uq_project_price_request'),

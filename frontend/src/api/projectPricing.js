@@ -8,7 +8,7 @@ export class ProjectPricingError extends Error {
   }
 }
 
-async function request(projectId, suffix, { signal, file, selection, sheet, headerRow, estimateId } = {}) {
+async function request(projectId, suffix, { signal, file, selection, sheet, headerRow, estimateId, usage } = {}) {
   if (!Number.isSafeInteger(projectId) || projectId <= 0) throw new ProjectPricingError(422)
   let body
   if (file) {
@@ -17,6 +17,7 @@ async function request(projectId, suffix, { signal, file, selection, sheet, head
     if (selection) body.append('selection', JSON.stringify(selection))
     if (sheet) body.append('sheet', sheet)
     if (headerRow) body.append('header_row', String(headerRow))
+    if (usage) body.append('usage', usage)
   }
   const query = estimateId ? '?estimate_id=' + encodeURIComponent(estimateId) : ''
   let response

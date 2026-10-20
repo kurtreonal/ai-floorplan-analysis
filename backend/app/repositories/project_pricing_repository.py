@@ -30,7 +30,9 @@ def latest_version(session, project_id, lock=False):
 
 def current(session, project_id):
     return session.scalar(select(ProjectPriceVersion).options(defer(ProjectPriceVersion.source_bytes))
-        .where(ProjectPriceVersion.project_id == project_id)
+        .where(ProjectPriceVersion.project_id == project_id,
+            (ProjectPriceVersion.document['usage'].as_string().is_(None)) |
+            (ProjectPriceVersion.document['usage'].as_string() != 'item_selection'))
         .order_by(ProjectPriceVersion.version_number.desc()).limit(1))
 
 

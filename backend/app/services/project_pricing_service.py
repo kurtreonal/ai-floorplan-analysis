@@ -102,6 +102,14 @@ def preview(session, user, project_id, data, name, request, lock=False):
             row['reasons'].append('Select an active catalog material explicitly.')
         else:
             row.update(catalog_code=material.code, catalog_name=material.name, catalog_unit=material.unit)
+            if request.usage == 'item_selection':
+                from app.services.product_compatibility import family, specifications_match
+                source_text = row['name'] + ' ' + row['specification']
+                source_family = family(source_text)
+                catalog_family = family(material.category + ' ' + material.name)
+                if ((source_family and source_family != catalog_family) or
+                        not specifications_match(source_text,material.name)):
+                    row['reasons'].append('The selected catalog product conflicts with the quoted type or specification.')
             same_unit = row['unit'] == material.unit
             conversion = choice.units_per_purchase if choice else None
             if same_unit and conversion not in (None, Decimal(1)):
@@ -125,6 +133,10 @@ def preview(session, user, project_id, data, name, request, lock=False):
                 (row['material_id'] and ids[row['material_id']] > 1)):
             row['reasons'].append('Duplicate source code or material mapping. Explicitly exclude a duplicate or correct the source.')
     document = dict(mapping=mapping.model_dump(mode='json'), rows=rows)
+    if document['mapping']['columns'].get('units_per_purchase') is None:
+        document['mapping']['columns'].pop('units_per_purchase', None)
+    if request.usage == 'item_selection':
+        document['usage'] = request.usage
     if request.automatic:
         document['matching_method'] = 'automatic_exact_identity'
     return dict(file_sha256=sha256(data).hexdigest(), preview_token=_hash(document),
@@ -133,10 +145,14 @@ def preview(session, user, project_id, data, name, request, lock=False):
         materials=[dict(id=row.id, code=row.code, name=row.name, unit=row.unit) for row in materials.values() if row.is_active])
 
 
-def automatic_preview(session, user, project_id, data, name):
+def automatic_preview(session, user, project_id, data, name, *, usage='project_default'):
     from app.services.project_pricing_auto import selection
     _access(session, user, project_id, write=True)
-    result = preview(session, user, project_id, data, name, selection(session, data, name))
+    recognized = selection(session, data, name, allow_unresolved=usage == 'item_selection')
+    if usage == 'item_selection':
+        recognized = recognized.model_copy(update={'automatic':False, 'usage':usage})
+        return preview(session, user, project_id, data, name, recognized)
+    result = preview(session, user, project_id, data, name, recognized)
     for row in result['document']['rows']:
         if row['reasons']:
             raise WorkbookError(f'{row["row_id"]}: {row["reasons"][0]} Use the catalog purchase unit and literal prices.')
@@ -150,7 +166,10 @@ def apply(session, user, project_id, data, name, request):
     name = filename(name)
     source_hash = sha256(data).hexdigest()
     # Keep the request identity of pre-automatic imports compatible for retries.
-    identity = request.model_dump(mode='json', exclude={'automatic'} if not request.automatic else set()) | {'actual_file_sha256': source_hash, 'filename': name}
+    excluded = ({'automatic'} if not request.automatic else set()) | ({'usage'} if request.usage == 'project_default' else set())
+    identity = request.model_dump(mode='json', exclude=excluded) | {'actual_file_sha256': source_hash, 'filename': name}
+    if identity['mapping']['columns'].get('units_per_purchase') is None:
+        identity['mapping']['columns'].pop('units_per_purchase', None)
     request_hash = _hash(identity)
     repository.lock_project(session, project_id)
     previous = repository.retry(session, project_id, str(request.request_id))

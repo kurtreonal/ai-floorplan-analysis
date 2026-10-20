@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, UploadFile
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,8 +19,8 @@ from app.services import item_pricing_service as item_pricing
 
 
 @router.get('/item-assignments')
-def item_options(project_id: ProjectId, user: User = Depends(require_roles('DESIGNER')), session: Session = Depends(get_db)):
-    return execute(session, lambda: item_pricing.options(session, user, project_id))
+def item_options(project_id: ProjectId, price_version_id: Annotated[int | None, Query(gt=0)] = None, user: User = Depends(require_roles('DESIGNER')), session: Session = Depends(get_db)):
+    return execute(session, lambda: item_pricing.options(session, user, project_id,price_version_id))
 
 
 @router.post('/item-assignments/preview')
@@ -68,9 +68,10 @@ def inspect(project_id: ProjectId, file: Annotated[UploadFile, File()],
 @router.post('/preview', response_model=ProjectImportPreview)
 def preview(project_id: ProjectId, file: Annotated[UploadFile, File()],
         selection: Annotated[str | None, Form(max_length=300000)] = None,
+        usage: Annotated[Literal['project_default', 'item_selection'], Form()] = 'project_default',
         user: User = Depends(require_roles('DESIGNER')), session: Session = Depends(get_db)):
     return execute(session, lambda: service.automatic_preview(session, user, project_id,
-        contents(file), file.filename) if selection is None else service.preview(session, user, project_id,
+        contents(file), file.filename, usage=usage) if selection is None else service.preview(session, user, project_id,
         contents(file), file.filename, PreviewRequest.model_validate_json(selection)))
 
 

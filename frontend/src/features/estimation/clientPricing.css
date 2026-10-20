@@ -19,3 +19,11 @@
 .item-price-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .item-pricing input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--orange); }
 .item-pricing fieldset:disabled { opacity: .65; }
+.bom-pricing-controls { margin-block: 12px; }
+.bom-pricing-controls label { display: grid; gap: 6px; font-size: 13px; }
+.bom-pricing-controls :is(input:not([type="checkbox"]),select), .studio-bom-table select { min-height: 38px; width: 100%; min-width: 0; padding: 6px; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--white); color: var(--ink); }
+.bom-pricing-controls .item-price-actions { margin-block: 12px; }
+.studio-bom-table .bom-component { min-height: 62px; padding-block: 4px; }
+.studio-bom-table .bom-component + .bom-component { border-top: 1px solid var(--paper-line); }
+.studio-bom-table .bom-component select { max-width: 310px; }
+.studio-bom-table input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }

@@ -13,6 +13,7 @@ ALIASES = {
     'unit_price': {'unitprice', 'price', 'rate', 'unitcost', 'quotedprice'},
     'currency': {'currency', 'currencycode'},
     'quantity': {'quantity', 'qty', 'clientquantity', 'clientqty'},
+    'units_per_purchase': {'catalogunitsperpurchase', 'unitsperpurchase', 'metresperpurchase', 'metersperpurchase'},
 }
 
 
@@ -21,7 +22,7 @@ def _identity(value):
     return ' '.join(value.casefold().split())
 
 
-def selection(session, data, name):
+def selection(session, data, name, *, allow_unresolved=False):
     from app.services.project_pricing_service import _unit
     sheets = read_cells(data, name)
     candidates = []
@@ -70,10 +71,21 @@ def selection(session, data, name):
         code = raw.get('code', '')
         matches = by_code.get(_identity(code), []) if code else by_name.get(_identity(raw['name']), [])
         if len(matches) != 1:
+            if allow_unresolved:
+                choices.append(dict(row_id=f'{sheet}:{row["row"]}', material_id=None))
+                continue
             raise WorkbookError(f'Row {row["row"]}: no unique catalog match for {(code or raw["name"])[:80]}. Use an exact catalog Code or Description.')
-        if _unit(raw['unit']) != matches[0].unit:
+        conversion = '1'
+        if _unit(raw['unit']) != matches[0].unit and not allow_unresolved:
             raise WorkbookError(f'Row {row["row"]}: supply the price per {matches[0].unit}, matching the catalog purchase unit. Pack or roll conversions cannot be assumed.')
-        choices.append(dict(row_id=f'{sheet}:{row["row"]}', material_id=matches[0].id, units_per_purchase='1'))
+        if _unit(raw['unit']) != matches[0].unit:
+            from decimal import Decimal, InvalidOperation
+            try:
+                value = Decimal(raw.get('units_per_purchase', ''))
+                conversion = str(value) if value.is_finite() and 0 < value <= 100000 else None
+            except InvalidOperation:
+                conversion = None
+        choices.append(dict(row_id=f'{sheet}:{row["row"]}', material_id=matches[0].id, units_per_purchase=conversion))
     return PreviewRequest.model_validate(dict(automatic=True, mapping=dict(
         kind='client_bom' if 'quantity' in columns else 'price_list', sheet=sheet,
         header_row=header, columns=columns, currency=currency), choices=choices))

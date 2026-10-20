@@ -3,12 +3,11 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, expect, it, vi } from 'vitest'
 import { fetchBOM, downloadBOM, downloadDraftBOM } from '../../api/bom.js'
 import { BOMPanel } from './BOMPanel.jsx'
-import { ClientPricingPanel } from './ClientPricingPanel.jsx'
+import { previewProjectPrices, applyProjectPrices, fetchProjectPrice } from '../../api/projectPricing.js'
+import { fetchItemPrices, previewItemPrices, applyItemPrices } from '../../api/itemPricing.js'
 vi.mock('../../api/bom.js', () => ({ fetchBOM: vi.fn(), downloadBOM: vi.fn(), downloadDraftBOM:vi.fn() }))
-vi.mock('./ClientPricingPanel.jsx', () => ({ ClientPricingPanel: vi.fn(({onApplied}) => <div>
-  <label>Test import choice<input /></label>
-  <button onClick={() => onApplied({id:7})}>Apply confirmed client import</button>
-</div>) }))
+vi.mock('../../api/projectPricing.js',()=>({previewProjectPrices:vi.fn(),applyProjectPrices:vi.fn(),fetchProjectPrice:vi.fn(),listProjectPrices:vi.fn().mockResolvedValue([])}))
+vi.mock('../../api/itemPricing.js',()=>({fetchItemPrices:vi.fn(),previewItemPrices:vi.fn(),applyItemPrices:vi.fn()}))
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals() })
 it('distinguishes an existing connection from the missing vertical measurement input',async()=>{
   fetchBOM.mockResolvedValue({planning:{items:[{kind:'path',name:'Wire/cable',quantity:10,unit:'meter',pricing_state:'measurement_incomplete',missing_vertical_inputs:['device-1: save device mounting height for the connected drop/rise']}],priced_subtotals:{},unpriced_items:1,basis:[],conduit_materials:[]}})
@@ -23,37 +22,47 @@ it('explicitly separates saved BOM quantities when the canvas has unsaved edits'
   expect(screen.getByText('Unsaved changes: this BOM shows saved items. Save to refresh quantities.')).toBeTruthy()
   expect(await screen.findByText('No saved devices or wiring yet.')).toBeTruthy()
 })
-it('opens workspace pricing inline and refreshes takeoff without discarding canvas or calculator choices', async () => {
-  fetchBOM.mockResolvedValue({planning:{items:[],priced_subtotals:{},unpriced_items:0,basis:[],
+it('uploads, previews and atomically applies prices in the same BOM table without changing geometry or calculator choices', async () => {
+  const item={item_key:'a'.repeat(64),kind:'device',item_kind:'device',class_id:1,name:'Outlet',quantity:1,unit:'piece',material_id:3,unit_price:'100',currency:'PHP',line_total:'100',pricing_state:'priced',compatible_prices:['Quote:2']}
+  fetchBOM.mockResolvedValue({planning:{items:[item],priced_subtotals:{PHP:'100'},unpriced_items:0,basis:[],
     conduit_materials:[{id:9,name:'Conduit',unit:'meter',unit_price:10,currency:'PHP'}]}})
+  const quote={row_id:'Quote:2',material_id:3,name:'Fictional outlet',unit:'piece',unit_price:'90',currency:'PHP',units_per_purchase:'1',excluded:false,reasons:[]}
+  const document={mapping:{},rows:[quote]}
+  previewProjectPrices.mockResolvedValue({ready:true,document,materials:[],file_sha256:'hash',preview_token:'import',expected_version:0})
+  applyProjectPrices.mockResolvedValue({id:7});fetchProjectPrice.mockResolvedValue({id:7,document})
+  fetchItemPrices.mockResolvedValue({items:[item],floors:[2]})
+  previewItemPrices.mockResolvedValue({ready:true,preview_token:'items',skipped:[],affected:[{...item,previous_price:'100',previous_currency:'PHP',previous_total:'100',unit_price:'90',line_total:'90'}]})
+  applyItemPrices.mockResolvedValue({version_number:1})
   const draft = {candidate_run_id:'test',symbols:[{id:'symbol-0001',center:{x:20,y:30}}]}
   const before = JSON.stringify(draft)
   render(<BOMPanel projectId={1} floorPlanId={3} processingJobId={4} designer draftPreview={draft} />)
-  expect(ClientPricingPanel).not.toHaveBeenCalled()
   fireEvent.change(await screen.findByLabelText('Conduit product for this draft'),{target:{value:'9'}})
   await waitFor(() => expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({conduitMaterialId:9})))
-  fireEvent.click(screen.getByRole('button',{name:'Upload BOM pricing',exact:true}))
-  expect(screen.getByRole('button',{name:'Upload BOM pricing',exact:true}).getAttribute('aria-expanded')).toBe('true')
-  expect(ClientPricingPanel.mock.calls.at(-1)[0]).toMatchObject({projectId:1,designer:true,defaultImportOpen:true})
-  fireEvent.change(screen.getByLabelText('Test import choice'),{target:{value:'Retain pending file mapping'}})
-  fireEvent.click(screen.getByRole('button',{name:'Upload BOM pricing',exact:true}))
-  expect(screen.queryByRole('button',{name:'Apply confirmed client import'})).toBeNull()
-  fireEvent.click(screen.getByRole('button',{name:'Upload BOM pricing',exact:true}))
-  expect(screen.getByLabelText('Test import choice').value).toBe('Retain pending file mapping')
+  const file=new File(['test'],'synthetic.xlsx')
+  fireEvent.change(screen.getByLabelText('Upload client BOM file'),{target:{files:[file]}})
+  fireEvent.click(await screen.findByRole('button',{name:'Use imported prices'}))
+  await screen.findByLabelText('Item type')
+  expect(applyItemPrices).not.toHaveBeenCalled()
+  expect(screen.getAllByRole('table')).toHaveLength(1)
+  fireEvent.click(screen.getByText('Select visible results'))
+  fireEvent.click(screen.getByText('Preview selected (1)'))
+  fireEvent.click(await screen.findByText('Apply prices to 1 items'))
   const previous = fetchBOM.mock.calls.length
-  fireEvent.click(screen.getByRole('button',{name:'Apply confirmed client import'}))
   await waitFor(() => expect(fetchBOM.mock.calls.length).toBe(previous+1))
   expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({floorPlanId:3,processingJobId:4,conduitMaterialId:9}))
   expect(JSON.stringify(draft)).toBe(before)
+  expect(previewProjectPrices).toHaveBeenCalledWith(1,file,null,expect.objectContaining({usage:'item_selection'}))
+  expect(applyItemPrices).toHaveBeenCalledWith(1,expect.objectContaining({bindings:[{item_key:item.item_key,price_row_id:quote.row_id,material_id:3}]}),expect.anything())
+  fireEvent.click(screen.getByText('Finish pricing'))
+  expect(screen.queryByRole('checkbox')).toBeNull()
 })
 
-it('does not expose workspace uploads without Designer permission or duplicate the cost-page import', () => {
+it('exposes one upload in workspace and cost estimation only for Designers', () => {
   fetchBOM.mockReturnValue(new Promise(() => {}))
   const view = render(<BOMPanel projectId={1} floorPlanId={3} designer={false} />)
-  expect(screen.queryByRole('button',{name:'Upload BOM pricing',exact:true})).toBeNull()
+  expect(screen.queryByRole('button',{name:'Upload BOM',exact:true})).toBeNull()
   view.rerender(<BOMPanel projectId={1} designer />)
-  expect(screen.queryByRole('button',{name:'Upload BOM pricing',exact:true})).toBeNull()
-  expect(ClientPricingPanel).not.toHaveBeenCalled()
+  expect(screen.getAllByRole('button',{name:'Upload BOM',exact:true})).toHaveLength(1)
 })
 
 it('alphabetizes material choices and table rows without changing the source prices or identities',async()=>{
@@ -68,7 +77,7 @@ it('alphabetizes material choices and table rows without changing the source pri
   const conduit=await screen.findByLabelText('Conduit product for this draft')
   expect(Array.from(conduit.options).map(item=>item.value)).toEqual(['','2','10'])
   expect(Array.from(screen.getByLabelText('Wire / cable product for this draft').options).map(item=>item.value)).toEqual(['','1','11'])
-  expect(Array.from(screen.getByRole('table',{name:'Draft bill of materials'}).querySelectorAll('tbody tr')).map(row=>row.cells[0].textContent)).toEqual(['LampDevice count','SwitchDevice count'])
+  expect(Array.from(screen.getByRole('table',{name:'Draft bill of materials'}).querySelectorAll('tbody tr')).map(row=>row.cells[0].textContent)).toEqual(['LampDevice','SwitchDevice'])
   expect(JSON.stringify(planning)).toBe(before)
 })
 it('shows reviewed quantities without needing a route and downloads only a saved snapshot', async () => {
@@ -107,7 +116,7 @@ it('automatically shows priced draft devices and missing scale without approval 
   const table = screen.getByRole('table',{name:'Draft bill of materials'})
   expect(table.closest('[aria-label="Draft material costs"]').tabIndex).toBe(0)
   expect(within(table).getAllByRole('columnheader')).toHaveLength(4)
-  expect(table.querySelector('tfoot').textContent).toContain('Priced subtotal (PHP)')
+  expect(table.querySelector('tfoot').textContent).toContain('Current subtotal (PHP)')
   expect(table.querySelector('tfoot').textContent).toContain('₱20.00')
   expect(screen.getByText('Set plan scale once')).toBeTruthy()
   expect(screen.queryByRole('checkbox')).toBeNull()

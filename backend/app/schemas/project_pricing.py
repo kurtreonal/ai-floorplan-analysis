@@ -20,6 +20,7 @@ class Columns(StrictModel):
     specification: Column | None = None
     currency: Column | None = None
     quantity: Column | None = None
+    units_per_purchase: Column | None = None
 
     @model_validator(mode='after')
     def distinct(self):
@@ -56,6 +57,7 @@ class RowChoice(StrictModel):
 
 class PreviewRequest(StrictModel):
     automatic: bool = False
+    usage: Literal['project_default', 'item_selection'] = 'project_default'
     mapping: ImportMapping
     choices: list[RowChoice] = Field(default_factory=list, max_length=1000)
 
@@ -77,6 +79,7 @@ class ApplyRequest(PreviewRequest):
 class VersionSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    usage: Literal['project_default', 'item_selection'] = 'project_default'
     project_id: int
     version_number: int
     kind: str
