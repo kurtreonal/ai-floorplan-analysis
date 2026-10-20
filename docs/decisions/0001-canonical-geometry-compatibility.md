@@ -438,7 +438,7 @@ large frontend chunks and backend deprecation warnings remain. The clean API/
 table contract is 54 operations/35 tables; the live mixed worktree has one
 additional pre-existing uncommitted canvas-BOM endpoint (55 operations). Unrelated
 edits, originals, historical reviews/estimates and stash@{0} are preserved.
-Checkpoint 5 and checkpoint 7 have not started in this slice.
+Checkpoint 5 had not started in this slice.
 
 Final staged gate: 421 backend tests and 234 subtests pass, one skip; 25 focused
 frontend tests, scoped lint and production build pass. The expanded gate first
@@ -566,8 +566,7 @@ existing upload integration test's obsolete recovery-v2 assertion also failed
 on the pre-change baseline; its assertion now names the already-implemented v3
 contract. No detector configuration/model or recovery algorithm changed here.
 Full-suite and reboot behavior are not established by this checkpoint; existing
-large frontend chunk and backend deprecation warnings remain. Checkpoint 7
-(local DWG dependency investigation) is next and has not started.
+large frontend chunk and backend deprecation warnings remain.
 
 The exact staged scope passes 422 selected backend tests plus 219 subtests and
 47 frontend tests, scoped lint and both isolated/live frontend production builds.
@@ -577,42 +576,20 @@ returns 200; the existing three-column project list and its new Trash section
 load with the original uploads intact. The unrelated live worktree and
 stash@{0} remain preserved; scoped commits do not publish those edits.
 
-### Checkpoint 7a — explicit DWG unavailability and feature audit (2026-10-20)
+### Feature verification audit (2026-10-20)
 
-Full DWG import is BLOCKED, not implemented or advertised by this checkpoint.
-The live application contains no DWG converter/parser integration. Local PATH
-and the standard program directories have no ODA File Converter/LibreDWG tool;
-the backend environment has no ezdxf. AutoCAD 2026 Core Console and vendor DWG
-samples are installed, but its licence for unattended application/server use
-has not been established. It was not launched and no application/security
-settings or licences were changed. No new dependency or hosted converter is used.
+DWG checkpoint 7 is cancelled at the user's request. Its special-case upload
+messages and tests have been removed; DWG uses the existing unsupported-format
+validation. Only JPEG/PNG/PDF uploads remain supported. No converter was installed
+or integrated. The non-DWG feature audit and checkpoint-5B API expectation fix
+are retained. The following results are historical, before this removal.
 
-Primary-source checks: ODA's [converter page](https://www.opendesign.com/guestfiles/oda_file_converter)
-documents Windows x64 and directory-based conversion. Its
-[licensing FAQ](https://www.opendesign.com/faq/question/what-are-oda-viewer-and-oda-file-converter)
-limits non-member use to non-commercial applications; a free download alone is
-not deployment/redistribution clearance for VED. The MIT-licensed
-[ezdxf parser](https://ezdxf.readthedocs.io/en/stable/introduction.html) supports
-DXF through R2018, but does not itself convert DWG. Its
-[ODA adapter](https://ezdxf.readthedocs.io/en/stable/addons/odafc.html) invokes an
-external application and warns about executable-path security. No default
-PATH-discovered converter, automatic download or licence acceptance is added.
-
-The smallest safe application change gives a DWG-specific actionable error:
-export PDF/PNG/JPEG in the CAD application or have an administrator configure a
-licensed local importer. The server returns DWG_IMPORT_UNAVAILABLE (503), after
-normal authorization and before storing a file/plan/job. The client shows the
-same message on DWG selection. The supported-format map and file picker still
-advertise only JPEG/PNG/PDF. A DWG-looking header in a synthetic test is *not*
-content validation or conversion proof. A real installed vendor sample was
-selected in the live browser and rejected locally; it was not uploaded or run.
-
-Converter isolation, bounded job cancellation/timeouts, real DWG integrity
-validation, model/paper-space selection, block/unit transforms, preview/vector
-extraction, and font/entity/XREF handling remain BLOCKED/NOT TESTED. No units,
-device classes, geometry or measured quantities are inferred from CAD names.
-The deployment choice/licence confirmation was requested; unrelated verification
-continued without waiting or resuming BDO work.
+Removal verification: 64 focused backend upload tests and six subtests pass
+(the unrelated global OpenAPI assertion is excluded). All 16 upload-form tests
+and scoped frontend lint pass. The complete upload test file has 33 passes and
+the same two existing project-panel failures about the review link and empty
+analysis text. The 35 existing table fingerprints and 44 uploaded files remain
+unchanged; there are no active analysis jobs. No full-suite rerun is claimed.
 
 #### Cross-feature verification (not a universal completion claim)
 
@@ -625,7 +602,6 @@ continued without waiting or resuming BDO work.
 | Search / navigation / settings | PASS in committed frontend tests. Live device-ID search, independent wiring/wall queries, selected-wall 3D highlight, panel reopening and browser-preserving fullscreen were exercised without saved edits. |
 | Project intake / lifecycle | PASS for nullable legacy fields, no-blueprint creation, phone/date/Other validation, concurrency, Trash/restore, cancelled late writes, original/review/estimate preservation. Previous disposable browser proof remains applicable; no real plan is removed. |
 | Client pricing / estimate / export | PASS for CSV/XLSX safety, explicit mappings/pack units, project ownership, immutable versions, known totals, client/calculated quantity separation, historical estimates and CSV exports. Prior checkpoint-6 browser proof remains applicable because these source files are unchanged. PDF report generation is not present in the current API and is not established by this audit. |
-| DWG | PASS only for safe unavailable handling. Full support is BLOCKED on an approved local conversion deployment and implementation/fixture validation. |
 
 The clean checkpoint snapshot passes all 847 frontend tests and full source
 lint (zero errors/warnings), plus 1,041 backend tests and 356 subtests across 72
@@ -654,7 +630,7 @@ warnings; backend deprecation warnings remain. Runtime browser proof confirms a
 rendered scene, not electrical approval or complete wiring recognition. No real
 scale, elevation, review, estimate, upload or original is written. Database/table
 contract remains 36 tables / 59 clean operations (60 mixed live); no schema
-expansion in 7a. Original-file and data fingerprints, restricted verification
+expansion in this audit. Original-file and data fingerprints, restricted verification
 cleanup, preserved stash and scoped publication state are checked at handoff.
 BDO detection/annotation/training remains paused. Reboot durability and complete
 future-upload recognition are not established by these feature checks.

@@ -16,9 +16,6 @@ const MIME_BY_EXTENSION = {
 function validateSelectedFile(file) {
   const dotIndex = file.name.lastIndexOf('.')
   const extension = dotIndex >= 0 ? file.name.slice(dotIndex).toLowerCase() : ''
-  if (extension === '.dwg') {
-    return 'DWG import is not enabled. Export a PDF, PNG or JPEG from your CAD application, or ask an administrator to configure a licensed local DWG importer.'
-  }
   const expectedMime = MIME_BY_EXTENSION[extension]
 
   if (!expectedMime) {
@@ -32,9 +29,6 @@ function validateSelectedFile(file) {
 
 function getUploadError(error) {
   if (error instanceof FloorPlanApiError) {
-    if (error.code === 'DWG_IMPORT_UNAVAILABLE') {
-      return 'DWG import is not enabled. Export a PDF, PNG or JPEG from your CAD application, or ask an administrator to configure a licensed local DWG importer.'
-    }
     if (error.status === 401) {
       window.location.replace('#/signin?reason=session-expired')
       return null

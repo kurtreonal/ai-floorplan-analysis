@@ -75,17 +75,6 @@ const UPLOAD = {
   processing_status: 'uploaded',
 }
 
-describe('DWG unavailable guard', () => {
-  it('offers a supported export without claiming DWG processing or uploading it', () => {
-    render(<FloorPlanUploadForm projectId={PROJECT_ID} projectFloorId={12} onUploaded={vi.fn()} />)
-    const file = new File(['AC1032-placeholder'], 'drawing.DWG', { type: 'application/acad' })
-    fireEvent.change(screen.getByLabelText('Floor-plan file'), { target: { files: [file] } })
-    expect(screen.getByRole('alert').textContent).toContain('licensed local DWG importer')
-    expect(uploadFloorPlan).not.toHaveBeenCalled()
-    expect(FLOOR_PLAN_ACCEPT).not.toContain('.dwg')
-  })
-})
-
 function imageFile(name = 'house-plan.png', type = 'image/png') {
   return new File([new Uint8Array([1, 2, 3, 4])], name, { type })
 }

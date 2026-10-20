@@ -27,10 +27,6 @@ CONTENT_SIGNATURES = {
 }
 
 ERROR_MESSAGES = {
-    "DWG_IMPORT_UNAVAILABLE": (
-        "DWG import is not enabled. Export a PDF, PNG or JPEG from your CAD application, "
-        "or ask an administrator to configure a licensed local DWG importer."
-    ),
     "UPLOAD_FILENAME_REQUIRED": "A floor-plan filename is required.",
     "UPLOAD_EXTENSION_UNSUPPORTED": "The floor-plan file extension is not supported.",
     "UPLOAD_MIME_UNSUPPORTED": "The declared floor-plan MIME type is not supported.",
@@ -179,10 +175,6 @@ def validate_floor_plan_upload(
         raise _validation_error("UPLOAD_FILENAME_REQUIRED")
 
     extension = Path(filename.strip()).suffix.casefold()
-    # A converter/parser with verified isolation and deployment rights is not
-    # integrated yet. Reject before storage; a DWG header is not validation.
-    if extension == ".dwg":
-        raise _validation_error("DWG_IMPORT_UNAVAILABLE")
     format_policy = FORMAT_BY_EXTENSION.get(extension)
     if format_policy is None:
         raise _validation_error("UPLOAD_EXTENSION_UNSUPPORTED")

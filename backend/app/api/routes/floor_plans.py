@@ -122,7 +122,7 @@ def _validation_http_error(error: UploadValidationError) -> HTTPException:
         status_code = status.HTTP_413_CONTENT_TOO_LARGE
     elif error.code in UNSUPPORTED_MEDIA_CODES:
         status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
-    elif error.code in {"UPLOAD_SIZE_LIMIT_INVALID", "DWG_IMPORT_UNAVAILABLE"}:
+    elif error.code == "UPLOAD_SIZE_LIMIT_INVALID":
         status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     else:
         status_code = status.HTTP_422_UNPROCESSABLE_CONTENT

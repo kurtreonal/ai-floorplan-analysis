@@ -221,19 +221,6 @@ class FloorPlanUploadApiTests(unittest.TestCase):
             .where(FloorPlan.project_floor_id.in_(floor_ids))
         )
 
-    def test_dwg_unavailable_is_safe_authorized_and_creates_no_upload_or_job(self):
-        from app.models import ProcessingJob
-        before_plans, before_files = self.count_floor_plans(), self.stored_files()
-        before_jobs = self.database_session.scalar(select(func.count()).select_from(ProcessingJob))
-        payload = dict(filename='drawing.DWG', mime_type='application/octet-stream', content=b'AC1032-placeholder')
-        self.assert_error(self.post_upload(**payload), 401, 'AUTHENTICATION_REQUIRED')
-        response = self.post_upload(user=self.designer, **payload)
-        self.assert_error(response, 503, 'DWG_IMPORT_UNAVAILABLE')
-        self.assertIn('Export a PDF', response.json()['detail']['error']['message'])
-        self.assertEqual(self.count_floor_plans(), before_plans)
-        self.assertEqual(self.stored_files(), before_files)
-        self.assertEqual(self.database_session.scalar(select(func.count()).select_from(ProcessingJob)), before_jobs)
-
     def stored_files(self) -> tuple[Path, ...]:
         originals = self.test_upload_directory / "originals"
         if not originals.exists():
