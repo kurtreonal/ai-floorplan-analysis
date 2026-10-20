@@ -6,7 +6,7 @@ import './clientPricing.css'
 const emptyMapping = { kind: 'price_list', sheet: '', header_row: 1, columns: {}, currency: '' }
 const fieldLabels = { name: 'Description', code: 'Code', specification: 'Specification', unit: 'Purchase unit', unit_price: 'Unit price', currency: 'Currency', quantity: 'Client quantity' }
 
-export function ClientPricingPanel({ projectId, designer, disabled = false, estimateId, onVersionsChange }) {
+export function ClientPricingPanel({ projectId, designer, disabled = false, estimateId, onVersionsChange, onApplied }) {
   const [file, setFile] = useState(null)
   const [mapping, setMapping] = useState(emptyMapping)
   const [inspection, setInspection] = useState(null)
@@ -81,7 +81,8 @@ export function ClientPricingPanel({ projectId, designer, disabled = false, esti
           if (request.signal.aborted) return
           retry.current = null; setUncertain(false); setProposal(null); setChoices({}); setConfirmed(false)
           setSelectedVersion(String(value.id)); setRefresh(current => current + 1)
-          setMessage('Client import version ' + value.version_number + ' saved. Select it as the price source to use it in a new estimate.')
+          onApplied?.(value)
+          setMessage('Client prices applied to this project. Saved estimates are unchanged.')
         }
       }
     } catch (failure) {
@@ -96,9 +97,9 @@ export function ClientPricingPanel({ projectId, designer, disabled = false, esti
     } finally { if (!request.signal.aborted) setBusy(false) }
   }
   return <section className="studio-panel client-pricing" aria-labelledby="client-pricing-title">
-    <div className="studio-panel-heading"><h2 id="client-pricing-title">Client pricing &amp; BOM</h2></div>
-    <p>Project-only prices. Client quantities are retained for comparison, never substituted for calculated quantities.</p>
-    {designer && <details><summary>Import XLSX or CSV</summary>
+    <div className="studio-panel-heading"><h2 id="client-pricing-title">Client BOM pricing</h2></div>
+    <p>Upload the client’s materials and prices. Confirmed mappings automatically price matching draft items. Client quantities remain separate from calculated quantities.</p>
+    {designer && <details><summary>Upload BOM pricing (XLSX or CSV)</summary>
       <fieldset disabled={locked}><legend className="sr-only">Client import</legend>
         <label>Client file<input type="file" accept=".xlsx,.csv" onChange={event => {
           setFile(event.target.files?.[0] || null); setMapping(emptyMapping); setInspection(null); setProposal(null); setChoices({}); invalidate(); setError('')
@@ -143,7 +144,7 @@ export function ClientPricingPanel({ projectId, designer, disabled = false, esti
         </>}
       </fieldset>
       <Button type="button" disabled={busy || disabled || (!uncertain && !(validated && proposal?.ready && confirmed))} onClick={() => run('apply')}>
-        {busy ? 'Working…' : uncertain ? 'Retry identical import' : 'Save project import'}
+        {busy ? 'Working…' : uncertain ? 'Retry identical import' : 'Save & apply project pricing'}
       </Button>
     </details>}
     {versions.length > 0 && <label>Saved client import<select value={selectedVersion} disabled={busy} onChange={event => setSelectedVersion(event.target.value)}>

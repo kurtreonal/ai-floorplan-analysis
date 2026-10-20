@@ -397,7 +397,8 @@ serializes on the project lock, and rejects stale versions. Identical concurrent
 retry UUIDs return one saved version; changed retry inputs conflict. No update or
 delete endpoint is provided. Uncertain saves lock UI inputs for identical retry.
 
-New estimates explicitly choose the Admin catalog or one client import version.
+New estimates use a selected Admin catalog or client import version. The follow-up
+below defaults to the latest confirmed client import while retaining the selector.
 No fallback is made for a missing client material price. Existing route/layout
 measurement gates remain required. Catalog quantities are converted to the quoted
 purchase unit with the confirmed factor; the existing four-decimal quantity
@@ -638,3 +639,61 @@ Both live analysis auto-start flags remain disabled, as at the prior checkpoint.
 New live analysis requests can queue but will not be automatically consumed in
 this state; automatic live upload-to-recognition is therefore PAUSED/NOT TESTED,
 not counted as a working end-to-end feature. No real upload was submitted.
+
+### Checkpoint 6 follow-up — Designer BOM pricing applies automatically (2026-10-20)
+
+The Designer's existing Cost estimation import is now labelled **Upload BOM
+pricing (XLSX or CSV)** and appears before the BOM. Existing bounded parsing,
+explicit column/material mapping, conversion review, exclusions, confirmation,
+version concurrency, source retention and idempotent retry are reused. Saving
+an import automatically selects its version for the next estimate and refreshes
+the live BOM. Opening the estimate page defaults to the latest confirmed import;
+the Designer can explicitly choose the Admin catalog for a new snapshot. Valid
+product, conversion and conductor choices survive repricing, with confirmation
+cleared. A deliberate input reload still clears draft choices.
+
+The backend planning BOM now uses the latest confirmed project price version
+for existing, exact-identity material mappings. Quoted pack/roll prices are
+normalized by the reviewed number of catalog units per quoted purchase unit.
+No product, device-class binding, wire gauge/count, purchase length, scale,
+elevation or engineering approval is inferred from a price file. Client quantities
+remain comparison inputs, never substitutes for measured/count-derived quantities.
+Existing explicit custom draft prices take precedence and retain custom provenance.
+If a project import exists, unmatched or identity-changed products stay unpriced
+instead of silently falling back to the Admin catalog. New catalog products still
+require catalog administration; imports do not grant Designers global catalog writes.
+
+Price provenance includes project version and source row IDs. Shared catalog
+prices and historical estimate snapshots are unchanged. The latest quote lookup
+loads one version and defers its original workbook bytes rather than reading every
+historical import on each BOM request. No new endpoint, schema/table or dependency
+is added: 59 clean operations / 36 tables; the unrelated live preview endpoint
+still makes 60 operations in the mixed worktree. BDO remains paused; DWG stays
+cancelled.
+
+PASS: 70 backend tests covering pricing import, draft BOM, estimate snapshots,
+unit conversion, exclusions, identity changes, missing measurements and zero-valued
+custom overrides. PASS: 27 focused frontend/API tests and scoped source lint,
+including default client selection, explicit catalog choice, preservation of valid
+material choices, retry fencing and read-only Admin behavior. Clean production
+build passes with existing bundle-size warnings. Full suites are not rerun here;
+the mixed-worktree failures recorded above are not declared resolved.
+
+Browser PASS in a disposable restricted-database project: upload the generated
+five-row XLSX, map its columns and material identities, validate, confirm and save.
+The next-estimate source changes automatically; live device price changes from
+PHP 10 to 125, wire roll from PHP 10 to 3,000 and conduit length from PHP 10 to
+120. Priced draft subtotal changes from PHP 26.864 to 389.104, retains the same
+calculated quantities, and still exposes an unmeasured path as unpriced. Reload
+retains the client prices and default version. The original saved estimate stays
+PHP 26.864. These synthetic fixture mappings test software, not product suitability.
+The temporary browser services and their exact synthetic records are removed.
+
+The requested `VED-SYNTHETIC-Client-BOM-Pricing.xlsx` is saved to Downloads,
+visually checked and previewed read-only against actual active catalog identities:
+five valid mapped rows, no formulas, invented PHP prices clearly labelled synthetic.
+Its client-quantity arithmetic totals PHP 11,200; this is test input, not a project
+estimate or supplier quote. No real project import or price is saved during this
+verification. All 35 existing table fingerprints, 44 uploaded files and stash@{0}
+remain unchanged. Unrelated pending canvas/BOM preview edits are preserved and
+excluded from the scoped checkpoint.

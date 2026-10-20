@@ -118,6 +118,57 @@ def test_project_prices_capture_real_purchase_units_and_client_quantity_is_not_u
     assert client.post(f'/api/projects/{layout.project_id}/estimates',json=request).json()==result
 
 
+def test_latest_confirmed_client_import_automatically_reprices_live_bom_not_history(estimate_context):
+    ctx, payload, materials = estimate_context
+    client, _, _, session, layout, *_ = ctx
+    url = f'/api/projects/{layout.project_id}'
+    baseline = client.post(url + '/estimates', json=payload)
+    assert baseline.status_code == 201, baseline.text
+    old = baseline.json()
+    assert Decimal(old['total']) == 38
+    prices = [price.unit_price for price in session.scalars(select(MaterialPrice))]
+    first, _ = save_import(client, layout.project_id, source_data(('4', '2', '30')), selection(materials))
+    result = client.get(url + '/bom')
+    assert result.status_code == 200, result.text
+    planning = result.json()['planning']
+    assert planning['project_pricing']['id'] == first['id']
+    # Two devices at 4, 2 m conduit at 2, 6 m wire at 30 / 10 m per roll.
+    assert Decimal(planning['priced_subtotals']['PHP']) == 30
+    mapped = [row for row in planning['items'] if row['line_total'] is not None]
+    assert {row['material_id'] for row in mapped} == {material.id for material in materials}
+    assert all(row['price_source'] == 'project' and row['project_price_version_id'] == first['id'] for row in mapped)
+    assert {Decimal(row['unit_price']) for row in mapped if row['material_id'] == materials[2].id} == {Decimal(3)}
+    assert 'latest confirmed client import' in client.get(url + '/bom.csv').text
+    second, _ = save_import(client, layout.project_id, source_data(('40', '20', '300')), selection(materials))
+    reloaded = client.get(url + '/bom').json()['planning']
+    assert reloaded['project_pricing']['id'] == second['id']
+    assert Decimal(reloaded['priced_subtotals']['PHP']) == 300
+    assert client.get(url + f'/estimates/{old["id"]}').json() == old
+    assert [price.unit_price for price in session.scalars(select(MaterialPrice))] == prices
+    session.expire_all()
+    assert client.get(url + '/bom').json()['planning']['project_pricing']['id'] == second['id']
+
+
+@pytest.mark.parametrize('changed', ['unmapped', 'identity'])
+def test_automatic_client_bom_does_not_fallback_or_guess_material_identity(estimate_context, changed):
+    ctx, payload, materials = estimate_context
+    client, _, _, session, layout, *_ = ctx
+    url = f'/api/projects/{layout.project_id}'
+    assert client.post(url + '/estimates', json=payload).status_code == 201
+    choices = selection(materials)
+    if changed == 'unmapped':
+        choices['choices'][2] = {'row_id': 'Devices:4', 'excluded': True}
+    save_import(client, layout.project_id, source_data(), choices)
+    if changed == 'identity':
+        materials[2].name = 'Changed wire specification'
+        session.commit()
+    planning = client.get(url + '/bom').json()['planning']
+    rows = [row for row in planning['items'] if row.get('material_id') == materials[2].id]
+    assert rows and all(row['line_total'] is None for row in rows)
+    assert all(row['pricing_state'] == ('missing_project_material_price' if changed == 'unmapped'
+        else 'project_material_identity_changed') for row in rows)
+
+
 def test_scope_roles_unpriced_material_and_no_implicit_catalog_fallback(estimate_context):
     ctx,payload,materials=estimate_context
     client,_,_,session,layout,app,other,admin=ctx
@@ -139,6 +190,19 @@ def test_scope_roles_unpriced_material_and_no_implicit_catalog_fallback(estimate
     assert upload(client,url,'preview',data,selection(materials)).status_code==403
     app.dependency_overrides[get_current_user]=lambda:owner
     assert client.get(url+'/999999999').status_code==404
+
+
+def test_project_quotes_preserve_zero_draft_overrides_and_missing_measurement_gates():
+    from app.services.draft_bom_service import price_rows
+    catalog = [dict(id=1, name='Lamp', unit='piece', unit_price=Decimal(125), currency='PHP',
+        price_revision_id=None, price_source='project', project_price_version_id=7, project_price_row_id='BOM:2')]
+    rows = [dict(kind='device', name='Lamp', class_id=1, quantity=2, unit='piece', basis='Test', custom_unit_price=0)]
+    result = price_rows(rows, catalog)
+    assert result['priced_subtotals'] == {'PHP': Decimal(0)}
+    assert rows[0]['price_source'] == 'custom' and rows[0]['project_price_version_id'] is None
+    blocked = [dict(kind='path', name='Lamp', quantity=2, unit='piece', basis='Test', missing_vertical_inputs=['height'])]
+    assert price_rows(blocked, catalog)['items'][0]['pricing_state'] == 'measurement_incomplete'
+    assert blocked[0]['line_total'] is None
 
 
 @pytest.mark.parametrize('change', ['missing','formula','duplicate','conversion','currency'])

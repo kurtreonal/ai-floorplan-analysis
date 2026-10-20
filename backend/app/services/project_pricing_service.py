@@ -177,6 +177,35 @@ def accepted_rows(record):
     return {row['material_id']: row for row in record.document['rows'] if not row['excluded']}
 
 
+def current_catalog_prices(session, user, project_id, materials):
+    """Latest confirmed project quote, expressed per catalog unit for draft takeoff.
+
+    Never mutates the shared catalog, chooses a substitute product, or mixes in
+    catalog prices for materials absent from the selected project import.
+    """
+    _access(session, user, project_id)
+    version = repository.current(session, project_id)
+    if version is None:
+        return materials, None
+    quotes = accepted_rows(version)
+    result = []
+    for material in materials:
+        row = dict(material, unit_price=None, currency=None, price_revision_id=None,
+            price_source='project', project_price_version_id=version.id,
+            price_unavailable_reason='missing_project_material_price')
+        quote = quotes.get(material['id'])
+        if quote:
+            if (quote['catalog_unit'], quote['catalog_code'], quote['catalog_name']) != (
+                    material['unit'], material['code'], material['name']):
+                row['price_unavailable_reason'] = 'project_material_identity_changed'
+            else:
+                row.update(unit_price=Decimal(quote['unit_price']) / Decimal(quote['units_per_purchase']),
+                    currency=quote['currency'], project_price_row_id=quote['row_id'],
+                    price_unavailable_reason=None)
+        result.append(row)
+    return result, VersionSummary.model_validate(version).model_dump(mode='json')
+
+
 def compare_estimate(session, user, project_id, record, estimate_id):
     from app.services.estimate_service import retrieve_estimate, EstimateError
     try:

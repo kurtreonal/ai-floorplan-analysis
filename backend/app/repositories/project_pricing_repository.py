@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.orm import defer
 from app.models import Material, Project, ProjectPriceVersion
 
 
@@ -25,6 +26,12 @@ def latest_version(session, project_id, lock=False):
     query = select(ProjectPriceVersion.version_number).where(ProjectPriceVersion.project_id == project_id).order_by(
         ProjectPriceVersion.version_number.desc()).limit(1)
     return session.scalar(query.with_for_update() if lock else query) or 0
+
+
+def current(session, project_id):
+    return session.scalar(select(ProjectPriceVersion).options(defer(ProjectPriceVersion.source_bytes))
+        .where(ProjectPriceVersion.project_id == project_id)
+        .order_by(ProjectPriceVersion.version_number.desc()).limit(1))
 
 
 def find(session, project_id, version_id):

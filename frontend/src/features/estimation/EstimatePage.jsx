@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { orderNamed } from '../../utils/listOrder.js'
 import { Calculator, Layers3, Receipt, ShieldCheck } from 'lucide-react'
 import { createEstimate, EstimateApiError, fetchEstimateOptions, listEstimates } from '../../api/estimates.js'
@@ -47,6 +47,7 @@ function EstimateWorkspace({ projectId, session }) {
   const [confirmed, setConfirmed] = useState(false)
   const [priceVersions, setPriceVersions] = useState([])
   const [priceVersion, setPriceVersion] = useState('')
+  const priceSourceChosen = useRef(false)
   const [saveState, setSaveState] = useState('idle')
   const [saveError, setSaveError] = useState(null)
   const retryPayload = useRef(null)
@@ -56,6 +57,21 @@ function EstimateWorkspace({ projectId, session }) {
   const designer = session?.user?.role === 'DESIGNER'
   const pricedMaterials = options?.materials.filter((material) => material.has_price) || []
   const lengthMaterials = pricedMaterials.filter((material) => ['meter', 'roll', 'length', 'pack'].includes(material.unit))
+  const updatePriceVersions = useCallback((versions) => {
+    setPriceVersions(versions)
+    if (!priceSourceChosen.current && versions.length) {
+      priceSourceChosen.current = true
+      setOptions(null); setOptionsError(null); setConfirmed(false)
+      setPriceVersion(String(versions[0].id))
+    }
+  }, [])
+
+  function applyClientPricing(version) {
+    priceSourceChosen.current = true
+    setPriceVersions(current => [version, ...current.filter(row => row.id !== version.id)])
+    setOptions(null); setOptionsError(null); setConfirmed(false)
+    setPriceVersion(String(version.id)); setAttempt(current => current + 1)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -65,8 +81,16 @@ function EstimateWorkspace({ projectId, session }) {
     }).catch((error) => { if (!controller.signal.aborted) { setHistoryError(failure(error)); setHistoryState('error') } })
     fetchEstimateOptions(projectId, { signal: controller.signal, projectPriceVersionId: priceVersion ? Number(priceVersion) : null }).then((value) => {
       if (controller.signal.aborted) return
-      setOptions({...value,components:orderNamed(value.components, item => item.class_name)}); setBindings({}); setConduit(''); setWire(''); setConductors(''); setConfirmed(false)
-      setWireUnitLength(''); setConduitUnitLength(''); setAdditionalMaterials([])
+      setOptions({...value,components:orderNamed(value.components, item => item.class_name)})
+      // Repricing does not replace the designer's product/circuit decisions.
+      // Keep valid choices; unavailable products must be chosen explicitly again.
+      const available = new Set(value.materials.filter(material => material.has_price).map(material => String(material.id)))
+      setBindings(current => Object.fromEntries(Object.entries(current).filter(([id, binding]) =>
+        value.components.some(component => String(component.class_id) === id) && available.has(String(binding.material)))))
+      setConduit(current => available.has(current) ? current : '')
+      setWire(current => available.has(current) ? current : '')
+      setAdditionalMaterials(current => current.map(row => available.has(row.material) ? row : { ...row, material: '' }))
+      setConfirmed(false)
     }).catch((error) => { if (!controller.signal.aborted) setOptionsError(failure(error)) })
     return () => controller.abort()
   }, [projectId, attempt, priceVersion])
@@ -74,6 +98,8 @@ function EstimateWorkspace({ projectId, session }) {
 
   function reloadInputs() {
     setHistoryState('loading'); setOptions(null); setOptionsError(null); setHistoryError(null)
+    setBindings({}); setConduit(''); setWire(''); setConductors('')
+    setWireUnitLength(''); setConduitUnitLength(''); setAdditionalMaterials([])
     setAttempt((value) => value + 1)
   }
 
@@ -116,9 +142,9 @@ function EstimateWorkspace({ projectId, session }) {
       <section><Layers3 aria-hidden="true" /><span>Saved estimates</span><strong>{historyState === 'ready' ? records.length : '—'}</strong><small>Historical unit prices remain fixed</small></section>
       <section><ShieldCheck aria-hidden="true" /><span>Route readiness</span><strong>{options ? options.route_version_id && !options.stale ? 'Current' : 'Needs review' : 'Unavailable'}</strong><small>{options?.route_version_id ? `Route version ID ${options.route_version_id}` : 'Save a measured route first'}</small></section>
     </div>
-    <BOMPanel projectId={projectId} estimate={selected} refreshKey={attempt} />
     <ClientPricingPanel key={projectId} projectId={projectId} designer={designer} disabled={saveState !== 'idle'}
-      estimateId={selected?.id} onVersionsChange={setPriceVersions} />
+      estimateId={selected?.id} onVersionsChange={updatePriceVersions} onApplied={applyClientPricing} />
+    <BOMPanel projectId={projectId} estimate={selected} refreshKey={attempt} />
     <div className="studio-estimate-workbench">
       <section className="studio-panel" aria-labelledby="estimate-history-title"><div className="studio-panel-heading"><h2 id="estimate-history-title">Estimate breakdown</h2><span className="mono">CAPTURED PRICES</span></div>
         {historyState === 'loading' && <p role="status">Loading saved estimates…</p>}
@@ -131,6 +157,7 @@ function EstimateWorkspace({ projectId, session }) {
       </section>
       <aside className="studio-panel" aria-labelledby="estimate-inputs-title"><div className="studio-panel-heading"><h2 id="estimate-inputs-title">Generate snapshot</h2><span className="mono">EXPLICIT MAPPINGS</span></div>
         <label className="studio-field">Price source for next estimate<select value={priceVersion} disabled={!designer || saveState !== 'idle'} onChange={event => {
+          priceSourceChosen.current = true
           setOptions(null); setOptionsError(null); setConfirmed(false); setPriceVersion(event.target.value)
         }}><option value="">Shared Admin catalog</option>{priceVersions.map(version => <option key={version.id} value={version.id}>Client version {version.version_number} · {version.filename}</option>)}</select></label>
         {!designer && <p role="note">Admin read-only view. A Designer generates estimates.</p>}

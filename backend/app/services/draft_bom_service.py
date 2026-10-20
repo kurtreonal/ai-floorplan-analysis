@@ -199,7 +199,8 @@ def price_rows(rows, materials):
     totals = {}
     for row in rows:
         row.update(material_id=None, material_name=None, unit_price=None, currency=None, line_total=None,
-                   price_revision_id=None, pricing_state='material_not_found')
+                   price_revision_id=None, price_source=None, project_price_version_id=None,
+                   project_price_row_id=None, pricing_state='material_not_found')
         # Partial geometry may be displayed, but neither catalog nor custom
         # prices may turn missing measurements into a complete-looking cost.
         if row.get('missing_vertical_inputs'):
@@ -208,7 +209,8 @@ def price_rows(rows, materials):
         matches = [m for m in materials if m['id'] == row['preferred_material_id']] if row.get('preferred_material_id') else index.get(material_key(row['name']), [])
         if row.get('material_kind') == 'wire' and row['unit'] == 'meter' and len(matches) == 1 and row.get('wire_meters_per_unit'):
             material = dict(matches[0])
-            material.update(unit='meter',unit_price=Decimal(str(material['unit_price'])) / Decimal(str(row['wire_meters_per_unit'])))
+            material.update(unit='meter',unit_price=Decimal(str(material['unit_price'])) / Decimal(str(row['wire_meters_per_unit']))
+                if material['unit_price'] is not None else None)
             matches = [material]
         if row.get('electrical_assignment_required'):
             row['pricing_state']='electrical_assignment_required'
@@ -222,11 +224,14 @@ def price_rows(rows, materials):
             row['pricing_state'] = 'ambiguous_material'
         elif len(matches) == 1:
             material = matches[0]
-            row.update(material_id=material['id'], material_name=material['name'])
+            row.update(material_id=material['id'], material_name=material['name'],
+                price_source=material.get('price_source', 'catalog'),
+                project_price_version_id=material.get('project_price_version_id'),
+                project_price_row_id=material.get('project_price_row_id'))
             if material['unit'] != row['unit'] and not (row['unit']=='piece' and material['unit']=='unit'):
                 row['pricing_state'] = 'purchase_unit_required'
             elif material['unit_price'] is None:
-                row['pricing_state'] = 'missing_price'
+                row['pricing_state'] = material.get('price_unavailable_reason') or 'missing_price'
             else:
                 row.update(pricing_state='priced', unit_price=material['unit_price'], currency=material['currency'],
                            price_revision_id=material['price_revision_id'])
@@ -241,7 +246,8 @@ def price_rows(rows, materials):
             if row['line_total'] is not None:
                 totals[row['currency']] -= row['line_total']
             row.update(pricing_state='custom_priced', unit_price=amount, currency='PHP',
-                       price_revision_id=None,
+                       price_revision_id=None, price_source='custom', project_price_version_id=None,
+                       project_price_row_id=None,
                        line_total=Decimal(str(row['quantity'])) * amount,
                        basis=row['basis'] + (' User-entered PHP price per device, saved in draft review.' if row['kind'] == 'device' else ' User-entered PHP price per wire metre for this draft calculation.') + ' Not an Admin catalog price.')
             totals['PHP'] = totals.get('PHP', Decimal(0)) + row['line_total']
@@ -308,9 +314,11 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
             continue
         price = prices.latest_price(session, material.id, at=now)
         usable = price is not None and price.unit == material.unit
-        materials.append(dict(id=material.id, name=material.name, unit=material.unit, category=material.category,
+        materials.append(dict(id=material.id, code=material.code, name=material.name, unit=material.unit, category=material.category,
             unit_price=price.unit_price if usable else None, currency=price.currency if usable else None,
             price_revision_id=price.id if usable else None))
+    from app.services.project_pricing_service import current_catalog_prices
+    materials, project_pricing = current_catalog_prices(session, user, project_id, materials)
     eligible_layouts = [l for l in layouts if floor_plan_id is None or l['floor_plan_id'] == floor_plan_id]
     verified_floors = {l['floor_id'] for l in eligible_layouts}
     rows = [dict(kind='device', name=r['name'], class_id=r['class_id'], quantity=r['quantity'], unit='piece',
@@ -390,7 +398,13 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
     elif wire_meters_per_unit is not None:
         raise ValueError('Choose a wire product before entering its purchase length.')
     choices = [{k: m[k] for k in ('id', 'name', 'unit', 'unit_price', 'currency')} for m in conduit_choices(materials)]
-    return dict(price_rows(rows, materials), sources=sources, calculated_at=now.isoformat(),
+    result = price_rows(rows, materials)
+    if project_pricing:
+        result['basis'][2] = ('Costs: latest confirmed client import, version '
+            f'{project_pricing["version_number"]}, normalized using reviewed purchase-unit conversions. '
+            'Unmapped materials remain unpriced; explicit draft overrides are retained. '
+            'Shared catalog and saved estimate prices are unchanged.')
+    return dict(result, sources=sources, calculated_at=now.isoformat(), project_pricing=project_pricing,
                 conduit_materials=choices, selected_conduit_material_id=conduit_material_id, requested_paper_size=paper_size,
                 wire_materials=[dict({k: m[k] for k in ('id', 'name', 'unit', 'unit_price', 'currency')},meters_per_unit=wire_unit_length(m)) for m in wire_choices(materials)],
                 selected_wire_material_id=wire_material_id,

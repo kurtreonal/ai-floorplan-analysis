@@ -21,7 +21,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.resetAllMocks() })
 
 async function mapAndPreview() {
-  fireEvent.click(screen.getByText('Import XLSX or CSV'))
+  fireEvent.click(screen.getByText('Upload BOM pricing (XLSX or CSV)'))
   fireEvent.change(screen.getByLabelText('Client file'), { target: { files: [new File(['source'], 'client.csv')] } })
   fireEvent.change(screen.getByLabelText('Import type'), { target: { value: 'client_bom' } })
   fireEvent.click(screen.getByRole('button', { name: 'Read headers' }))
@@ -42,26 +42,29 @@ async function validateMappings() {
 }
 
 it('requires explicit column/material choices, validation and confirmation before saving', async () => {
-  render(<ClientPricingPanel projectId={15} designer />)
+  const onApplied = vi.fn()
+  render(<ClientPricingPanel projectId={15} designer onApplied={onApplied} />)
   await mapAndPreview()
   expect(screen.getByLabelText('Material for CSV:2').value).toBe('')
-  expect(screen.getByRole('button', { name: 'Save project import' }).disabled).toBe(true)
+  expect(screen.getByRole('button', { name: 'Save & apply project pricing' }).disabled).toBe(true)
   await validateMappings()
   expect(applyProjectPrices).not.toHaveBeenCalled()
-  fireEvent.click(screen.getByRole('button', { name: 'Save project import' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save & apply project pricing' }))
   await screen.findByRole('status')
   const payload = applyProjectPrices.mock.calls[0][2]
   expect(payload).toMatchObject({ confirmed: true, file_sha256: proposal.file_sha256, preview_token: proposal.preview_token,
     expected_version: 0, mapping: { kind: 'client_bom', currency: 'PHP', columns: { quantity: 'D' } },
     choices: [{ row_id: 'CSV:2', material_id: 5 }] })
   expect(fetchProjectPrice).toHaveBeenCalledWith(15, '7', expect.objectContaining({ estimateId: undefined }))
+  expect(onApplied).toHaveBeenCalledWith(version)
+  expect(screen.getByRole('status').textContent).toContain('Saved estimates are unchanged')
 })
 
 it('invalidates a validated preview when a mapping/exclusion changes', async () => {
   render(<ClientPricingPanel projectId={15} designer />)
   await mapAndPreview(); await validateMappings()
   fireEvent.click(screen.getByLabelText('Exclude CSV:2'))
-  expect(screen.getByRole('button', { name: 'Save project import' }).disabled).toBe(true)
+  expect(screen.getByRole('button', { name: 'Save & apply project pricing' }).disabled).toBe(true)
   expect(screen.queryByLabelText('I reviewed these project prices, units, conversions and exclusions.')).toBeNull()
   expect(applyProjectPrices).not.toHaveBeenCalled()
 })
@@ -70,7 +73,7 @@ it('locks uncertain imports and retries exactly the same request ID and source',
   applyProjectPrices.mockRejectedValueOnce(new ProjectPricingError(503)).mockResolvedValueOnce(version)
   render(<ClientPricingPanel projectId={15} designer />)
   await mapAndPreview(); await validateMappings()
-  fireEvent.click(screen.getByRole('button', { name: 'Save project import' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save & apply project pricing' }))
   const retry = await screen.findByRole('button', { name: 'Retry identical import' })
   expect(screen.getByLabelText('Client file').closest('fieldset').disabled).toBe(true)
   const first = applyProjectPrices.mock.calls[0]
@@ -88,7 +91,7 @@ it('keeps client and calculated quantities separate in read-only history', async
   expect(await screen.findByText('-7')).toBeTruthy()
   expect(screen.getByText('9')).toBeTruthy()
   expect(screen.getByText('2 piece')).toBeTruthy()
-  expect(screen.queryByText('Import XLSX or CSV')).toBeNull()
+  expect(screen.queryByText('Upload BOM pricing (XLSX or CSV)')).toBeNull()
   expect(applyProjectPrices).not.toHaveBeenCalled()
 })
 

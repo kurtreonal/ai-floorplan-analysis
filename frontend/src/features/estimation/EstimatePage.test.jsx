@@ -60,13 +60,12 @@ it('requires explicit mappings and sends only reviewed inputs to the existing AP
   expect(createEstimate).toHaveBeenCalledWith(15, expect.objectContaining({ request_id: expect.any(String), route_version_id: 11, components: [{ class_id: 7, material_id: 5, units_per_symbol: '1' }], conduit_material_id: 6, wire_material_id: 7, conductor_count: 3, mappings_confirmed: true }), expect.objectContaining({ signal: expect.any(AbortSignal) }))
 })
 
-it('selects a client version explicitly and pins it to generation without changing saved history', async () => {
+it('defaults to the latest confirmed client version and pins it to new estimates', async () => {
   listProjectPrices.mockResolvedValue([{ id: 22, version_number: 3, filename: 'client.xlsx', kind: 'price_list' }])
   createEstimate.mockResolvedValue(record)
   render(<EstimatePage projectId={15} session={designer} />)
   await screen.findByRole('option', { name: 'Client version 3 · client.xlsx' })
-  expect(screen.getByLabelText('Price source for next estimate').value).toBe('')
-  fireEvent.change(screen.getByLabelText('Price source for next estimate'), { target: { value: '22' } })
+  expect(screen.getByLabelText('Price source for next estimate').value).toBe('22')
   await waitFor(() => expect(fetchEstimateOptions).toHaveBeenLastCalledWith(15, expect.objectContaining({ projectPriceVersionId: 22 })))
   await fillMappings()
   fireEvent.click(screen.getByRole('button', { name: 'Generate estimate snapshot' }))
@@ -78,10 +77,33 @@ it('resets project price selection when opening another project', async () => {
   listProjectPrices.mockResolvedValue([{ id: 22, version_number: 3, filename: 'client.xlsx' }])
   const { rerender } = render(<EstimatePage projectId={15} session={designer} />)
   await screen.findByRole('option', { name: 'Client version 3 · client.xlsx' })
-  fireEvent.change(screen.getByLabelText('Price source for next estimate'), { target: { value: '22' } })
+  listProjectPrices.mockResolvedValue([])
   rerender(<EstimatePage projectId={16} session={designer} />)
   expect(screen.getByLabelText('Price source for next estimate').value).toBe('')
   await waitFor(() => expect(fetchEstimateOptions).toHaveBeenLastCalledWith(16, expect.objectContaining({ projectPriceVersionId: null })))
+})
+
+it('allows an explicit catalog selection without reverting it during reload', async () => {
+  listProjectPrices.mockResolvedValue([{ id: 22, version_number: 3, filename: 'client.xlsx' }])
+  render(<EstimatePage projectId={15} session={designer} />)
+  await waitFor(() => expect(screen.getByLabelText('Price source for next estimate').value).toBe('22'))
+  fireEvent.change(screen.getByLabelText('Price source for next estimate'), { target: { value: '' } })
+  await waitFor(() => expect(fetchEstimateOptions).toHaveBeenLastCalledWith(15, expect.objectContaining({ projectPriceVersionId: null })))
+  fireEvent.click(screen.getByRole('button', { name: 'Reload inputs' }))
+  await waitFor(() => expect(screen.getByLabelText('Price source for next estimate').value).toBe(''))
+})
+
+it('keeps valid material and circuit choices when changing prices, but requires fresh confirmation', async () => {
+  listProjectPrices.mockResolvedValue([{ id: 22, version_number: 3, filename: 'client.xlsx' }])
+  render(<EstimatePage projectId={15} session={designer} />)
+  await waitFor(() => expect(screen.getByLabelText('Price source for next estimate').value).toBe('22'))
+  await fillMappings()
+  fireEvent.change(screen.getByLabelText('Price source for next estimate'), { target: { value: '' } })
+  await screen.findByLabelText('Material for Troffer')
+  expect(screen.getByLabelText('Material for Troffer').value).toBe('5')
+  expect(screen.getByLabelText('Wire material').value).toBe('7')
+  expect(screen.getByLabelText('Conductor count').value).toBe('3')
+  expect(screen.getByLabelText('I reviewed these material mappings and conversion factors.').checked).toBe(false)
 })
 
 it('locks uncertain inputs and retries exactly the same request identity and payload', async () => {

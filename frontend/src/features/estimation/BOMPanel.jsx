@@ -11,6 +11,8 @@ const pricingLabels = {
   scale_required: 'Set plan scale once', classification_required: 'Unclassified',
   material_not_found: 'No matching catalog material', ambiguous_material: 'Multiple matching materials',
   purchase_unit_required: 'Purchase-unit conversion needed', missing_price: 'Price missing', priced: 'Priced',
+  missing_project_material_price: 'Not priced in client import',
+  project_material_identity_changed: 'Material changed; review client mapping',
 }
 function money(value, currency) {
   return value == null ? '—' : new Intl.NumberFormat(undefined, {style:'currency',currency}).format(Number(value))
@@ -113,6 +115,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
       </div>}
     </div>}
     {bom?.planning && <>
+      {bom.planning.project_pricing && <p>Client prices · Version {bom.planning.project_pricing.version_number} · {bom.planning.project_pricing.filename}</p>}
       <p>Automatic from saved plan data. No per-item approvals. Save edits to update quantities.</p>
       {bom.planning.items.length ? <div className="studio-table-scroll" role="region" aria-label="Draft material costs" tabIndex={0}><table className="studio-estimate-table studio-bom-table" aria-label="Draft bill of materials"><thead><tr>
         <th scope="col">Device / wiring</th><th scope="col">Quantity</th><th scope="col">Unit price</th><th scope="col">Cost / missing input</th></tr></thead>
@@ -128,7 +131,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
       {bom.planning.unpriced_items > 0 && <p role="note">{bom.planning.unpriced_items} items are not costed. Subtotals are incomplete, not a project total.</p>}
       {bom.planning.missing_inputs?.map(note => <p role="note" key={note}>{note}</p>)}
       <details><summary>Calculation basis</summary><ul>{bom.planning.basis.map(note => <li key={note}>{note}</li>)}</ul>
-        <p>{bom.planning.catalog_materials} active catalog materials. Excel prices are imported by Admin; missing prices are never treated as zero.</p></details>
+        <p>{bom.planning.catalog_materials} active catalog materials. Prices use the confirmed client import when available, otherwise the Admin catalog. Missing prices are never treated as zero.</p></details>
     </>}
     {bom && !bom.planning && <>
       <p>{bom.layouts.length} reviewed floor snapshots. Raw detections are excluded from quantities.</p>
