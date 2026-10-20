@@ -111,12 +111,37 @@ def generate_estimate(session, user, project_id, request):
     raw_lines.extend([(request.conduit_material_id, Decimal(str(lengths.conduit_meters)), request.conduit_meters_per_unit or Decimal(1), request.conduit_meters_per_unit is None),
                       (request.wire_material_id, Decimal(str(lengths.wire_meters)), request.wire_meters_per_unit or Decimal(1), request.wire_meters_per_unit is None)])
     raw_lines.extend((item.material_id, item.quantity, None, False) for item in request.additional_materials)
+    from app.repositories.item_price_repository import current as current_item_prices
+    from app.services.item_pricing_service import device_key, route_key, assignment_quote, fingerprint
+    from app.models import LayoutVersion
+    item_prices = current_item_prices(session, project_id)
+    assignments = item_prices.document['assignments'] if item_prices else {}
+    item_keys = [None] * len(raw_lines)
+    # Split only explicitly priced existing devices. Unselected grouping and
+    # quantity arithmetic stay unchanged; a new symbol has a different key.
+    device_lines, device_keys = [], []
+    for binding, line in zip(request.components, raw_lines):
+        keys = []
+        for floor_id, snapshot in snapshots.items():
+            layout = session.get(LayoutVersion, snapshot['layout_version_id'])
+            for component in snapshot['components']:
+                if component['class_id'] == binding.class_id:
+                    keys.extend(device_key(int(floor_id), layout.floor_plan_id, symbol) for symbol in component['symbol_ids'])
+        if any(key in assignments for key in keys):
+            device_lines.extend((binding.material_id, binding.units_per_symbol, None, False) for key in keys)
+            device_keys.extend(keys)
+        else:
+            device_lines.append(line); device_keys.append(None)
+    offset = len(request.components)
+    raw_lines = device_lines + raw_lines[offset:]
+    item_keys = device_keys + [route_key(route.id, 'conduit'), route_key(route.id, 'wire')] + [None] * len(request.additional_materials)
     locked = {key: prices.lock_material(session, key) for key in sorted({item[0] for item in raw_lines})}
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     lines, price_ids, currencies, price_sources = [], [], set(), []
+    item_quote_cache = {}
     with localcontext() as context:
         context.prec = 48
-        for material_id, raw_quantity, meters_per_unit, meter_required in raw_lines:
+        for line_index, (material_id, raw_quantity, meters_per_unit, meter_required) in enumerate(raw_lines):
             material = locked[material_id]
             if material is None or not material.is_active:
                 raise EstimateError("MATERIAL_UNAVAILABLE")
@@ -126,7 +151,19 @@ def generate_estimate(session, user, project_id, request):
                 if material.unit == 'meter' and meters_per_unit != 1:
                     raise EstimateError('METER_UNIT_CONVERSION_MUST_BE_ONE')
                 raw_quantity /= meters_per_unit
-            if project_version:
+            assignment = assignments.get(item_keys[line_index])
+            if assignment:
+                identity = dict(id=material.id, code=material.code, name=material.name, unit=material.unit)
+                quote = assignment_quote(session, project_id, assignment, identity, item_quote_cache)
+                kind = 'device' if line_index < len(device_lines) else 'conduit' if line_index == len(device_lines) else 'wire'
+                if quote is None or fingerprint(dict(item_kind=kind, unit=material.unit), identity) != assignment['fingerprint']:
+                    raise EstimateError('ITEM_PRICE_ASSIGNMENT_STALE')
+                raw_quantity /= Decimal(quote['units_per_purchase'])
+                unit_price, currency, unit = Decimal(quote['unit_price']), quote['currency'], quote['unit']
+                price_sources.append(dict(material_id=material_id, kind='item_project', item_key=item_keys[line_index],
+                    project_price_version_id=assignment['price_version_id'], row_id=quote['row_id'],
+                    catalog_unit=quote['catalog_unit'], units_per_purchase=quote['units_per_purchase'], quoted_unit=unit))
+            elif project_version:
                 quote = project_rows.get(material_id)
                 if quote is None:
                     raise EstimateError('MISSING_PROJECT_MATERIAL_PRICE')
@@ -164,6 +201,7 @@ def generate_estimate(session, user, project_id, request):
             "configuration": request_document, "layouts": snapshots, "route_version_id": route.id,
             "lengths": asdict(lengths), "price_revision_ids": price_ids,
             "price_source": request.price_source, "price_sources": price_sources,
+            "item_price_assignment_version": item_prices.version_number if item_prices else None,
             "project_pricing": dict(id=project_version.id, version_number=project_version.version_number,
                 filename=project_version.filename, file_sha256=project_version.file_sha256, kind=project_version.kind,
                 document=project_version.document) if project_version else None,

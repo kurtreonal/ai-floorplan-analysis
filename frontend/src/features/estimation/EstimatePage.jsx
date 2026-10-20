@@ -18,6 +18,7 @@ function failure(error) {
     if (error.status === 403) return 'Your account cannot perform this estimate operation.'
     if (error.status === 404) return 'This project or estimate is unavailable.'
     if (error.code === 'STALE_ROUTE') return 'The route changed. Reload the estimate inputs before generating a snapshot.'
+    if (error.code === 'ITEM_PRICE_ASSIGNMENT_STALE') return 'A selected item price no longer matches its material or unit. Review the saved item prices before generating a snapshot.'
     if (error.code === 'MISSING_PROJECT_MATERIAL_PRICE') return 'The selected client version has no price for a mapped material. Choose a complete version or explicitly select the shared catalog.'
     if (error.code === 'PROJECT_MATERIAL_IDENTITY_CHANGED') return 'A mapped material changed. Reimport and confirm the client price mappings.'
     if (error.status === 422) return 'Review all material mappings, current prices and route inputs. The server did not accept this estimate.'
@@ -144,14 +145,14 @@ function EstimateWorkspace({ projectId, session }) {
     </div>
     <ClientPricingPanel key={projectId} projectId={projectId} designer={designer} disabled={saveState !== 'idle'}
       estimateId={selected?.id} onVersionsChange={updatePriceVersions} onApplied={applyClientPricing} />
-    <BOMPanel projectId={projectId} estimate={selected} refreshKey={attempt} />
+    <BOMPanel projectId={projectId} estimate={selected} refreshKey={attempt} designer={designer} />
     <div className="studio-estimate-workbench">
       <section className="studio-panel" aria-labelledby="estimate-history-title"><div className="studio-panel-heading"><h2 id="estimate-history-title">Estimate breakdown</h2><span className="mono">CAPTURED PRICES</span></div>
         {historyState === 'loading' && <p role="status">Loading saved estimates…</p>}
         {historyError && <p role="alert">{historyError}</p>}
         {selected && <p className="studio-panel-note">Captured price source: {selected.source?.project_pricing
           ? `Client version ${selected.source.project_pricing.version_number} · ${selected.source.project_pricing.filename}`
-          : 'Shared Admin catalog'}</p>}
+          : 'Shared Admin catalog'}{selected.source?.item_price_assignment_version ? ` + saved item choices (version ${selected.source.item_price_assignment_version})` : ''}</p>}
         {historyState === 'ready' && !records.length && <div className="project-empty-state"><Calculator size={28} aria-hidden="true" /><h3>No saved estimates yet.</h3><p>Save reviewed geometry and a measured route, then map materials to create a price snapshot.</p></div>}
         {selected && <><label className="studio-field"><span>Estimate version</span><select value={selected.id} onChange={(event) => setSelectedId(Number(event.target.value))}>{records.map((record) => <option key={record.id} value={record.id}>Version {record.version_number} · {money(record.total, record.currency)}</option>)}</select></label><div className="studio-table-scroll"><table className="studio-estimate-table"><thead><tr><th>Material</th><th>Quantity</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>{selected.items.map((item) => <tr key={item.line_number}><td><strong>{item.material_name}</strong><small>{item.material_code}</small></td><td>{item.quantity} {item.unit}</td><td>{money(item.captured_unit_price, selected.currency)}</td><td>{money(item.line_total, selected.currency)}</td></tr>)}</tbody><tfoot><tr><th colSpan="3">Captured total</th><td>{money(selected.total, selected.currency)}</td></tr></tfoot></table></div><p className="studio-panel-note">Snapshot #{selected.id}. Later material-price updates do not alter these captured amounts. Planning estimate, not professional approval.</p></>}
       </section>

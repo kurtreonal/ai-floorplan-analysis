@@ -14,3 +14,8 @@
 .client-price-table .client-row-error { color: #b04428; }
 .client-price-table select { max-width: 25rem; }
 .client-pricing .studio-confirmation { display: flex; align-items: center; }
+.item-pricing > summary { font-weight: 600; }
+.item-price-controls { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: .75rem; }
+.item-price-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.item-pricing input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--orange); }
+.item-pricing fieldset:disabled { opacity: .65; }

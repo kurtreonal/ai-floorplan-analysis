@@ -4,8 +4,10 @@ import { Button } from '../../components/ui/button.jsx'
 import { legendDescription } from '../../api/legendChoices.js'
 import { orderNamed, orderList } from '../../utils/listOrder.js'
 import { ClientPricingPanel } from './ClientPricingPanel.jsx'
+import { ApplyClientPrices } from './ApplyClientPrices.jsx'
 
 const pricingLabels = {
+  item_price_review_required:'Review saved client price: material or unit changed',
   electrical_assignment_required:'Electrical assignment required',
   measurement_incomplete:'Complete route measurements required',
   network_material_review_required: 'Review overlapping path materials',
@@ -19,7 +21,7 @@ function money(value, currency) {
   return value == null ? '—' : new Intl.NumberFormat(undefined, {style:'currency',currency}).format(Number(value))
 }
 
-export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, refreshKey = 0, designer = false }) {
+export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, refreshKey = 0, designer = false, unsaved = false }) {
   const [loadedBOM, setBOM] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -71,6 +73,8 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
       <ClientPricingPanel key={projectId} projectId={projectId} designer defaultImportOpen disabled={busy}
         onApplied={() => setPricingRevision(current => current + 1)} />
     </div>}
+    {designer && <ApplyClientPrices key={`${sourceKey}:${floorPlanId ? planningOptions?.sources?.[0]?.floor_id : ''}`} projectId={projectId} floorId={floorPlanId ? planningOptions?.sources?.[0]?.floor_id : undefined}
+      disabled={busy || unsaved} onApplied={() => setPricingRevision(current => current + 1)} />}
     {planningOptions && <div className="studio-material-binding studio-bom-settings">
       <div className="studio-bom-setting"><h3>Conduit</h3>
       <label className="studio-field">Conduit product for this draft

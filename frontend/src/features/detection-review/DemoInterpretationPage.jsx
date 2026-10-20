@@ -816,6 +816,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
       <section className="studio-review-estimation" aria-label="Plan estimation">
         <BOMPanel projectId={projectId} floorPlanId={floorPlanId} processingJobId={state.record.processing_job_id}
           designer={session?.user?.role === 'DESIGNER'}
+          unsaved={Boolean(draft && state.record && JSON.stringify(draft) !== JSON.stringify(initialDraft(state.record,state.legends)))}
           refreshKey={state.record.review?.revision_number || 0} />
       </section>
     </article>

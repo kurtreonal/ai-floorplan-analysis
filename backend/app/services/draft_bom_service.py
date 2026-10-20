@@ -261,7 +261,7 @@ def price_rows(rows, materials):
                 ])
 
 
-def saved_circuit_takeoff(session, user, project_id, rows, materials):
+def saved_circuit_takeoff(session, user, project_id, rows, materials, *, scope_floors=None):
     """Reuse saved explicit purchase mappings only for the SAME current route."""
     from app.repositories.estimate_repository import list_estimates, source
     from app.services.material_quantity_service import retrieve_route_material_lengths
@@ -285,11 +285,13 @@ def saved_circuit_takeoff(session, user, project_id, rows, materials):
     catalog_by_id = {m['id']:m for m in materials}
     for row in rows:
         binding = bindings.get(row.get('class_id'))
-        if row.get('canonical') and binding and binding['material_id'] in catalog_by_id:
+        if row.get('canonical') and row.get('floor_id') in {int(k) for k in measured['layout_versions']} and binding and binding['material_id'] in catalog_by_id:
             row.update(preferred_material_id=binding['material_id'],
                 quantity=Decimal(str(row['quantity']))*Decimal(str(binding['units_per_symbol'])),
                 unit=catalog_by_id[binding['material_id']]['unit'],
                 basis='Canonical device count × saved material units per symbol for the current route.')
+    if scope_floors is not None and not {int(k) for k in measured['layout_versions']} <= scope_floors:
+        return True  # Aggregate multi-floor quantities cannot be allocated by guess.
     for kind, length in [('conduit', measured['lengths'].conduit_meters), ('wire', measured['lengths'].wire_meters)]:
         identity = configuration.get(f'{kind}_material_id')
         material = catalog_by_id.get(identity)
@@ -297,7 +299,9 @@ def saved_circuit_takeoff(session, user, project_id, rows, materials):
         if material and length is not None and (material['unit']=='meter' or factor):
             quantity=(Decimal(str(length))/Decimal(str(factor or 1))).quantize(Decimal('.0001'), rounding=ROUND_HALF_UP)
             rows.append(dict(kind='path', name=material['name'], preferred_material_id=identity,
-                quantity=quantity, unit=material['unit'], floor_id=None,
+                quantity=quantity, unit=material['unit'], material_kind=kind,
+                saved_route_version_id=measured['route_version_id'],
+                floor_id=int(next(iter(measured['layout_versions']))) if len(measured['layout_versions']) == 1 else None,
                 basis=f'Saved route #{measured["route_version_id"]}: {length} {kind} meters / {factor or 1} meters per purchase unit. '
                       f'Saved conductor count {count}; no added allowance.'))
     return True
@@ -322,7 +326,8 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
     eligible_layouts = [l for l in layouts if floor_plan_id is None or l['floor_plan_id'] == floor_plan_id]
     verified_floors = {l['floor_id'] for l in eligible_layouts}
     rows = [dict(kind='device', name=r['name'], class_id=r['class_id'], quantity=r['quantity'], unit='piece',
-        floor_id=r['floor_id'], symbol_ids=r['symbol_ids'], canonical=True, basis='Current saved canonical layout; one unit per symbol.')
+        floor_id=r['floor_id'], floor_plan_id=next(l['floor_plan_id'] for l in eligible_layouts if l['floor_id'] == r['floor_id']),
+        symbol_ids=r['symbol_ids'], canonical=True, basis='Current saved canonical layout; one unit per symbol.')
         for r in components if r['floor_id'] in verified_floors]
     from app.geometry.canonical import canonical_geometry_from_dict
     from app.geometry.canonical_takeoff import canonical_path_rows
@@ -382,13 +387,15 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
         if missing_drops:
             missing_inputs.append(f'Plan {run.floor_plan_id}: {len(missing_drops)} attached devices have unmeasured drops/rises. '
                 'Subtotal excludes these lengths. Save floor elevation, wire elevation and device mounting heights; a scale is required.')
-        rows.extend(dict(row, floor_id=floor_id, floor_plan_id=run.floor_plan_id, page_id=run.floor_plan_page_id) for row in items)
+        rows.extend(dict(row, floor_id=floor_id, floor_plan_id=run.floor_plan_id, page_id=run.floor_plan_page_id,
+            candidate_run_id=run.candidate_run_id) for row in items)
         sources.append(dict(floor_id=floor_id, floor_plan_id=run.floor_plan_id, page_id=run.floor_plan_page_id,
             processing_job_id=run.processing_job_id, review_revision=review.revision_number if review else None,
             state='saved_draft' if review else 'detected_draft', pixels_per_meter=ppm,
             scale_revision_id=scale.id if scale and scale_basis == 'measured_page' else None,
             scale_basis=scale_basis, assumed_paper_size=None))
-    reused = saved_circuit_takeoff(session, user, project_id, rows, materials) if floor_plan_id is None else False
+    reused = saved_circuit_takeoff(session, user, project_id, rows, materials,
+        scope_floors=verified_floors if floor_plan_id is not None else None)
     if not reused:
         missing_inputs.append('Wire purchasing quantities require saved circuit specifications for a current measured project route; missing or stale specifications are not assumed.')
     if conduit_material_id is not None:
@@ -399,6 +406,8 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
         raise ValueError('Choose a wire product before entering its purchase length.')
     choices = [{k: m[k] for k in ('id', 'name', 'unit', 'unit_price', 'currency')} for m in conduit_choices(materials)]
     result = price_rows(rows, materials)
+    from app.services.item_pricing_service import apply_prices
+    result = apply_prices(session, project_id, result, materials)
     if project_pricing:
         result['basis'][2] = ('Costs: latest confirmed client import, version '
             f'{project_pricing["version_number"]}, normalized using reviewed purchase-unit conversions. '

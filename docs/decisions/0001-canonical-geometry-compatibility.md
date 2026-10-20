@@ -750,3 +750,54 @@ version was created. All 44 previously checked original files remain byte-identi
 one newer upload and other newer project/job records exist since the older
 integrity snapshot and were left untouched, not rolled back. No analysis job is
 active. Unrelated edits and stash@{0} remain outside the scoped checkpoint.
+
+### UX checkpoint 1 — existing-item client price assignments
+
+An optional, initially collapsed **Apply client prices to selected items** panel
+is shared by the workspace BOM and Cost estimation BOM. One-step file upload is
+unchanged. Designers choose an immutable uploaded version and entry, search/filter
+saved devices, conductor/cable items and conduit items, select compatible targets,
+preview old/new unit prices and totals, then apply atomically. Floor/project scope
+is explicit. Apply-all wiring is resolved by the server and reports incompatible
+or unresolved products/units; it never changes gauge, circuit, conductor count,
+material binding, geometry or quantities. Unsaved canvas edits disable assignment.
+
+The add-only `item_price_assignments` table stores actor, time, idempotent request,
+preview fingerprint, application audit and cumulative existing identity choices.
+Existing canonical device identities, candidate/page identities and explicit
+connected path-group identities remain distinct. Reanalysis candidates and future
+items do not inherit a prior bulk selection. A new saved route is also a new
+identity, not an implicit pricing default. Current material identities/conversions
+are revalidated; stale assignments are unpriced with an actionable reason rather
+than silently replaced with another price. No default-rule feature is enabled.
+
+Project/floor locks, scope and source-revision fingerprints fence concurrent
+changes. An uncertain response retries the same request. The shared BOM resolves
+overrides from the referenced client version; newly generated estimates capture
+applicable item prices and their provenance. Historical estimates/imports and the
+Admin catalog are immutable. Floor BOMs now reuse saved bindings from the same
+current measured route; an aggregate multi-floor quantity is never allocated to a
+single floor by guess. Unclassified/unmapped/unmeasured paths stay unresolved;
+applying a price does not turn them into measured purchase quantities or approval.
+
+PASS: clean checkpoint snapshot, 88 backend tests, 35 frontend/API tests, scoped
+lint and production build (existing large-chunk warnings; two backend deprecation
+warnings). Tests cover compatible multi-item pricing, scope/tampering, different
+products/units, stale previews, retry, new-device/new-candidate identity, unchanged
+geometry, project/floor BOM equality, immutable history and new estimate capture.
+Full unrelated suites NOT TESTED; earlier unrelated failures are not resolved by
+this checkpoint. Browser PASS in the restricted disposable database: select two
+devices from client version 1 rather than latest version 2; each changes from PHP
+250 to 125. Draft priced subtotal changes from PHP 778.208 to 528.208. Apply-all
+for one floor changes only the compatible wire roll from PHP 6,000 to 3,000,
+skipping conduit and an unresolved path; subtotal becomes PHP 469.108. Reload
+retains the choices and the old estimate remains PHP 26.864. Synthetic bindings
+test software, not engineering/product suitability. Fixture services and exact
+synthetic records are removed; no real assignment/import is created.
+
+Three new API operations reuse the existing project-pricing router (62 operations
+in the clean checkpoint; 63 in the mixed worktree) and one additive table (37).
+Deployment verified all 36 pre-existing table counts/checksums unchanged. Originals,
+unrelated pending edits and stash@{0} are preserved. BDO remains paused. This
+checkpoint does not implement UX checkpoints 2–5 (deletion, Add Device search,
+3D gestures, compact Plan Information); those remain separate responsibilities.
