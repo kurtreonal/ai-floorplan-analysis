@@ -47,7 +47,7 @@ export function DraftRoomPreview({ draft, layers, width, height, projectId, pres
       <p>Preview dimensions are illustrative unless a confirmed scale and saved elevations are available. They do not approve or calibrate this plan.</p>
       {unmeasuredDevices.size>0 && <p role="note">Save actual mounting and route elevations to include vertical connections in measured BOM. Planning presets are excluded.</p>}
       <label>Source page long side (m)<input type="number" disabled={measuredLength!=null} min="5" max="500" step="1" value={measuredLength??longSideMeters} onChange={(event) => { const value = Number(event.target.value); if (value >= 5 && value <= 500) setLongSideMeters(value) }} /></label>
-      {measuredLength!=null&&<p>Confirmed page scale is active. Per-wall dimensions override illustrative defaults.</p>}
+      {measuredLength!=null&&<p>{routingContext?.scale_basis==='ved_paper_ratio_draft' ? 'Draft paper scale is active; not independently calibrated.' : 'Confirmed page scale is active.'} Per-wall dimensions override illustrative defaults.</p>}
       <label>Wall height (m)<input type="number" min="2" max="6" step="0.1" value={wallHeight} onChange={(event) => { const value = Number(event.target.value); if (value >= 2 && value <= 6) setWallHeight(value) }} /></label>
       <p>Adjust the page length to match your drawing. Defaults: 600 × 1200 mm troffers, 180 mm walls. Mounting presets use each floor's finished-floor reference, not an assumed floor-to-floor height. Roof cover is illustrative.</p>
     </details>

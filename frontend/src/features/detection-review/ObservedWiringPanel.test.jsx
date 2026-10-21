@@ -31,6 +31,7 @@ describe('visible wiring review', () => {
     render(<ObservedWiringPanel wires={[wire]} width={400} height={300} onChange={onChange} visible onVisibilityChange={vi.fn()} view="2d" />)
     fireEvent.change(screen.getByLabelText('Source-pixel points segment-0001'), { target: { value: '10,20\n50,20' } })
     expect(screen.queryByLabelText('Wiring decision segment-0001')).toBeNull()
+    expect(screen.queryByLabelText('Trace completeness segment-0001')).toBeNull()
     fireEvent.click(screen.getByText('Apply wiring changes'))
     expect(onChange.mock.calls[0][0][0]).toMatchObject({ disposition: 'corrected', elevation_meters: 2.8, points: [{ x: 10, y: 20 }, { x: 50, y: 20 }] })
     fireEvent.click(screen.getByText('Remove wiring trace'))

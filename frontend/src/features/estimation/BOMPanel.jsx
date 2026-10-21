@@ -64,7 +64,9 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
     {designer && <BOMPricingControls model={pricing}/>}
     {bom?.planning && <>
       {bom.planning.items.length || pricing.active ? <BOMTable planning={bom.planning} pricing={pricing} pricingLabels={pricingLabels}/> : <p>No saved devices or wiring yet.</p>}
-      {(bom.planning.unpriced_items>0 || bom.planning.missing_inputs?.length>0) && <small className="bom-compact-warning" role="note">Some items need prices or measurements. Any subtotal is partial.</small>}
+      {bom.planning.sources?.some(source=>source.scale_basis==='ved_paper_ratio_draft')
+        ? <small className="bom-compact-warning" role="note">Draft paper scale is active. Unknown drops and unpriced items are excluded.</small>
+        : (bom.planning.unpriced_items>0 || bom.planning.missing_inputs?.length>0) && <small className="bom-compact-warning" role="note">Some items need prices or measurements. Any subtotal is partial.</small>}
     </>}
     {bom && !bom.planning && <>
       <p>{bom.layouts.length} reviewed floor snapshots. Raw detections are excluded from quantities.</p>

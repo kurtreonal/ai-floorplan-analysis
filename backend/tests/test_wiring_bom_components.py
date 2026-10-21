@@ -40,11 +40,12 @@ def test_explicit_products_price_both_components_once_without_cross_applying_pri
 
 def test_connected_but_unmeasured_keeps_exact_product_identity_without_making_up_costs():
     document=source(); document['symbols'][0].pop('mounting_height_meters')
+    document['symbols'][0]['class_name']='Fixture without mounting data'
     rows=paired_wiring_components(document_takeoff(document,scale=10,floor_elevation=0),materials())
     apply_conduit_choice(rows,materials(),2); apply_wire_choice(rows,materials(),1)
     paths=[r for r in price_rows(rows,materials())['items'] if r['kind']=='path']
     assert {r['material_id'] for r in paths}=={1,2}
-    assert all(r['pricing_state']=='measurement_incomplete' and r['line_total'] is None for r in paths)
+    assert all(r['pricing_state']=='partial_measurement_priced' and r['line_total']==Decimal(str(r['quantity']))*r['unit_price'] for r in paths)
     assert all(r['missing_vertical_inputs']==['s: save device mounting height for the connected drop/rise'] for r in paths)
 
 
@@ -90,6 +91,7 @@ def test_legacy_shared_key_applies_only_to_its_original_product(monkeypatch):
     quote=dict(row_id='CSV:2',excluded=False,material_id=2,catalog_code='2',catalog_name=catalog[1]['name'],catalog_unit='meter',unit_price='2',units_per_purchase='1',currency='PHP')
     monkeypatch.setattr(pricing.repository,'current',lambda *_:NS(version_number=1,document={'assignments':{old_key:dict(price_version_id=1,price_row_id='CSV:2',fingerprint=old_fingerprint)}}))
     monkeypatch.setattr(pricing.prices,'find',lambda *_:NS(document={'rows':[quote]}))
+    monkeypatch.setattr(pricing.prices,'latest_automatic',lambda *_args,**_kwargs:None)
     result=pricing.apply_prices(None,1,priced,catalog)
     paths=[r for r in result['items'] if r['kind']=='path']
     assert next(r for r in paths if r['material_kind']=='conduit')['unit_price']==2

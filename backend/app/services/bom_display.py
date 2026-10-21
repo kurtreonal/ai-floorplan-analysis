@@ -12,7 +12,7 @@ def _signature(row):
     fields = ('kind','class_id','material_kind','material_id','material_name',
         'client_product_name','client_product_code','client_product_specification',
         'client_price_only','client_product_options','unit','currency','client_price_unit',
-        'pricing_state','installation_method','origin','material_conflict')
+        'pricing_state','installation_method','origin','material_conflict','scale_basis','scale_approved')
     values = {k: row.get(k) for k in fields}
     values['name'] = name
     for key in ('unit_price','client_unit_price'):
@@ -68,7 +68,7 @@ def grouped_rows(rows):
             floor_plan_id=first.get('floor_plan_id'),page_id=first.get('page_id'),
             candidate_run_id=first.get('candidate_run_id')) for identity in ids or [])
     for group in groups.values():
-        group['incomplete'] = any(r['line_total'] is None for r in group['components'])
+        group['incomplete'] = any(r['line_total'] is None or r.get('missing_vertical_inputs') or r.get('scale_approved') is False for r in group['components'])
     return list(groups.values())
 
 
@@ -84,5 +84,6 @@ def cost_summary(rows):
         if kind in ('devices','conduit','wire'):
             total[kind]+=value
         total['total']+=value
-    return dict(currencies=totals,incomplete=any(r.get('line_total') is None or r.get('missing_vertical_inputs') for r in rows),
+    return dict(currencies=totals,known_costs_without_currency=dict(devices=Decimal(0),conduit=Decimal(0),wire=Decimal(0),total=Decimal(0)) if not totals else None,
+        incomplete=any(r.get('line_total') is None or r.get('missing_vertical_inputs') or r.get('scale_approved') is False for r in rows),
         uncosted_items=sum(r.get('line_total') is None for r in rows))

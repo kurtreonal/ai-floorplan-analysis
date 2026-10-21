@@ -119,7 +119,8 @@ def apply_prices(session, project_id, result, materials):
             item_price_assignment_version=batch.version_number, price_revision_id=None)
         row.update(material_id=material['id'],material_name=material['name'])
         if row['line_total'] is not None or row['pricing_state'] in ('missing_price', 'missing_project_material_price','material_not_found','ambiguous_material'):
-            row.update(line_total=Decimal(str(row['quantity'])) * amount, pricing_state='priced')
+            row.update(line_total=Decimal(str(row['quantity'])) * amount,
+                pricing_state='partial_measurement_priced' if row.get('missing_vertical_inputs') else 'priced')
     totals = {}
     for row in result['items']:
         if row['line_total'] is not None:

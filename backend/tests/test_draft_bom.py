@@ -98,10 +98,10 @@ def test_missing_drop_measurements_keep_2d_quantities_and_flag_incomplete_price(
     assert row['quantity']==7 and row['vertical_meters']==0
     assert row['missing_vertical_inputs'] and 'INCOMPLETE' in row['basis']
     priced=price_rows([row],[material('Conduit','meter','10')])['items'][0]
-    assert priced['pricing_state']=='measurement_incomplete' and priced['line_total'] is None
+    assert priced['pricing_state']=='partial_measurement_priced' and priced['line_total']==70
     apply_wire_choice([row],[],None,price_per_meter=10)
     row.update(material_kind='wire',custom_wire_price_per_meter=10)
-    assert price_rows([row],[])['priced_subtotals']=={}
+    assert price_rows([row],[])['priced_subtotals']=={'PHP':Decimal(70)}
 
 
 def test_explicitly_joined_branches_share_one_drop_but_independent_paths_do_not():

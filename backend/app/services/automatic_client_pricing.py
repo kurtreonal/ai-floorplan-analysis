@@ -174,9 +174,12 @@ def apply_row(row, quote, assignment, version_number):
         row.update(unit_price=None,line_total=None)
     else:
         row['unit_price']=amount
-        if not row.get('missing_vertical_inputs') and row['pricing_state'] not in (
-                'measurement_incomplete','electrical_assignment_required','network_material_review_required','classification_required','scale_required'):
-            row.update(line_total=Decimal(str(row['quantity']))*amount,pricing_state='priced')
+        if row['pricing_state'] not in (
+                'electrical_assignment_required','network_material_review_required','classification_required','scale_required'):
+            row.update(line_total=Decimal(str(row['quantity']))*amount,
+                pricing_state='partial_measurement_priced' if row.get('missing_vertical_inputs') else 'priced')
+        else:
+            row['line_total']=None
 
 
 def upload(session,user,project_id,data,name,request_id,floor_id=None):

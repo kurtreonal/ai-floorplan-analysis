@@ -5,6 +5,15 @@ import { DraftRoomPreview } from './DraftRoomPreview.jsx'
 const capture = vi.hoisted(() => ({ props: null }))
 vi.mock('../viewer-3d/Viewer3DCanvas.jsx', () => ({ Viewer3DCanvas: (props) => { capture.props = props; return <div>Scene</div> } }))
 afterEach(cleanup)
+it('uses the shared nominal scale for actual wire length without calling it approved',()=>{
+  const draft={rooms:[],walls:[],symbols:[],wirings:[{id:'w',points:[{x:10,y:20},{x:110,y:20}],disposition:'unresolved'}]}
+  render(<DraftRoomPreview draft={draft} layers={{wirings:true}} width={841} height={594}
+    routingContext={{pixels_per_meter:10,scale_basis:'ved_paper_ratio_draft',scale_approved:false}}/>)
+  const scene=capture.props.scene,[start,end]=scene.draftWires[0].points
+  expect(Math.hypot(...start.map((value,index)=>end[index]-value))/scene.unitsPerMeter).toBeCloseTo(10)
+  expect(screen.getByText(/Draft paper scale is active; not independently calibrated/)).toBeTruthy()
+  expect(screen.getByLabelText('Source page long side (m)').value).toBe('84.1')
+})
 it('preserves exact wall selection through the shared preview without rebuilding geometry',()=>{
   const draft={rooms:[],walls:[{id:'wall-1',start:{x:10,y:20},end:{x:100,y:20}}],symbols:[],wirings:[]}
   const layers={walls:true},props={draft,layers,width:400,height:300}

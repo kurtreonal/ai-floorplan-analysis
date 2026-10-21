@@ -74,12 +74,14 @@ def _routing_context(session, run):
     floor = session.get(FloorPlan, run.floor_plan_id).project_floor_id
     elevation = latest_elevation(session, floor)
     scale = latest_scales(session,[run.floor_plan_page_id]).get(run.floor_plan_page_id)
-    plane = _candidate(run).payload.source_plane
-    ppm = float(scale.pixels_per_meter) if scale and scale.pixels_per_meter is not None and (
-        scale.reference_width_pixels,scale.reference_height_pixels)==(plane.width_pixels,plane.height_pixels) else None
+    candidate = _candidate(run)
+    plane = candidate.payload.source_plane
+    from app.services.draft_scale_service import source_scale
+    metric = source_scale(session, run, plane, scale,
+        multiple_views=any(w.code=='separate_source_views' for w in candidate.payload.warnings))
     return {'floor_elevation_meters': float(elevation.elevation_meters)
             if elevation and elevation.elevation_meters is not None else None,
-            'pixels_per_meter':ppm,'mounting_defaults':dict(VED_CENTER_HEIGHTS)}
+            **metric,'mounting_defaults':dict(VED_CENTER_HEIGHTS)}
 
 
 def _fail(code: str) -> None:

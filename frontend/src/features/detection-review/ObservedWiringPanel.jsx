@@ -5,12 +5,11 @@ import { orderNamed } from '../../utils/listOrder.js'
 
 function WireEditor({ wire, width, height, onApply, onRemove, onCancel, disabled }) {
   const [coordinates, setCoordinates] = useState(wire.points.map((point) => `${point.x},${point.y}`).join('\n'))
-  const [completeness, setCompleteness] = useState(wire.completeness)
   const [error, setError] = useState(null)
   function apply() {
     try {
       const points = parseWiringPoints(coordinates, width, height)
-      onApply({ ...wire, points, disposition: wire.id ? (wire.disposition === 'added' ? 'added' : 'corrected') : 'added', completeness,
+      onApply({ ...wire, points, disposition: wire.id ? (wire.disposition === 'added' ? 'added' : 'corrected') : 'added',
         ...(wire.origin === 'generated' ? {suppression_reason:null} : {}) })
     } catch (failure) { setError(failure.message) }
   }
@@ -18,9 +17,6 @@ function WireEditor({ wire, width, height, onApply, onRemove, onCancel, disabled
     <legend>{wire.id || 'New visible wiring trace'}</legend>
     <label>Source-pixel points {wire.id}<textarea value={coordinates} rows={4}
       placeholder={'X,Y\nX,Y'} onChange={(event) => { setCoordinates(event.target.value); setError(null) }} /></label>
-    <label>Trace completeness {wire.id}<select value={completeness} onChange={(event) => setCompleteness(event.target.value)}>
-      <option value="partial">Partial</option><option value="complete">Complete visible trace</option><option value="unreadable">Unreadable</option>
-    </select></label>
     <p role="note">{wire.origin === 'generated' ? 'Automatic A* draft.' : wire.path_origin === 'manual' ? 'Drawn path.' : 'Source drawing trace.'}</p>
     {wire.wiring_legend_name && <p>{wire.wiring_legend_name.replace(/ \[pdf-.*$/, '')}</p>}
     {error && <p role="alert">{error}</p>}

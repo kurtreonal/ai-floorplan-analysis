@@ -125,7 +125,8 @@ def test_known_specifications_and_missing_measurements_are_preserved(context):
     assert Decimal(row['client_unit_price'])==12 and row['client_price_unit']=='meter'
     row.update(unit='meter',missing_vertical_inputs=['missing service elevation'],pricing_state='measurement_incomplete')
     apply_row(row,wire,dict(price_version_id=1),1)
-    assert row['line_total'] is None and Decimal(row['unit_price'])==12
+    assert row['line_total']==1200 and Decimal(row['unit_price'])==12
+    assert row['pricing_state']=='partial_measurement_priced' and row['missing_vertical_inputs']
     row.update(electrical_assignment_required=True,pricing_state='electrical_assignment_required')
     assert compatible(row,wire)  # A price assignment is not a circuit assignment.
     apply_row(row,wire,dict(price_version_id=1),1)

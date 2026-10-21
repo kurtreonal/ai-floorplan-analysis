@@ -314,6 +314,11 @@ class DemoReviewResponse(DemoSchema):
 
 
 class DemoRoutingContext(DemoSchema):
+    scale_basis: Literal['unresolved','measured_page','ved_paper_ratio_draft'] = 'unresolved'
+    scale_approved: bool = False
+    scale_reason: str | None = None
+    paper_size: str | None = None
+    scale_denominator: float | None = None
     mounting_defaults: dict[str,float] = Field(default_factory=lambda:dict(VED_CENTER_HEIGHTS))
     pixels_per_meter: Annotated[StrictInt | StrictFloat, Field(gt=0, le=1_000_000, allow_inf_nan=False)] | None = None
     floor_elevation_meters: Annotated[float, Field(ge=-10000, le=10000, allow_inf_nan=False)] | None = None

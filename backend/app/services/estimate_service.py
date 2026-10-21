@@ -171,7 +171,7 @@ def generate_estimate(session, user, project_id, request):
                 from app.services.automatic_client_pricing import quote_for
                 target=client_items.get(item_keys[line_index])
                 client_quote=quote_for(session,project_id,assignment,target,item_quote_cache) if target else None
-                if client_quote is None or target['line_total'] is None:
+                if client_quote is None or target['line_total'] is None or target.get('missing_vertical_inputs') or target.get('scale_approved') is False:
                     raise EstimateError('ITEM_PRICE_ASSIGNMENT_STALE')
                 raw_quantity=Decimal(str(target['quantity']))/Decimal(client_quote['units_per_purchase'])
                 unit_price,currency,unit=Decimal(client_quote['unit_price']),client_quote['currency'],client_quote['unit']

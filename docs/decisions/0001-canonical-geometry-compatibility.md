@@ -1342,3 +1342,48 @@ Next started: user-confirmed A1/1:100 draft policy, preserve saved calibration a
 reliable page metadata; charge known horizontal lengths while missing elevations
 remain partial. This policy is not engineering approval. Measurement settings table
 provisioning remains administrator-owned; no DDL or grants on the live database.
+
+### 2026-10-21 — VED nominal page scale and partial wiring costs
+
+Based on pricing commit f7a6e5c, same branch. User confirmed A1 + 1:100 for VED
+draft blueprints. Added a shared, read-only scale resolver for editor routing
+context and BOM: saved calibration first; otherwise reliable PDF page dimensions
+and stored input settings precede A1/100 defaults. One isotropic factor, 2% aspect
+tolerance; stale calibration, known crop/multiple-view warnings, mismatched paper
+or unavailable PDF metadata do not silently fall back. Rotation/resizing preserve
+metric lengths. Paper inference cannot prove that an image is a full sheet or
+that every view uses the nominal ratio; this remains explicit nominal provenance,
+not approval. Known-distance calibration remains preferred when mapping is
+unreliable (Autodesk Set Scale or Calibrate reference previously supplied).
+
+Automatic draft takeoff already accepted active partial source traces. Removed
+the optional completeness selector, preserving stored completeness and uncertainty.
+Price known horizontal/available vertical lengths even if other drops are missing;
+retain partial flags, exclude unknown drops and block incomplete manual/client
+quotes from final estimates. No guessed service elevation, gauge or allowance.
+Shared 3D source-space paths use the same factor, CSV includes scale provenance,
+and normal BOM retains one concise warning. Even wholly unpriced BOMs show zero
+known-cost subtotals/total so far without inventing a currency or zeroing unknown
+line costs. Unknown line costs stay null. Generic 3D skill examples do not define
+new project engineering defaults.
+
+PASS: 128 backend tests, 15 subtests; 31 UI tests; scoped ESLint; authenticated
+production build (existing large-chunk warning). Tests cover rotated/resized A1,
+calibration override/staleness, aspect/crop/multi-view safeguards, partial costs,
+exact 10m shared 3D length, real API draft save/reload without approval and final
+estimate regressions. Initial gate found strict response schema omissions and a
+test source-provenance/attachment mismatch; fixed and reran. Older missing-drop
+expectations updated to partial-cost behavior; legacy unit mock updated for the
+existing automatic-price lookup. Full repository suite NOT RUN.
+
+PASS live read-only workspace: source lengths now 203.4761 nominal metres each
+for conduit/cable; grouped references and Edit prices remain. With no applicable
+prices, known total0.00 is Partial, never a final project cost. No real prices,
+review or geometry written. Screenshot: tmp/ux-checkpoints/a1-draft-bom.jpg.
+All44 baseline originals byte-identical (45 current), zero active analysis jobs,
+stash bb78854e87833124a1725b51f0be6099a8ac0cfa retained. Concurrent real data
+additions preserved; no assertion that the whole database was unchanged.
+API66/38 modeled tables unchanged. Live37 tables: measurement settings table
+still absent, administrator provisioning BLOCKED; saved measurement UI not
+claimed complete. No live DDL or grants. BDO remains paused. Next: verify the
+preserved independent copy/paste work; do not restart detection or overwrite edits.

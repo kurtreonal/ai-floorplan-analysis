@@ -213,14 +213,11 @@ def price_rows(rows, materials):
         row.update(material_id=None, material_name=None, unit_price=None, currency=None, line_total=None,
                    price_revision_id=None, price_source=None, project_price_version_id=None,
                    project_price_row_id=None, pricing_state='material_not_found')
-        # Partial geometry may be displayed, but neither catalog nor custom
-        # prices may turn missing measurements into a complete-looking cost.
+        # Price only known lengths. Missing drops remain explicit and are not
+        # silently counted as zero or presented as a complete estimate.
         matches = [m for m in materials if m['id'] == row['preferred_material_id']] if row.get('preferred_material_id') else index.get(material_key(row['name']), [])
         if len(matches) == 1:
             row.update(material_id=matches[0]['id'], material_name=matches[0]['name'])
-        if row.get('missing_vertical_inputs'):
-            row['pricing_state'] = 'measurement_incomplete'
-            continue
         if row.get('material_kind') == 'wire' and row['unit'] == 'meter' and len(matches) == 1 and row.get('wire_meters_per_unit'):
             material = dict(matches[0])
             material.update(unit='meter',unit_price=Decimal(str(material['unit_price'])) / Decimal(str(row['wire_meters_per_unit']))
@@ -265,10 +262,12 @@ def price_rows(rows, materials):
                        line_total=Decimal(str(row['quantity'])) * amount,
                        basis=row['basis'] + (' User-entered PHP price per device, saved in draft review.' if row['kind'] == 'device' else ' User-entered PHP price per wire metre for this draft calculation.') + ' Not an Admin catalog price.')
             totals['PHP'] = totals.get('PHP', Decimal(0)) + row['line_total']
+        if row.get('missing_vertical_inputs') and row['line_total'] is not None:
+            row['pricing_state'] = 'partial_measurement_priced'
     return dict(items=rows, priced_subtotals=totals, unpriced_items=sum(r['line_total'] is None for r in rows),
                 basis=[
                     'Devices: count active saved symbols, including unresolved draft detections; exclude removed items and circuit notations.',
-                    'Paths: unique centerline spans within explicit junction-connected material/installation groups. Independent paths remain separate. Use a reviewed source calibration; paper size or printed scale alone does not calibrate image pixels. Display-only 3D spacing is excluded.',
+                    'Paths: unique centerline spans within explicit junction-connected material/installation groups. Independent paths remain separate. Saved calibration takes precedence; a compatible full sheet may use the VED nominal paper/ratio draft policy, never engineering approval. Display-only 3D spacing is excluded.',
                     'Costs: quantity × current database unit price imported by Admin from Excel, unless explicitly overridden by a saved draft device price or calculator-only wire PHP/metre price. Catalog prices are unchanged.',
                     'Attached drops/rises use saved elevations only. Missing drop measurements are flagged and excluded; illustrative 3D offsets, cable gauge, conductor count and allowances are not inferred. Subtotals exclude unpriced items.',
                     'Read-only planning BOM; no per-item confirmation, layout approval or training approval is created. Saved estimate prices remain fixed.'
@@ -387,9 +386,10 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
         document = connect_touching_endpoints(candidate, document)
         scale = scales.get(run.floor_plan_page_id)
         plane = candidate.payload.source_plane
-        ppm = float(scale.pixels_per_meter) if scale and scale.pixels_per_meter and (
-            scale.reference_width_pixels, scale.reference_height_pixels) == (plane.width_pixels, plane.height_pixels) else None
-        scale_basis = 'measured_page' if ppm else 'unresolved'
+        from app.services.draft_scale_service import source_scale
+        metric = source_scale(session, run, plane, scale,
+            multiple_views=any(w.code=='separate_source_views' for w in candidate.payload.warnings))
+        ppm, scale_basis = metric['pixels_per_meter'], metric['scale_basis']
         if ppm is None and paper_size:
             missing_inputs.append(f'Plan {run.floor_plan_id}: paper metadata {paper_size} '
                 f'{dimensions[0]} × {dimensions[1]} mm does not establish image scale. '
@@ -397,6 +397,9 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
         elevation = latest_elevation(session, floor_id)
         items = document_takeoff(document, scale=ppm, floor_elevation=float(elevation.elevation_meters)
                                 if elevation and elevation.elevation_meters is not None else None)
+        for item in items:
+            if item['kind'] == 'path':
+                item.update(scale_basis=scale_basis, scale_approved=metric['scale_approved'])
         missing_drops = {note for item in items for note in item.get('missing_vertical_inputs', [])}
         if missing_drops:
             missing_inputs.append(f'Plan {run.floor_plan_id}: {len(missing_drops)} attached devices have unmeasured drops/rises. '
@@ -407,7 +410,9 @@ def planning_bom(session, user, project_id, *, components, layouts, floor_plan_i
             processing_job_id=run.processing_job_id, review_revision=review.revision_number if review else None,
             state='saved_draft' if review else 'detected_draft', pixels_per_meter=ppm,
             scale_revision_id=scale.id if scale and scale_basis == 'measured_page' else None,
-            scale_basis=scale_basis, assumed_paper_size=None))
+            scale_basis=scale_basis, assumed_paper_size=metric.get('paper_size'),
+            scale_denominator=metric.get('scale_denominator'), scale_approved=metric['scale_approved'],
+            scale_reason=metric.get('scale_reason')))
     reused = saved_circuit_takeoff(session, user, project_id, rows, materials,
         scope_floors=verified_floors if floor_plan_id is not None else None)
     if not reused:

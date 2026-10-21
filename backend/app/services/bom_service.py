@@ -99,6 +99,11 @@ def planning_csv(bom):
         text = '' if value is None else str(value)
         return "'" + text if text.lstrip().startswith(('=', '+', '-', '@')) else text
     writer.writerow(['DRAFT BOM', 'Calculated at', bom['planning']['calculated_at']])
+    for source in bom['planning'].get('sources', []):
+        writer.writerow(['PAGE SCALE BASIS', source.get('floor_plan_id'), source.get('page_id'),
+            source.get('scale_basis'), source.get('pixels_per_meter'), source.get('assumed_paper_size'),
+            source.get('scale_denominator'), 'Nominal draft scale, not independently calibrated'
+            if source.get('scale_basis') == 'ved_paper_ratio_draft' else source.get('scale_reason')])
     selected = next((m for m in bom['planning'].get('conduit_materials', [])
         if m['id'] == bom['planning'].get('selected_conduit_material_id')), None)
     if selected:

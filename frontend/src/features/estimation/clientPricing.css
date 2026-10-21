@@ -46,4 +46,5 @@
 .bom-price-item label { display: grid; gap: 4px; font-size: 11px; }
 .bom-price-dialog footer { justify-content: end; margin-top: 16px; }
 .bom-subtotal th,.bom-subtotal td { font-weight: 400; color: var(--ink-soft); }
+.bom-compact tfoot small { display: inline-block; margin-inline-start: 8px; font-weight: 400; color: var(--ink-soft); }
 @media(max-width:600px) { .bom-price-dialog { padding: 16px; } .bom-price-item { grid-template-columns: minmax(0,1fr) 80px; gap: 8px; } .bom-price-item>div { grid-column: 1/-1; } .bom-price-filters { grid-template-columns: minmax(0,1fr); } }

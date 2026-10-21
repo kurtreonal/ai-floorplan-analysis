@@ -4,6 +4,15 @@ import { afterEach, expect, it } from 'vitest'
 import { CompactBOMTable } from './CompactBOMTable.jsx'
 afterEach(cleanup)
 
+it('shows zero known-cost subtotals without inventing currency before any prices exist',()=>{
+  render(<CompactBOMTable planning={{items:[],display_groups:[],cost_summary:{incomplete:true,currencies:{},
+    known_costs_without_currency:{devices:'0',conduit:'0',wire:'0',total:'0'}}}}/> )
+  const footer=screen.getByRole('table').querySelector('tfoot')
+  expect(footer.rows).toHaveLength(4)
+  expect(footer.textContent).toContain('Total so farPartial0.00')
+  expect(footer.textContent).not.toContain('PHP')
+})
+
 it('keeps known subtotals and a numeric total visible while other costs are missing',()=>{
   render(<CompactBOMTable planning={{items:[],display_groups:[],cost_summary:{incomplete:true,currencies:{
     PHP:{devices:'14445',conduit:'500',wire:'240',total:'15185'},
