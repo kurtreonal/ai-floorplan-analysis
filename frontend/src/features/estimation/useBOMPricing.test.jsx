@@ -2,53 +2,45 @@
 import {act,cleanup,renderHook,waitFor} from '@testing-library/react'
 import {afterEach,it,expect,vi} from 'vitest'
 import {useBOMPricing} from './useBOMPricing.js'
-import {listProjectPrices,fetchProjectPrice} from '../../api/projectPricing.js'
-import {fetchItemPrices,previewItemPrices,applyItemPrices} from '../../api/itemPricing.js'
-vi.mock('../../api/projectPricing.js',()=>({listProjectPrices:vi.fn(),fetchProjectPrice:vi.fn(),previewProjectPrices:vi.fn(),applyProjectPrices:vi.fn()}))
-vi.mock('../../api/itemPricing.js',()=>({fetchItemPrices:vi.fn(),previewItemPrices:vi.fn(),applyItemPrices:vi.fn()}))
+import {uploadAutomaticPrices,listProjectPrices} from '../../api/projectPricing.js'
+vi.mock('../../api/projectPricing.js',()=>({listProjectPrices:vi.fn(),uploadAutomaticPrices:vi.fn()}))
 afterEach(()=>{cleanup();vi.resetAllMocks()})
-
-async function ready(){
-  const row={kind:'device',name:'Outlet',unit:'piece',item_key:'a'.repeat(64),material_id:3,compatible_prices:['Quote:2']}
-  listProjectPrices.mockResolvedValue([{id:7}]);fetchProjectPrice.mockResolvedValue({id:7,document:{rows:[{row_id:'Quote:2',material_id:3,excluded:false}]}})
-  fetchItemPrices.mockResolvedValue({items:[row],floors:[1]});previewItemPrices.mockResolvedValue({ready:true,preview_token:'a'.repeat(64),affected:[row],skipped:[]})
-  const hook=renderHook(({projectId})=>useBOMPricing({projectId,disabled:false}),{initialProps:{projectId:1}})
-  await act(async()=>hook.result.current.existing())
-  await waitFor(()=>expect(hook.result.current.stage).toBe('versions'))
-  await act(async()=>hook.result.current.chooseVersion(7))
-  await waitFor(()=>expect(hook.result.current.active).toBe(true))
-  act(()=>hook.result.current.selectVisible())
-  await act(async()=>hook.result.current.requestPreview())
-  await waitFor(()=>expect(hook.result.current.previewResult?.ready).toBe(true))
-  return hook
-}
-it('retries an uncertain application with the identical request id and payload',async()=>{
-  const hook=await ready()
-  applyItemPrices.mockRejectedValueOnce(new Error('Network interrupted')).mockResolvedValueOnce({version_number:1})
-  await act(async()=>hook.result.current.apply())
+const result={price_version_id:7,applied:3,skipped:[],skipped_rows:[]}
+it('uploads and applies without a review/selection stage and refreshes once',async()=>{
+  const onApplied=vi.fn(),onVersionsChange=vi.fn()
+  uploadAutomaticPrices.mockResolvedValue(result);listProjectPrices.mockResolvedValue([])
+  const hook=renderHook(()=>useBOMPricing({projectId:1,floorId:2,disabled:false,onApplied,onVersionsChange}))
+  const file=new File(['test'],'client.csv')
+  await act(async()=>hook.result.current.uploaded(file))
+  await waitFor(()=>expect(hook.result.current.result).toEqual(result))
+  expect(uploadAutomaticPrices).toHaveBeenCalledOnce()
+  expect(uploadAutomaticPrices).toHaveBeenCalledWith(1,file,expect.objectContaining({floorId:2,requestId:expect.any(String)}))
+  expect(onApplied).toHaveBeenCalledOnce();expect(hook.result.current.active).toBe(false)
+})
+it('retries an uncertain upload with identical file, scope and request id',async()=>{
+  uploadAutomaticPrices.mockRejectedValueOnce(new Error('Network interrupted')).mockResolvedValueOnce(result)
+  const hook=renderHook(()=>useBOMPricing({projectId:1,floorId:2,disabled:false}))
+  await act(async()=>hook.result.current.uploaded(new File(['test'],'client.csv')))
   await waitFor(()=>expect(hook.result.current.uncertain).toBe(true))
-  act(()=>hook.result.current.finish())
-  expect(hook.result.current.active).toBe(true)
   await act(async()=>hook.result.current.retry())
-  await waitFor(()=>expect(hook.result.current.uncertain).toBe(false))
-  expect(applyItemPrices.mock.calls[0][1]).toEqual(applyItemPrices.mock.calls[1][1])
+  await waitFor(()=>expect(hook.result.current.result).toEqual(result))
+  expect(uploadAutomaticPrices.mock.calls[0].slice(0,2)).toEqual(uploadAutomaticPrices.mock.calls[1].slice(0,2))
+  expect(uploadAutomaticPrices.mock.calls[0][2].requestId).toBe(uploadAutomaticPrices.mock.calls[1][2].requestId)
 })
-it('allows cancellation and fresh preview after a definitive stale-input rejection',async()=>{
-  const hook=await ready()
-  applyItemPrices.mockRejectedValue(Object.assign(new Error('Preview again'),{status:409}))
-  await act(async()=>hook.result.current.apply())
-  await waitFor(()=>expect(hook.result.current.error).toBe('Preview again'))
-  expect(hook.result.current.previewResult).toBeNull()
-  act(()=>hook.result.current.finish())
-  expect(hook.result.current.stage).toBe('idle')
+it('allows a new file after a definitive validation error',async()=>{
+  uploadAutomaticPrices.mockRejectedValueOnce(Object.assign(new Error('Missing currency'),{status:422})).mockResolvedValueOnce(result)
+  const hook=renderHook(()=>useBOMPricing({projectId:1,disabled:false}))
+  await act(async()=>hook.result.current.uploaded(new File(['bad'],'bad.csv')))
+  await waitFor(()=>expect(hook.result.current.error).toBe('Missing currency'))
+  await act(async()=>hook.result.current.uploaded(new File(['good'],'good.csv')))
+  await waitFor(()=>expect(hook.result.current.result).toEqual(result))
 })
-it('does not carry pending item writes into a different project',async()=>{
-  const hook=await ready()
-  applyItemPrices.mockRejectedValue(new Error('Network interrupted'))
-  await act(async()=>hook.result.current.apply())
+it('does not retry a previous project upload after navigation',async()=>{
+  uploadAutomaticPrices.mockRejectedValue(new Error('Network interrupted'))
+  const hook=renderHook(({projectId})=>useBOMPricing({projectId,disabled:false}),{initialProps:{projectId:1}})
+  await act(async()=>hook.result.current.uploaded(new File(['test'],'client.csv')))
   await waitFor(()=>expect(hook.result.current.uncertain).toBe(true))
   hook.rerender({projectId:2})
-  expect(hook.result.current.stage).toBe('idle')
-  await act(async()=>hook.result.current.existing())
-  expect(listProjectPrices).toHaveBeenLastCalledWith(2,expect.anything())
+  await act(async()=>hook.result.current.retry())
+  expect(uploadAutomaticPrices).toHaveBeenCalledOnce();expect(hook.result.current.uncertain).toBe(false)
 })

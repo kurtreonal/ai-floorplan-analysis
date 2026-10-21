@@ -1,8 +1,19 @@
 /* @vitest-environment jsdom */
 import { afterEach, expect, it, vi } from 'vitest'
-import { applyProjectPrices, fetchProjectPrice, inspectProjectPrices, listProjectPrices, ProjectPricingError } from './projectPricing.js'
+import { applyProjectPrices, fetchProjectPrice, inspectProjectPrices, listProjectPrices, uploadAutomaticPrices, ProjectPricingError } from './projectPricing.js'
 afterEach(() => vi.unstubAllGlobals())
 const version = { id: 2, project_id: 15, version_number: 1, filename: 'client.csv' }
+
+it('uploads and applies a client-owned file with stable request and explicit floor scope',async()=>{
+  const result={price_version_id:2,applied:7,skipped:[],skipped_rows:[]}
+  const fetcher=vi.fn().mockResolvedValue({ok:true,json:async()=>result})
+  vi.stubGlobal('fetch',fetcher)
+  expect(await uploadAutomaticPrices(15,new File(['test'],'client.csv'),{requestId:'stable',floorId:4})).toEqual(result)
+  const [url,options]=fetcher.mock.calls[0]
+  expect(url).toContain('/client-pricing/automatic')
+  expect(options.body.get('request_id')).toBe('stable');expect(options.body.get('floor_id')).toBe('4')
+  expect(options.body.has('selection')).toBe(false)
+})
 
 it('uses credentialed project endpoints and multipart without setting a broken content-type boundary', async () => {
   const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => version })

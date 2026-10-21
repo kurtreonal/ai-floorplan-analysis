@@ -7,12 +7,12 @@ import { BOMPricingControls } from './BOMPricingControls.jsx'
 import { BOMTable } from './BOMTable.jsx'
 
 const pricingLabels = {
-  item_price_review_required:'Review saved client price: material or unit changed',
+  item_price_review_required:'Client specification changed; upload an updated BOM',
   electrical_assignment_required:'Electrical assignment required',
   measurement_incomplete:'Complete route measurements required',
   network_material_review_required: 'Review overlapping path materials',
   scale_required: 'Set plan scale once', classification_required: 'Unclassified',
-  material_not_found: 'No matching catalog material', ambiguous_material: 'Multiple matching materials',
+  material_not_found: 'Upload client BOM pricing', ambiguous_material: 'Product specification is ambiguous',
   purchase_unit_required: 'Purchase-unit conversion needed', missing_price: 'Price missing', priced: 'Priced',
   missing_project_material_price: 'Not priced in client import',
   project_material_identity_changed: 'Material changed; review client mapping',
@@ -42,7 +42,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
   const scopeKey = `${sourceKey}:${refreshKey}:${pricingRevision}:${conduitMaterialId || ''}:${wireMaterialId || ''}:${paperSize || ''}:${customWidthMm || ''}:${customHeightMm || ''}:${wireMetersPerUnit ?? ''}:${wirePricePerMeter ?? ''}`
   const bom = loadedBOM?.scopeKey === scopeKey ? loadedBOM.value : null
   const planningOptions = loadedBOM?.sourceKey === sourceKey ? loadedBOM.value?.planning : null
-  const pricing = useBOMPricing({projectId,floorId:floorPlanId ? planningOptions?.sources?.[0]?.floor_id:undefined,disabled:busy || unsaved || !designer,
+  const pricing = useBOMPricing({projectId,floorId:floorPlanId ? planningOptions?.sources?.[0]?.floor_id:undefined,disabled:busy || unsaved || !designer || !planningOptions || Boolean(floorPlanId && !planningOptions?.sources?.[0]?.floor_id),
     onVersionsChange:onPriceVersionsChange,onApplied:()=>{setPricingRevision(n=>n+1);onPricesApplied?.()}})
   useEffect(() => {
     const controller = new AbortController()
@@ -68,12 +68,12 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
   return <section className="studio-panel studio-bom-panel" aria-labelledby="bom-title"><div className="studio-panel-heading"><h2 id="bom-title">Bill of materials</h2>
     <div>{designer && <><input ref={pricingFile} className="sr-only" aria-label="Upload client BOM file" type="file" accept=".xlsx,.csv" disabled={pricing.locked} onChange={event=>{pricing.uploaded(event.target.files?.[0]);event.target.value=''}}/>
       <Button variant="outline" disabled={pricing.locked} onClick={()=>pricingFile.current?.click()}>Upload BOM</Button>
-      <Button variant="ghost" disabled={pricing.locked} onClick={pricing.existing}>Saved price lists</Button></>}
+      </>}
     <Button variant="outline" disabled={!bom?.planning || busy} onClick={() => exportSnapshot(true)}>Download draft BOM</Button>
     {!floorPlanId && <Button variant="outline" disabled={!estimate || busy} onClick={() => exportSnapshot()}>{busy ? 'Downloading…' : 'Download saved BOM'}</Button>}</div></div>
     {unsaved && <p role="status">Unsaved changes: this BOM shows saved items. Save to refresh quantities.</p>}
     {designer && <BOMPricingControls model={pricing}/>}
-    {planningOptions && <div className="studio-material-binding studio-bom-settings">
+    {planningOptions && <details><summary>Optional material and measurement overrides</summary><div className="studio-material-binding studio-bom-settings">
       <div className="studio-bom-setting"><h3>Conduit</h3>
       <label className="studio-field">Conduit product for this draft
         <select value={chosen.conduit || ''} onChange={event => setCalculation({...chosen,sourceKey,conduit:event.target.value})}>
@@ -82,7 +82,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
         </select>
       </label>
       <p>Conduit uses measured route length. Stick, roll or other purchase units require an explicit conversion; they are not assumed to equal one metre. Conductor quantities remain separate.</p>
-      {!planningOptions.conduit_materials?.length && <p role="note">No priced conduit products yet. Admin must import the Excel catalog before conduit costs can be shown.</p>}
+      {!planningOptions.conduit_materials?.length && <p role="note">Client BOM uploads can supply conduit products and prices directly; a VED catalog match is not required.</p>}
       </div>
       <div className="studio-bom-setting"><h3>Wire / cable</h3>
       <label className="studio-field">Wire / cable product for this draft
@@ -125,7 +125,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
       </form>}
       {paperChoice && <p role="note">Paper size alone cannot calibrate source pixels. Review a known real-world dimension in the project scale settings; uncalibrated path quantities remain pixels.</p>}
       </div>}
-    </div>}
+    </div></details>}
     {bom?.planning && <>
       {bom.planning.project_pricing && <p>Client prices · Version {bom.planning.project_pricing.version_number} · {bom.planning.project_pricing.filename}</p>}
       <p>Automatic from saved plan data. No per-item approvals. Save edits to update quantities.</p>

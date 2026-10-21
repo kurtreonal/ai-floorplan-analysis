@@ -432,7 +432,7 @@ class DemoInterpretationApiTests(unittest.TestCase):
             for path in schema["paths"].values()
             for method in path
         )
-        self.assertEqual(operations, 64)  # Includes item assignments and GET/PUT plan measurement settings.
+        self.assertEqual(operations, 65)  # Includes automatic client-price upload/application.
         self.assertIn("post", schema["paths"]["/api/admin/symbol-legends/import-trained"])
 
     def test_owner_retrieves_candidate_but_other_designer_cannot(self):

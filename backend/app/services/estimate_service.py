@@ -116,6 +116,10 @@ def generate_estimate(session, user, project_id, request):
     from app.models import LayoutVersion
     item_prices = current_item_prices(session, project_id)
     assignments = item_prices.document['assignments'] if item_prices else {}
+    client_items = {}
+    if any(a.get('source_kind')=='client_product' for a in assignments.values()):
+        from app.services.item_pricing_service import inventory
+        client_items={row['item_key']:row for row in inventory(session,user,project_id)['items']}
     item_keys = [None] * len(raw_lines)
     # Split only explicitly priced existing devices. Unselected grouping and
     # quantity arithmetic stay unchanged; a new symbol has a different key.
@@ -152,7 +156,20 @@ def generate_estimate(session, user, project_id, request):
                     raise EstimateError('METER_UNIT_CONVERSION_MUST_BE_ONE')
                 raw_quantity /= meters_per_unit
             assignment = assignments.get(item_keys[line_index])
-            if assignment:
+            client_quote = None
+            if assignment and assignment.get('source_kind')=='client_product':
+                from app.services.automatic_client_pricing import quote_for
+                target=client_items.get(item_keys[line_index])
+                client_quote=quote_for(session,project_id,assignment,target,item_quote_cache) if target else None
+                if client_quote is None or target['line_total'] is None:
+                    raise EstimateError('ITEM_PRICE_ASSIGNMENT_STALE')
+                raw_quantity=Decimal(str(target['quantity']))/Decimal(client_quote['units_per_purchase'])
+                unit_price,currency,unit=Decimal(client_quote['unit_price']),client_quote['currency'],client_quote['unit']
+                price_sources.append(dict(material_id=material_id,kind='client_upload',item_key=item_keys[line_index],
+                    project_price_version_id=assignment['price_version_id'],row_id=client_quote['row_id'],
+                    catalog_unit=client_quote['quantity_unit'],units_per_purchase=client_quote['units_per_purchase'],
+                    quoted_unit=unit,client_product_name=client_quote['name'],client_product_code=client_quote['code']))
+            elif assignment:
                 identity = dict(id=material.id, code=material.code, name=material.name, unit=material.unit)
                 quote = assignment_quote(session, project_id, assignment, identity, item_quote_cache)
                 kind = 'device' if line_index < len(device_lines) else 'conduit' if line_index == len(device_lines) else 'wire'
@@ -186,7 +203,8 @@ def generate_estimate(session, user, project_id, request):
             total = quantity * unit_price
             if quantity >= Decimal("1e12") or total >= Decimal("1e22"):
                 raise EstimateError("ESTIMATE_NUMERIC_LIMIT")
-            lines.append(dict(material_id=material.id, material_code=material.code, material_name=material.name,
+            lines.append(dict(material_id=material.id, material_code=client_quote['code'] or material.code if client_quote else material.code,
+                material_name=client_quote['name'] if client_quote else material.name,
                 quantity=quantity, unit=unit, captured_unit_price=unit_price, line_total=total))
         if len(currencies) != 1:
             raise EstimateError("MIXED_CURRENCIES")

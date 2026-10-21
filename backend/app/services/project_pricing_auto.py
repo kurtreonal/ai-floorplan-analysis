@@ -22,8 +22,8 @@ def _identity(value):
     return ' '.join(value.casefold().split())
 
 
-def selection(session, data, name, *, allow_unresolved=False):
-    from app.services.project_pricing_service import _unit
+def table(data, name):
+    """Recognize one bounded pricing table without consulting any catalog."""
     sheets = read_cells(data, name)
     candidates = []
     for sheet, rows in sheets.items():
@@ -56,6 +56,12 @@ def selection(session, data, name, *, allow_unresolved=False):
     if len(candidates) != 1:
         raise WorkbookError('Upload one pricing table with Description, Unit, Unit price and Currency headers. Multiple tables must be uploaded separately.')
     sheet, header, columns, currency = candidates[0]
+    return sheets, sheet, header, columns, currency
+
+
+def selection(session, data, name, *, allow_unresolved=False):
+    from app.services.project_pricing_service import _unit
+    sheets, sheet, header, columns, currency = table(data, name)
     by_code, by_name = {}, {}
     for material in repository.materials(session):
         if material.is_active:

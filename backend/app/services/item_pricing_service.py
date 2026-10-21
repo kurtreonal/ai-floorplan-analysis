@@ -72,6 +72,15 @@ def apply_prices(session, project_id, result, materials):
     quote_cache = {}
     for row in result['items']:
         assignment = assignments.get(row['item_key'])
+        if assignment and assignment.get('source_kind')=='client_product':
+            from app.services.automatic_client_pricing import quote_for,apply_row
+            quote=quote_for(session,project_id,assignment,row,quote_cache)
+            if quote:
+                apply_row(row,quote,assignment,batch.version_number)
+            else:
+                row.update(item_price_warning='Client product no longer matches this item specification.',
+                    pricing_state='item_price_review_required',unit_price=None,line_total=None,currency=None)
+            continue
         legacy = False
         if not assignment and row['kind'] == 'path' and not row.get('saved_route_version_id'):
             assignment = assignments.get(path_key(row, legacy=True))
@@ -126,6 +135,12 @@ def options(session, user, project_id, price_version_id=None):
     if price_version_id is not None:
         version=pricing.get_version(session,user,project_id,price_version_id)
         quotes=[q for q in version.document['rows'] if not q['excluded']]
+        if version.document.get('matching_method')=='automatic_client_specification':
+            from app.services.automatic_client_pricing import compatible
+            for row in planning['items']:
+                row['compatible_prices']=[q['row_id'] for q in quotes if compatible(row,q)]
+            return dict(items=planning['items'],assignment_version=planning['item_assignment_version'],
+                floors=sorted({r['floor_id'] for r in planning['items'] if r.get('floor_id')}),materials=list(materials.values()))
         cache={}
         for row in planning['items']:
             key=(row['kind'],row.get('material_kind'),row['name'],row.get('material_name'),row.get('class_id'),row['unit'],row.get('material_id'),bool(row.get('material_conflict')),bool(row.get('electrical_assignment_required')))
@@ -140,6 +155,8 @@ def options(session, user, project_id, price_version_id=None):
 def preview(session, user, project_id, selection):
     planning = inventory(session, user, project_id)
     version = pricing.get_version(session, user, project_id, selection.price_version_id)
+    if version.document.get('matching_method')=='automatic_client_specification':
+        raise WorkbookError('This client price list is applied automatically. Upload it again to update prices.')
     quotes = {r['row_id']:r for r in version.document['rows'] if not r['excluded']}
     bindings = {b.item_key:b.price_row_id for b in selection.bindings}
     product_bindings={b.item_key:b.material_id for b in selection.bindings if b.material_id is not None}

@@ -8,7 +8,7 @@ export class ProjectPricingError extends Error {
   }
 }
 
-async function request(projectId, suffix, { signal, file, selection, sheet, headerRow, estimateId, usage } = {}) {
+async function request(projectId, suffix, { signal, file, selection, sheet, headerRow, estimateId, usage, requestId, floorId } = {}) {
   if (!Number.isSafeInteger(projectId) || projectId <= 0) throw new ProjectPricingError(422)
   let body
   if (file) {
@@ -18,6 +18,8 @@ async function request(projectId, suffix, { signal, file, selection, sheet, head
     if (sheet) body.append('sheet', sheet)
     if (headerRow) body.append('header_row', String(headerRow))
     if (usage) body.append('usage', usage)
+    if (requestId) body.append('request_id',requestId)
+    if (floorId != null) body.append('floor_id',String(floorId))
   }
   const query = estimateId ? '?estimate_id=' + encodeURIComponent(estimateId) : ''
   let response
@@ -38,7 +40,9 @@ async function request(projectId, suffix, { signal, file, selection, sheet, head
   try { data = await response.json() } catch { throw new ProjectPricingError() }
   const version = row => row?.project_id === projectId && Number.isSafeInteger(row.id) && row.id > 0
     && Number.isSafeInteger(row.version_number) && row.version_number > 0 && typeof row.filename === 'string'
-  const valid = suffix === '' ? Array.isArray(data) && data.every(version)
+  const valid = suffix === '/automatic' ? Number.isSafeInteger(data?.price_version_id) && data.price_version_id>0
+    && Number.isSafeInteger(data.applied) && data.applied>=0 && Array.isArray(data.skipped) && Array.isArray(data.skipped_rows)
+    : suffix === '' ? Array.isArray(data) && data.every(version)
     : suffix === '/inspect' ? Array.isArray(data?.sheets) && Array.isArray(data.columns) && typeof data.sheet === 'string'
       : suffix === '/preview' ? Array.isArray(data?.document?.rows) && data.document.rows.length <= 1000
         && Array.isArray(data.materials) && typeof data.ready === 'boolean' && typeof data.preview_token === 'string'
@@ -52,3 +56,4 @@ export const fetchProjectPrice = (id, version, options) => request(id, '/' + enc
 export const inspectProjectPrices = (id, file, options) => request(id, '/inspect', { ...options, file })
 export const previewProjectPrices = (id, file, selection, options) => request(id, '/preview', { ...options, file, selection })
 export const applyProjectPrices = (id, file, selection, options) => request(id, '/apply', { ...options, file, selection })
+export const uploadAutomaticPrices = (id,file,options) => request(id,'/automatic',{...options,file})

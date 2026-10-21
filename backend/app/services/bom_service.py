@@ -116,7 +116,7 @@ def planning_csv(bom):
         writer.writerow(['WIRE METRES PER PURCHASE UNIT',bom['planning']['wire_meters_per_unit']])
     writer.writerow(['Floor', 'Plan', 'Item', 'Quantity', 'Unit', 'Material', 'Unit price', 'Currency', 'Line total', 'Status', 'Calculation basis'])
     for row in bom['planning']['items']:
-        writer.writerow([safe(row.get(key)) for key in ('floor_id', 'floor_plan_id', 'name', 'quantity', 'unit',
+        writer.writerow([safe(row.get('client_product_name') or row.get(key)) if key=='material_name' else safe(row.get(key)) for key in ('floor_id', 'floor_plan_id', 'name', 'quantity', 'unit',
             'material_name', 'unit_price', 'currency', 'line_total', 'pricing_state', 'basis')])
     for currency, amount in bom['planning']['priced_subtotals'].items():
         writer.writerow(['', '', 'PRICED SUBTOTAL ONLY', '', '', '', '', currency, amount])

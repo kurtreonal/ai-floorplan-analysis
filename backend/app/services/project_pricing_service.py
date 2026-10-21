@@ -213,7 +213,7 @@ def get_version(session, user, project_id, version_id):
 
 
 def accepted_rows(record):
-    return {row['material_id']: row for row in record.document['rows'] if not row['excluded']}
+    return {row['material_id']: row for row in record.document['rows'] if not row['excluded'] and row.get('material_id') is not None}
 
 
 def current_catalog_prices(session, user, project_id, materials):

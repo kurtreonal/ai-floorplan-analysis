@@ -3,25 +3,27 @@ import re
 
 
 def family(text):
+    if re.search(r'\b(?:data|datacom|telephone|network|rj45)\b',text,re.I) and not re.search(r'\b(?:wire|wiring|cable|conduit|pipe)\b',text,re.I):
+        return 'data'
     for kind, pattern in [('conduit',r'\b(?:conduit|pipe)\b'),('wire',r'\b(?:wire|wiring|cable)\b'),
             ('switch',r'\bswitch(?:es)?\b'),('outlet',r'\b(?:outlet|receptacle|socket)\b'),
-            ('light',r'\b(?:light|lighting|lamp|troffer|luminaire)\b'),('data',r'\b(?:data|datacom)\b')]:
+            ('light',r'\b(?:light|lighting|lamp|troffer|luminaire|downlight|spotlight|floodlight|fluorescent)\b'),('data',r'\b(?:data|datacom)\b')]:
         if re.search(pattern,text,re.I): return kind
 
 
 def ratings(text):
     text=text.casefold().replace('²','2')
     result={}
-    for value,unit in re.findall(r'(\d+(?:\.\d+)?)\s*(mm2|mm|awg|gang|amps?|a\b|volts?|v\b|c\b)',text):
-        unit={'a':'amp','amps':'amp','volts':'volt','v':'volt'}.get(unit,unit)
+    for value,unit in re.findall(r'(\d+(?:\.\d+)?)\s*(mm2|mm|awg|gang|amps?|a\b|volts?|v\b|watts?|w\b|c\b)',text):
+        unit={'a':'amp','amps':'amp','volts':'volt','v':'volt','watts':'watt','w':'watt'}.get(unit,unit)
         result.setdefault(unit,set()).add(float(value))
     return result
 
 
 def specifications_match(source, offered):
     known, available=ratings(source),ratings(offered)
-    explicit=set(re.findall(r'\b(?:pvc|emt|imc|rsc|rmc|thhn|thwn|xlpe|copper|aluminum|duplex|simplex)\b',source.casefold()))
-    products=set(re.findall(r'\b(?:pvc|emt|imc|rsc|rmc|thhn|thwn|xlpe|copper|aluminum|duplex|simplex)\b',offered.casefold()))
+    explicit=set(re.findall(r'\b(?:pvc|emt|imc|rsc|rmc|thhn|thwn|xlpe|copper|aluminum|duplex|simplex|cat[5678](?:[ae])?)\b',source.casefold()))
+    products=set(re.findall(r'\b(?:pvc|emt|imc|rsc|rmc|thhn|thwn|xlpe|copper|aluminum|duplex|simplex|cat[5678](?:[ae])?)\b',offered.casefold()))
     return explicit<=products and all(key in available and values<=available[key] for key,values in known.items())
 
 

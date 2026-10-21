@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import require_roles
 from app.core.database import get_db
 from app.models import User
-from app.schemas.project_pricing import ApplyRequest, ImportInspection, PreviewRequest, ProjectImportPreview, VersionDetail, VersionSummary
+from app.schemas.project_pricing import ApplyRequest, ImportInspection, PreviewRequest, ProjectImportPreview, VersionDetail, VersionSummary, AutomaticPriceResult
 from app.services import project_pricing_service as service
 from app.services.material_workbook import MAX_FILE, WorkbookError
 from app.services.project_service import ProjectNotFoundError
@@ -16,6 +16,19 @@ ProjectId = Annotated[int, Path(gt=0)]
 
 from app.schemas.item_pricing import ItemPriceSelection, ItemPriceApply
 from app.services import item_pricing_service as item_pricing
+from uuid import UUID
+from app.services import automatic_client_pricing
+
+
+@router.post('/automatic',response_model=AutomaticPriceResult)
+def automatic_upload(project_id: ProjectId, file: Annotated[UploadFile, File()],
+        request_id: Annotated[UUID, Form()], floor_id: Annotated[int | None, Form(gt=0)] = None,
+        user: User = Depends(require_roles('DESIGNER')), session: Session = Depends(get_db)):
+    try:
+        return execute(session,lambda:automatic_client_pricing.upload(session,user,project_id,
+            contents(file),file.filename,request_id,floor_id))
+    finally:
+        file.file.close()
 
 
 @router.get('/item-assignments')

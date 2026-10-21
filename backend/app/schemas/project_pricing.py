@@ -110,3 +110,12 @@ class ProjectImportPreview(BaseModel):
     document: dict
     ready: bool
     materials: list[dict]
+
+
+class AutomaticPriceResult(StrictModel):
+    price_version_id: Identifier
+    applied: Annotated[int, Field(strict=True, ge=0, le=10000)]
+    scope: Literal['floor', 'project']
+    floor_id: Identifier | None = None
+    skipped: list[dict[str, str]] = Field(default_factory=list, max_length=10000)
+    skipped_rows: list[dict[str, str]] = Field(default_factory=list, max_length=1000)

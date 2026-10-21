@@ -3,10 +3,9 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, expect, it, vi } from 'vitest'
 import { fetchBOM, downloadBOM, downloadDraftBOM } from '../../api/bom.js'
 import { BOMPanel } from './BOMPanel.jsx'
-import { previewProjectPrices, applyProjectPrices, fetchProjectPrice } from '../../api/projectPricing.js'
-import { fetchItemPrices, previewItemPrices, applyItemPrices } from '../../api/itemPricing.js'
+import { uploadAutomaticPrices } from '../../api/projectPricing.js'
 vi.mock('../../api/bom.js', () => ({ fetchBOM: vi.fn(), downloadBOM: vi.fn(), downloadDraftBOM:vi.fn() }))
-vi.mock('../../api/projectPricing.js',()=>({previewProjectPrices:vi.fn(),applyProjectPrices:vi.fn(),fetchProjectPrice:vi.fn(),listProjectPrices:vi.fn().mockResolvedValue([])}))
+vi.mock('../../api/projectPricing.js',()=>({uploadAutomaticPrices:vi.fn(),listProjectPrices:vi.fn().mockResolvedValue([])}))
 vi.mock('../../api/itemPricing.js',()=>({fetchItemPrices:vi.fn(),previewItemPrices:vi.fn(),applyItemPrices:vi.fn()}))
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals() })
 it('distinguishes an existing connection from the missing vertical measurement input',async()=>{
@@ -22,38 +21,27 @@ it('explicitly separates saved BOM quantities when the canvas has unsaved edits'
   expect(screen.getByText('Unsaved changes: this BOM shows saved items. Save to refresh quantities.')).toBeTruthy()
   expect(await screen.findByText('No saved devices or wiring yet.')).toBeTruthy()
 })
-it('uploads, previews and atomically applies prices in the same BOM table without changing geometry or calculator choices', async () => {
+it('automatically applies uploaded client prices without review or selection and preserves calculator choices', async () => {
   const item={item_key:'a'.repeat(64),kind:'device',item_kind:'device',class_id:1,name:'Outlet',quantity:1,unit:'piece',material_id:3,unit_price:'100',currency:'PHP',line_total:'100',pricing_state:'priced',compatible_prices:['Quote:2']}
-  fetchBOM.mockResolvedValue({planning:{items:[item],priced_subtotals:{PHP:'100'},unpriced_items:0,basis:[],
+  fetchBOM.mockResolvedValue({planning:{sources:[{floor_id:2}],items:[item],priced_subtotals:{PHP:'100'},unpriced_items:0,basis:[],
     conduit_materials:[{id:9,name:'Conduit',unit:'meter',unit_price:10,currency:'PHP'}]}})
-  const quote={row_id:'Quote:2',material_id:3,name:'Fictional outlet',unit:'piece',unit_price:'90',currency:'PHP',units_per_purchase:'1',excluded:false,reasons:[]}
-  const document={mapping:{},rows:[quote]}
-  previewProjectPrices.mockResolvedValue({ready:true,document,materials:[],file_sha256:'hash',preview_token:'import',expected_version:0})
-  applyProjectPrices.mockResolvedValue({id:7});fetchProjectPrice.mockResolvedValue({id:7,document})
-  fetchItemPrices.mockResolvedValue({items:[item],floors:[2]})
-  previewItemPrices.mockResolvedValue({ready:true,preview_token:'items',skipped:[],affected:[{...item,previous_price:'100',previous_currency:'PHP',previous_total:'100',unit_price:'90',line_total:'90'}]})
-  applyItemPrices.mockResolvedValue({version_number:1})
+  uploadAutomaticPrices.mockResolvedValue({price_version_id:7,applied:1,skipped:[],skipped_rows:[]})
   const draft = {candidate_run_id:'test',symbols:[{id:'symbol-0001',center:{x:20,y:30}}]}
   const before = JSON.stringify(draft)
   render(<BOMPanel projectId={1} floorPlanId={3} processingJobId={4} designer draftPreview={draft} />)
   fireEvent.change(await screen.findByLabelText('Conduit product for this draft'),{target:{value:'9'}})
   await waitFor(() => expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({conduitMaterialId:9})))
   const file=new File(['test'],'synthetic.xlsx')
-  fireEvent.change(screen.getByLabelText('Upload client BOM file'),{target:{files:[file]}})
-  fireEvent.click(await screen.findByRole('button',{name:'Use imported prices'}))
-  await screen.findByLabelText('Item type')
-  expect(applyItemPrices).not.toHaveBeenCalled()
-  expect(screen.getAllByRole('table')).toHaveLength(1)
-  fireEvent.click(screen.getByText('Select visible results'))
-  fireEvent.click(screen.getByText('Preview selected (1)'))
-  fireEvent.click(await screen.findByText('Apply prices to 1 items'))
   const previous = fetchBOM.mock.calls.length
+  fireEvent.change(screen.getByLabelText('Upload client BOM file'),{target:{files:[file]}})
+  await screen.findByText('Client prices applied to 1 device/wiring components.')
+  expect(await screen.findAllByRole('table')).toHaveLength(1)
   await waitFor(() => expect(fetchBOM.mock.calls.length).toBe(previous+1))
   expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({floorPlanId:3,processingJobId:4,conduitMaterialId:9}))
   expect(JSON.stringify(draft)).toBe(before)
-  expect(previewProjectPrices).toHaveBeenCalledWith(1,file,null,expect.objectContaining({usage:'item_selection'}))
-  expect(applyItemPrices).toHaveBeenCalledWith(1,expect.objectContaining({bindings:[{item_key:item.item_key,price_row_id:quote.row_id,material_id:3}]}),expect.anything())
-  fireEvent.click(screen.getByText('Finish pricing'))
+  expect(uploadAutomaticPrices).toHaveBeenCalledWith(1,file,expect.objectContaining({floorId:2,requestId:expect.any(String)}))
+  expect(screen.queryByText('Use imported prices')).toBeNull()
+  expect(screen.queryByText('Check mappings')).toBeNull()
   expect(screen.queryByRole('checkbox')).toBeNull()
 })
 

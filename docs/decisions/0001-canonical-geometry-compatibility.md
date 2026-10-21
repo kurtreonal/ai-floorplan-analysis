@@ -1174,3 +1174,57 @@ and SQLAlchemy table.create(checkfirst=True), not broad schema repair/reset. Aft
 provisioning: finish 2b upload/edit UI, per-page calibration provenance and configured
 height/service consumers, then browser/reload and shared measurement gates. Checkpoint
 2 as a whole and checkpoints 3–6 are NOT complete; no later UI work started here.
+
+2026-10-21 client-pricing revision (base 37135c6, same branch): user superseded the
+CP1 preview/select/apply UX. Upload BOM now calls one atomic POST client-pricing/
+automatic with file, explicit current-floor/project scope and stable retry ID.
+No catalog-registration/mapping, selection, confirmation or review UI. Client
+products/prices live in existing project quote/assignment JSON and source bytes;
+VED catalog prices are not compared or changed. Match supported device families
+and explicit ratings, plus each existing path's separate wire/conduit component.
+One compatible client product is selected automatically; multiple compatible
+products, incompatible specs, conflicting duplicate codes, missing literal prices
+or purchase conversions are skipped with concise reasons, not a blocking review.
+Exact duplicate rows are retained once. Explicit roll/stock conversions are used;
+client quantities (including unevaluated reference formulas) never replace takeoff.
+Unscaled/missing-drop/circuit inputs remain incomplete, even with an assigned price.
+
+Shared BOM UI replaces mapping/selection steps with upload status and optional
+unmatched details; manual material/measurement overrides are collapsed by default.
+Client product descriptions appear in the table and draft CSV. Saved, compatible
+route estimates capture client prices/names without rewriting historical snapshots.
+This is pricing only, not geometry approval, electrical sizing or payment handling.
+Existing item identities only; no implicit pricing defaults for future devices.
+
+Scoped code: automatic_client_pricing service; shared table-header recognition;
+project_pricing route/schema/service, item-price repository/service, product
+compatibility, estimate_service, the narrow CSV change in bom_service; frontend
+projectPricing API, useBOMPricing, BOMPricingControls, BOMTable, and narrow BOMPanel
+changes. Tests: automatic-client service/API, pricing API/hook/BOM panel and two
+OpenAPI count assertions. No dependency/model/table or live-grant change. Clean
+surface: 38 modeled tables unchanged, 65 operations (one added automatic operation).
+
+PASS: 132 focused backend tests + 15 subtests; 43 frontend tests; scoped ESLint;
+authenticated Vite build. Existing test-client deprecations/chunk warnings remain.
+Earlier checks caught a generic synthetic fixture with no recognizable product
+type, removed initial legacy-version loading (restored), an asynchronous table
+refresh assertion (awaited), and API tests run without their expected base URL
+(reran with explicit localhost:8000). No failed gate was skipped.
+PASS browser, disposable fixture only: one CSV choice automatically prices 3 devices
+and 4 wiring components, PHP 980 expected/actual, retained after reload; no mapping,
+selection or Apply step. XLSX and CSV both pass the real multipart API workflow
+with every VED product inactive. Proof tmp/ux-checkpoints/automatic-client-pricing-
+full.png; previous viewport proof automatic-client-pricing-reloaded.png. Full
+canvas browser workflow NOT TESTED; shared workspace BOM covered by component test.
+
+Interrupted helper shutdown left only verification fixture records. Final isolation
+preflight refused to run; exact project/floor/plan/user/material IDs were validated
+and removed by ignored cleanup-automatic-pricing-fixture.py, then the 132-test run
+passed. No test fixtures remain; temporary servers/tab stopped. All 44 baseline
+originals are byte-identical (45 current). Live quotes now total four, reflecting
+changes since the older baseline; do not claim a globally unchanged database.
+This work's writes used only ved_electrical_verify; live OpenAPI read confirms the
+new automatic route loaded. Recovery stash bb78854e87833124a1725b51f0be6099a8ac0cfa
+preserved, unrelated dirty work excluded, BDO paused. Prior measurement-table
+provisioning dependency is unrelated and remains unresolved; no measurement UI or
+later checkpoint work was resumed here.
