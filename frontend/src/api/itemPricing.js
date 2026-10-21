@@ -31,3 +31,4 @@ async function request(projectId, suffix, body, options = {}) {
 export const fetchItemPrices = (id, options) => request(id, '', null, options)
 export const previewItemPrices = (id, selection, options) => request(id, '/preview', selection, options)
 export const applyItemPrices = (id, selection, options) => request(id, '/apply', selection, options)
+export const saveIndividualPrices = (id, selection, options) => request(id, '/prices', selection, options)

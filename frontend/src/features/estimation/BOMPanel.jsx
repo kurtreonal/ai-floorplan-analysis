@@ -5,6 +5,7 @@ import { orderList } from '../../utils/listOrder.js'
 import { useBOMPricing } from './useBOMPricing.js'
 import { BOMPricingControls } from './BOMPricingControls.jsx'
 import { BOMTable } from './BOMTable.jsx'
+import { IndividualPriceEditor } from './IndividualPriceEditor.jsx'
 
 const pricingLabels = {
   item_price_review_required:'Client specification changed; upload an updated BOM',
@@ -56,6 +57,7 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
     <div>{designer && <><input ref={pricingFile} className="sr-only" aria-label="Upload client BOM file" type="file" accept=".xlsx,.csv" disabled={pricing.locked} onChange={event=>{pricing.uploaded(event.target.files?.[0]);event.target.value=''}}/>
       <Button variant="outline" disabled={pricing.locked} onClick={()=>pricingFile.current?.click()}>Upload BOM</Button>
       </>}
+    {designer && <IndividualPriceEditor key={sourceKey} projectId={projectId} floorPlanId={floorPlanId} disabled={pricing.locked || !bom?.planning} onSaved={()=>{setPricingRevision(n=>n+1);onPricesApplied?.()}}/>}
     <Button variant="outline" disabled={!bom?.planning || busy} onClick={() => exportSnapshot(true)}>Download draft BOM</Button>
     {!floorPlanId && <Button variant="outline" disabled={!estimate || busy} onClick={() => exportSnapshot()}>{busy ? 'Downloading…' : 'Download saved BOM'}</Button>}</div></div>
     {unsaved && <p role="status">Unsaved changes: this BOM shows saved items. Save to refresh quantities.</p>}

@@ -1,5 +1,6 @@
 from typing import Literal
 from uuid import UUID
+from decimal import Decimal
 from pydantic import Field, model_validator
 from app.schemas.project_pricing import StrictModel, Identifier
 
@@ -40,3 +41,26 @@ class ItemPriceSelection(StrictModel):
 class ItemPriceApply(ItemPriceSelection):
     request_id: UUID
     preview_token: str = Field(pattern=r'^[a-f0-9]{64}$')
+
+
+class ManualItemPrice(StrictModel):
+    item_key: str = Field(pattern=r'^[a-f0-9]{64}$')
+    unit_price: Decimal = Field(ge=0,le=1000000000,max_digits=18,decimal_places=8,allow_inf_nan=False)
+    currency: str = Field(pattern=r'^[A-Z]{3}$')
+
+
+class ManualItemPrices(StrictModel):
+    request_id: UUID
+    expected_version: int = Field(ge=0,strict=True)
+    items: list[ManualItemPrice] = Field(min_length=1,max_length=10000)
+
+    @model_validator(mode='after')
+    def unique_items(self):
+        if len({r.item_key for r in self.items})!=len(self.items):
+            raise ValueError('Choose each existing item once.')
+        return self
+
+
+class ItemPriceVersion(StrictModel):
+    id: int
+    version_number: int

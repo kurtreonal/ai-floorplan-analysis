@@ -143,6 +143,9 @@ def previously_skipped_rate(row,version,skipped):
 
 
 def quote_for(session, project_id, assignment, row, cache):
+    if assignment.get('source_kind')=='manual_price':
+        from app.services.manual_item_prices import quote
+        return quote(assignment,row)
     version_id = assignment['price_version_id']
     if version_id not in cache:
         cache[version_id] = prices.find(session,project_id,version_id)
@@ -159,7 +162,7 @@ def apply_row(row, quote, assignment, version_number):
     amount = Decimal(quote['unit_price']) / Decimal(quote['units_per_purchase'])
     row.update(client_product_name=quote['name'],client_product_code=quote['code'],
         client_product_specification=quote['specification'],client_unit_price=str(amount),
-        client_price_unit=quote['quantity_unit'],price_source='client_upload',
+        client_price_unit=quote['quantity_unit'],price_source='manual_override' if assignment.get('source_kind')=='manual_price' else 'client_upload',
         project_price_version_id=assignment['price_version_id'],project_price_row_id=quote['row_id'],
         item_price_assignment_version=version_number,price_revision_id=None,currency=quote['currency'])
     row.update(client_price_only=bool(quote.get('price_only')),

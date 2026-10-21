@@ -14,7 +14,7 @@ from app.services.project_service import ProjectNotFoundError
 router = APIRouter(prefix='/api/projects/{project_id}/client-pricing', tags=['project pricing'])
 ProjectId = Annotated[int, Path(gt=0)]
 
-from app.schemas.item_pricing import ItemPriceSelection, ItemPriceApply
+from app.schemas.item_pricing import ItemPriceSelection, ItemPriceApply, ManualItemPrices, ItemPriceVersion
 from app.services import item_pricing_service as item_pricing
 from uuid import UUID
 from app.services import automatic_client_pricing
@@ -40,6 +40,13 @@ def item_options(project_id: ProjectId, price_version_id: Annotated[int | None, 
 def item_preview(project_id: ProjectId, selection: ItemPriceSelection,
         user: User = Depends(require_roles('DESIGNER')), session: Session = Depends(get_db)):
     return execute(session, lambda: item_pricing.preview(session, user, project_id, selection))
+
+
+@router.post('/item-assignments/prices',response_model=ItemPriceVersion)
+def manual_prices(project_id: ProjectId, selection: ManualItemPrices,
+        user: User = Depends(require_roles('DESIGNER')), session: Session = Depends(get_db)):
+    from app.services.manual_item_prices import save
+    return execute(session,lambda:save(session,user,project_id,selection))
 
 
 @router.post('/item-assignments/apply')

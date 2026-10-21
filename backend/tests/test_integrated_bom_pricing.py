@@ -105,7 +105,7 @@ def test_delivered_workbook_prices_exact_synthetic_devices_and_both_path_compone
     assert not initial['ready']
     decisions=[{k:r[k] for k in ('row_id','material_id','units_per_purchase','excluded')} for r in initial['document']['rows']]
     for row in decisions:
-        row['excluded']=int(row['row_id'].split(':')[-1]) in fixture['excluded_quote_rows']
+        row['excluded']=row['material_id'] is None or int(row['row_id'].split(':')[-1]) in fixture['excluded_quote_rows']
     request=dict(usage='item_selection',mapping=initial['document']['mapping'],choices=decisions)
     checked=upload(client,root+'/client-pricing','preview',data,request).json()
     assert checked['ready'],checked

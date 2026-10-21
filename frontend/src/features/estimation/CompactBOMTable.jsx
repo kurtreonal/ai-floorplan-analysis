@@ -28,9 +28,16 @@ export function CompactBOMTable({planning}) {
             : group.components.map((row,index)=><div key={index}>{money(row.line_total,row.currency)}</div>)}</td>
         </tr>
       })}</tbody>
-      <tfoot>{Object.keys(planning.priced_subtotals || {}).length ? Object.entries(planning.priced_subtotals).map(([currency,total])=><tr key={currency}><th scope="row" colSpan={3}>{planning.unpriced_items>0 ? 'Priced subtotal':'Total'} ({currency})</th><td>{money(total,currency)}</td></tr>)
+      <tfoot>{planning.cost_summary && Object.keys(planning.cost_summary.currencies).length ? Object.entries(planning.cost_summary.currencies).map(([currency,amounts])=><TotalRows key={currency} currency={currency} amounts={amounts} partial={planning.cost_summary.incomplete}/>) : Object.keys(planning.priced_subtotals || {}).length ? Object.entries(planning.priced_subtotals).map(([currency,total])=><tr key={currency}><th scope="row" colSpan={3}>{planning.unpriced_items>0 ? 'Priced subtotal':'Total'} ({currency})</th><td>{money(total,currency)}</td></tr>)
         : <tr><th scope="row" colSpan={3}>Total</th><td>—</td></tr>}</tfoot>
     </table>
     {!groups.length && <p>No devices or wiring yet.</p>}
   </div>
+}
+
+function TotalRows({currency,amounts,partial}) {
+  return <>
+    {[['devices','Devices subtotal'],['conduit','Conduit subtotal'],['wire','Wire/cable subtotal']].map(([key,label])=><tr key={key} className="bom-subtotal"><th scope="row" colSpan={3}>{label} ({currency})</th><td>{money(amounts[key],currency)}</td></tr>)}
+    <tr><th scope="row" colSpan={3}>Total so far ({currency}){partial && <small>Partial</small>}</th><td>{money(amounts.total,currency)}</td></tr>
+  </>
 }

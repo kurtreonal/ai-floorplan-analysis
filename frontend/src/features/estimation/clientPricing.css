@@ -33,3 +33,17 @@
 .studio-bom-table.bom-compact .bom-reference-select { display: block; width: auto; max-width: min(100%,280px); min-height: 30px; padding: 3px 6px; margin-top: 6px; font-size: 12px; }
 .studio-bom-table.bom-compact tfoot { font-weight: 600; background: var(--paper); }
 .bom-compact-warning { display: block; color: var(--ink-soft); margin-top: 10px; font-size: 12px; }
+.bom-price-dialog { position: fixed; z-index: 100; top: 50%; left: 50%; transform: translate(-50%,-50%); width: min(850px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; margin: 0; padding: 24px; overflow: auto; color: var(--ink); background: var(--white); }
+.bom-price-dialog header,.bom-price-dialog footer { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+.bom-price-dialog h2 { margin: 0; font-size: 20px; }
+.bom-price-dialog p { color: var(--ink-soft); font-size: 13px; }
+.bom-price-dialog fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.bom-price-filters { display: grid; grid-template-columns: 1fr 150px; gap: 12px; margin: 16px 0; }
+.bom-price-dialog :is(input,select) { width: 100%; min-width: 0; min-height: 36px; padding: 6px 8px; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--white); color: var(--ink); font: inherit; }
+.bom-price-items { max-height: 48dvh; overflow-y: auto; }
+.bom-price-item { display: grid; grid-template-columns: minmax(0,1fr) 130px 80px; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--paper-line); align-items: center; font-size: 13px; }
+.bom-price-item small { display: block; color: var(--ink-soft); font-size: 11px; margin-top: 4px; }
+.bom-price-item label { display: grid; gap: 4px; font-size: 11px; }
+.bom-price-dialog footer { justify-content: end; margin-top: 16px; }
+.bom-subtotal th,.bom-subtotal td { font-weight: 400; color: var(--ink-soft); }
+@media(max-width:600px) { .bom-price-dialog { padding: 16px; } .bom-price-item { grid-template-columns: minmax(0,1fr) 80px; gap: 8px; } .bom-price-item>div { grid-column: 1/-1; } .bom-price-filters { grid-template-columns: minmax(0,1fr); } }

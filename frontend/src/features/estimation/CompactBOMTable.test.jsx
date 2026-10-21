@@ -4,6 +4,20 @@ import { afterEach, expect, it } from 'vitest'
 import { CompactBOMTable } from './CompactBOMTable.jsx'
 afterEach(cleanup)
 
+it('keeps known subtotals and a numeric total visible while other costs are missing',()=>{
+  render(<CompactBOMTable planning={{items:[],display_groups:[],cost_summary:{incomplete:true,currencies:{
+    PHP:{devices:'14445',conduit:'500',wire:'240',total:'15185'},
+    USD:{devices:'0',conduit:'0',wire:'0',total:'0'},
+  }}}}/> )
+  const footer=screen.getByRole('table').querySelector('tfoot')
+  expect(footer.rows).toHaveLength(8)
+  expect(footer.textContent).toContain('Devices subtotal (PHP)₱14,445.00')
+  expect(footer.textContent).toContain('Conduit subtotal (PHP)₱500.00')
+  expect(footer.textContent).toContain('Wire/cable subtotal (PHP)₱240.00')
+  expect(footer.textContent).toContain('Total so far (PHP)Partial₱15,185.00')
+  expect(footer.textContent).toContain('Total so far (USD)Partial$0.00')
+})
+
 it('shows server-grouped quantities and costs with only a reference dropdown',()=>{
   const planning={items:[],unpriced_items:0,priced_subtotals:{PHP:'50'},display_groups:[{
     key:'lamps',kind:'device',name:'Lamp',members:[{id:'symbol-0001',floor_plan_id:1},{id:'symbol-0002',floor_plan_id:1}],

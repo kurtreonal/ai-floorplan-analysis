@@ -70,3 +70,19 @@ def grouped_rows(rows):
     for group in groups.values():
         group['incomplete'] = any(r['line_total'] is None for r in group['components'])
     return list(groups.values())
+
+
+def cost_summary(rows):
+    currencies={r['currency'] for r in rows if r.get('currency')}
+    totals={currency:dict(devices=Decimal(0),conduit=Decimal(0),wire=Decimal(0),total=Decimal(0)) for currency in sorted(currencies)}
+    for row in rows:
+        if row.get('line_total') is None:
+            continue
+        value=Decimal(str(row['line_total']))
+        kind='devices' if row['kind']=='device' else row.get('material_kind')
+        total=totals[row['currency']]
+        if kind in ('devices','conduit','wire'):
+            total[kind]+=value
+        total['total']+=value
+    return dict(currencies=totals,incomplete=any(r.get('line_total') is None or r.get('missing_vertical_inputs') for r in rows),
+        uncosted_items=sum(r.get('line_total') is None for r in rows))

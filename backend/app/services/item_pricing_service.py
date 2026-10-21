@@ -74,7 +74,7 @@ def apply_prices(session, project_id, result, materials):
     fallback_cache={}
     for row in result['items']:
         assignment = assignments.get(row['item_key'])
-        if assignment and assignment.get('source_kind')=='client_product':
+        if assignment and assignment.get('source_kind') in ('client_product','manual_price'):
             from app.services.automatic_client_pricing import quote_for,apply_row
             quote=quote_for(session,project_id,assignment,row,quote_cache)
             if quote:

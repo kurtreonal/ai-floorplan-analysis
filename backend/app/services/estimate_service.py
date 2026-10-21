@@ -118,7 +118,7 @@ def generate_estimate(session, user, project_id, request):
     assignments = item_prices.document['assignments'] if item_prices else {}
     client_items = {}
     from app.repositories.project_pricing_repository import latest_automatic
-    if any(a.get('source_kind')=='client_product' for a in assignments.values()) or latest_automatic(session,project_id):
+    if any(a.get('source_kind') in ('client_product','manual_price') for a in assignments.values()) or latest_automatic(session,project_id):
         from app.services.item_pricing_service import inventory
         client_items={row['item_key']:row for row in inventory(session,user,project_id)['items']}
         # Compatibility-derived rates from an older upload are still quoted
@@ -167,7 +167,7 @@ def generate_estimate(session, user, project_id, request):
                 raw_quantity /= meters_per_unit
             assignment = assignments.get(item_keys[line_index])
             client_quote = None
-            if assignment and assignment.get('source_kind')=='client_product':
+            if assignment and assignment.get('source_kind') in ('client_product','manual_price'):
                 from app.services.automatic_client_pricing import quote_for
                 target=client_items.get(item_keys[line_index])
                 client_quote=quote_for(session,project_id,assignment,target,item_quote_cache) if target else None
@@ -175,7 +175,7 @@ def generate_estimate(session, user, project_id, request):
                     raise EstimateError('ITEM_PRICE_ASSIGNMENT_STALE')
                 raw_quantity=Decimal(str(target['quantity']))/Decimal(client_quote['units_per_purchase'])
                 unit_price,currency,unit=Decimal(client_quote['unit_price']),client_quote['currency'],client_quote['unit']
-                price_sources.append(dict(material_id=material_id,kind='client_upload',item_key=item_keys[line_index],
+                price_sources.append(dict(material_id=material_id,kind='manual_override' if assignment.get('source_kind')=='manual_price' else 'client_upload',item_key=item_keys[line_index],
                     project_price_version_id=assignment['price_version_id'],row_id=client_quote['row_id'],
                     catalog_unit=client_quote['quantity_unit'],units_per_purchase=client_quote['units_per_purchase'],
                     quoted_unit=unit,client_product_name=client_quote['name'],client_product_code=client_quote['code'],

@@ -1308,3 +1308,37 @@ stash bb78854e87833124a1725b51f0be6099a8ac0cfa retained. Stage overlapping bom_s
 and BOMPanel ONLY from the clean mirror, excluding earlier live-preview work.
 BDO-specific work paused. Next: administrator provisioning, then measurement UI/
 calibration integration; independent copy/paste work remains preserved unfinished.
+
+### 2026-10-21 — Known-cost subtotals and individual price editing
+
+Checkpoint based on 5817779, branch codex/vlm-localization-experiment. Backend
+known-cost totals now always expose separate devices/conduit/cable subtotals per
+currency and a partial total so far. Unknown line costs remain null, not free.
+Edit prices opens a compact searchable individual-item dialog, validates units,
+currency and prices server-side, saves immutable project overrides atomically,
+checks stale versions and retries idempotently. Catalog/geometry/historical
+estimates are unchanged. Design guidance influenced the on-demand dialog, existing
+theme tokens, keyboard controls and compact rows rather than another default panel.
+
+Fixed generic number-word gang and fixture lamp-count compatibility. Delivered
+updated frontend/public/fixtures/ved-synthetic-pricing.xlsx and copied it to the
+same Downloads filename; previous bytes retained in ignored workbook backup.
+Synthetic lighting devices: 4 single40W + 16 twin40W + 6 one-gang + 3 two-gang =
+PHP14445; with synthetic measured paths, conduit500 + cable240 = PHP15185.
+Original independent workbook fixture remains PHP980. No live client prices imported.
+
+PASS: 51 focused backend tests; 14 frontend tests; scoped ESLint; authenticated
+production build. Real multipart workbook upload, pricing/reload, zero prices,
+authorization, conflict/retry and historical snapshots exercised in isolated DB.
+PASS browser isolated fixture: one device100→15, total280→195, remaining items
+unchanged, partial subtotals visible; reload/editor reopen retained15. Proof in
+tmp/ux-checkpoints/individual-prices-editor.jpg and individual-prices-persisted.jpg.
+Test identity helper interrupted during Ctrl+C; exact validated fixture IDs were
+removed, verification tables empty. No live records targeted. Full suite NOT RUN;
+test-client deprecations and large Vite chunks unchanged. API66 operations,
+38 modeled tables, no new table. Recovery stash and unrelated edits preserved.
+
+Next started: user-confirmed A1/1:100 draft policy, preserve saved calibration and
+reliable page metadata; charge known horizontal lengths while missing elevations
+remain partial. This policy is not engineering approval. Measurement settings table
+provisioning remains administrator-owned; no DDL or grants on the live database.
