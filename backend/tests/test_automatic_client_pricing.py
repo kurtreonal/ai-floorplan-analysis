@@ -51,6 +51,10 @@ def test_upload_applies_off_catalog_products_without_review_and_reloads_exact_to
     actual=client.get(root+'/bom').json()['planning']
     assert actual['unpriced_items']==0
     assert Decimal(actual['priced_subtotals']['PHP'])==980
+    groups=actual['display_groups']
+    assert sum((Decimal(group['costs'].get('PHP','0')) for group in groups),Decimal(0))==980
+    assert sum(len(group['members']) for group in groups if group['kind']=='device')==3
+    assert client.get(root+'/bom').json()['planning']['display_groups']==groups
     assert all(r['price_source']=='client_upload' and r['material_id'] is None for r in actual['items'])
     assert all('ClientBrand' in r['client_product_name'] for r in actual['items'])
     assert all(Decimal(r['quantity'])!=999 for r in actual['items'])

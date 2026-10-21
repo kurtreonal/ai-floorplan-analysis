@@ -84,6 +84,8 @@ def reviewed_bom(session, user, project_id, *, floor_plan_id=None, processing_jo
         conduit_material_id=conduit_material_id, wire_material_id=wire_material_id, paper_size=paper_size,
         custom_width_mm=custom_width_mm, custom_height_mm=custom_height_mm,
         wire_meters_per_unit=wire_meters_per_unit, wire_price_per_meter=wire_price_per_meter)
+    from app.services.bom_display import grouped_rows
+    planning['display_groups'] = grouped_rows(planning['items'])
     return dict(project_id=project_id, layouts=layouts, missing_layout_floors=missing,
         components=components, route_lengths=lengths, route_state=route_state,
         wiring_types=draft_wiring_types(session,project_id), planning=planning)

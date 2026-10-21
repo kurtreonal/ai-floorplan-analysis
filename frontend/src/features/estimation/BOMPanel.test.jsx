@@ -8,20 +8,28 @@ vi.mock('../../api/bom.js', () => ({ fetchBOM: vi.fn(), downloadBOM: vi.fn(), do
 vi.mock('../../api/projectPricing.js',()=>({uploadAutomaticPrices:vi.fn(),listProjectPrices:vi.fn().mockResolvedValue([])}))
 vi.mock('../../api/itemPricing.js',()=>({fetchItemPrices:vi.fn(),previewItemPrices:vi.fn(),applyItemPrices:vi.fn()}))
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.unstubAllGlobals() })
-it('distinguishes an existing connection from the missing vertical measurement input',async()=>{
-  fetchBOM.mockResolvedValue({planning:{items:[{kind:'path',name:'Wire/cable',quantity:10,unit:'meter',pricing_state:'measurement_incomplete',missing_vertical_inputs:['device-1: save device mounting height for the connected drop/rise']}],priced_subtotals:{},unpriced_items:1,basis:[],conduit_materials:[]}})
+it('keeps measurement details out of the BOM and shows one small warning',async()=>{
+  const planning={items:[{kind:'path',name:'Wire/cable',quantity:10,unit:'meter',pricing_state:'measurement_incomplete',missing_vertical_inputs:['device-1: save device mounting height for the connected drop/rise']}],priced_subtotals:{},unpriced_items:1,basis:['Technical basis'],missing_inputs:['Technical scale note'],conduit_materials:[]}
+  fetchBOM.mockResolvedValue({planning})
+  const before=JSON.stringify(planning)
   render(<BOMPanel projectId={1} floorPlanId={3}/>)
-  fireEvent.click(await screen.findByText('Connected · drop/rise inputs needed'))
-  expect(screen.getByText('device-1: save device mounting height for the connected drop/rise')).toBeTruthy()
-  expect(screen.getByText('Complete route measurements required')).toBeTruthy()
+  expect(await screen.findByText('Some items need prices or measurements. Any subtotal is partial.')).toBeTruthy()
+  expect(screen.queryByText('Connected · drop/rise inputs needed')).toBeNull()
+  expect(screen.queryByText('Calculation basis')).toBeNull()
+  expect(screen.queryByText('Optional material and measurement overrides')).toBeNull()
+  expect(screen.queryByText('Technical scale note')).toBeNull()
+  expect(screen.queryByText('device-1: save device mounting height for the connected drop/rise')).toBeNull()
+  expect(screen.getByRole('table').querySelector('tfoot').textContent).toBe('Total—')
+  expect(JSON.stringify(planning)).toBe(before)
 })
+
 it('explicitly separates saved BOM quantities when the canvas has unsaved edits',async()=>{
   fetchBOM.mockResolvedValue({planning:{items:[],priced_subtotals:{},unpriced_items:0,basis:[],conduit_materials:[]}})
   render(<BOMPanel projectId={1} floorPlanId={3} unsaved />)
   expect(screen.getByText('Unsaved changes: this BOM shows saved items. Save to refresh quantities.')).toBeTruthy()
   expect(await screen.findByText('No saved devices or wiring yet.')).toBeTruthy()
 })
-it('automatically applies uploaded client prices without review or selection and preserves calculator choices', async () => {
+it('automatically applies uploaded client prices without review or selection and refreshes the same compact table', async () => {
   const item={item_key:'a'.repeat(64),kind:'device',item_kind:'device',class_id:1,name:'Outlet',quantity:1,unit:'piece',material_id:3,unit_price:'100',currency:'PHP',line_total:'100',pricing_state:'priced',compatible_prices:['Quote:2']}
   fetchBOM.mockResolvedValue({planning:{sources:[{floor_id:2}],items:[item],priced_subtotals:{PHP:'100'},unpriced_items:0,basis:[],
     conduit_materials:[{id:9,name:'Conduit',unit:'meter',unit_price:10,currency:'PHP'}]}})
@@ -29,15 +37,14 @@ it('automatically applies uploaded client prices without review or selection and
   const draft = {candidate_run_id:'test',symbols:[{id:'symbol-0001',center:{x:20,y:30}}]}
   const before = JSON.stringify(draft)
   render(<BOMPanel projectId={1} floorPlanId={3} processingJobId={4} designer draftPreview={draft} />)
-  fireEvent.change(await screen.findByLabelText('Conduit product for this draft'),{target:{value:'9'}})
-  await waitFor(() => expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({conduitMaterialId:9})))
+  await screen.findByRole('table')
   const file=new File(['test'],'synthetic.xlsx')
   const previous = fetchBOM.mock.calls.length
   fireEvent.change(screen.getByLabelText('Upload client BOM file'),{target:{files:[file]}})
   await screen.findByText('Client prices applied to 1 device/wiring components.')
   expect(await screen.findAllByRole('table')).toHaveLength(1)
   await waitFor(() => expect(fetchBOM.mock.calls.length).toBe(previous+1))
-  expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({floorPlanId:3,processingJobId:4,conduitMaterialId:9}))
+  expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({floorPlanId:3,processingJobId:4}))
   expect(JSON.stringify(draft)).toBe(before)
   expect(uploadAutomaticPrices).toHaveBeenCalledWith(1,file,expect.objectContaining({floorId:2,requestId:expect.any(String)}))
   expect(screen.queryByText('Use imported prices')).toBeNull()
@@ -53,7 +60,7 @@ it('exposes one upload in workspace and cost estimation only for Designers', () 
   expect(screen.getAllByRole('button',{name:'Upload BOM',exact:true})).toHaveLength(1)
 })
 
-it('alphabetizes material choices and table rows without changing the source prices or identities',async()=>{
+it('alphabetizes compact rows without changing the source prices or identities',async()=>{
   const planning={items:[{kind:'device',class_id:2,name:'Switch',quantity:2,unit:'piece',unit_price:'7',currency:'PHP',line_total:'14'},
     {kind:'device',class_id:1,name:'Lamp',quantity:3,unit:'piece',unit_price:'5',currency:'PHP',line_total:'15'}],
     priced_subtotals:{PHP:'29'},unpriced_items:0,basis:[],catalog_materials:2,
@@ -62,10 +69,8 @@ it('alphabetizes material choices and table rows without changing the source pri
   const before=JSON.stringify(planning)
   fetchBOM.mockResolvedValue({planning})
   render(<BOMPanel projectId={1} floorPlanId={3} />)
-  const conduit=await screen.findByLabelText('Conduit product for this draft')
-  expect(Array.from(conduit.options).map(item=>item.value)).toEqual(['','2','10'])
-  expect(Array.from(screen.getByLabelText('Wire / cable product for this draft').options).map(item=>item.value)).toEqual(['','1','11'])
-  expect(Array.from(screen.getByRole('table',{name:'Draft bill of materials'}).querySelectorAll('tbody tr')).map(row=>row.cells[0].textContent)).toEqual(['LampDevice','SwitchDevice'])
+  await screen.findByRole('table')
+  expect(Array.from(screen.getByRole('table',{name:'Draft bill of materials'}).querySelectorAll('tbody tr')).map(row=>row.cells[0].textContent)).toEqual(['Lamp','Switch'])
   expect(JSON.stringify(planning)).toBe(before)
 })
 it('shows reviewed quantities without needing a route and downloads only a saved snapshot', async () => {
@@ -104,11 +109,11 @@ it('automatically shows priced draft devices and missing scale without approval 
   const table = screen.getByRole('table',{name:'Draft bill of materials'})
   expect(table.closest('[aria-label="Draft material costs"]').tabIndex).toBe(0)
   expect(within(table).getAllByRole('columnheader')).toHaveLength(4)
-  expect(table.querySelector('tfoot').textContent).toContain('Current subtotal (PHP)')
+  expect(table.querySelector('tfoot').textContent).toContain('Priced subtotal (PHP)')
   expect(table.querySelector('tfoot').textContent).toContain('₱20.00')
-  expect(screen.getByText('Set plan scale once')).toBeTruthy()
+  expect(screen.getByText('Unmeasured')).toBeTruthy()
   expect(screen.queryByRole('checkbox')).toBeNull()
-  expect(screen.getByText(/Subtotals are incomplete/)).toBeTruthy()
+  expect(screen.getByText(/Any subtotal is partial/)).toBeTruthy()
   fireEvent.click(screen.getByText('Download draft BOM'))
   await waitFor(()=>expect(click).toHaveBeenCalled())
   expect(downloadDraftBOM).toHaveBeenCalledWith(1,expect.objectContaining({floorPlanId:3,processingJobId:4}))
@@ -117,48 +122,15 @@ it('automatically shows priced draft devices and missing scale without approval 
   click.mockRestore()
 })
 
-it('retains conduit selection and paper metadata without treating paper size as calibration',async()=>{
-  const planning={items:[],priced_subtotals:{},unpriced_items:0,basis:[],catalog_materials:1,
-    conduit_materials:[{id:9,name:'EMT half-inch',unit:'length',unit_price:'360',currency:'PHP'}]}
-  fetchBOM.mockResolvedValue({planning})
-  const view=render(<BOMPanel projectId={1} floorPlanId={3} processingJobId={4} />)
-  const conduit=await screen.findByLabelText('Conduit product for this draft')
-  fireEvent.change(conduit,{target:{value:'9'}})
-  await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({conduitMaterialId:9})))
-  fireEvent.change(screen.getByLabelText('Paper metadata (not calibration)'),{target:{value:'A3'}})
-  await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({conduitMaterialId:9,paperSize:'A3'})))
-  expect(screen.getByText(/Paper size alone cannot calibrate/)).toBeTruthy()
-  expect(screen.queryByRole('checkbox')).toBeNull()
-  view.rerender(<BOMPanel projectId={2} floorPlanId={5} processingJobId={6} />)
-  await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(2,expect.objectContaining({conduitMaterialId:undefined,paperSize:'A3'})))
-})
-
-it('uses independent wire selection and custom dimensions only after apply, resetting scope',async()=>{
-  fetchBOM.mockResolvedValue({planning:{items:[],priced_subtotals:{},unpriced_items:0,basis:[],
-    conduit_materials:[{id:9,name:'EMT',unit:'length',unit_price:10,currency:'PHP'}],
-    wire_materials:[{id:10,name:'THHN wire',unit:'meter',unit_price:20,currency:'PHP'}]}})
-  render(<BOMPanel projectId={1} floorPlanId={3} processingJobId={4} />)
-  fireEvent.change(await screen.findByLabelText('Conduit product for this draft'),{target:{value:'9'}})
-  fireEvent.change(screen.getByLabelText('Wire / cable product for this draft'),{target:{value:'10'}})
-  fireEvent.change(screen.getByLabelText('Paper metadata (not calibration)'),{target:{value:'CUSTOM'}})
-  fireEvent.change(screen.getByLabelText('Sheet width (mm)'),{target:{value:'300'}})
-  fireEvent.change(screen.getByLabelText('Sheet height (mm)'),{target:{value:'600'}})
-  fireEvent.click(screen.getByText('Apply custom dimensions'))
-  await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({conduitMaterialId:9,wireMaterialId:10,paperSize:'CUSTOM',customWidthMm:300,customHeightMm:600})))
-})
-
-it('applies roll conversion or custom wire price without an allowance charge or stale product conversion',async()=>{
-  fetchBOM.mockResolvedValue({planning:{items:[],priced_subtotals:{},unpriced_items:0,basis:[],
-    wire_materials:[{id:10,name:'THHN wire',unit:'roll',unit_price:2000,currency:'PHP'},
-      {id:11,name:'Wire by metre',unit:'meter',unit_price:20,currency:'PHP'}]}})
-  render(<BOMPanel projectId={1} floorPlanId={3} />)
-  fireEvent.change(await screen.findByLabelText('Wire / cable product for this draft'),{target:{value:'10'}})
-  fireEvent.change(screen.getByLabelText('Metres per wire purchase unit'),{target:{value:'100'}})
-  fireEvent.change(screen.getByLabelText('Custom wire price per metre (PHP, optional)'),{target:{value:'25'}})
-  fireEvent.click(screen.getByText('Apply wire pricing'))
-  await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({wireMaterialId:10,wireMetersPerUnit:100,wirePricePerMeter:25})))
-  fireEvent.change(screen.getByLabelText('Wire / cable product for this draft'),{target:{value:'11'}})
-  await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(1,expect.objectContaining({wireMaterialId:11,wireMetersPerUnit:undefined,wirePricePerMeter:undefined})))
-  expect(screen.queryByLabelText('Metres per wire purchase unit')).toBeNull()
-  expect(screen.getByText(/No extra allowance is added/)).toBeTruthy()
+it('keeps scope and authorization while removing calculator controls',async()=>{
+  fetchBOM.mockResolvedValue({planning:{items:[],priced_subtotals:{},unpriced_items:0,basis:[],sources:[{floor_id:2}]}})
+  const view=render(<BOMPanel projectId={1} floorPlanId={3} designer />)
+  await screen.findByText('No saved devices or wiring yet.')
+  expect(screen.queryByLabelText('Conduit product for this draft')).toBeNull()
+  expect(screen.queryByLabelText('Paper metadata (not calibration)')).toBeNull()
+  expect(screen.queryByLabelText('Wire / cable product for this draft')).toBeNull()
+  expect(screen.queryByText('Calculation basis')).toBeNull()
+  view.rerender(<BOMPanel projectId={2} floorPlanId={5} designer />)
+  await waitFor(()=>expect(fetchBOM).toHaveBeenLastCalledWith(2,expect.objectContaining({floorPlanId:5})))
+  expect(fetchBOM.mock.calls.at(-1)[1].conduitMaterialId).toBeUndefined()
 })

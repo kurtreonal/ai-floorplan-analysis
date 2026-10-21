@@ -1257,3 +1257,54 @@ bb78854e87833124a1725b51f0be6099a8ac0cfa and unrelated dirty work preserved. BDO
 Latest attached sequence re-read: automatic pricing supersedes the old manual
 preview/select steps. Next is the unfinished measurement input/calibration scope;
 do not repeat completed pricing or mounting defaults. Checkpoints 3–6 remain open.
+
+Conduit follow-up committed as 796bdd1. User will have the administrator create
+plan_measurement_settings; no application grants or schema changes made by this
+agent. Copy/paste pointer-placement follow-up began (63 focused frontend tests
+passed), but user explicitly reprioritized compact BOM first. Preserve root edits
+in useDeviceClipboard, its test, DemoInterpretationPage, its test and canvas; these
+are NOT included in the BOM checkpoint and are not advertised as checkpoint-4
+completion. The clean BOM verification/staging mirror excludes those pending edits.
+
+2026-10-21 prioritized compact BOM (base 796bdd1, same branch): backend read model
+groups matching purchase components after pricing, sums existing quantities/costs
+with Decimal, and retains scoped symbol/path reference members. Separate class,
+product/specification, rate, currency, units, measurement state and observed/
+generated provenance remain separate. No circuits, geometry, attachments, saved
+assignments or physical spans are merged. Both wire/cable and conduit remain
+components of a wiring group. Detailed existing items/CSV and historical snapshots
+are unchanged. Additive planning.display_groups; no API operation or table added.
+
+Shared workspace/cost table uses compact reference-only symbol/path dropdowns,
+combined row costs and an always-present Total/partial-subtotal footer. Unknown
+amounts remain a dash, never zero or a fabricated full project total; currencies
+stay separate. Removed calculation-basis, connected-drop details, catalog/quote
+paragraphs, override/calibration calculator dropdowns and repeated processing text
+from the normal BOM. Retain upload/download, unsaved changes, upload failure/retry,
+and one small incomplete-price/measurement warning. Underlying diagnostics remain
+in backend response/export data. Design skill guidance influenced compact spacing,
+semantic controls, existing theme tokens and keyboard-readable reference dropdowns.
+
+PASS final BOM-only clean snapshot: 111 backend tests; 35 frontend tests; scoped
+ESLint; authenticated production build. Real CSV/XLSX upload fixtures retain PHP980
+expected/actual, grouped-cost sum equality and grouped save/reload equality with
+VED products inactive. Initial grouping edge case exposed duplicate component-kind
+buckets (fixed); old UI tests expected explicitly removed controls (updated to the
+new acceptance); two added API assertions initially summed JSON decimal strings
+without conversion (corrected). All final gates rerun and passing. Existing two
+test-client deprecations and large Vite chunks remain; full repository suite NOT
+RUN. No changes to model weights/detection or engineering approval.
+
+PASS read-only live browser: cost page 10 grouped rows rather than per-device
+rows, working reference selector; workspace 6 groups, zero details dropdowns,
+visible Total and one small warning. Workspace text identical after reload. Current
+plan lacks applicable prices/measurements, so its Total is honestly unavailable,
+not a claimed measured amount. Proof: tmp/ux-checkpoints/compact-grouped-bom.png
+and compact-bom-total.png. Browser did not upload, edit, save or approve real data.
+All 44 baseline originals byte-identical (45 current), zero active analysis jobs;
+concurrent main-database additions are preserved, not claimed globally unchanged.
+Only verification fixtures written by tests; no temporary servers started. Recovery
+stash bb78854e87833124a1725b51f0be6099a8ac0cfa retained. Stage overlapping bom_service
+and BOMPanel ONLY from the clean mirror, excluding earlier live-preview work.
+BDO-specific work paused. Next: administrator provisioning, then measurement UI/
+calibration integration; independent copy/paste work remains preserved unfinished.

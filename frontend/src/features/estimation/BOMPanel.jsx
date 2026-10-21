@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchBOM, downloadBOM, downloadDraftBOM } from '../../api/bom.js'
 import { Button } from '../../components/ui/button.jsx'
-import { orderNamed, orderList } from '../../utils/listOrder.js'
+import { orderList } from '../../utils/listOrder.js'
 import { useBOMPricing } from './useBOMPricing.js'
 import { BOMPricingControls } from './BOMPricingControls.jsx'
 import { BOMTable } from './BOMTable.jsx'
@@ -17,46 +17,33 @@ const pricingLabels = {
   missing_project_material_price: 'Not priced in client import',
   project_material_identity_changed: 'Material changed; review client mapping',
 }
-function money(value, currency) {
-  return value == null ? '—' : new Intl.NumberFormat(undefined, {style:'currency',currency}).format(Number(value))
-}
 
 export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, refreshKey = 0, designer = false, unsaved = false, onPriceVersionsChange, onPricesApplied }) {
   const [loadedBOM, setBOM] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [calculation, setCalculation] = useState({})
   const [pricingRevision, setPricingRevision] = useState(0)
   const pricingFile = useRef(null)
   const download = useRef(null)
   const sourceKey = `${projectId}:${floorPlanId || ''}:${processingJobId || ''}`
-  const chosen = calculation.sourceKey === sourceKey ? calculation : {}
-  const conduitMaterialId = chosen.conduit ? Number(chosen.conduit) : undefined
-  const wireMaterialId = chosen.wire ? Number(chosen.wire) : undefined
-  const wireMetersPerUnit = chosen.wireMetersPerUnit
-  const wirePricePerMeter = chosen.wirePricePerMeter
-  const paperChoice = chosen.paper ?? (floorPlanId ? 'A3' : '')
-  const customWidthMm = paperChoice === 'CUSTOM' ? chosen.custom?.width : undefined
-  const customHeightMm = paperChoice === 'CUSTOM' ? chosen.custom?.height : undefined
-  const paperSize = paperChoice === 'CUSTOM' ? (chosen.custom ? 'CUSTOM' : undefined) : paperChoice || undefined
-  const scopeKey = `${sourceKey}:${refreshKey}:${pricingRevision}:${conduitMaterialId || ''}:${wireMaterialId || ''}:${paperSize || ''}:${customWidthMm || ''}:${customHeightMm || ''}:${wireMetersPerUnit ?? ''}:${wirePricePerMeter ?? ''}`
+  const scopeKey = `${sourceKey}:${refreshKey}:${pricingRevision}`
   const bom = loadedBOM?.scopeKey === scopeKey ? loadedBOM.value : null
   const planningOptions = loadedBOM?.sourceKey === sourceKey ? loadedBOM.value?.planning : null
   const pricing = useBOMPricing({projectId,floorId:floorPlanId ? planningOptions?.sources?.[0]?.floor_id:undefined,disabled:busy || unsaved || !designer || !planningOptions || Boolean(floorPlanId && !planningOptions?.sources?.[0]?.floor_id),
     onVersionsChange:onPriceVersionsChange,onApplied:()=>{setPricingRevision(n=>n+1);onPricesApplied?.()}})
   useEffect(() => {
     const controller = new AbortController()
-    fetchBOM(projectId, { signal: controller.signal, floorPlanId, processingJobId, conduitMaterialId, paperSize, wireMaterialId, customWidthMm, customHeightMm, wireMetersPerUnit, wirePricePerMeter }).then((value) => { if (!controller.signal.aborted) { setBOM({scopeKey,sourceKey,value}); setError('') } })
+    fetchBOM(projectId, { signal: controller.signal, floorPlanId, processingJobId }).then((value) => { if (!controller.signal.aborted) { setBOM({scopeKey,sourceKey,value}); setError('') } })
       .catch((failure) => { if (!controller.signal.aborted) { setBOM(null); setError(failure.message) } })
     return () => controller.abort()
-  }, [projectId, floorPlanId, processingJobId, refreshKey, scopeKey, sourceKey, conduitMaterialId, paperSize, wireMaterialId, customWidthMm, customHeightMm, wireMetersPerUnit, wirePricePerMeter])
+  }, [projectId, floorPlanId, processingJobId, refreshKey, scopeKey, sourceKey])
   useEffect(() => () => download.current?.abort(), [])
   async function exportSnapshot(draft = false) {
     if ((!draft && !estimate) || busy) return
     const controller = new AbortController(); download.current = controller
     setBusy(true)
     try {
-      const blob = draft ? await downloadDraftBOM(projectId, { signal: controller.signal, floorPlanId, processingJobId, conduitMaterialId, paperSize, wireMaterialId, customWidthMm, customHeightMm, wireMetersPerUnit, wirePricePerMeter })
+      const blob = draft ? await downloadDraftBOM(projectId, { signal: controller.signal, floorPlanId, processingJobId })
         : await downloadBOM(projectId, estimate.id, { signal: controller.signal })
       if (controller.signal.aborted) return
       const url = URL.createObjectURL(blob), link = document.createElement('a')
@@ -73,67 +60,9 @@ export function BOMPanel({ projectId, floorPlanId, processingJobId, estimate, re
     {!floorPlanId && <Button variant="outline" disabled={!estimate || busy} onClick={() => exportSnapshot()}>{busy ? 'Downloading…' : 'Download saved BOM'}</Button>}</div></div>
     {unsaved && <p role="status">Unsaved changes: this BOM shows saved items. Save to refresh quantities.</p>}
     {designer && <BOMPricingControls model={pricing}/>}
-    {planningOptions && <details><summary>Optional material and measurement overrides</summary><div className="studio-material-binding studio-bom-settings">
-      <div className="studio-bom-setting"><h3>Conduit</h3>
-      <label className="studio-field">Conduit product for this draft
-        <select value={chosen.conduit || ''} onChange={event => setCalculation({...chosen,sourceKey,conduit:event.target.value})}>
-          <option value="">Use saved mappings / exact matches</option>
-          {orderNamed(planningOptions.conduit_materials || []).map(material => <option key={material.id} value={material.id}>{material.name} · {money(material.unit_price,material.currency)} per {material.unit}</option>)}
-        </select>
-      </label>
-      <p>Conduit uses measured route length. Stick, roll or other purchase units require an explicit conversion; they are not assumed to equal one metre. Conductor quantities remain separate.</p>
-      {!planningOptions.conduit_materials?.length && <p role="note">Client BOM uploads can supply conduit products and prices directly; a VED catalog match is not required.</p>}
-      </div>
-      <div className="studio-bom-setting"><h3>Wire / cable</h3>
-      <label className="studio-field">Wire / cable product for this draft
-        <select value={chosen.wire || ''} onChange={event => setCalculation({...chosen,sourceKey,wire:event.target.value,
-          wireMetersPerUnit:undefined,wirePricePerMeter:undefined})}>
-          <option value="">Use saved circuit specifications</option>
-          {orderNamed(planningOptions.wire_materials || []).map(material => <option key={material.id} value={material.id}>{material.name} · {money(material.unit_price,material.currency)} per {material.unit}</option>)}
-        </select>
-      </label>
-      <form key={`${sourceKey}:${wireMaterialId || ''}`} onSubmit={event => {
-        event.preventDefault()
-        const data = new FormData(event.currentTarget)
-        const length = data.get('wireLength'), price = data.get('wirePrice')
-        setCalculation({...chosen,sourceKey,wireMetersPerUnit:length ? Number(length) : undefined,wirePricePerMeter:price === '' ? undefined : Number(price)})
-      }}>
-        {wireMaterialId && planningOptions.wire_materials?.find(m => m.id === wireMaterialId)?.unit !== 'meter' && <label className="studio-field">Metres per wire purchase unit
-          <input name="wireLength" type="number" min="0.0001" max="100000" step="any" defaultValue={wireMetersPerUnit ?? planningOptions.wire_materials?.find(m => m.id === wireMaterialId)?.meters_per_unit ?? ''} placeholder="For example, the labelled roll length" />
-        </label>}
-        <label className="studio-field">Custom wire price per metre (PHP, optional)<input name="wirePrice" type="number" min="0" max="1000000000" step="0.01" defaultValue={wirePricePerMeter ?? ''} /></label>
-        <Button type="submit" variant="outline">Apply wire pricing</Button>
-      </form>
-      <p role="note">Wire cost = cable route metres × price per metre. No extra allowance is added. Roll price is divided by metres per roll; a custom PHP price overrides it for this draft only. Conductor quantities still use saved circuit specifications.</p>
-      </div>
-      {floorPlanId && <div className="studio-bom-setting"><h3>Plan scale</h3>
-      {floorPlanId && <label className="studio-field">Paper metadata (not calibration)
-        <select value={paperChoice} onChange={event => setCalculation({...chosen,sourceKey,paper:event.target.value})}>
-          <option value="">Use measured scale; otherwise leave unscaled</option>
-          {['A4','A3','A2','A1','A0'].map(size => <option key={size} value={size}>{size}</option>)}
-          <option value="CUSTOM">Custom sheet dimensions</option>
-        </select>
-      </label>}
-      {paperChoice === 'CUSTOM' && <form onSubmit={event => {
-        event.preventDefault()
-        const data = new FormData(event.currentTarget)
-        setCalculation({...chosen,sourceKey,paper:'CUSTOM',custom:{width:Number(data.get('width')),height:Number(data.get('height'))}})
-      }}>
-        <label className="studio-field">Sheet width (mm)<input key={`${sourceKey}:width`} name="width" type="number" min="0.01" max="10000" step="any" required defaultValue={customWidthMm ?? ''} /></label>
-        <label className="studio-field">Sheet height (mm)<input key={`${sourceKey}:height`} name="height" type="number" min="0.01" max="10000" step="any" required defaultValue={customHeightMm ?? ''} /></label>
-        <Button type="submit" variant="outline">Apply custom dimensions</Button>
-      </form>}
-      {paperChoice && <p role="note">Paper size alone cannot calibrate source pixels. Review a known real-world dimension in the project scale settings; uncalibrated path quantities remain pixels.</p>}
-      </div>}
-    </div></details>}
     {bom?.planning && <>
-      {bom.planning.project_pricing && <p>Client prices · Version {bom.planning.project_pricing.version_number} · {bom.planning.project_pricing.filename}</p>}
-      <p>Automatic from saved plan data. No per-item approvals. Save edits to update quantities.</p>
       {bom.planning.items.length || pricing.active ? <BOMTable planning={bom.planning} pricing={pricing} pricingLabels={pricingLabels}/> : <p>No saved devices or wiring yet.</p>}
-      {bom.planning.unpriced_items > 0 && <p role="note">{bom.planning.unpriced_items} items are not costed. Subtotals are incomplete, not a project total.</p>}
-      {bom.planning.missing_inputs?.map(note => <p role="note" key={note}>{note}</p>)}
-      <details><summary>Calculation basis</summary><ul>{bom.planning.basis.map(note => <li key={note}>{note}</li>)}</ul>
-        <p>{bom.planning.catalog_materials} active catalog materials. Prices use the confirmed client import when available, otherwise the Admin catalog. Missing prices are never treated as zero.</p></details>
+      {(bom.planning.unpriced_items>0 || bom.planning.missing_inputs?.length>0) && <small className="bom-compact-warning" role="note">Some items need prices or measurements. Any subtotal is partial.</small>}
     </>}
     {bom && !bom.planning && <>
       <p>{bom.layouts.length} reviewed floor snapshots. Raw detections are excluded from quantities.</p>

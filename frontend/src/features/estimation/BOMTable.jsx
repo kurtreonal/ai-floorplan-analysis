@@ -1,10 +1,12 @@
 import { groupBOMRows } from './bomPricingRows.js'
 import { orderNamed } from '../../utils/listOrder.js'
 import { legendDescription } from '../../api/legendChoices.js'
+import { CompactBOMTable } from './CompactBOMTable.jsx'
 
 const money=(n,c)=>n==null ? '—':new Intl.NumberFormat(undefined,{style:'currency',currency:c}).format(Number(n))
 const label=row=>row.kind==='device' ? 'Device':row.material_kind==='wire' ? 'Wire/cable':row.material_kind==='conduit' ? 'Conduit':'Path'
 export function BOMTable({planning,pricing,pricingLabels}) {
+  if(!pricing.active)return <CompactBOMTable planning={planning}/>
   const active=pricing.active,groups=orderNamed(active ? pricing.groups:groupBOMRows(planning.items))
   const change=row=>pricing.previewResult?.affected.find(r=>r.item_key===row.item_key)
   return <div className="studio-table-scroll" role="region" aria-label="Draft material costs" tabIndex={0}><table className="studio-estimate-table studio-bom-table" aria-label="Draft bill of materials"><thead><tr>
