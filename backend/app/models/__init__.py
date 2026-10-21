@@ -7,6 +7,7 @@ from app.models.material import Material
 from app.models.material_price import MaterialPrice
 from app.models.generated_route import GeneratedRouteVersion
 from app.models.analysis_settings import FloorElevationSetting, PageScaleSetting
+from app.models.plan_measurement_setting import PlanMeasurementSetting
 from app.models.detection_class_correction import DetectionClassCorrection
 from app.models.detected_symbol import DetectedSymbol
 from app.models.detection_review import DetectionReview
@@ -37,6 +38,7 @@ from app.models.wall import Wall
 
 
 __all__ = (
+    "PlanMeasurementSetting",
     "Base",
     "Estimate",
     "EstimateItem",

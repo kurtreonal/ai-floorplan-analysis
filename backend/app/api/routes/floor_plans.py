@@ -32,6 +32,9 @@ from app.services.floor_plan_upload import (
 )
 from app.services.project_service import ProjectNotFoundError
 from app.services.upload_validation import UploadValidationError
+from app.schemas.plan_measurement import PlanMeasurementInput,PlanMeasurementWrite,PlanMeasurementResponse
+from app.services import plan_measurement_service as measurements
+from pydantic import ValidationError
 from app.schemas.floor_plan_lifecycle import FloorPlanLifecycleRequest, FloorPlanLifecycleResponse
 from app.services.floor_plan_lifecycle_service import (
     FloorPlanLifecycleError, change_plan_state, inspect_plan, list_removed,
@@ -39,6 +42,34 @@ from app.services.floor_plan_lifecycle_service import (
 
 
 router = APIRouter(prefix="/api/projects", tags=["floor plans"])
+
+
+def _measurement_operation(session,action,*,write=False):
+    try:
+        value=action()
+        if write:
+            session.commit()
+        return value
+    except ProjectNotFoundError:
+        session.rollback()
+        raise HTTPException(status_code=404,detail={'error':{'code':'PROJECT_NOT_FOUND','message':'Project not found.','details':{}}}) from None
+    except (measurements.MeasurementSettingsError,SQLAlchemyError) as error:
+        session.rollback()
+        status_code=error.status if isinstance(error,measurements.MeasurementSettingsError) else 503
+        message=str(error) if isinstance(error,measurements.MeasurementSettingsError) else 'Plan measurement settings are unavailable. Existing uploads are unchanged.'
+        raise HTTPException(status_code=status_code,detail={'error':{'code':'PLAN_MEASUREMENT_SETTINGS_UNAVAILABLE','message':message,'details':{}}}) from None
+
+
+@router.get('/{project_id}/floor-plans/{floor_plan_id}/measurement-settings',response_model=PlanMeasurementResponse)
+def get_plan_measurements(project_id:Annotated[int,Path(gt=0)],floor_plan_id:Annotated[int,Path(gt=0)],
+    user:User=Depends(require_roles('DESIGNER','ADMIN')),session:Session=Depends(get_db)):
+    return _measurement_operation(session,lambda:measurements.retrieve(session,user,project_id,floor_plan_id))
+
+
+@router.put('/{project_id}/floor-plans/{floor_plan_id}/measurement-settings',response_model=PlanMeasurementResponse)
+def put_plan_measurements(project_id:Annotated[int,Path(gt=0)],floor_plan_id:Annotated[int,Path(gt=0)],data:PlanMeasurementWrite,
+    user:User=Depends(require_roles('DESIGNER')),session:Session=Depends(get_db)):
+    return _measurement_operation(session,lambda:measurements.save(session,user,project_id,floor_plan_id,data),write=True)
 
 
 def _lifecycle_operation(session, operation, **kwargs):
@@ -202,6 +233,7 @@ async def upload_floor_plan_endpoint(
     project_id: Annotated[int, Path(gt=0)],
     project_floor_id: Annotated[int, Form(gt=0)],
     file: Annotated[UploadFile, File()],
+    measurement_settings: Annotated[str | None, Form(max_length=20000)] = None,
     current_user: User = Depends(require_roles("DESIGNER")),
     database_session: Session = Depends(get_db),
 ) -> FloorPlanUploadResponse:
@@ -228,6 +260,10 @@ async def upload_floor_plan_endpoint(
             ) from None
 
         try:
+            try:
+                measurement_input=PlanMeasurementInput.model_validate_json(measurement_settings) if measurement_settings is not None else None
+            except ValidationError:
+                raise _api_error(status_code=422,code='INVALID_PLAN_MEASUREMENTS',message='Check the paper, scale and elevation inputs.') from None
             floor_plan = upload_floor_plan(
                 database_session,
                 current_user=current_user,
@@ -238,6 +274,7 @@ async def upload_floor_plan_endpoint(
                 content=content,
                 upload_directory=upload_directory,
                 max_file_size_bytes=max_file_size_bytes,
+                **({'measurement_settings':measurement_input} if measurement_input is not None else {}),
             )
         except ProjectNotFoundError:
             raise _api_error(

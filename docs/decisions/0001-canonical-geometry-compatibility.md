@@ -1102,3 +1102,75 @@ reviews or real project data changed; schema/API remain 37/62; stash unchanged.
 This is a bounded mounting sub-checkpoint, not completion of checkpoint 2. Upload
 paper/orientation/scale metadata, separate floor/ceiling/service settings and their
 remaining integration/calibration proofs are next; checkpoints 3–6 remain open.
+
+Sub-checkpoint 2a committed as f286522 (branch unchanged). Checkpoint 2b backend
+draft is UNCOMMITTED: new PlanMeasurementSetting append-only model/repository,
+plan_measurement schema/service, models registration, floor_plan upload/storage
+integration, GET/PUT measurement-settings routes and test_plan_measurement_settings.
+Four isolated tests PASS: per-PDF-page paper/crop/rotation metadata preservation;
+raster A1/nominal-100 defaults without calibration; revisions/retries/authorization
+and independent floor/ceiling/service fields without touching approved scales;
+normal upload storage preserves byte-identical original while storing metadata
+atomically. Legacy upload calls omit the new optional arguments. Frontend for 2b,
+configured-height consumers, broader new-schema regressions and live multipart
+browser flow have NOT started / NOT TESTED. New modeled surface is 38 tables and
+64 operations; previously committed 2a surface remains 37/62. Do not publish 2b as
+complete or treat its four focused tests as a full regression gate. Existing count
+assertions must be aligned with the expanded schema/API when finishing 2b.
+
+Live provisioning BLOCKED: read-only SHOW GRANTS check confirms configured
+application account has NO CREATE permission, consistent with authorized CRUD-only
+access. Do not grant it DDL or use guessed administrator credentials. The new table
+exists only in ved_electrical_verify so far. Obtain an approved administrator-run
+prototype schema initialization for ONLY plan_measurement_settings before wiring
+live UI to it. No live schema or permission change was attempted. Existing upload/
+editor behavior does not query this draft table; new inputs are opt-in and no 2b UI
+is deployed. Next: administrator provisioning decision, then 2b UI/persistence/
+calibration integration and gates. Preserve this backend draft and all unrelated
+dirty files; BDO still paused, recovery stash untouched.
+
+2026-10-21 continuation — bounded 2b backend foundation, not checkpoint-2 completion.
+Verified HEAD f286522 on codex/vlm-localization-experiment before editing. Live
+read-only recheck: plan_measurement_settings remains absent; ved_app has no CREATE;
+no administrator database connection is configured. No grants or live schema were
+changed. Legacy uploads still omit the optional measurement input and never query
+the new table. UI and routing/default consumers remain unimplemented; do not enable
+them or advertise paper/nominal ratio as calibrated metric geometry.
+
+Hardened the backend draft: save/retry returns the current floor datum consistently;
+read-only GET no longer commits; revision/retry reads use current locking reads to
+avoid stale MySQL REPEATABLE READ snapshots. Uploads that explicitly change floor
+datum acquire the parent lock before their child FK insert. Added real multipart
+upload/reload, invalid-input no-write, sanitized failure/atomic rollback, legacy
+upload compatibility, append-only history/default preservation, and two-session
+stale-snapshot/retry tests. Only allocated verification fixture IDs are cleaned up.
+Scoped files: plan_measurement model/schema/repository/service, models registration,
+floor_plans routes, floor_plan_upload/storage, test_plan_measurement_settings, and
+schema/API assertions in analysis_settings/canonical_extension/demo_interpretation
+tests. Existing ledger only; no UI, model weights or detection code changed here.
+
+Final clean-snapshot gate PASS: 187 backend tests + 23 subtests across measurement,
+upload/storage, approved analysis settings, mounting, canonical geometry/contacts,
+observed-route measurements, interpretation, draft BOM and integrated/item pricing.
+Nine tests are specific to plan measurements. Initial broader run FAIL: stale
+36-table/59-operation assertion; aligned assertions with the actual 38-table/64-
+operation modeled surface, then reran. One intermediate selection named a nonexistent
+test file and ran no tests; corrected selection passed. Existing two test-client
+deprecation warnings remain. Live schema remains 37 tables. Browser/full frontend
+build NOT TESTED this backend-only sub-checkpoint; no new measurement UI deployed.
+
+Integrity PASS: all 44 baseline original files byte-identical (45 current files),
+two real project price imports retained, zero active analysis jobs. Historical
+baseline table fingerprints differ from earlier concurrent/user additions; do not
+claim every table is unchanged. This work writes only the restricted verification
+database. Recovery stash still bb78854e87833124a1725b51f0be6099a8ac0cfa; unrelated
+dirty files preserved; BDO remains paused. No temporary servers/tabs started.
+
+Next dependency remains administrator provisioning of ONLY plan_measurement_settings
+using an approved private administrator connection to the existing development
+ved_electrical database. Keep ved_app CRUD-only and ved_test verification-only;
+never try guessed credentials. Administrator may use the existing registered model
+and SQLAlchemy table.create(checkfirst=True), not broad schema repair/reset. After
+provisioning: finish 2b upload/edit UI, per-page calibration provenance and configured
+height/service consumers, then browser/reload and shared measurement gates. Checkpoint
+2 as a whole and checkpoints 3–6 are NOT complete; no later UI work started here.

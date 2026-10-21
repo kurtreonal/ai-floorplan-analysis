@@ -153,6 +153,8 @@ def store_floor_plan_upload(
     content: bytes,
     upload_directory: Path,
     max_file_size_bytes: int,
+    measurement_settings=None,
+    actor_user_id: int | None = None,
 ) -> FloorPlan:
     """Store an original and own its database commit/rollback boundary."""
     validated = validate_floor_plan_upload(
@@ -180,12 +182,20 @@ def store_floor_plan_upload(
     identity = verified_source_identity(content=content, validated=validated)
 
     try:
+        if measurement_settings is not None and measurement_settings.floor_elevation_meters is not None:
+            from app.repositories.plan_measurement_repository import lock_floor
+            # Acquire the parent write lock before the new plan's FK insert.
+            # Avoid two uploads upgrading shared FK locks on the same floor.
+            lock_floor(database_session,project_floor_id)
         persisted_floor_plan = add_floor_plan(database_session, floor_plan)
         persist_source_identity(
             database_session,
             floor_plan=persisted_floor_plan,
             identity=identity,
         )
+        if measurement_settings is not None:
+            from app.services.plan_measurement_service import initial
+            initial(database_session,persisted_floor_plan,actor_user_id,measurement_settings,content)
         database_session.commit()
     except Exception:
         try:

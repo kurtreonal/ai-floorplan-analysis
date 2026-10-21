@@ -53,6 +53,7 @@ def upload_floor_plan(
     content: bytes,
     upload_directory: Path,
     max_file_size_bytes: int,
+    measurement_settings=None,
 ) -> FloorPlan:
     get_accessible_project(
         database_session,
@@ -75,4 +76,5 @@ def upload_floor_plan(
         content=content,
         upload_directory=upload_directory,
         max_file_size_bytes=max_file_size_bytes,
+        **({'measurement_settings':measurement_settings,'actor_user_id':current_user.id} if measurement_settings is not None else {}),
     )
