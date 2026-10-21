@@ -42,6 +42,7 @@ export function DemoInterpretationCanvas({
   onAddWall,
   onAddWire,
   onDrawingPendingChange,
+  onPointerChange,
   drawingWireMethod = 'concealed_in_ceiling',
   onMoveWirePoint,
   editingSession = 0,
@@ -275,6 +276,8 @@ export function DemoInterpretationCanvas({
     if(pointer&&drawingGesture.current?.down&&Math.hypot(pointer.x-drawingGesture.current.start.x,pointer.y-drawingGesture.current.start.y)>3) drawingGesture.current.moved=true
     const point = getSourcePoint(stage)
     if (point) setMousePos(point)
+    onPointerChange?.(pointer && point && pointer.x>=0 && pointer.y>=0
+      && point.x>0 && point.y>0 && point.x<width && point.y<height ? point : null)
     if (tool === 'place-device') setPlacementPointer(point)
   }
 
@@ -377,6 +380,7 @@ export function DemoInterpretationCanvas({
           draggable={isSpaceHeld || tool === 'pan'}
           onWheel={handleWheel}
           onMouseMove={handleMouseMove}
+          onMouseLeave={()=>onPointerChange?.(null)}
           onMouseDown={event=>{const p=event.target.getStage().getPointerPosition();drawingGesture.current=p?{start:p,down:true,moved:false}:null}}
           onMouseUp={()=>{if(drawingGesture.current)drawingGesture.current.down=false}}
           onTouchMove={handleMouseMove}

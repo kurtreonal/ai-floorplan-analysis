@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useUserPreferences } from '../settings/useUserPreferences.js'
 import { ViewportFrame } from '../../components/ViewportFrame.jsx'
 import { WorkspacePanel } from '../../components/WorkspacePanel.jsx'
@@ -182,12 +182,14 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   const [blueprintOpacity, setBlueprintOpacity] = useState(1.0)
   const [history, setHistory] = useState([])
   const [historyIndex, setHistoryIndex] = useState(-1)
+  const pastePointer = useRef(null)
   const [staleRoomsWarning, setStaleRoomsWarning] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
     let active = true
     let objectUrl = null
+    pastePointer.current=null
     Promise.all([
       fetchDemoInterpretation(floorPlanId, { signal: controller.signal, processingJobId }),
       fetchReviewImage(floorPlanId, processingJobId, { signal: controller.signal }),
@@ -269,11 +271,14 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
   useDeviceClipboard({
     sourceKey: `${floorPlanId}:${processingJobId}`,
     draft, selected, plane: state.record?.candidate.payload.source_plane,
-    disabled: state.status !== 'ready' || saveState.status === 'saving' || drawingPending,
+    disabled: state.status !== 'ready' || saveState.status === 'saving' || drawingPending || view !== '2d',
     onPaste(snapshot) {
       const symbol = pastedDevice(snapshot, draft, state.record.candidate.payload.source_plane,
-        nextManualId(draft.symbols, 'manual-symbol'))
-      if (!symbol) return
+        nextManualId(history.flatMap(entry=>entry.symbols), 'manual-symbol'),pastePointer.current)
+      if (!symbol) {
+        setSaveState({status:'error',message:'No free position for a copy. Move the pointer to a clear part of the plan and try again.'})
+        return
+      }
       pushDraft({ ...draft, symbols: [...draft.symbols, symbol] }, { autoConnect: false })
       setEditingSession(value => value + 1)
       setSelected({ kind: 'symbol', id: symbol.id })
@@ -657,6 +662,7 @@ export function DemoInterpretationPage({ projectId, projectFloorId, floorPlanId,
               presentations={presentations}
               blueprintOpacity={blueprintOpacity}
               onDrawingPendingChange={setDrawingPending}
+              onPointerChange={point=>{pastePointer.current=point}}
               onAddWire={handleAddWire}
             />
         </div>

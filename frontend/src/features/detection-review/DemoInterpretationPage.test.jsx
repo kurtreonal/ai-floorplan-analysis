@@ -26,9 +26,10 @@ vi.mock('../../api/symbolLegends.js', async () => ({
   ...(await vi.importActual('../../api/symbolLegends.js')), fetchSymbolLegends: vi.fn(),
 }))
 vi.mock('./DemoInterpretationCanvas.jsx', () => ({
-  DemoInterpretationCanvas: ({ draft, selected, onSelect, onUpdateSymbol, onUpdateWall, onAddWire, onMoveWirePoint, onPlaceDevice, placementPresentation, tool }) => <div data-testid="demo-canvas" data-selection={JSON.stringify(selected)} data-geometry={JSON.stringify(draft)}>
+  DemoInterpretationCanvas: ({ draft, selected, onSelect, onUpdateSymbol, onUpdateWall, onAddWire, onMoveWirePoint, onPlaceDevice, placementPresentation, tool,onPointerChange }) => <div data-testid="demo-canvas" data-selection={JSON.stringify(selected)} data-geometry={JSON.stringify(draft)}>
     {draft.walls.length}/{draft.rooms.length}/{draft.symbols.length}
     <button type="button" onClick={() => onSelect({ kind: 'symbol', id: 'symbol-0001' })}>Select first symbol</button>
+    <button onClick={()=>onPointerChange?.({x:230,y:160})}>Point at copy position</button>
     <button type="button" onClick={() => onUpdateSymbol({ ...draft.symbols[0], center: { x: 85, y: 65 } })}>Drag first symbol</button>
     <button onClick={()=>onUpdateWall({...draft.walls[0],start:{x:10,y:20},end:{x:100,y:20}})}>Move joined wall</button>
     <button onClick={()=>onMoveWirePoint('segment-0002',0,{x:50,y:20},{kind:'junction',wireId:'segment-0001',segmentIndex:0,t:.5,point:{x:50,y:20}})}>Drag endpoint onto path</button>
@@ -279,6 +280,23 @@ describe('unified demo interpretation review', () => {
     editable.remove()
     fireEvent.keyDown(window, { key: 'v', ctrlKey: true, repeat: true })
     expect(screen.getByTestId('demo-canvas').textContent).toContain('1/1/1')
+  })
+
+  it('pastes at the pointer with distinct identities after undo and does not paste into a hidden 2D editor',async()=>{
+    render(<DemoInterpretationPage projectId={1} floorPlanId={3} processingJobId={4} />)
+    fireEvent.click(await screen.findByText('Select first symbol'))
+    fireEvent.keyDown(window,{key:'c',ctrlKey:true})
+    fireEvent.click(screen.getByText('Point at copy position'))
+    fireEvent.keyDown(window,{key:'v',ctrlKey:true})
+    let geometry=JSON.parse(screen.getByTestId('demo-canvas').dataset.geometry)
+    expect(geometry.symbols.at(-1)).toMatchObject({id:'manual-symbol-0001',center:{x:230,y:160},disposition:'added'})
+    fireEvent.keyDown(window,{key:'z',ctrlKey:true})
+    fireEvent.keyDown(window,{key:'v',ctrlKey:true})
+    geometry=JSON.parse(screen.getByTestId('demo-canvas').dataset.geometry)
+    expect(geometry.symbols.at(-1).id).toBe('manual-symbol-0002')
+    fireEvent.click(screen.getByRole('button',{name:'3D · Draft preview'}))
+    fireEvent.keyDown(window,{key:'v',ctrlKey:true})
+    expect(JSON.parse(screen.getByTestId('demo-canvas').dataset.geometry).symbols).toHaveLength(2)
   })
 
   it('keeps detection tallies out of the editor without changing annotation data', async () => {

@@ -1387,3 +1387,33 @@ API66/38 modeled tables unchanged. Live37 tables: measurement settings table
 still absent, administrator provisioning BLOCKED; saved measurement UI not
 claimed complete. No live DDL or grants. BDO remains paused. Next: verify the
 preserved independent copy/paste work; do not restart detection or overwrite edits.
+
+### 2026-10-21 — Pointer paste and stable identities (bounded editor checkpoint)
+
+Measurement checkpoint committed as 1924176. Continued preserved clipboard work:
+paste uses source-space pointer coordinates, separates repeated overlapping copies,
+does not reuse an undone ID within the editing session, resets the pointer on
+source change and ignores hidden 2D editors. Preserves existing legend mapping,
+custom draft price, mounting reference/height/offset and gang confirmation; does
+not copy detection identity, approval, mounting wall or wiring attachments.
+Existing classes/glyphs continue through the saved legend relationship.
+
+PASS: 61 focused clipboard/page/canvas tests; scoped ESLint; authenticated build.
+PASS isolated real-browser save/reload: original + manual-symbol-0001 and
+manual-symbol-0003 survive; undone0002 is not reused; the single wiring path stays
+unchanged, copied devices show Detach disabled and retain0.30m center height and
+0.10m terminal offset. Browser virtual clipboard initially lacked native text;
+seeded nonsensitive test text and verified the application's own device buffer.
+Proof: tmp/ux-checkpoints/clipboard-reload.jpg. Exact synthetic fixture removed
+after helper stop; no real geometry written. Full suite NOT RUN. API66/38 modeled
+tables unchanged; live37, measurement settings provisioning still BLOCKED. Existing
+build chunk warning retained. Unrelated page/canvas/layout changes and recovery
+stash preserved; overlapping editor files staged only from clean snapshot.
+
+NOT COMPLETE: full checkpoint4 includes product-selection inheritance and device
+orientation; arbitrary orientation is not yet in the current review schema, and
+catalog-backed item assignments are separate from the copied draft custom price.
+Do not claim those features from this bounded fix. Measurement UI/save integration
+still depends on administrator table provisioning. Numeric-angle/width controls,
+full product inspector/legend work and dashboard remain authorized follow-ups,
+not started in this bounded change. BDO detection/training remains paused.
