@@ -2,6 +2,7 @@
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
+from fractions import Fraction
 import re
 
 from app.repositories import item_price_repository as assignments
@@ -110,13 +111,47 @@ def target_fingerprint(row):
         row.get('material_id'),row.get('material_name'),row.get('material_kind')])
 
 
+def resolve_price(candidates):
+    """Equal rates can price a path without selecting an unknown physical product."""
+    if not candidates:
+        return None
+    if len(candidates)==1:
+        return candidates[0]
+    rates={(q['currency'],q['quantity_unit'],Fraction(Decimal(q['unit_price']))/Fraction(Decimal(q['units_per_purchase']))) for q in candidates}
+    if len(rates)!=1:
+        return None
+    first=candidates[0]
+    return dict(first,name=f'Client {first["family"]} rate ({len(candidates)} compatible products)',code='',specification='',
+        unit=first['quantity_unit'],unit_price=str(Decimal(first['unit_price'])/Decimal(first['units_per_purchase'])),
+        units_per_purchase='1',price_only=True,source_row_ids=[q['row_id'] for q in candidates],
+        product_options=[dict(row_id=q['row_id'],name=q['name'],specification=q['specification']) for q in candidates])
+
+
+def assignment_for(row,quote,version_id):
+    return dict(price_version_id=version_id,price_row_id=quote['row_id'],
+        source_kind='client_product',fingerprint=target_fingerprint(row),
+        **({'price_row_ids':quote['source_row_ids'],'price_only':True} if quote.get('price_only') else {}))
+
+
+def previously_skipped_rate(row,version,skipped):
+    """Read compatibility for existing uploads only; never make a future default."""
+    if not version or skipped.get(row['item_key'])!=row['name']:
+        return None
+    candidates=[q for q in version.document['rows'] if compatible(row,q)]
+    quote=resolve_price(candidates)
+    return quote if quote and quote.get('price_only') else None
+
+
 def quote_for(session, project_id, assignment, row, cache):
     version_id = assignment['price_version_id']
     if version_id not in cache:
         cache[version_id] = prices.find(session,project_id,version_id)
     version = cache[version_id]
-    quote = next((q for q in version.document['rows'] if q['row_id']==assignment['price_row_id']),None) if version else None
-    if (quote and is_client_quote(quote) and target_fingerprint(row)==assignment['fingerprint'] and compatible(row,quote)):
+    keys=assignment.get('price_row_ids') or [assignment['price_row_id']]
+    candidates=[q for q in version.document['rows'] if q['row_id'] in keys] if version else []
+    quote=resolve_price(candidates)
+    if (quote and len(candidates)==len(keys) and all(is_client_quote(q) and compatible(row,q) for q in candidates)
+            and target_fingerprint(row)==assignment['fingerprint']):
         return quote
 
 
@@ -127,6 +162,9 @@ def apply_row(row, quote, assignment, version_number):
         client_price_unit=quote['quantity_unit'],price_source='client_upload',
         project_price_version_id=assignment['price_version_id'],project_price_row_id=quote['row_id'],
         item_price_assignment_version=version_number,price_revision_id=None,currency=quote['currency'])
+    row.update(client_price_only=bool(quote.get('price_only')),
+        client_product_options=quote.get('product_options',[]),
+        client_price_row_ids=quote.get('source_row_ids',[quote['row_id']]))
     # Prices can be assigned before calibration/drop inputs exist, but a per-metre
     # quote must never appear as a per-pixel price or create a complete-looking cost.
     if row['unit']=='source pixel':
@@ -166,11 +204,12 @@ def upload(session,user,project_id,data,name,request_id,floor_id=None):
         # Exclude old client display metadata from the target; the original model
         # remains the identity/specification source through every repeated import.
         candidates=[quote for quote in quotes if compatible(row,quote)]
-        if len(candidates)!=1:
+        quote=resolve_price(candidates)
+        if quote is None:
             reason='Multiple compatible client products; specify the intended product in the file or plan.' if candidates else 'No compatible client product/specification in this file.'
             skipped.append(dict(item_key=row['item_key'],name=row['name'],reason=reason))
         else:
-            affected.append((row,candidates[0]))
+            affected.append((row,quote))
     report=dict(applied=len(affected),scope='project' if floor_id is None else 'floor',floor_id=floor_id,
         skipped=skipped,skipped_rows=[dict(row_id=q['row_id'],name=q['name'],reason=' '.join(q['reasons'])) for q in document['rows'] if q['excluded']])
     document['application']=report
@@ -178,8 +217,7 @@ def upload(session,user,project_id,data,name,request_id,floor_id=None):
         created_by_user_id=user.id,request_id=str(request_id),request_hash=identity,filename=name,
         file_sha256=sha256(data).hexdigest(),kind=document['mapping']['kind'],document=document,source_bytes=data)
     for row,quote in affected:
-        saved[row['item_key']]=dict(price_version_id=record.id,price_row_id=quote['row_id'],
-            source_kind='client_product',fingerprint=target_fingerprint(row))
+        saved[row['item_key']]=assignment_for(row,quote,record.id)
     if len(saved)>20000:
         raise WorkbookError('This project has reached the saved item-price limit.')
     if affected:

@@ -117,9 +117,19 @@ def generate_estimate(session, user, project_id, request):
     item_prices = current_item_prices(session, project_id)
     assignments = item_prices.document['assignments'] if item_prices else {}
     client_items = {}
-    if any(a.get('source_kind')=='client_product' for a in assignments.values()):
+    from app.repositories.project_pricing_repository import latest_automatic
+    if any(a.get('source_kind')=='client_product' for a in assignments.values()) or latest_automatic(session,project_id):
         from app.services.item_pricing_service import inventory
         client_items={row['item_key']:row for row in inventory(session,user,project_id)['items']}
+        # Compatibility-derived rates from an older upload are still quoted
+        # client prices, never a reason to fall back silently to catalog prices.
+        assignments=dict(assignments)
+        for key,row in client_items.items():
+            if key not in assignments and row.get('client_price_only'):
+                from app.services.automatic_client_pricing import target_fingerprint
+                assignments[key]=dict(source_kind='client_product',fingerprint=target_fingerprint(row),
+                    price_version_id=row['project_price_version_id'],price_row_id=row['project_price_row_id'],
+                    price_row_ids=row['client_price_row_ids'],price_only=True)
     item_keys = [None] * len(raw_lines)
     # Split only explicitly priced existing devices. Unselected grouping and
     # quantity arithmetic stay unchanged; a new symbol has a different key.
@@ -168,7 +178,8 @@ def generate_estimate(session, user, project_id, request):
                 price_sources.append(dict(material_id=material_id,kind='client_upload',item_key=item_keys[line_index],
                     project_price_version_id=assignment['price_version_id'],row_id=client_quote['row_id'],
                     catalog_unit=client_quote['quantity_unit'],units_per_purchase=client_quote['units_per_purchase'],
-                    quoted_unit=unit,client_product_name=client_quote['name'],client_product_code=client_quote['code']))
+                    quoted_unit=unit,client_product_name=client_quote['name'],client_product_code=client_quote['code'],
+                    price_only=bool(client_quote.get('price_only')),product_options=client_quote.get('product_options',[])))
             elif assignment:
                 identity = dict(id=material.id, code=material.code, name=material.name, unit=material.unit)
                 quote = assignment_quote(session, project_id, assignment, identity, item_quote_cache)

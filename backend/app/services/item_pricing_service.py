@@ -64,12 +64,14 @@ def apply_prices(session, project_id, result, materials):
     """Same read model in workspace/project BOM. Stale identities never inherit."""
     batch = repository.current(session, project_id)
     assignments = batch.document['assignments'] if batch else {}
-    if not assignments:
+    previous_import=prices.latest_automatic(session,project_id)
+    if not assignments and previous_import is None:
         result['item_assignment_version'] = 0
         return result
     result['items'] = expand_items(result['items'])
     catalog = {m['id']: m for m in materials}
     quote_cache = {}
+    fallback_cache={}
     for row in result['items']:
         assignment = assignments.get(row['item_key'])
         if assignment and assignment.get('source_kind')=='client_product':
@@ -87,6 +89,16 @@ def apply_prices(session, project_id, result, materials):
             legacy = assignment is not None
         material = catalog.get(assignment.get('product_id') or row.get('material_id')) if assignment else None
         if not assignment:
+            from app.services.automatic_client_pricing import previously_skipped_rate,assignment_for,apply_row
+            floor_id=row.get('floor_id')
+            if floor_id not in fallback_cache:
+                version=prices.latest_automatic(session,project_id,for_floor=True,floor_id=floor_id)
+                skipped={r['item_key']:r['name'] for r in version.document.get('application',{}).get('skipped',[])} if version else {}
+                fallback_cache[floor_id]=(version,skipped)
+            version,skipped=fallback_cache[floor_id]
+            quote=previously_skipped_rate(row,version,skipped)
+            if quote:
+                apply_row(row,quote,assignment_for(row,quote,version.id),batch.version_number if batch else 0)
             continue
         quote = assignment_quote(session, project_id, assignment, material, quote_cache) if material else None
         if legacy:

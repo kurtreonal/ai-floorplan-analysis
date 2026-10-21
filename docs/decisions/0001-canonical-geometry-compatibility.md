@@ -1228,3 +1228,32 @@ new automatic route loaded. Recovery stash bb78854e87833124a1725b51f0be6099a8ac0
 preserved, unrelated dirty work excluded, BDO paused. Prior measurement-table
 provisioning dependency is unrelated and remains unresolved; no measurement UI or
 later checkpoint work was resumed here.
+
+2026-10-21 conduit pricing follow-up (base 651a891): supplied synthetic workbook
+contains PVC PHP25/metre and EMT PHP75/3 metres. Both parsed successfully; distinct
+compatible products previously caused the conduit price to be skipped. Resolve an
+exactly equivalent rate/currency/unit without choosing a physical product. Retain
+all source alternatives and price-only provenance; conflicting rates/specifications
+remain unresolved. Existing skipped identities can derive the common rate on reload
+without changing the immutable upload/assignment history, inheriting future-item
+defaults, or overriding explicit assignments. Floor-scoped imports stay isolated.
+New uploads persist the equivalent-rate source IDs; estimates capture those rates
+and alternatives while historical estimates remain unchanged. Missing calibration/
+vertical measurements still prevent complete totals; no fabricated metres.
+
+PASS: 108 clean-snapshot backend pricing, BOM and estimate tests, including equal
+rates, exact conversion/currency checks, old-file reload with no writes, future-item
+exclusion, floor scope and captured estimate provenance. An initial additional test
+used a nonexistent floor_number fixture field (107 pass/1 fail); corrected to the
+existing sort_order field and reran the complete selection successfully. Existing
+two test-client deprecation warnings remain. PASS live read-only browser: 37 conduit
+rows show PHP25/metre, retained after reload; wire quote remains PHP12/metre. No new
+upload, geometry correction, review or approval was performed. Main project imports
+have concurrent additions; no claim of a globally unchanged database. All 44 baseline
+originals remain byte-identical (45 current). No frontend source/API/schema/table
+changes in this pricing follow-up; full frontend gate NOT RERUN. Recovery stash
+bb78854e87833124a1725b51f0be6099a8ac0cfa and unrelated dirty work preserved. BDO paused.
+
+Latest attached sequence re-read: automatic pricing supersedes the old manual
+preview/select steps. Next is the unfinished measurement input/calibration scope;
+do not repeat completed pricing or mounting defaults. Checkpoints 3–6 remain open.

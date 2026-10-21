@@ -41,6 +41,17 @@ def find(session, project_id, version_id):
         ProjectPriceVersion.id == version_id))
 
 
+def latest_automatic(session,project_id,*,for_floor=False,floor_id=None):
+    query=(select(ProjectPriceVersion).options(defer(ProjectPriceVersion.source_bytes))
+        .where(ProjectPriceVersion.project_id==project_id,
+            ProjectPriceVersion.document['matching_method'].as_string()=='automatic_client_specification')
+        .order_by(ProjectPriceVersion.version_number.desc()).limit(1))
+    if for_floor:
+        scope=ProjectPriceVersion.document['application']
+        query=query.where((scope['scope'].as_string()=='project') | (scope['floor_id'].as_integer()==floor_id))
+    return session.scalar(query)
+
+
 def retry(session, project_id, request_id):
     return session.scalar(select(ProjectPriceVersion).where(ProjectPriceVersion.project_id == project_id,
         ProjectPriceVersion.request_id == request_id).with_for_update().execution_options(populate_existing=True))
