@@ -48,7 +48,7 @@ export function devicePlacement(symbol, scene, family) {
   const installation = symbol.installation?.provenance === 'designer_supplied_planning'
     && Number.isFinite(symbol.installation.elevation_meters) ? symbol.installation : null
   for (const wall of scene.mountingWalls || scene.walls) {
-    if (installation && wall.id !== installation.wall_id) continue
+    if (installation?.wall_id && wall.id !== installation.wall_id) continue
     const angle = -wall.rotation[1], dx = Math.cos(angle), dz = Math.sin(angle)
     const along = Math.max(-wall.size[0] / 2, Math.min(wall.size[0] / 2,
       (position[0] - wall.position[0]) * dx + (position[2] - wall.position[2]) * dz))
@@ -63,7 +63,7 @@ export function devicePlacement(symbol, scene, family) {
     position[1] = installation ? (installation.mounting_reference==='device_center' ? installation.mounting_elevation_meters : installation.elevation_meters) * unit
       : scene.elevation + Math.min((scene.planningMountingHeights?.[family] ?? profile.height) * unit, Math.max(size[1] / 2, ceiling - scene.elevation - size[1] / 2))
     // Only mount to a nearby wall; never teleport an uncertain device across a room.
-    if (nearest && nearest.distance <= 0.6 * unit + nearest.wall.size[2] / 2) {
+    if (nearest && nearest.distance <= 1.0 * unit + nearest.wall.size[2] / 2) {
       mountedWallId = nearest.wall.id
       let nx = -nearest.dz, nz = nearest.dx
       const side = (position[0] - nearest.x) * nx + (position[2] - nearest.z) * nz

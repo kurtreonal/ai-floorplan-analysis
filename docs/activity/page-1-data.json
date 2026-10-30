@@ -1,0 +1,1166 @@
+{
+  "nodes": {
+    "designer-start": {
+      "label": "",
+      "box": [
+        70,
+        85,
+        30,
+        30
+      ],
+      "kind": "start"
+    },
+    "client-start": {
+      "label": "",
+      "box": [
+        240,
+        85,
+        30,
+        30
+      ],
+      "kind": "start"
+    },
+    "designer-sign": {
+      "label": "Sign in and request access",
+      "box": [
+        22,
+        140,
+        125,
+        40
+      ],
+      "kind": "round"
+    },
+    "client-sign": {
+      "label": "Sign in and request access\n(view-only)",
+      "box": [
+        192,
+        200,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "verify": {
+      "label": "Verify account and log access request",
+      "box": [
+        532,
+        275,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "db-users": {
+      "label": "users, roles, access requests",
+      "box": [
+        1045,
+        275,
+        120,
+        50
+      ],
+      "kind": "database"
+    },
+    "admin-access": {
+      "label": "Review and approve access; assign role",
+      "box": [
+        362,
+        355,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "permissions": {
+      "label": "Grant role-based permissions",
+      "box": [
+        532,
+        435,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "client-granted": {
+      "label": "Access granted (view-only)",
+      "box": [
+        192,
+        468,
+        125,
+        44
+      ],
+      "kind": "round"
+    },
+    "B": {
+      "label": "B",
+      "box": [
+        240,
+        540,
+        30,
+        30
+      ],
+      "kind": "ellipse"
+    },
+    "project": {
+      "label": "Create / open project",
+      "box": [
+        22,
+        580,
+        125,
+        40
+      ],
+      "kind": "round"
+    },
+    "save-project": {
+      "label": "Save project record",
+      "box": [
+        702,
+        635,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "db-projects": {
+      "label": "projects, floor plans",
+      "box": [
+        1045,
+        635,
+        120,
+        50
+      ],
+      "kind": "database"
+    },
+    "upload": {
+      "label": "Upload floor plan (JPEG / PNG / PDF)",
+      "box": [
+        22,
+        705,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "validate": {
+      "label": "Validate floor plan",
+      "box": [
+        702,
+        780,
+        125,
+        40
+      ],
+      "kind": "round"
+    },
+    "valid": {
+      "label": "Valid?",
+      "box": [
+        720,
+        855,
+        90,
+        50
+      ],
+      "kind": "diamond"
+    },
+    "preprocess": {
+      "label": "Preprocess image (OpenCV)",
+      "box": [
+        872,
+        940,
+        125,
+        40
+      ],
+      "kind": "round"
+    },
+    "datasets": {
+      "label": "Maintain approved datasets and legends",
+      "box": [
+        362,
+        1025,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "detect": {
+      "label": "Detect walls and electrical symbols (multimodal AI)",
+      "box": [
+        872,
+        1025,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "results": {
+      "label": "Return detected walls, symbols and review status",
+      "box": [
+        872,
+        1115,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "db-detections": {
+      "label": "detections, review status",
+      "box": [
+        1045,
+        1115,
+        120,
+        50
+      ],
+      "kind": "database"
+    },
+    "review": {
+      "label": "Review detections",
+      "box": [
+        22,
+        1190,
+        125,
+        40
+      ],
+      "kind": "round"
+    },
+    "corrections": {
+      "label": "Corrections needed?",
+      "box": [
+        25,
+        1272.5,
+        120,
+        55
+      ],
+      "kind": "diamond"
+    },
+    "correct": {
+      "label": "Confirm / add / delete / move / revise items",
+      "box": [
+        25,
+        1375,
+        120,
+        50
+      ],
+      "kind": "round"
+    },
+    "A": {
+      "label": "A",
+      "box": [
+        70,
+        1465,
+        30,
+        30
+      ],
+      "kind": "ellipse"
+    }
+  },
+  "flows": [
+    {
+      "id": "d-sign",
+      "source": "designer-start",
+      "target": "designer-sign",
+      "points": [
+        [
+          85,
+          115
+        ],
+        [
+          85,
+          140
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "c-sign",
+      "source": "client-start",
+      "target": "client-sign",
+      "points": [
+        [
+          255,
+          115
+        ],
+        [
+          255,
+          200
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "d-verify",
+      "source": "designer-sign",
+      "target": "verify",
+      "points": [
+        [
+          147,
+          160
+        ],
+        [
+          610,
+          160
+        ],
+        [
+          610,
+          275
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "c-verify",
+      "source": "client-sign",
+      "target": "verify",
+      "points": [
+        [
+          317,
+          225
+        ],
+        [
+          580,
+          225
+        ],
+        [
+          580,
+          275
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "check-user",
+      "source": "verify",
+      "target": "db-users",
+      "points": [
+        [
+          657,
+          300
+        ],
+        [
+          1045,
+          300
+        ]
+      ],
+      "label": "check user",
+      "dashed": false
+    },
+    {
+      "id": "request",
+      "source": "verify",
+      "target": "admin-access",
+      "points": [
+        [
+          532,
+          300
+        ],
+        [
+          425,
+          300
+        ],
+        [
+          425,
+          355
+        ]
+      ],
+      "label": "access request",
+      "dashed": false
+    },
+    {
+      "id": "approved",
+      "source": "admin-access",
+      "target": "permissions",
+      "points": [
+        [
+          487,
+          380
+        ],
+        [
+          595,
+          380
+        ],
+        [
+          595,
+          435
+        ]
+      ],
+      "label": "approved, role assigned",
+      "dashed": false
+    },
+    {
+      "id": "access-d",
+      "source": "permissions",
+      "target": "project",
+      "points": [
+        [
+          532,
+          445
+        ],
+        [
+          85,
+          445
+        ],
+        [
+          85,
+          580
+        ]
+      ],
+      "label": "access granted",
+      "dashed": false
+    },
+    {
+      "id": "access-c",
+      "source": "permissions",
+      "target": "client-granted",
+      "points": [
+        [
+          532,
+          470
+        ],
+        [
+          317,
+          470
+        ]
+      ],
+      "label": "view-only access granted",
+      "dashed": false
+    },
+    {
+      "id": "continue-b",
+      "source": "client-granted",
+      "target": "B",
+      "points": [
+        [
+          255,
+          512
+        ],
+        [
+          255,
+          540
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "save-project-edge",
+      "source": "project",
+      "target": "save-project",
+      "points": [
+        [
+          147,
+          600
+        ],
+        [
+          765,
+          600
+        ],
+        [
+          765,
+          635
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "store-project",
+      "source": "save-project",
+      "target": "db-projects",
+      "points": [
+        [
+          827,
+          660
+        ],
+        [
+          1045,
+          660
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "next-upload",
+      "source": "save-project",
+      "target": "upload",
+      "points": [
+        [
+          702,
+          660
+        ],
+        [
+          85,
+          660
+        ],
+        [
+          85,
+          705
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "validate-edge",
+      "source": "upload",
+      "target": "validate",
+      "points": [
+        [
+          147,
+          722
+        ],
+        [
+          765,
+          722
+        ],
+        [
+          765,
+          780
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "valid-decision",
+      "source": "validate",
+      "target": "valid",
+      "points": [
+        [
+          765,
+          820
+        ],
+        [
+          765,
+          855
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "invalid",
+      "source": "valid",
+      "target": "upload",
+      "points": [
+        [
+          720,
+          880
+        ],
+        [
+          240,
+          880
+        ],
+        [
+          240,
+          745
+        ],
+        [
+          147,
+          745
+        ]
+      ],
+      "label": "No: re-upload (or convert DWG / hard copy)",
+      "dashed": false
+    },
+    {
+      "id": "valid-yes",
+      "source": "valid",
+      "target": "preprocess",
+      "points": [
+        [
+          810,
+          880
+        ],
+        [
+          935,
+          880
+        ],
+        [
+          935,
+          940
+        ]
+      ],
+      "label": "Yes",
+      "dashed": false
+    },
+    {
+      "id": "preprocess-detect",
+      "source": "preprocess",
+      "target": "detect",
+      "points": [
+        [
+          935,
+          980
+        ],
+        [
+          935,
+          1025
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "approved-data",
+      "source": "datasets",
+      "target": "detect",
+      "points": [
+        [
+          487,
+          1050
+        ],
+        [
+          872,
+          1050
+        ]
+      ],
+      "label": "approved datasets and legends",
+      "dashed": true
+    },
+    {
+      "id": "detect-results",
+      "source": "detect",
+      "target": "results",
+      "points": [
+        [
+          935,
+          1075
+        ],
+        [
+          935,
+          1115
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "store-detections",
+      "source": "results",
+      "target": "db-detections",
+      "points": [
+        [
+          997,
+          1140
+        ],
+        [
+          1045,
+          1140
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "results-ready",
+      "source": "results",
+      "target": "review",
+      "points": [
+        [
+          872,
+          1140
+        ],
+        [
+          85,
+          1140
+        ],
+        [
+          85,
+          1190
+        ]
+      ],
+      "label": "results ready",
+      "dashed": false
+    },
+    {
+      "id": "corrections-needed",
+      "source": "review",
+      "target": "corrections",
+      "points": [
+        [
+          85,
+          1230
+        ],
+        [
+          85,
+          1272.5
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "correct-yes",
+      "source": "corrections",
+      "target": "correct",
+      "points": [
+        [
+          85,
+          1327.5
+        ],
+        [
+          85,
+          1375
+        ]
+      ],
+      "label": "Yes",
+      "dashed": false
+    },
+    {
+      "id": "correct-a",
+      "source": "correct",
+      "target": "A",
+      "points": [
+        [
+          85,
+          1425
+        ],
+        [
+          85,
+          1465
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "correct-no",
+      "source": "corrections",
+      "target": "A",
+      "points": [
+        [
+          145,
+          1300
+        ],
+        [
+          160,
+          1300
+        ],
+        [
+          160,
+          1480
+        ],
+        [
+          100,
+          1480
+        ]
+      ],
+      "label": "No",
+      "dashed": false
+    }
+  ],
+  "texts": [
+    {
+      "label": "Designer",
+      "font": 12,
+      "box": [
+        4,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "Client",
+      "font": 12,
+      "box": [
+        174,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "Administrator",
+      "font": 12,
+      "box": [
+        344,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "User and Access Management Module",
+      "font": 12,
+      "box": [
+        514,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "Project, Floorplan, and Visualization Module",
+      "font": 12,
+      "box": [
+        684,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "AI Analysis and Detection Module",
+      "font": 12,
+      "box": [
+        854,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "MySQL Database",
+      "font": 12,
+      "box": [
+        1024,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "Sign in and request access",
+      "font": 12,
+      "box": [
+        26,
+        141,
+        117,
+        38
+      ]
+    },
+    {
+      "label": "Sign in and request access\n(view-only)",
+      "font": 12,
+      "box": [
+        196,
+        201,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Verify account and log access request",
+      "font": 12,
+      "box": [
+        536,
+        276,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "users, roles, access requests",
+      "font": 10,
+      "box": [
+        1049,
+        289,
+        112,
+        34
+      ]
+    },
+    {
+      "label": "Review and approve access; assign role",
+      "font": 12,
+      "box": [
+        366,
+        356,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Grant role-based permissions",
+      "font": 12,
+      "box": [
+        536,
+        436,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Access granted (view-only)",
+      "font": 12,
+      "box": [
+        196,
+        469,
+        117,
+        42
+      ]
+    },
+    {
+      "label": "B",
+      "font": 14,
+      "box": [
+        242,
+        542,
+        26,
+        26
+      ]
+    },
+    {
+      "label": "Create / open project",
+      "font": 12,
+      "box": [
+        26,
+        581,
+        117,
+        38
+      ]
+    },
+    {
+      "label": "Save project record",
+      "font": 12,
+      "box": [
+        706,
+        636,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "projects, floor plans",
+      "font": 10,
+      "box": [
+        1049,
+        649,
+        112,
+        34
+      ]
+    },
+    {
+      "label": "Upload floor plan (JPEG / PNG / PDF)",
+      "font": 12,
+      "box": [
+        26,
+        706,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Validate floor plan",
+      "font": 12,
+      "box": [
+        706,
+        781,
+        117,
+        38
+      ]
+    },
+    {
+      "label": "Valid?",
+      "font": 10,
+      "box": [
+        723,
+        872.0,
+        84,
+        16
+      ]
+    },
+    {
+      "label": "Preprocess image (OpenCV)",
+      "font": 12,
+      "box": [
+        876,
+        941,
+        117,
+        38
+      ]
+    },
+    {
+      "label": "Maintain approved datasets and legends",
+      "font": 12,
+      "box": [
+        366,
+        1026,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Detect walls and electrical symbols (multimodal AI)",
+      "font": 12,
+      "box": [
+        876,
+        1026,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Return detected walls, symbols and review status",
+      "font": 12,
+      "box": [
+        876,
+        1116,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "detections, review status",
+      "font": 10,
+      "box": [
+        1049,
+        1129,
+        112,
+        34
+      ]
+    },
+    {
+      "label": "Review detections",
+      "font": 12,
+      "box": [
+        26,
+        1191,
+        117,
+        38
+      ]
+    },
+    {
+      "label": "Corrections needed?",
+      "font": 10,
+      "box": [
+        28,
+        1292.0,
+        114,
+        16
+      ]
+    },
+    {
+      "label": "Confirm / add / delete / move / revise items",
+      "font": 12,
+      "box": [
+        29,
+        1376,
+        112,
+        48
+      ]
+    },
+    {
+      "label": "A",
+      "font": 14,
+      "box": [
+        72,
+        1467,
+        26,
+        26
+      ]
+    },
+    {
+      "label": "check user",
+      "font": 10,
+      "box": [
+        826.6666666666666,
+        294,
+        52.666666666666664,
+        12
+      ]
+    },
+    {
+      "label": "access request",
+      "font": 10,
+      "box": [
+        444.1666666666667,
+        294,
+        71.66666666666667,
+        12
+      ]
+    },
+    {
+      "label": "approved, role assigned",
+      "font": 9,
+      "box": [
+        490.5,
+        374,
+        101.0,
+        12
+      ]
+    },
+    {
+      "label": "access granted",
+      "font": 10,
+      "box": [
+        273.8333333333333,
+        439,
+        72.33333333333333,
+        12
+      ]
+    },
+    {
+      "label": "view-only access granted",
+      "font": 10,
+      "box": [
+        366.3333333333333,
+        464,
+        117.33333333333333,
+        12
+      ]
+    },
+    {
+      "label": "No: re-upload (or convert DWG / hard copy)",
+      "font": 10,
+      "box": [
+        380.6666666666667,
+        874,
+        198.66666666666666,
+        12
+      ]
+    },
+    {
+      "label": "Yes",
+      "font": 10,
+      "box": [
+        863.3411458333334,
+        874,
+        21.317708333333332,
+        12
+      ]
+    },
+    {
+      "label": "approved datasets and legends",
+      "font": 10,
+      "box": [
+        607.5,
+        1044,
+        145.0,
+        12
+      ]
+    },
+    {
+      "label": "results ready",
+      "font": 10,
+      "box": [
+        449.1666666666667,
+        1134,
+        61.666666666666664,
+        12
+      ]
+    },
+    {
+      "label": "Yes",
+      "font": 10,
+      "box": [
+        74.34114583333333,
+        1346,
+        21.317708333333332,
+        12
+      ]
+    },
+    {
+      "label": "No",
+      "font": 10,
+      "box": [
+        121.5,
+        1474,
+        17.0,
+        12
+      ]
+    }
+  ]
+}

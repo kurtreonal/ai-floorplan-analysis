@@ -22,7 +22,8 @@ def raster_configuration_versions():
     from app.ai.floor_plan_interpretation.fixture_wiring import CONFIGURATION as fixture_configuration
     from app.ai.floor_plan_interpretation.wiring_recovery import VERSION as recovery_version, RecoveryLimits
     from dataclasses import asdict
-    return dict(geometry=cv_version, observed_wiring=wire_version, device_contacts=contact_version,
+    from app.ai.ocr.local_words import VERSION as ocr_version
+    return dict(geometry=cv_version, observed_wiring=wire_version, device_contacts=contact_version,dimension_ocr=ocr_version,
                 fixture_axis=dict(fixture_configuration),recovery_version=recovery_version,recovery_limits=asdict(RecoveryLimits()))
 
 

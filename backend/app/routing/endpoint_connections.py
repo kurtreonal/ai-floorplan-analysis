@@ -6,7 +6,7 @@ import re
 
 def source_terminal_id(contact):
     """Exact evidence port, not the symbol center/bounds or a proximity cluster."""
-    return f'observed-port.{contact.path_anchor.x:.9f}.{contact.path_anchor.y:.9f}'
+    return getattr(contact,'route_node_id',None) or f'observed-port.{contact.path_anchor.x:.9f}.{contact.path_anchor.y:.9f}'
 
 
 def apply_source_contacts(candidate, document, *, preserve_source=True):
@@ -114,6 +114,14 @@ def apply_source_junctions(candidate, document):
     observed=candidate.payload.observed_routes
     wires={w['id']:w for w in document.get('observed_wiring',[])}
     routes={r.id:r for r in observed.segments}
+    all_wires=document.get('observed_wiring',[])+document.get('generated_wiring',[])
+    # Detector junction numbers are local to one run. Retained review joins
+    # occupy the same draft namespace, sometimes at entirely different corners.
+    used={a['junction_id'] for w in all_wires for a in w.get('junction_attachments',[])}
+    reserved=used | {j.id for j in observed.junctions}
+    def scope(wire):
+        return tuple(wire.get(key,'unknown' if key=='installation_method' else None)
+                     for key in ('circuit_id','elevation_meters','height_above_floor_meters','installation_method'))
     for junction in observed.junctions:
         if junction.ambiguity!='clear':continue
         matches=[]
@@ -121,7 +129,9 @@ def apply_source_junctions(candidate, document):
             wire=wires.get(member.segment_id)
             if not wire or wire.get('disposition','unresolved')!='unresolved' or wire.get('auto_connect_disabled_endpoints'):
                 break
-            if any(a.get('source_junction_id')==junction.id for a in wire.get('junction_attachments',[])):
+            if any(a.get('source_junction_id')==junction.id
+                   and a.get('source_candidate_run_id')==candidate.provenance.candidate_run_id
+                   for a in wire.get('junction_attachments',[])):
                 break
             anchor=routes[member.segment_id].points[member.point_index].model_dump()
             indices=[i for i,p in enumerate(wire['points']) if p==anchor
@@ -129,10 +139,32 @@ def apply_source_junctions(candidate, document):
             if len(indices)!=1:break
             matches.append((wire,indices[0],anchor))
         else:
-            scopes={(w.get('circuit_id'),w.get('elevation_meters'),w.get('installation_method','unknown')) for w,_,_ in matches}
+            scopes={(w.get('circuit_id'),w.get('elevation_meters'),w.get('height_above_floor_meters'),w.get('installation_method','unknown')) for w,_,_ in matches}
             if len(scopes)!=1:continue
+            anchor=matches[0][2]
+            existing={}
+            for wire in all_wires:
+                if wire.get('disposition')=='rejected' or wire.get('suppression_reason'):continue
+                for attachment in wire.get('junction_attachments',[]):
+                    existing.setdefault(attachment['junction_id'],[]).append((wire,attachment))
+            # An inherited source-backed join at the EXACT same source anchor
+            # and assignment can keep its canonical identity. Raw evidence IDs
+            # remain separate below; arbitrary nearby/manual joins never merge.
+            inherited=[]
+            for identity,contacts in existing.items():
+                if all(a.get('source_candidate_run_id') and a.get('source_junction_id')
+                       and a.get('observed_anchor')==anchor
+                       and 0<=a['point_index']<len(w['points'])
+                       and w['points'][a['point_index']]==anchor and scope(w) in scopes
+                       for w,a in contacts):inherited.append(identity)
+            identity=inherited[0] if len(inherited)==1 else junction.id
+            if len(inherited)!=1 and identity in used:
+                identity=next((f'junction-{i:04d}' for i in range(1,10000)
+                               if f'junction-{i:04d}' not in reserved),None)
+                if identity is None:continue
+            used.add(identity);reserved.add(identity)
             for wire,index,anchor in matches:
-                wire['junction_attachments']=[*wire.get('junction_attachments',[]),dict(junction_id=junction.id,point_index=index,
+                wire['junction_attachments']=[*wire.get('junction_attachments',[]),dict(junction_id=identity,point_index=index,
                     source_candidate_run_id=candidate.provenance.candidate_run_id,source_junction_id=junction.id,observed_anchor=anchor)]
     return document
 

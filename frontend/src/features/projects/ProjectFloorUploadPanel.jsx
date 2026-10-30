@@ -4,18 +4,18 @@ import {
   listProjectFloors,
   ProjectFloorApiError,
 } from '../../api/projectFloors.js'
-import { FloorPlanApiError, listFloorPlans } from '../../api/floorPlans.js'
+import { FloorPlanApiError, listFloorPlans,originalFloorPlanHref } from '../../api/floorPlans.js'
 import {
   listProcessingJobs,
   ProcessingJobApiError,
 } from '../../api/processingJobs.js'
-import { getLayoutHref, getViewer3dHref } from '../../routes/projectRoutes.js'
 import { CreateProjectFloorForm } from './CreateProjectFloorForm.jsx'
 import { FloorPlanUploadForm } from './FloorPlanUploadForm.jsx'
 import { ProcessingJobPanel } from './ProcessingJobPanel.jsx'
-import { AnalysisSettingsPanel } from './AnalysisSettingsPanel.jsx'
 import { orderFloors, orderNamed } from '../../utils/listOrder.js'
 import { FloorPlanLifecycleControls, FloorPlanTrash } from './FloorPlanLifecycleControls.jsx'
+import {PlanNameEditor} from './PlanNameEditor.jsx'
+import {PlanLayoutSettings} from './PlanLayoutSettings.jsx'
 
 
 function getFloorListError(error) {
@@ -185,8 +185,7 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
       <div className="project-section-heading">
         <span className="project-kicker mono">FLOOR PLANS</span>
         <h2 id="project-floor-panel-title">Project floor plans</h2>
-        <p>Create a floor, upload a JPEG, PNG or PDF, then analyze and open the plan editor.</p>
-        <p>Use Open plan editor for drafts; saved layout links require approved geometry.</p>
+        <p>Add floors, choose a floor below, then upload its plans. Plan names stay Pending until the designer names them.</p>
       </div>
 
       {loadState === 'loading' && (
@@ -220,41 +219,24 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
 
           {role === 'ADMIN' && (
             <div className="project-floor-admin" role="note">
-              <p>Floor-plan uploads require a Designer account.</p>
-              {floors.length > 0 && <label>Settings floor
+              {floors.length > 0 && <label>Floor
                 <select value={selectedFloorId} onChange={(event) => setSelectedFloorId(event.target.value)}>
                   {orderFloors(floors).map((floor) => <option key={floor.id} value={floor.id}>{floor.name}</option>)}
                 </select>
               </label>}
-              {floors.length > 0 && (
-                <ul>
-                  {orderFloors(floors).map((floor) => (
-                    <li key={floor.id}>
-                      <span>
-                        <strong>{floor.name}</strong>
-                        <span className="mono">FLOOR #{floor.id} · ORDER {floor.sort_order}</span>
-                      </span>
-                      <span className="project-floor-view-links">
-                        <a href={getLayoutHref(projectId, floor.id)}>Open current 2D layout</a>
-                        <a href={getViewer3dHref(projectId, floor.id)}>Open 3D viewer</a>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
           )}
 
           {isDesigner && (
             <div className="project-floor-designer-tools">
-              <div className="project-floor-create-block">
-                <h3>Create a project floor</h3>
+              <section className="project-floor-create-block"><h3>Add floors</h3>
                 <CreateProjectFloorForm
                   projectId={projectId}
+                  existingCount={floors.length}
                   disabled={isUploading}
                   onCreated={handleFloorCreated}
                 />
-              </div>
+              </section>
 
               {floors.length > 0 && (
                 <div className="project-floor-upload-block">
@@ -271,27 +253,17 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                       ))}
                     </select>
                   </label>
+                  <PlanNameEditor key={`floor-${selectedFloorId}-${selectedFloorName}`} floor projectId={projectId} item={{id:Number(selectedFloorId),name:selectedFloorName}} onSaved={name=>setFloors(current=>current.map(f=>String(f.id)===String(selectedFloorId)?{...f,name}:f))}/>
+                  <div className="studio-table-scroll"><table className="studio-floorplan-table plan-upload-table"><thead><tr><th>Plan name</th><th>Add floor-plan file</th></tr></thead><tbody><tr><td><span className="project-status">Pending designer name</span></td><td>
                   <FloorPlanUploadForm
+                    key={selectedFloorId}
                     projectId={projectId}
                     projectFloorId={selectedFloorId}
                     onUploaded={handleUploaded}
                     onUploadingChange={setIsUploading}
                     onUnavailable={() => setRefreshKey((key) => key + 1)}
                   />
-                  <div className="project-floor-view-links">
-                    <a
-                      className="project-floor-layout-link"
-                      href={getLayoutHref(projectId, Number(selectedFloorId))}
-                    >
-                      Open current 2D layout
-                    </a>
-                    <a
-                      className="project-floor-layout-link"
-                      href={getViewer3dHref(projectId, Number(selectedFloorId))}
-                    >
-                      Open 3D viewer
-                    </a>
-                  </div>
+                  </td></tr></tbody></table></div>
                 </div>
               )}
             </div>
@@ -304,10 +276,6 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
             </div>
           )}
 
-          {selectedFloorId && <AnalysisSettingsPanel
-            key={`${projectId}-${selectedFloorId}-${planRefreshKey}`}
-            projectId={projectId} floorId={Number(selectedFloorId)} canEdit={isDesigner}
-          />}
 
           {planLoadState === 'error' && (
             <div className="project-floor-state project-state-error">
@@ -335,13 +303,11 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
               <div className="studio-table-scroll">
               <table className="studio-floorplan-table">
                 <caption className="sr-only">Saved floor plans for {selectedFloorName}</caption>
-                <thead><tr><th scope="col">Floor plan</th><th scope="col">Upload status</th><th scope="col">Analysis &amp; actions</th><th scope="col">Details</th></tr></thead>
+                <thead><tr><th scope="col">Plan name / file</th><th scope="col" className="plan-status-cell">Status</th><th scope="col" className="plan-actions-cell">Actions</th></tr></thead>
                 <tbody>
-                {orderNamed(visiblePlans, plan => plan.original_filename).map((upload) => (
+                {orderNamed(visiblePlans, plan => plan.display_name || plan.original_filename).map((upload) => (
                   <tr key={upload.id}>
-                    <th scope="row">{upload.original_filename}</th>
-                    <td>{upload.processing_status}</td>
-                    <td>
+                    <th scope="row"><span className="plan-filename">{upload.display_name || 'Pending'}</span><small className="account-secondary" title={upload.original_filename}>{upload.original_filename}</small></th>
                     <ProcessingJobPanel
                       key={`${upload.id}-${upload.latest_job?.job_id || 'none'}-${upload.latest_job?.updated_at || 'none'}`}
                       compact
@@ -349,19 +315,21 @@ export function ProjectFloorUploadPanel({ projectId, session }) {
                       projectFloorId={Number(selectedFloorId)}
                       floorPlanId={upload.id}
                       originalFilename={upload.original_filename}
+                      optionsContent={<PlanLayoutSettings projectId={projectId} planId={upload.id} canEdit={isDesigner} onSaved={()=>setPlanRefreshKey(key=>key+1)}/>}
                       initialJob={upload.latest_job}
                       canStart={isDesigner}
-                    />
-                    </td>
-                    <td><details><summary>File details</summary><dl>
+                    >
+                    <div className="plan-file-options"><a className="project-open-link" href={originalFloorPlanHref(projectId,upload.id)} target="_blank" rel="noopener noreferrer">Download original</a>{isDesigner && <PlanNameEditor key={`${upload.id}-${upload.display_name || ''}`} projectId={projectId} item={upload} onSaved={()=>setPlanRefreshKey(key=>key+1)}/>}</div>
+                    <dl className="plan-file-details">
                       <div><dt>Floor</dt><dd>{upload.floor_name || selectedFloorName}</dd></div>
+                      <div><dt>Upload status</dt><dd>{upload.processing_status}</dd></div>
                       <div><dt>MIME type</dt><dd>{upload.mime_type}</dd></div>
                       <div><dt>File size</dt><dd>{upload.file_size.toLocaleString()} bytes</dd></div>
                       <div><dt>Floor-plan ID</dt><dd>{upload.id}</dd></div>
                       <div><dt>Job history</dt><dd>{upload.history.length}</dd></div>
-                    </dl></details>
+                    </dl>
                     {isDesigner && <FloorPlanLifecycleControls projectId={projectId} planId={upload.id} onChanged={handlePlanChanged} />}
-                    </td>
+                    </ProcessingJobPanel>
                   </tr>
                 ))}
                 </tbody>

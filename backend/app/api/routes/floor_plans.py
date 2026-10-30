@@ -43,6 +43,61 @@ from app.services.floor_plan_lifecycle_service import (
 
 router = APIRouter(prefix="/api/projects", tags=["floor plans"])
 
+from app.services.plan_naming_service import NameChange,rename
+from app.services.local_accounts import require_same_origin
+from app.services.intake_schema import floor_plan_data
+from fastapi.responses import FileResponse
+from app.services.layout_materials import LayoutType
+from app.schemas.material_selection import PlanLayoutWrite
+
+
+@router.get('/{project_id}/floor-plans/{floor_plan_id}/layout-type')
+def get_plan_layout(project_id:int,floor_plan_id:int,user:User=Depends(require_roles('ADMIN','DESIGNER')),db:Session=Depends(get_db)):
+    from app.services.plan_material_setup import read
+    try:return read(db,user,project_id,floor_plan_id)
+    except ProjectNotFoundError:raise HTTPException(404,'Project not found.') from None
+    except SQLAlchemyError:
+        db.rollback();raise HTTPException(503,'Plan layout settings are temporarily unavailable.') from None
+
+
+@router.put('/{project_id}/floor-plans/{floor_plan_id}/layout-type')
+def change_plan_layout(project_id:int,floor_plan_id:int,data:PlanLayoutWrite,request:Request,
+    user:User=Depends(require_roles('DESIGNER')),db:Session=Depends(get_db)):
+    require_same_origin(request)
+    from app.services.plan_material_setup import change
+    from app.services.material_workbook import WorkbookError
+    from app.services.project_pricing_service import PricingConflict
+    try:return change(db,user,project_id,floor_plan_id,data)
+    except PricingConflict as error:
+        db.rollback();raise HTTPException(409,str(error)) from None
+    except WorkbookError as error:
+        db.rollback();raise HTTPException(422,str(error)) from None
+    except ProjectNotFoundError:
+        db.rollback();raise HTTPException(404,'Project not found.') from None
+    except SQLAlchemyError:
+        db.rollback();raise HTTPException(503,'Plan layout settings are temporarily unavailable.') from None
+
+
+@router.get('/{project_id}/floor-plans/{floor_plan_id}/original')
+def download_original(project_id:int,floor_plan_id:int,request:Request,
+    user:User=Depends(require_roles('ADMIN','DESIGNER')),db:Session=Depends(get_db)):
+    from app.services.floor_plan_upload import original_for_review
+    from app.services.source_identity import SourceIdentityError
+    try:
+        plan,path=original_for_review(db,current_user=user,project_id=project_id,floor_plan_id=floor_plan_id,
+            upload_directory=get_upload_directory(request.app.state.settings))
+    except (ProjectNotFoundError,ProjectFloorNotFoundError,SourceIdentityError,OSError):
+        raise HTTPException(404,'Original floor plan is not available.') from None
+    return FileResponse(path,filename=plan.original_filename,media_type=plan.mime_type,
+        headers={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'})
+
+
+@router.patch('/{project_id}/floor-plans/{floor_plan_id}/name')
+def rename_plan(project_id:int,floor_plan_id:int,data:NameChange,request:Request,
+    user:User=Depends(require_roles('DESIGNER')),db:Session=Depends(get_db)):
+    require_same_origin(request)
+    return rename(db,user,project_id,floor_plan_id,data)
+
 
 def _measurement_operation(session,action,*,write=False):
     try:
@@ -62,8 +117,9 @@ def _measurement_operation(session,action,*,write=False):
 
 @router.get('/{project_id}/floor-plans/{floor_plan_id}/measurement-settings',response_model=PlanMeasurementResponse)
 def get_plan_measurements(project_id:Annotated[int,Path(gt=0)],floor_plan_id:Annotated[int,Path(gt=0)],
+    processing_job_id:Annotated[int|None,Query(gt=0)]=None,
     user:User=Depends(require_roles('DESIGNER','ADMIN')),session:Session=Depends(get_db)):
-    return _measurement_operation(session,lambda:measurements.retrieve(session,user,project_id,floor_plan_id))
+    return _measurement_operation(session,lambda:measurements.retrieve(session,user,project_id,floor_plan_id,processing_job_id))
 
 
 @router.put('/{project_id}/floor-plans/{floor_plan_id}/measurement-settings',response_model=PlanMeasurementResponse)
@@ -218,7 +274,7 @@ def list_floor_plans_endpoint(
         ) from None
 
     return [
-        FloorPlanListItemResponse.model_validate(floor_plan)
+        FloorPlanListItemResponse.model_validate(floor_plan_data(database_session,floor_plan))
         for floor_plan in floor_plans
     ]
 
@@ -234,6 +290,8 @@ async def upload_floor_plan_endpoint(
     project_floor_id: Annotated[int, Form(gt=0)],
     file: Annotated[UploadFile, File()],
     measurement_settings: Annotated[str | None, Form(max_length=20000)] = None,
+    layout_type: Annotated[LayoutType | None, Form()] = None,
+    layout_types: Annotated[list[LayoutType] | None, Form(min_length=1,max_length=3)] = None,
     current_user: User = Depends(require_roles("DESIGNER")),
     database_session: Session = Depends(get_db),
 ) -> FloorPlanUploadResponse:
@@ -270,6 +328,8 @@ async def upload_floor_plan_endpoint(
                 project_id=project_id,
                 project_floor_id=project_floor_id,
                 filename=file.filename or "",
+                layout_type=layout_type,
+                layout_types=layout_types,
                 declared_mime_type=file.content_type or "",
                 content=content,
                 upload_directory=upload_directory,
@@ -305,4 +365,4 @@ async def upload_floor_plan_endpoint(
         except Exception:
             pass
 
-    return FloorPlanUploadResponse.model_validate(floor_plan)
+    return FloorPlanUploadResponse.model_validate(floor_plan_data(database_session,floor_plan))

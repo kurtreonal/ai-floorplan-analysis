@@ -12,7 +12,8 @@ it('applies only mapped backend VED defaults and preserves overrides and referen
   expect(withMountingDefaults({}, {...presentation,mapped:false},defaults)).toEqual({})
   expect(withMountingDefaults({}, {...presentation,name:'Data outlet'},defaults)).toEqual({})
   const previous={mounting_height_meters:.3,mounting_reference:'device_center',mounting_height_source:'ved_default'}
-  expect(withMountingDefaults(previous,{mapped:true,name:'Wall switch'},defaults).mounting_height_meters).toBe(1.2)
+  expect(withMountingDefaults(previous,{mapped:true,name:'Wall switch'},defaults)).toEqual(previous)
+  expect(withMountingDefaults(previous,presentation,{outlet:.4,switch:1.3})).toEqual(previous)
 })
 it('preserves center and separate terminal offset through payload, copy and synchronized 3D placement',()=>{
   const symbol={id:'s',center:{x:20,y:30},disposition:'added',symbol_legend_id:1,mounting_height_meters:.3,mounting_reference:'device_center',terminal_offset_meters:.1,mounting_height_source:'designer'}

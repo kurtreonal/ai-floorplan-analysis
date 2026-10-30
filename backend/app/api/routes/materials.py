@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -10,8 +10,34 @@ from app.schemas.material_import import ImportPreview, ImportResult, MaterialImp
 from app.services import material_import_service as service
 from app.services.material_price_service import MaterialPriceError
 from app.services.material_workbook import MAX_FILE, WorkbookError
+from app.schemas.material_price import CatalogMaterial,CatalogPriceWrite,CatalogMaterialCreate
+from app.services import material_price_service as price_service
 
 router = APIRouter(prefix='/api/admin/materials', tags=['material pricing'])
+
+
+@router.get('',response_model=list[CatalogMaterial])
+def catalog(_user:User=Depends(require_roles('ADMIN')),session:Session=Depends(get_db)):
+    return execute(session,lambda:price_service.catalog(session))
+
+
+@router.post('',response_model=CatalogMaterial,status_code=201)
+def create_item(data:CatalogMaterialCreate,request:Request,user:User=Depends(require_roles('ADMIN')),session:Session=Depends(get_db)):
+    from app.services.local_accounts import require_same_origin
+    require_same_origin(request)
+    return execute(session,lambda:price_service.create_catalog_material(session,user,data))
+
+
+@router.put('/{material_id}/price',status_code=204)
+def save_price(material_id:int,data:CatalogPriceWrite,user:User=Depends(require_roles('ADMIN')),session:Session=Depends(get_db)):
+    try:price_service.save_catalog_price(session,user,material_id,data)
+    except MaterialPriceError as error:
+        session.rollback()
+        raise HTTPException(409 if error.code=='STALE_PRICE_REVISION' else 422,
+            'Price changed. Reload and try again.' if error.code=='STALE_PRICE_REVISION' else 'This price cannot be changed.') from None
+    except (PermissionError,SQLAlchemyError) as error:
+        session.rollback()
+        raise HTTPException(403 if isinstance(error,PermissionError) else 503,'Material prices are temporarily unavailable.') from None
 
 
 def contents(file):

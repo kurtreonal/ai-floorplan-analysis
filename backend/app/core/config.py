@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     oauth_discovery_url: str | None = None
     oauth_scopes: str | None = None
     session_secret: SecretStr | None = None
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from_email: str | None = None
+    smtp_implicit_tls: bool = False
 
     upload_dir: Path | None = None
     processed_dir: Path | None = None

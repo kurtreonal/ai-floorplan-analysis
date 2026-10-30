@@ -1,0 +1,930 @@
+{
+  "nodes": {
+    "system": {
+      "label": "VED Electrical Services",
+      "x": 760,
+      "y": 160,
+      "w": 500,
+      "h": 1510,
+      "kind": "system"
+    },
+    "access": {
+      "label": "USER AND ACCESS\nMANAGEMENT MODULE",
+      "x": 790,
+      "y": 320,
+      "w": 440,
+      "h": 160,
+      "kind": "module"
+    },
+    "project-visualization": {
+      "label": "PROJECT, FLOOR PLAN AND\nVISUALIZATION MODULE",
+      "x": 790,
+      "y": 570,
+      "w": 440,
+      "h": 260,
+      "kind": "module"
+    },
+    "ai": {
+      "label": "AI ANALYSIS AND\nDETECTION MODULE",
+      "x": 790,
+      "y": 930,
+      "w": 440,
+      "h": 180,
+      "kind": "module"
+    },
+    "routing-cost": {
+      "label": "ELECTRICAL ROUTING, COST ESTIMATION\nAND REPORTING MODULE",
+      "x": 790,
+      "y": 1290,
+      "w": 440,
+      "h": 280,
+      "kind": "module"
+    },
+    "admin": {
+      "label": "ADMINISTRATOR",
+      "x": 60,
+      "y": 820,
+      "w": 230,
+      "h": 300,
+      "kind": "actor"
+    },
+    "designer": {
+      "label": "ELECTRICAL DESIGNER",
+      "x": 1750,
+      "y": 820,
+      "w": 230,
+      "h": 300,
+      "kind": "actor"
+    },
+    "client": {
+      "label": "CLIENT*\nREAD-ONLY",
+      "x": 2360,
+      "y": 960,
+      "w": 230,
+      "h": 260,
+      "kind": "actor"
+    },
+    "database": {
+      "label": "MySQL Database",
+      "x": 900,
+      "y": 1770,
+      "w": 200,
+      "h": 150,
+      "kind": "database"
+    },
+    "a-module": {
+      "label": "A",
+      "x": 1320,
+      "y": 500,
+      "w": 50,
+      "h": 50,
+      "kind": "connector"
+    },
+    "v-module": {
+      "label": "V",
+      "x": 1320,
+      "y": 850,
+      "w": 50,
+      "h": 50,
+      "kind": "connector"
+    },
+    "c-module": {
+      "label": "C",
+      "x": 1320,
+      "y": 1600,
+      "w": 50,
+      "h": 50,
+      "kind": "connector"
+    },
+    "a-client": {
+      "label": "A",
+      "x": 2140,
+      "y": 780,
+      "w": 50,
+      "h": 50,
+      "kind": "connector"
+    },
+    "v-client": {
+      "label": "V",
+      "x": 2140,
+      "y": 1030,
+      "w": 50,
+      "h": 50,
+      "kind": "connector"
+    },
+    "c-client": {
+      "label": "C",
+      "x": 2140,
+      "y": 1280,
+      "w": 50,
+      "h": 50,
+      "kind": "connector"
+    }
+  },
+  "flows": [
+    {
+      "id": "f51",
+      "source": "admin",
+      "target": "access",
+      "points": [
+        [
+          90,
+          820
+        ],
+        [
+          90,
+          360
+        ],
+        [
+          790,
+          360
+        ]
+      ],
+      "label": "Sign in; manage user records / roles*;\nassign or revoke dataset approver",
+      "planned": false,
+      "tag": "admin-access-manage"
+    },
+    {
+      "id": "f53",
+      "source": "access",
+      "target": "admin",
+      "points": [
+        [
+          790,
+          420
+        ],
+        [
+          130,
+          420
+        ],
+        [
+          130,
+          820
+        ]
+      ],
+      "label": "User / role records*; assignment history\nand access / update status",
+      "planned": false,
+      "tag": "admin-access-result"
+    },
+    {
+      "id": "f55",
+      "source": "admin",
+      "target": "project-visualization",
+      "points": [
+        [
+          170,
+          820
+        ],
+        [
+          170,
+          615
+        ],
+        [
+          790,
+          615
+        ]
+      ],
+      "label": "Inspect all projects, floor plans\nand saved 2D / 3D layouts",
+      "planned": false,
+      "tag": "admin-project-inspect"
+    },
+    {
+      "id": "f57",
+      "source": "project-visualization",
+      "target": "admin",
+      "points": [
+        [
+          790,
+          665
+        ],
+        [
+          210,
+          665
+        ],
+        [
+          210,
+          820
+        ]
+      ],
+      "label": "Project details; uploaded plans;\nsaved layouts and job status",
+      "planned": false,
+      "tag": "admin-project-result"
+    },
+    {
+      "id": "f59",
+      "source": "admin",
+      "target": "ai",
+      "points": [
+        [
+          290,
+          980
+        ],
+        [
+          790,
+          980
+        ]
+      ],
+      "label": "Manage approved datasets* / legends;\ninspect AI results and review records",
+      "planned": false,
+      "tag": "admin-ai-manage"
+    },
+    {
+      "id": "f61",
+      "source": "ai",
+      "target": "admin",
+      "points": [
+        [
+          790,
+          1030
+        ],
+        [
+          290,
+          1030
+        ]
+      ],
+      "label": "Dataset / legend update status*;\nAI results and review records",
+      "planned": false,
+      "tag": "admin-ai-result"
+    },
+    {
+      "id": "f63",
+      "source": "admin",
+      "target": "routing-cost",
+      "points": [
+        [
+          250,
+          1120
+        ],
+        [
+          250,
+          1330
+        ],
+        [
+          790,
+          1330
+        ]
+      ],
+      "label": "Inspect saved wire / conduit routes",
+      "planned": false,
+      "tag": "admin-route-inspect"
+    },
+    {
+      "id": "f65",
+      "source": "routing-cost",
+      "target": "admin",
+      "points": [
+        [
+          790,
+          1370
+        ],
+        [
+          210,
+          1370
+        ],
+        [
+          210,
+          1120
+        ]
+      ],
+      "label": "Stored routes and measured lengths",
+      "planned": false,
+      "tag": "admin-route-result"
+    },
+    {
+      "id": "f67",
+      "source": "admin",
+      "target": "routing-cost",
+      "points": [
+        [
+          170,
+          1120
+        ],
+        [
+          170,
+          1410
+        ],
+        [
+          790,
+          1410
+        ]
+      ],
+      "label": "Import / update material catalog and prices;\nmanage report records*",
+      "planned": false,
+      "tag": "admin-price-manage"
+    },
+    {
+      "id": "f69",
+      "source": "routing-cost",
+      "target": "admin",
+      "points": [
+        [
+          790,
+          1450
+        ],
+        [
+          130,
+          1450
+        ],
+        [
+          130,
+          1120
+        ]
+      ],
+      "label": "Material catalog / price revision status",
+      "planned": false,
+      "tag": "admin-price-result"
+    },
+    {
+      "id": "f71",
+      "source": "admin",
+      "target": "routing-cost",
+      "points": [
+        [
+          90,
+          1120
+        ],
+        [
+          90,
+          1490
+        ],
+        [
+          790,
+          1490
+        ]
+      ],
+      "label": "Inspect estimates, BOM and price versions;\nexport costs / reports*",
+      "planned": false,
+      "tag": "admin-cost-export"
+    },
+    {
+      "id": "f73",
+      "source": "routing-cost",
+      "target": "admin",
+      "points": [
+        [
+          790,
+          1530
+        ],
+        [
+          75,
+          1530
+        ],
+        [
+          75,
+          1120
+        ]
+      ],
+      "label": "Captured costs, quantities and export files*",
+      "planned": false,
+      "tag": "admin-cost-result"
+    },
+    {
+      "id": "f75",
+      "source": "designer",
+      "target": "access",
+      "points": [
+        [
+          1940,
+          820
+        ],
+        [
+          1940,
+          360
+        ],
+        [
+          1230,
+          360
+        ]
+      ],
+      "label": "Sign in and request access",
+      "planned": false,
+      "tag": "designer-sign-in"
+    },
+    {
+      "id": "f77",
+      "source": "access",
+      "target": "designer",
+      "points": [
+        [
+          1230,
+          420
+        ],
+        [
+          1900,
+          420
+        ],
+        [
+          1900,
+          820
+        ]
+      ],
+      "label": "Access result and permissions",
+      "planned": false,
+      "tag": "designer-access-result"
+    },
+    {
+      "id": "f79",
+      "source": "designer",
+      "target": "project-visualization",
+      "points": [
+        [
+          1860,
+          820
+        ],
+        [
+          1860,
+          615
+        ],
+        [
+          1230,
+          615
+        ]
+      ],
+      "label": "Create / update projects and upload plans",
+      "planned": false,
+      "tag": "designer-project-manage"
+    },
+    {
+      "id": "f81",
+      "source": "project-visualization",
+      "target": "designer",
+      "points": [
+        [
+          1230,
+          665
+        ],
+        [
+          1820,
+          665
+        ],
+        [
+          1820,
+          820
+        ]
+      ],
+      "label": "Saved project / floor-plan records and status",
+      "planned": false,
+      "tag": "designer-project-result"
+    },
+    {
+      "id": "f83",
+      "source": "designer",
+      "target": "project-visualization",
+      "points": [
+        [
+          1780,
+          820
+        ],
+        [
+          1780,
+          715
+        ],
+        [
+          1230,
+          715
+        ]
+      ],
+      "label": "Open, edit and save layout",
+      "planned": false,
+      "tag": "designer-layout-edit"
+    },
+    {
+      "id": "f85",
+      "source": "project-visualization",
+      "target": "designer",
+      "points": [
+        [
+          1230,
+          765
+        ],
+        [
+          1760,
+          765
+        ],
+        [
+          1760,
+          820
+        ]
+      ],
+      "label": "Saved 2D / 3D layout and geometry version",
+      "planned": false,
+      "tag": "designer-layout-result"
+    },
+    {
+      "id": "f87",
+      "source": "designer",
+      "target": "ai",
+      "points": [
+        [
+          1750,
+          980
+        ],
+        [
+          1230,
+          980
+        ]
+      ],
+      "label": "Start analysis; confirm or correct results",
+      "planned": false,
+      "tag": "designer-analysis-review"
+    },
+    {
+      "id": "f89",
+      "source": "ai",
+      "target": "designer",
+      "points": [
+        [
+          1230,
+          1030
+        ],
+        [
+          1750,
+          1030
+        ]
+      ],
+      "label": "Detected walls / symbols and review status",
+      "planned": false,
+      "tag": "designer-analysis-result"
+    },
+    {
+      "id": "f91",
+      "source": "designer",
+      "target": "routing-cost",
+      "points": [
+        [
+          1780,
+          1120
+        ],
+        [
+          1780,
+          1330
+        ],
+        [
+          1230,
+          1330
+        ]
+      ],
+      "label": "Set routing inputs; calculate electrical routes",
+      "planned": false,
+      "tag": "designer-route-generate"
+    },
+    {
+      "id": "f93",
+      "source": "routing-cost",
+      "target": "designer",
+      "points": [
+        [
+          1230,
+          1370
+        ],
+        [
+          1820,
+          1370
+        ],
+        [
+          1820,
+          1120
+        ]
+      ],
+      "label": "Wire / conduit paths and measured lengths",
+      "planned": false,
+      "tag": "designer-route-result"
+    },
+    {
+      "id": "f95",
+      "source": "designer",
+      "target": "routing-cost",
+      "points": [
+        [
+          1860,
+          1120
+        ],
+        [
+          1860,
+          1490
+        ],
+        [
+          1230,
+          1490
+        ]
+      ],
+      "label": "Apply project prices; generate estimate;\nexport BOM / reports*",
+      "planned": false,
+      "tag": "designer-estimate-generate"
+    },
+    {
+      "id": "f97",
+      "source": "routing-cost",
+      "target": "designer",
+      "points": [
+        [
+          1230,
+          1530
+        ],
+        [
+          1900,
+          1530
+        ],
+        [
+          1900,
+          1120
+        ]
+      ],
+      "label": "Cost breakdown and generated export files*",
+      "planned": false,
+      "tag": "designer-estimate-result"
+    },
+    {
+      "id": "f111",
+      "source": "a-module",
+      "target": "access",
+      "points": [
+        [
+          1320,
+          515
+        ],
+        [
+          1130,
+          515
+        ],
+        [
+          1130,
+          480
+        ]
+      ],
+      "label": "Sign-in request",
+      "planned": true,
+      "tag": "client-sign-in-request"
+    },
+    {
+      "id": "f113",
+      "source": "access",
+      "target": "a-module",
+      "points": [
+        [
+          1080,
+          480
+        ],
+        [
+          1080,
+          535
+        ],
+        [
+          1320,
+          535
+        ]
+      ],
+      "label": "Read-only access",
+      "planned": true,
+      "tag": "client-sign-in-response"
+    },
+    {
+      "id": "f115",
+      "source": "client",
+      "target": "a-client",
+      "points": [
+        [
+          2490,
+          960
+        ],
+        [
+          2490,
+          795
+        ],
+        [
+          2190,
+          795
+        ]
+      ],
+      "label": "Sign-in request",
+      "planned": true,
+      "tag": "client-sign-in-request"
+    },
+    {
+      "id": "f117",
+      "source": "a-client",
+      "target": "client",
+      "points": [
+        [
+          2190,
+          815
+        ],
+        [
+          2450,
+          815
+        ],
+        [
+          2450,
+          960
+        ]
+      ],
+      "label": "Read-only access",
+      "planned": true,
+      "tag": "client-sign-in-response"
+    },
+    {
+      "id": "f119",
+      "source": "v-module",
+      "target": "project-visualization",
+      "points": [
+        [
+          1320,
+          865
+        ],
+        [
+          1130,
+          865
+        ],
+        [
+          1130,
+          830
+        ]
+      ],
+      "label": "View saved layout",
+      "planned": true,
+      "tag": "client-layout-request"
+    },
+    {
+      "id": "f121",
+      "source": "project-visualization",
+      "target": "v-module",
+      "points": [
+        [
+          1080,
+          830
+        ],
+        [
+          1080,
+          885
+        ],
+        [
+          1320,
+          885
+        ]
+      ],
+      "label": "Read-only layout",
+      "planned": true,
+      "tag": "client-layout-response"
+    },
+    {
+      "id": "f123",
+      "source": "client",
+      "target": "v-client",
+      "points": [
+        [
+          2360,
+          1045
+        ],
+        [
+          2190,
+          1045
+        ]
+      ],
+      "label": "View saved layout",
+      "planned": true,
+      "tag": "client-layout-request"
+    },
+    {
+      "id": "f125",
+      "source": "v-client",
+      "target": "client",
+      "points": [
+        [
+          2190,
+          1075
+        ],
+        [
+          2360,
+          1075
+        ]
+      ],
+      "label": "Read-only layout",
+      "planned": true,
+      "tag": "client-layout-response"
+    },
+    {
+      "id": "f127",
+      "source": "c-module",
+      "target": "routing-cost",
+      "points": [
+        [
+          1320,
+          1615
+        ],
+        [
+          1130,
+          1615
+        ],
+        [
+          1130,
+          1570
+        ]
+      ],
+      "label": "View cost estimate",
+      "planned": true,
+      "tag": "client-cost-request"
+    },
+    {
+      "id": "f129",
+      "source": "routing-cost",
+      "target": "c-module",
+      "points": [
+        [
+          1080,
+          1570
+        ],
+        [
+          1080,
+          1635
+        ],
+        [
+          1320,
+          1635
+        ]
+      ],
+      "label": "Read-only costs",
+      "planned": true,
+      "tag": "client-cost-response"
+    },
+    {
+      "id": "f131",
+      "source": "client",
+      "target": "c-client",
+      "points": [
+        [
+          2450,
+          1220
+        ],
+        [
+          2450,
+          1295
+        ],
+        [
+          2190,
+          1295
+        ]
+      ],
+      "label": "View cost estimate",
+      "planned": true,
+      "tag": "client-cost-request"
+    },
+    {
+      "id": "f133",
+      "source": "c-client",
+      "target": "client",
+      "points": [
+        [
+          2190,
+          1315
+        ],
+        [
+          2490,
+          1315
+        ],
+        [
+          2490,
+          1220
+        ]
+      ],
+      "label": "Read-only costs",
+      "planned": true,
+      "tag": "client-cost-response"
+    },
+    {
+      "id": "f135",
+      "source": "system",
+      "target": "database",
+      "points": [
+        [
+          975,
+          1670
+        ],
+        [
+          975,
+          1770
+        ]
+      ],
+      "label": "Store data",
+      "planned": false,
+      "tag": "persist"
+    },
+    {
+      "id": "f137",
+      "source": "database",
+      "target": "system",
+      "points": [
+        [
+          1025,
+          1770
+        ],
+        [
+          1025,
+          1670
+        ]
+      ],
+      "label": "Retrieve saved data",
+      "planned": false,
+      "tag": "retrieve"
+    }
+  ]
+}

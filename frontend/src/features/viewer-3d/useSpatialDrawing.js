@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { appendDrawingVertex } from '../detection-review/connectedWiring.js'
-import { drawingWorkPlane, drawingTargetVertex, spatialDrawingTarget } from './workPlaneDrawing.js'
+import { drawingWorkPlane, drawingTargetVertex, spatialDrawingTarget, usesRelativeHeight } from './workPlaneDrawing.js'
 
-export function useSpatialDrawing({tool,scene,draft,context,presentations,method,editingSession,onAddWire,onAddWall,onPendingChange,onToolChange,snapping,disabled}) {
-  const [settings,setSettings]=useState({elevation:'',circuit:'',thickness:'',height:'',length:'',axis:'none'})
+export function useSpatialDrawing({tool,scene,draft,context,presentations,method,editingSession,onAddWire,onAddWall,onPendingChange,onToolChange,snapping,disabled,setupRevision=0}) {
+  const [storedSettings,setSettings]=useState({revision:setupRevision,values:{elevation:'',circuit:'',thickness:'',height:'',length:'',axis:'none'}})
+  // A setup reset must not reuse a stale absolute-datum number as an AFF height.
+  const settings=storedSettings.revision===setupRevision ? storedSettings.values : {...storedSettings.values,elevation:''}
   const [session,setSession]=useState(null)
   const [hasDrawn,setHasDrawn]=useState(false)
   const [hover,setHover]=useState(null)
@@ -12,7 +14,7 @@ export function useSpatialDrawing({tool,scene,draft,context,presentations,method
   const active=['wire','draw'].includes(tool)
   const vertices=useMemo(()=>session&&session.tool===tool&&session.id===editingSession ? session.vertices : [],[session,tool,editingSession])
   let config=null,reason=null
-  if(active)try{config=drawingWorkPlane(tool,settings,context,scene)}catch(e){reason=e.message}
+  if(active)try{config=drawingWorkPlane(tool,settings,context,scene,method)}catch(e){reason=e.message}
   const enabled=active&&config!==null&&!disabled
   const activePending=pending&&pending.draft===draft&&pending.tool===tool&&pending.id===editingSession?pending:null
   const clear=useCallback(()=>{setSession(null);setPending(null);setHover(null);setError(null);onPendingChange?.(false)},[onPendingChange])
@@ -20,7 +22,7 @@ export function useSpatialDrawing({tool,scene,draft,context,presentations,method
   const finish=useCallback(()=>{
     if(!enabled)return
     if(tool==='wire'&&vertices.length>=2) {
-      if(onAddWire?.(vertices.map(v=>v.point),vertices,{elevation_meters:config?.elevation,circuit_id:config?.circuitId})===false)return
+      if(onAddWire?.(vertices.map(v=>v.point),vertices,config?.wireAttributes || {elevation_meters:config?.elevation,circuit_id:config?.circuitId})===false)return
     }
     cancel()
   },[enabled,tool,vertices,onAddWire,config,cancel])
@@ -64,10 +66,10 @@ export function useSpatialDrawing({tool,scene,draft,context,presentations,method
       addVertex(target)
     }
   }
-  return {active,enabled,config,settings,keepCanvas:hasDrawn,reason:disabled?'Wait for the current save to finish.':reason,error,vertices,
+  return {active,enabled,config,settings,relativeHeight:usesRelativeHeight(context),defaultRoutingHeight:method==='concealed_in_ceiling'?context?.service_height_above_floor_meters:null,keepCanvas:hasDrawn,reason:disabled?'Wait for the current save to finish.':reason,error,vertices,
     hover:hover&&hover.tool===tool&&hover.id===editingSession?hover:null,
     choices:activePending?.choices,
-    setOption:(key,value)=>{if(!vertices.length){setSettings(current=>({...current,[key]:value}));setPending(null);setHover(null);setError(null)}},
+    setOption:(key,value)=>{if(!vertices.length){setSettings(previous=>({revision:setupRevision,values:{...previous.values,...(previous.revision!==setupRevision ? {elevation:''}:{}),[key]:value}}));setPending(null);setHover(null);setError(null)}},
     pointer,finish,cancel,clear,
     choose:target=>{if(activePending)addVertex(drawingTargetVertex(target))},
     preview:target=>setHover({...drawingTargetVertex(target),tool,id:editingSession}),cancelChoice:()=>{setPending(null);setHover(null)}}

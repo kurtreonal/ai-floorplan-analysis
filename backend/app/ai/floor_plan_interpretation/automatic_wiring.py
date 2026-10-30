@@ -14,7 +14,7 @@ from app.ai.floor_plan_interpretation.candidate import (
     ObservedRouteSegment, PixelPoint,
 )
 
-EVIDENCE_VERSION = "raw-source-validated-context-v15"
+EVIDENCE_VERSION = "raw-source-validated-context-v18"
 
 
 def with_fixture_wall_conflicts(payload):
@@ -26,6 +26,11 @@ def with_fixture_wall_conflicts(payload):
     fixtures=[s for s in payload.symbols.items if s.bounds and re.search(
         r'troffer|fluorescent|downlight|ceiling light|lighting point',
         s.training_legend.name if s.training_legend else s.observed_label or '',re.I)]
+    devices=[s for s in payload.symbols.items if s.bounds and re.search(
+        r'panel\s*board|outlet|receptacle|switch|detector|camera|pull station',
+        s.training_legend.name if s.training_legend else s.observed_label or '',re.I)
+        and not re.search(r'home.?run|raceway|conduit',
+            s.training_legend.name if s.training_legend else s.observed_label or '',re.I)]
     protected={o.wall_ref for o in payload.openings.items if o.wall_ref}
     kept,conflicts=[],[]
     for wall in payload.walls.items:
@@ -38,14 +43,23 @@ def with_fixture_wall_conflicts(payload):
             t=float((p-a)@d/length_squared)
             if .05<t<.95 and np.linalg.norm(p-(a+t*d))<=max(2,min(symbol.bounds.width,symbol.bounds.height)*.20):
                 hits.append(symbol.id)
-        if len(hits)>=2 and wall.id not in protected and len(conflicts)<16:
+        # A short stroke wholly inside a detected product glyph is not an
+        # independent wall. Long walls behind mounted devices remain intact.
+        glyph_stroke=False
+        for symbol in devices:
+            box=symbol.bounds
+            margin=max(2,min(10,(wall.estimated_thickness_pixels or 2)/2+1))
+            if all(box.x-margin<=p.x<=box.x+box.width+margin
+                   and box.y-margin<=p.y<=box.y+box.height+margin for p in (wall.start,wall.end)):
+                glyph_stroke=True;break
+        if (len(hits)>=2 or glyph_stroke) and wall.id not in protected and len(conflicts)<16:
             conflicts.append(wall)
         else:
             kept.append(wall)
     if not conflicts or len(payload.warnings)+len(conflicts)>256:
         return payload
     warnings=tuple(CandidateWarning(code='fixture_wall_conflict',severity='warning',
-        message=f'Unverified wall crossing multiple ceiling-fixture cores omitted from routing; '
+        message=f'Unverified wall conflicting with detected device glyphs omitted from routing; '
                 f'raw hypothesis {w.id}: ({w.start.x}, {w.start.y}) to ({w.end.x}, {w.end.y}).')
                    for w in conflicts)
     return FloorPlanInterpretationPayload.model_validate(payload.model_copy(update={
@@ -78,8 +92,25 @@ def _contained_trace(a, b, c, d, tolerance):
             and all(-tolerance<=float((np.asarray(p)-c)@axis)<=length+tolerance for p in (a,b)))
 
 
-def _regular_dash_evidence(samples, maximum_gap):
+def _regular_dash_evidence(samples, maximum_gap, *, allow_crossing_islands=False):
     """Repeated visible dashes, never a single erased/missing stroke."""
+    # A thin crossing can split ONE otherwise regular white gap. Ignore that
+    # small island for pattern recognition only; never erase source pixels or
+    # infer an electrical junction at the crossing. Independent axial, contrast
+    # and paired-boundary checks still apply to the proposed source span.
+    edges=np.flatnonzero(np.r_[True,samples[1:]!=samples[:-1],True])
+    runs=[(int(a),int(b),bool(samples[a])) for a,b in zip(edges,edges[1:])]
+    strokes=[b-a for a,b,state in runs if state]
+    gaps=[b-a for a,b,state in runs if not state]
+    if allow_crossing_islands and len(strokes)>=5 and len(gaps)>=4:
+        dash=float(np.median(strokes));gap=float(np.median(gaps))
+        islands=[(a,b) for i,(a,b,state) in enumerate(runs) if state and 0<i<len(runs)-1
+                 and b-a<=min(6,dash*.15) and dash>=12
+                 and not runs[i-1][2] and not runs[i+1][2]
+                 and gap*.6<=runs[i+1][1]-runs[i-1][0]<=min(maximum_gap,gap*1.6)]
+        if 0<len(islands)<=2:
+            samples=samples.copy()
+            for a,b in islands:samples[a:b]=False
     transitions = np.flatnonzero(np.r_[True,samples[1:] != samples[:-1],True])
     lengths = np.diff(transitions)
     states = samples[transitions[:-1]]
@@ -100,7 +131,7 @@ def _regular_dash_evidence(samples, maximum_gap):
                 and max(strokes[0],strokes[-1])<=max(interior)*1.5)
 
 
-def _dash_span(samples, maximum_gap):
+def _dash_span(samples, maximum_gap, *, allow_crossing_islands=False):
     """Keep the longest supported dash sequence, excluding border/text tails."""
     edges=np.flatnonzero(np.r_[True,samples[1:]!=samples[:-1],True])
     strokes=[(int(a),int(b)) for a,b in zip(edges,edges[1:]) if samples[a]]
@@ -112,9 +143,47 @@ def _dash_span(samples, maximum_gap):
             a,b=strokes[i][0],strokes[j][1]
             if best is not None and b-a<=best[1]-best[0]:
                 continue
-            if _regular_dash_evidence(samples[a:b],maximum_gap):
+            if _regular_dash_evidence(samples[a:b],maximum_gap,allow_crossing_islands=allow_crossing_islands):
                 best=(a,b)
     return best
+
+
+def _trim_crossing_ends(a,b,samples,ink,walls=()):
+    """Trim short perpendicular border hits outside a repeated axial trace."""
+    edges=np.flatnonzero(np.r_[True,samples[1:]!=samples[:-1],True])
+    strokes=[(int(lo),int(hi)) for lo,hi in zip(edges,edges[1:]) if samples[lo]]
+    if len(strokes)<2:return a,b
+    axis=np.asarray(b,float)-a;axis/=np.linalg.norm(axis)
+    typical=float(np.median([hi-lo for lo,hi in (strokes[1:-1] if len(strokes)>2 else strokes)]))
+    limits=[0,len(samples)-1]
+    for endpoint,(lo,hi) in enumerate((strokes[0],strokes[-1])):
+        point=np.asarray(a if endpoint==0 else b,dtype=float)
+        on_crossing=False
+        for wall in walls:
+            origin=np.array([wall.start.x,wall.start.y]);delta=np.array([wall.end.x-wall.start.x,wall.end.y-wall.start.y],dtype=float)
+            size=float(delta@delta)
+            if not size or abs(float(axis@delta))/math.sqrt(size)>.5:continue
+            t=max(0,min(1,float((point-origin)@delta/size)))
+            if np.linalg.norm(point-origin-t*delta)<=max(2,(wall.estimated_thickness_pixels or 2)/2+2):on_crossing=True;break
+        if on_crossing:
+            xy=np.rint(np.linspace(a,b,len(samples))).astype(int)
+            raw=ink[xy[:,1],xy[:,0]]>0
+            boundaries=np.flatnonzero(np.r_[True,raw[1:]!=raw[:-1],True])
+            axial=[(int(i),int(j)) for i,j in zip(boundaries,boundaries[1:]) if raw[i] and j-i>=max(8,typical*.3)]
+            if axial:limits[endpoint]=axial[0][0] if endpoint==0 else axial[-1][1]-1
+            continue
+        if hi-lo>=typical*.5:continue
+        center=np.asarray(a)+(np.asarray(b)-a)*((lo+hi-1)/2/(len(samples)-1))
+        x,y=np.rint(center).astype(int);r=8
+        left,top=max(0,x-r),max(0,y-r)
+        local=ink[top:min(ink.shape[0],y+r+1),left:min(ink.shape[1],x+r+1)]
+        yy,xx=np.nonzero(local)
+        if len(xx)<4:continue
+        values,vectors=np.linalg.eigh(np.cov(np.column_stack((xx,yy)),rowvar=False))
+        if values[-1]>max(.5,values[0]*1.8) and abs(float(vectors[:,-1]@axis))<.5:
+            limits[endpoint]=strokes[1][0] if endpoint==0 else strokes[-2][1]-1
+    delta=np.asarray(b)-a
+    return tuple(np.rint(np.asarray(a)+delta*limits[0]/(len(samples)-1)).astype(int)),tuple(np.rint(np.asarray(a)+delta*limits[1]/(len(samples)-1)).astype(int))
 
 
 def _source_dash_contrast(a, b, samples, gray):
@@ -223,7 +292,7 @@ def _near_port(point, symbol, direction, tolerance):
     return abs(point[0]-symbol.center.x)<=max(4,short_edge*.5)
 
 
-def _parallel_wall(segment, walls, tolerance):
+def _parallel_wall(segment, walls, tolerance, *, include_width=False):
     a, b = np.asarray(segment[0], float), np.asarray(segment[1], float)
     axis = (b - a) / np.linalg.norm(b - a)
     for wall in walls:
@@ -235,7 +304,8 @@ def _parallel_wall(segment, walls, tolerance):
         if abs(float(axis @ direction)) < math.cos(math.radians(5)):
             continue
         normal = np.array([-direction[1], direction[0]])
-        if max(abs(float((p - c) @ normal)) for p in (a, b)) > tolerance:
+        limit=tolerance+(float(wall.estimated_thickness_pixels or 0)/2 if include_width else 0)
+        if max(abs(float((p - c) @ normal)) for p in (a, b)) > limit:
             continue
         low, high = sorted(float((p - c) @ direction) for p in (a, b))
         if min(length, high) - max(0, low) >= (high - low) * .8:
@@ -499,7 +569,11 @@ def with_automatic_wiring(payload, image_rgb, *, maximum_segments=128):
     if dashed_selected:
         value["warnings"].append(CandidateWarning(code="regular_dashed_wiring",severity="info",
             message="Repeated dashed ink supports partial trace proposals, not confirmed circuit connections.").model_dump())
-    result = with_device_contact_evidence(FloorPlanInterpretationPayload.model_validate(value), image_rgb)
+    from app.ai.floor_plan_interpretation.trace_cleanup import with_terminal_continuations, deduplicate_traces, extend_existing_dashes
+    result = with_device_contact_evidence(FloorPlanInterpretationPayload.model_validate(value),image_rgb)
+    result = extend_existing_dashes(result,image_rgb)
+    result = with_terminal_continuations(deduplicate_traces(result),image_rgb)
+    result = with_device_contact_evidence(result, image_rgb)
     return with_validated_solid_context(result, image_rgb)
 
 
@@ -513,7 +587,7 @@ def with_validated_solid_context(payload, image_rgb):
     """
     contacts = {}
     for contact in payload.observed_routes.connections:
-        if contact.evidence_kind and contact.path_anchor:
+        if (contact.evidence_kind or contact.route_node_id) and contact.path_anchor:
             contacts.setdefault(contact.from_ref, []).append(contact)
     symbols = {f'symbol:{s.id}': s for s in payload.symbols.items}
     def distinct_ports(route):
@@ -549,7 +623,9 @@ def with_validated_solid_context(payload, image_rgb):
                 if (route.line_style == 'solid' and not distinct_ports(route))
                 or (route.line_style == 'dashed' and route.id not in supported)]
     if not rejected:
-        return payload
+        from app.ai.floor_plan_interpretation.short_device_leads import with_short_device_leads
+        from app.ai.floor_plan_interpretation.source_corners import with_source_corners
+        return with_device_contact_evidence(with_source_corners(with_short_device_leads(payload,image_rgb),image_rgb),image_rgb)
     refs = {f'segment:{r.id}' for r in rejected}
     routes = payload.observed_routes.model_copy(update={
         'segments': tuple(r for r in payload.observed_routes.segments if f'segment:{r.id}' not in refs),
@@ -564,4 +640,6 @@ def with_validated_solid_context(payload, image_rgb):
                     'structural/furniture ambiguity remains unresolved, not observed wiring. Raw source spans: '+raw),)
     result = type(payload).model_validate(payload.model_copy(update={
         'observed_routes': routes, 'warnings': warnings}).model_dump())
-    return with_device_contact_evidence(result, image_rgb)
+    from app.ai.floor_plan_interpretation.short_device_leads import with_short_device_leads
+    from app.ai.floor_plan_interpretation.source_corners import with_source_corners
+    return with_device_contact_evidence(with_source_corners(with_short_device_leads(result,image_rgb),image_rgb), image_rgb)

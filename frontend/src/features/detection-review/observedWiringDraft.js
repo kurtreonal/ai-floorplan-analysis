@@ -13,6 +13,8 @@ export function initialWiringDraft(record) {
   const persisted = new Map((record.review?.generated_wiring ?? []).map(wire => [wire.id,wire]))
   const generated = (record.generated_wiring ?? record.review?.generated_wiring ?? []).map(wire => {
     const saved = persisted.get(wire.id)
+    if (saved?.algorithm === 'astar' && saved.disposition === 'unresolved' && !saved.suppression_reason
+      && !saved.device_attachments?.length && !saved.junction_attachments?.length) return wire
     if (wire.suppression_reason === 'redundant_observed_connection' && saved?.disposition === 'unresolved') return wire
     if (saved && wire.installation_method && wire.installation_method !== 'unknown'
       && (!saved.installation_method || saved.installation_method === 'unknown')) {

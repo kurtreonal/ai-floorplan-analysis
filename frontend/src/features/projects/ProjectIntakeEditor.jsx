@@ -42,7 +42,7 @@ export function ProjectIntakeEditor({ project, onSaved, onReload }) {
   }
   return <details className="project-intake-editor"><summary>Edit project details</summary>
     <form className="project-form" onSubmit={save}>
-      <ProjectIntakeFields values={values} onChange={change} disabled={busy || uncertain} />
+      <ProjectIntakeFields values={values} onChange={change} disabled={busy || uncertain} hideClient />
       <div className="project-form-wide project-detail-actions">
         <button className="btn btn-accent" type="submit" disabled={busy}>{busy ? 'Saving…' : uncertain ? 'Retry same details' : 'Save project details'}</button>
         <button className="btn btn-outline-dark" type="button" disabled={busy} onClick={onReload}>Discard edits &amp; reload</button>

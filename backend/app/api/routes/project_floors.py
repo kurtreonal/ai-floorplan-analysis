@@ -17,6 +17,17 @@ from app.services.project_service import ProjectNotFoundError
 
 router = APIRouter(prefix="/api/projects", tags=["project floors"])
 
+from app.services.plan_naming_service import NameChange,rename
+from app.services.local_accounts import require_same_origin
+from fastapi import Request
+
+
+@router.patch('/{project_id}/floors/{floor_id}')
+def rename_floor(project_id:int,floor_id:int,data:NameChange,request:Request,
+    user:User=Depends(require_roles('DESIGNER')),db:Session=Depends(get_db)):
+    require_same_origin(request)
+    return rename(db,user,project_id,floor_id,data,floor=True)
+
 
 def _api_error(*, status_code: int, code: str, message: str) -> HTTPException:
     return HTTPException(

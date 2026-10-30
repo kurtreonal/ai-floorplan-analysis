@@ -1,5 +1,100 @@
 # VED Electrical Services API
 
+### Client–Admin–Designer workflow (2026-10-25)
+
+Admin creates Designer/Client accounts and project intake information, associates clients,
+assigns designers, and publishes explicit saved layout/estimate versions. Clients
+have read-only access to their published work. Designers use Client list →
+Project list → Floorplans → Workspace. Username/password sign-in and optional
+Google linking share the existing signed session. Unknown Google identities are
+rejected without creating a user. Designer/Client Google login requires an
+Admin-provisioned password account and an explicit authenticated link. Users are
+managed under Admin settings → Users; removal revokes access, preserving history.
+Provision the additive `account_access` table with
+`scripts/provision_client_workflow.py` using the authorized administrator connection.
+See
+[`CLIENT_ADMIN_DESIGNER_WORKFLOW.md`](../docs/planning/CLIENT_ADMIN_DESIGNER_WORKFLOW.md)
+for the new endpoints, additive schema, pricing pairs and verification limits.
+
+### Complete approved PDF legend catalog (2026-10-04)
+
+An authenticated Admin in local development can select **Symbol legends → Manage
+symbol legends → Import approved PDF legends**. The existing import endpoint
+accepts `POST /api/admin/symbol-legends/import-trained?catalog=approved-pdf` and
+registers all 40 authored definitions (16 DepED + 24 three-storey), independently
+of detector weights. Names retain their exact source/page/entry identities; app
+class numbers do not imply model indices. Source/manifests/page/crop hashes and
+reference permission are checked before the atomic, audited import. Repeated
+imports preserve existing entries and deactivation decisions.
+
+The 36 symbol/notation entries are available for manual selection/correction
+after import; four wiring patterns remain catalog-visible references, not point
+devices. Device placement/classification/canonical-save validation enforces that
+distinction. This does not activate the inactive 80-class candidate or assert
+detection performance. Live import is still pending an authenticated Admin
+session; see `docs/U_VLM_PROGRESS.md` for current verification and handoff.
+
+### Delegated electrical-source training (2026-10-04; inactive)
+
+The user's exact training approval is hash-bound to the four-page source and
+delegated assistant annotations. The local development exception is not a
+production approval or an independent human box review. Prepared 35 real targets,
+176 reference-derived placements and an 80-class candidate preserving all prior
+60 IDs; two wiring definitions are excluded from device classes. A small learning
+check reached 33/35 matches but generated many architectural false proposals.
+Full replay with scarce-class sampling and inspected grid/column negatives reached
+15/35 same-source matches at 0.50. This is not independent accuracy or a release
+pass; the existing active detector remains unchanged. Exact versions, hashes,
+per-entry counts, overlays and tests are in `docs/U_VLM_PROGRESS.md`.
+
+### Additional four-page electrical source (2026-10-04; original intake checkpoint)
+
+The latest authorized PDF is preserved in private corpus revision 4 and prepared
+under `storage/training/pdf-source-20261004-76f411c60b6d-v3/`. All four pages share
+one train-only source group. There are 24 authored legend definitions (22 symbols /
+notations, two wiring patterns); visible lighting/power symbols are on page 3.
+Pages 2/4 show architectural backgrounds despite electrical titles and must not
+be treated as fully reviewed negatives. Source permission is recorded separately
+from pending label review; no detector activation or new training is claimed.
+See the existing progress ledger for hashes, inspection findings and verification.
+
+### Fluorescent lamps and outlets (2026-10-04; candidate inactive)
+
+The authorized PDF's 2 x 40 W / 1 x 40 W fluorescent lamps and ordinary /
+weatherproof duplex grounding outlets now have distinct IDs 56-59 in a trained
+60-class development candidate. All original IDs and their mappings are retained.
+Preparation replays the existing reviewed data with hash-bound authored-glyph
+synthetic placements. Generated complete background is distinguished from real
+unreviewed regions; originals and previous manifests/checkpoints are unchanged.
+
+The candidate contract supports PDF source/page/legend identities. The existing
+role-gated development catalog importer and review naming can handle 56/60
+entries. The actual active detector still uses its original 56-entry checkpoint:
+new lamp subtype confusion, missed real fixtures and ordinary/weatherproof outlet
+confusion prevent activation. Reference-derived learning checks are not accuracy
+evidence. Real-layout labels are still missing for these added definitions.
+`docs/U_VLM_PROGRESS.md` records exact runs, hashes, measurements and remaining
+review requirements. No production promotion or automatic approval.
+
+### Additional PDF training source (2026-10-04)
+
+The user-authorized eight-page PDF is now inventoried in the private corpus.
+Its electrical page (one-based page 7) is prepared in the ignored
+`storage/training/pdf-source-20261004-efa570519f08-v3/`: lighting/power layouts,
+full legend reference and 16 definition crops (14 symbols, two wiring patterns).
+Source/crop hashes and PDF-point/source-pixel transforms are preserved.
+
+`scripts/prepare_pdf_training_source.py` reuses bounded intake/upload validation,
+requires explicit pages and exact source-bound permission, checks render/crop
+allocations before writing and refuses existing output revisions. Extracted
+labels stay assistant proposals; source approval does not fabricate annotation
+completeness. Missing PDFium text is explicitly unavailable. Source preparation
+preserves prior manifests/weights. The later reference-derived training above
+does not supply reviewed real-layout boxes; real-page supervised detection still
+needs those boxes and drawing-specific links, with unreviewed regions ignored.
+Keep related crop/page sources together and do not score them as independent
+test projects. Exact preparation and verification are in `docs/U_VLM_PROGRESS.md`.
+
 ### New annotation export intake (2026-09-24; training not started)
 
 Subsequent user amendment: groups 1–22 are approved for training. The exact
@@ -35,6 +130,17 @@ decisions and project-isolated splits must be reconciled before supervised
 training. Existing model weights were not changed or activated.
 
 ### Wall-detection correction checkpoint (2026-09-21; incomplete)
+
+October 4 correction: outlined/double-line plans now use bounded paired-stroke
+evidence with a white cavity and compatible line weights before wall thinning.
+Single circuit strokes cannot seed walls in that mode; broad solid structure
+remains supported, and doorway gaps are not extrapolated. Drawing-area padding
+retains both wall outlines. Solid-wall plans retain the existing fallback.
+This is general deterministic CV, not a page-specific mask or trained VLM.
+Reprocess a plan to obtain new proposals: saved detections/review/canonical
+geometry are never silently rewritten. Ambiguous parallel strokes still need
+review. Fresh verification and the private source overlay are recorded in
+`docs/U_VLM_PROGRESS.md`; historical results below are not current verification.
 
 Latest September 24 continuation: retain the primary contrast threshold and use
 a separately validated lower-contrast mask only to extend already consolidated
@@ -337,26 +443,119 @@ users.
 
 ## Authentication, sessions, and authorization
 
+### Browser errors and Windows restart recovery
+
+OAuth browser navigation errors (`Accept: text/html`) return to the trusted
+frontend sign-in screen with a bounded recovery reason, never a raw API body,
+provider query, or internal exception. Retry starts a new sign-in attempt (or
+rechecks an existing session). JSON API consumers retain their error/status
+contract, and authentication/authorization still fail closed. OAuth query values
+are redacted from Uvicorn access logs; local launches should also use
+`--no-access-log`.
+
+For a restart-related `AUTH_USER_RESOLUTION_FAILED`, check database readiness
+and the MariaDB permissions tables before changing OIDC settings or accounts.
+On October 19, `CHECK TABLE mysql.db QUICK` reported a crashed/corrupt Aria
+permissions table; both existing app/test accounts consequently returned 1044.
+This is distinct from a missing user, expired session, or provider failure.
+
+Stop MySQL gracefully and take a complete offline backup before any repair.
+Do not replace the whole `mysql` directory with factory defaults, delete
+`ibdata1`, silently grant global privileges, or run automatic permission repairs
+from an HTTP request. Recovery of a copied table produced zero salvageable grant
+rows. After explicit approval, the recovered `mysql.db` table also required a
+server-side `ALTER TABLE mysql.db FORCE` rebuild: the offline repair passed its
+check but the first GRANT crashed MariaDB. The rebuild allowed the existing
+documented schema scopes to be restored: `ved_app` has SELECT/INSERT/UPDATE/DELETE
+only on `ved_electrical`, and `ved_test` has ALL only on
+`ved_electrical_verify`. No account password or application role was changed.
+The original offline snapshot is retained privately in
+`storage/reports/mysql-restart-20261019-002917/`. Project tables were not repaired
+or replaced; app/test schemas both still contain 34 tables and the app has 53
+users. `CHECK TABLE mysql.db EXTENDED` passes after two clean service restarts.
+
+Recovery is not fully cleared: `FLUSH PRIVILEGES` reported an Aria checksum
+failure, and extended checks still flag `mysql.tables_priv`, `columns_priv`,
+`procs_priv`, `proxies_priv`, and `roles_mapping` as moved from another system.
+`global_priv` now checks OK after managed startup. Normalizing those additional
+five tables is blocked pending specific approval; do not claim the instance is
+corruption-free or delete Aria control/log files to hide the warnings.
+
+After database recovery, run the following **once as Administrator**, with
+standalone MySQL stopped gracefully, to register the existing instance for
+automatic Windows startup and service-managed shutdown:
+
+```powershell
+.\scripts\install-xampp-mysql-service.ps1 -MySqlRoot C:\xampp\mysql
+```
+
+The script never initializes or repairs data, changes database credentials or
+grants, or replaces another service instance. Re-running it validates the same
+binary/configuration before setting automatic startup. The existing `mysql`
+service is now installed, Running, and Automatic, using the existing
+`C:\xampp\mysql\bin\my.ini`. Two clean service stop/start cycles passed; the
+documented grants survived. `innodb_flush_log_at_trx_commit=1`, loopback binding,
+and `innodb_force_recovery=0` remain in effect. Browser Retry successfully
+restored the existing signed-in session without raw error JSON. Full computer
+restart and fresh provider sign-in have not been verified. A service reduces unclean shutdown risk;
+it cannot guarantee protection from forced shutdown, power loss, or storage
+failure. Keep recoverable backups and shut down Windows normally.
+
 `GET /api/auth/login` starts a provider-configurable OAuth 2.0/OIDC flow. The
 callback validates state and relies on Authlib for OIDC identity-token
-validation. A verified provider plus subject resolves a local user. New users
-receive `DESIGNER`; provider claims never grant local `ADMIN` authority.
+validation. A verified provider plus subject resolves an existing, enabled,
+explicitly linked account. Unknown identities are rejected without creating
+users. Provider claims never grant local roles. Existing explicitly assigned
+Admin identities retain bootstrap access; Designer/Client accounts require
+managed credentials before linking Google.
 
-The signed, HttpOnly application session stores only the local user ID.
+The signed, HttpOnly application session stores the local user ID and recent
+authentication time, plus short-lived state during OAuth and account linking.
 `GET /api/auth/me` reloads the user and current role from MySQL. Logout clears
 only the local VED session. Provider tokens, authorization codes, client
 secrets, and provider subjects are not returned by `/api/auth/me` or stored in
 the session.
 
+Local account reset (development maintenance, October 2): from the repository
+root, run `backend\.venv\Scripts\python.exe scripts/reset_local_accounts.py`
+for a read-only plan. Stop the backend and its workers before adding `--apply`.
+The applied reset first saves a complete MySQL dump and private configuration
+copy under Git-ignored `storage/reports/account-reset-*/`. It clears cached
+email/name/avatar fields, removes only recognized unreferenced test accounts
+and test roles, and rotates the private session key. Restart the backend to
+invalidate all existing signed sessions. Start a fresh login from the frontend;
+verified OIDC claims refill profile fields on the same account ID. Provider
+subjects, account roles, project ownership, reviewed geometry and historical
+references are preserved. Referenced test accounts remain until their linked
+history is handled separately. This does not delete Google accounts or reset
+project content. Keep the recovery dump/configuration private; recovery requires
+stopping the backend and a deliberate restore from that snapshot.
+
+For an explicitly authorized reset of all projects instead, use
+`backend\.venv\Scripts\python.exe scripts/reset_local_accounts.py --projects-only`
+from the repository root to inspect the plan; add `--apply` after stopping the
+backend/workers. This independent mode removes only the 25 reviewed project-owned
+tables in live foreign-key dependency order, inside one transaction. Unknown or
+cyclic dependencies fail before deletion; foreign-key enforcement stays enabled.
+Accounts, roles, sessions, shared legend/history and material catalogs, dataset
+authority, and model release records are preserved. A fresh ignored
+`storage/reports/project-reset-*/` database backup provides recovery. No files are
+deleted: training datasets/model file metadata and stored original image hashes
+are checked before/after. Original and generated files remain private recovery
+artifacts; their removed project records are no longer available in the app.
+
 Authorization behavior:
 
-- `DESIGNER` can create projects, create floors for owned projects, upload floor
+- `DESIGNER` can create floors for assigned projects, upload floor
   plans to owned project floors, and start processing for owned floor plans.
 - `DESIGNER` project access is owner-scoped; cross-owner access returns `404`
   to conceal resource existence.
-- `ADMIN` can list and inspect all projects and list their floors.
-- `ADMIN` cannot create projects, create floors, upload floor plans, or start
-  floor-plan processing through the current API.
+- `ADMIN` creates project information and client accounts, assigns designers,
+  inspects projects, deletes projects from active access, and approves saved
+  versions for client publication. Floor creation, uploads and processing remain
+  designer operations.
+- `CLIENT` can read only associated, Admin-published project snapshots and manage
+  their own sign-in methods. Designer and Admin mutations reject the client role.
 - Missing authentication returns `401`; an authenticated unsupported role
   returns `403`.
 
@@ -1268,6 +1467,88 @@ baseline reuse requires matching checkpoint hash and inference settings. All
 experiment images/weights/reports remain ignored under `storage/training/`.
 See `docs/U_VLM_PROGRESS.md` for measured results and actual activation status;
 training success alone never promotes a checkpoint.
+
+`scripts/prepare_real_lamp_replay.py` records delegated actual-layout lamp boxes
+separately from legend composites. It preserves the 80-entry candidate head and
+old replay, adds isotropic/context views with partial-label masking, and can
+append hash-bound, directly inspected low-resolution upload boxes without
+claiming a PDF affine relationship or independent test project. Original boxes
+and previous revisions are retained. Restorative sampling copies existing train
+windows with unchanged labels; the trainer verifies both copy and parent hashes.
+Copies are not new real examples. `scripts/probe_real_lamps.py --upload` scores
+the entire exact derivative image; `--prepared` scores the recorded PDF lighting
+panel. Both use the shared tiled inference and one-to-one IoU-0.50 matching,
+save raw proposals/overlays, and leave partial precision/generalization unscored.
+
+The retained original 56-class checkpoint does not contain the authored 1 x 40 W
+or 2 x 40 W fluorescent-lamp entries. New candidates warn about this scope;
+smoke-detector predictions are not silently renamed or accepted as lamps.
+The shared development default is now the experimental `power80` replay
+checkpoint; production and configured gateway/release selection are unchanged.
+Set `DEVELOPMENT_SYMBOL_PROFILE=original56` in private configuration and restart
+the backend to restore the retained 56-class rollback. The historical provider
+key remains `development_multiclass56_yolo` for stored-job compatibility; new
+provenance records the actual profile, class count, dataset/checkpoint hashes,
+warm-start base and prompt revision. All proposals remain unresolved and carry
+an experimental warning. Existing job/review JSON is unchanged; re-run analysis
+to use the new weights. Set `DEVELOPMENT_SYMBOL_PROFILE=lamps80` to restore the
+prior 80-entry replay; both rollback checkpoints remain unchanged. The current
+`power80` checkpoint refines only the outlet-class output row using reviewed
+native-context anchors, preserving every other class row, BN and box-head state
+before save and after reload. The refinement, training and compact serving
+manifests are separately hash-pinned. Same-source checks retain 12 outlets,
+one panelboard and three homeruns at native and .375 scale, with zero proposals
+in 15 inspected non-device regions. Original 23-page replay remains 806/830;
+partial-page precision and independent-project accuracy are unscored.
+It builds on the bounded
+switch replay (`switch-real-20261004-run3`, `switch-real-20261004-v2`), retaining
+all 80 IDs and the old lamp checkpoints. Source-backed one/two/three-gang IDs
+62/63/64 keep exact model legend identities and compatible source aliases;
+circuit letters alone do not establish other switch subtypes. The source-panel
+checks match switches 9/9 on the DepED PDF, 9/9 on its related small upload and
+3/4 on the other PDF, preserving 20/20 lamps in the PDF view. These are
+development checks, not independent accuracy. Three-way/fan/exhaust-switch
+classes remain reference-only, not verified detectors.
+
+`scripts/inspect_switch_sources.py`, `scripts/prepare_switch_replay.py` and
+`scripts/probe_switch_replay.py` preserve source hashes/boxes, exclude ambiguous
+Sf, vary x/y tile phase and scale without relabeling, mask unreviewed background
+and save full-panel overlays/raw outputs. Outlet restoration reuses six existing
+boxes; derivatives/augmented views are not independent examples. Per-entry
+counts and aliases are in the private all-80-entry coverage JSON linked by the
+existing progress ledger. Wrong gang subtype, missed one-gang switches,
+wall-edge false proposals, three capped original pages, the original-class
+recall deficit and unmeasured precision/generalization remain
+limitations. This is supervised YOLO development, not trained VLM inference or
+production promotion. See the progress ledger for exact measured runs.
+
+The universal development path retains all checkpoint indices but fuses
+co-located observations whose **complete legend descriptions are identical**.
+It never equates device families or removes neighboring devices. Losing source
+IDs and raw observations remain in candidate warnings. The new fusion revision
+is part of the pinned job configuration; old results are not rewritten. Catalog
+and correction menus show one choice per exact description with recoverable
+drawing-reference aliases; inactive decisions and selected old IDs are preserved.
+This is reversible presentation/fusion, not deletion of labels or retraining.
+
+The pinned development detector retains `training_legend` on each
+new symbol proposal: exact name, drawing legend identity, checkpoint class index
+and dataset SHA256. These are original predictions, not accepted catalog IDs.
+Review labels and the shared draft 2D/3D presentation use those names.
+
+An authenticated Admin in local development can use **Symbol legends → Import
+trained legend entries** (`POST /api/admin/symbol-legends/import-trained`).
+The import verifies local checkpoint/dataset hashes, preserves existing entries
+and inactive decisions, and appends normal actor-attributed catalog history.
+Each unique name includes `[drawing:legend]`; application class numbers are
+allocated separately from model indices. Repeated imports do not duplicate rows.
+No account role, dataset approval, source file or model weight is changed.
+
+In the device inspector, **Use trained legend mapping** proposes the exact
+active catalog entry while leaving the review disposition unresolved. A reviewer
+must still accept/correct/reject each device. Old candidate JSON and review
+revisions are not rewritten. An import is catalog registration, not new training,
+independent detection accuracy, or production promotion.
 
 ### Backend verification
 

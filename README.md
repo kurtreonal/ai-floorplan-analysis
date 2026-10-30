@@ -2,6 +2,11 @@
 
 AI-driven floor plan analysis, 2D/3D visualization, electrical routing, material quantification, and cost estimation system for VED Electrical Services.
 
+The [30 October integration checkpoint](docs/PUBLICATION_20261030.md) describes
+the current Client–Admin–Designer workflow, 3D Studio, BOM integration and
+preservation-first workspace reset. Earlier ticket inventories below retain
+their original checkpoint context.
+
 ## Development Status
 
 **Application roadmap implemented through M7; the PRE0-PRE12 readiness gate passes.**

@@ -1,0 +1,54 @@
+{
+  "one_page": "PASS",
+  "module_count": 4,
+  "use_case_count": 20,
+  "human_pictograms": 3,
+  "admin_module_only": "PASS",
+  "admin_module_associations": 4,
+  "include_count": 2,
+  "extend_count": 2,
+  "dependencies": [
+    {
+      "kind": "include",
+      "source": "upload",
+      "target": "validate-upload",
+      "condition": "Successful upload validates the original file."
+    },
+    {
+      "kind": "extend",
+      "source": "correct",
+      "target": "review",
+      "condition": "During review, if detections need correction."
+    },
+    {
+      "kind": "include",
+      "source": "estimate",
+      "target": "calculate",
+      "condition": "New saved estimate derives quantities and captures the price used."
+    },
+    {
+      "kind": "extend",
+      "source": "export",
+      "target": "view-cost",
+      "condition": "While viewing a saved estimate/BOM, if Download is selected (Admin/Designer only)."
+    }
+  ],
+  "continuation_keys": [],
+  "continuation_circles": 0,
+  "line_crossings": 21,
+  "unrelated_shape_collisions": 0,
+  "native_editable_xml": "PASS",
+  "black_and_white_only": "PASS",
+  "client_scope": "PASS: sign-in, saved 2D/3D layouts, saved costs only",
+  "minimum_font": 21,
+  "repository_audit": "PASS (static route/service/UI inspection; no runtime behavior claim)",
+  "visual_review": "PASS",
+  "downloads_copy": "PASS",
+  "diagrams_net_editor_import": "NOT TESTED",
+  "delivered_files": {
+    "C:\\Users\\kupal\\Downloads\\ved-use-case-diagram-2026-10-21.drawio": "542a0826f60facbe3bbf489727d320326018f5dce803918a82f940d65afdb4f8",
+    "C:\\Users\\kupal\\Downloads\\ved-use-case-diagram-2026-10-21.png": "1721f28b50041233cbae42e532e4eb16c16b6ac81a438dbc5f9314a257e3acf4",
+    "C:\\Users\\kupal\\Downloads\\ved-use-case-system-audit.md": "6fe40a7bfc0bde252b6878be68960be6e155c22fbe19591e45adc455edd726bd"
+  },
+  "reference_sha256": "d22bd94a39c77223572f51c6fd4729d4f7aea3fe757ff7bf679f23f29824fe73"
+}

@@ -1,0 +1,3754 @@
+{
+  "database": "ved_electrical",
+  "server_version": "10.4.32-MariaDB",
+  "data_directory": "C:\\xampp\\mysql\\data\\",
+  "captured_at": "2026-10-07T12:45:43.375714+00:00",
+  "source": "Live database metadata; no application rows read",
+  "tables": [
+    {
+      "name": "dataset_approver_assignments",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "assignee_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "assigned_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "deactivated_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "authority_scope",
+          "type": "VARCHAR(32) COLLATE \"ascii_bin\"",
+          "default": "'VED_AI_DATASET_APPROVER'",
+          "nullable": false
+        },
+        {
+          "name": "qualification_category",
+          "type": "VARCHAR(16) COLLATE \"ascii_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "professional_reference",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "active_marker",
+          "type": "TINYINT",
+          "default": "1",
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "active_from",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "inactive_at",
+          "type": "DATETIME",
+          "default": null,
+          "nullable": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "dataset_approver_assignments_ibfk_1",
+          "constrained_columns": [
+            "assignee_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "dataset_approver_assignments_ibfk_2",
+          "constrained_columns": [
+            "assigned_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "dataset_approver_assignments_ibfk_3",
+          "constrained_columns": [
+            "deactivated_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_dataset_approver_assignments_active_marker",
+          "column_names": [
+            "active_marker"
+          ],
+          "duplicates_index": "uq_dataset_approver_assignments_active_marker"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_dataset_approver_assignments_active_marker",
+          "sqltext": "`active_marker` is null or `active_marker` = 1"
+        },
+        {
+          "name": "ck_dataset_approver_assignments_authority_scope",
+          "sqltext": "`authority_scope` = 'VED_AI_DATASET_APPROVER'"
+        },
+        {
+          "name": "ck_dataset_approver_assignments_no_self_assignment",
+          "sqltext": "`assignee_user_id` <> `assigned_by_user_id`"
+        },
+        {
+          "name": "ck_dataset_approver_assignments_qualification",
+          "sqltext": "`qualification_category` in ('PEE','SENIOR_REE')"
+        },
+        {
+          "name": "ck_dataset_approver_assignments_state",
+          "sqltext": "`active_marker` = 1 and `inactive_at` is null and `deactivated_by_user_id` is null or `active_marker` is null and `inactive_at` is not null and `deactivated_by_user_id` is not null"
+        }
+      ]
+    },
+    {
+      "name": "detected_symbols",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "floor_plan_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "processing_job_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "prediction_index",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "original_class_id",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "original_class_name",
+          "type": "VARCHAR(255)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "original_confidence",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "confidence_threshold",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "image_width_pixels",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "image_height_pixels",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "bounding_box_x_min_pixels",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "bounding_box_y_min_pixels",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "bounding_box_x_max_pixels",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "bounding_box_y_max_pixels",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "center_x_pixels",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "center_y_pixels",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "maximum_detections",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "detection_limit_reached",
+          "type": "TINYINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "detected_symbols_ibfk_1",
+          "constrained_columns": [
+            "floor_plan_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plans",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "detected_symbols_ibfk_2",
+          "constrained_columns": [
+            "processing_job_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_jobs",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_detected_symbols_job_prediction",
+          "column_names": [
+            "processing_job_id",
+            "prediction_index"
+          ],
+          "duplicates_index": "uq_detected_symbols_job_prediction"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_detected_symbols_box_order",
+          "sqltext": "`bounding_box_x_min_pixels` < `bounding_box_x_max_pixels` and `bounding_box_y_min_pixels` < `bounding_box_y_max_pixels`"
+        },
+        {
+          "name": "ck_detected_symbols_class_id",
+          "sqltext": "`original_class_id` >= 0"
+        },
+        {
+          "name": "ck_detected_symbols_confidence",
+          "sqltext": "`original_confidence` >= 0 and `original_confidence` <= 1"
+        },
+        {
+          "name": "ck_detected_symbols_image_dimensions",
+          "sqltext": "`image_width_pixels` > 0 and `image_height_pixels` > 0"
+        },
+        {
+          "name": "ck_detected_symbols_limit_flag",
+          "sqltext": "`detection_limit_reached` in (0,1)"
+        },
+        {
+          "name": "ck_detected_symbols_maximum_detections",
+          "sqltext": "`maximum_detections` = 300"
+        },
+        {
+          "name": "ck_detected_symbols_pixel_bounds",
+          "sqltext": "`bounding_box_x_min_pixels` >= 0 and `bounding_box_y_min_pixels` >= 0 and `bounding_box_x_max_pixels` <= `image_width_pixels` and `bounding_box_y_max_pixels` <= `image_height_pixels` and `center_x_pixels` >= 0 and `center_y_pixels` >= 0 and `center_x_pixels` <= `image_width_pixels` and `center_y_pixels` <= `image_height_pixels`"
+        },
+        {
+          "name": "ck_detected_symbols_prediction_index",
+          "sqltext": "`prediction_index` > 0"
+        },
+        {
+          "name": "ck_detected_symbols_status",
+          "sqltext": "`status` in ('detected','needs_review')"
+        },
+        {
+          "name": "ck_detected_symbols_threshold",
+          "sqltext": "`confidence_threshold` >= 0 and `confidence_threshold` <= 1"
+        }
+      ]
+    },
+    {
+      "name": "detection_class_corrections",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "detected_symbol_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "reviewer_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "sequence_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "old_symbol_legend_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "old_class_id",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "old_class_name",
+          "type": "VARCHAR(255) COLLATE \"utf8mb4_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "new_symbol_legend_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "new_class_id",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "new_class_name",
+          "type": "VARCHAR(255) COLLATE \"utf8mb4_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "detection_class_corrections_ibfk_1",
+          "constrained_columns": [
+            "detected_symbol_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "detected_symbols",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "detection_class_corrections_ibfk_2",
+          "constrained_columns": [
+            "reviewer_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "detection_class_corrections_ibfk_3",
+          "constrained_columns": [
+            "old_symbol_legend_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "symbol_legends",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "detection_class_corrections_ibfk_4",
+          "constrained_columns": [
+            "new_symbol_legend_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "symbol_legends",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_detection_class_corrections_symbol_sequence",
+          "column_names": [
+            "detected_symbol_id",
+            "sequence_number"
+          ],
+          "duplicates_index": "uq_detection_class_corrections_symbol_sequence"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_detection_class_corrections_class_ids",
+          "sqltext": "`old_class_id` >= 0 and `new_class_id` >= 0"
+        },
+        {
+          "name": "ck_detection_class_corrections_class_names",
+          "sqltext": "`old_class_name` = trim(`old_class_name`) and char_length(`old_class_name`) between 1 and 255 and `new_class_name` = trim(`new_class_name`) and char_length(`new_class_name`) between 1 and 255"
+        },
+        {
+          "name": "ck_detection_class_corrections_sequence_number",
+          "sqltext": "`sequence_number` > 0"
+        }
+      ]
+    },
+    {
+      "name": "detection_reviews",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "detected_symbol_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "reviewer_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "sequence_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "decision",
+          "type": "VARCHAR(16)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "detection_reviews_ibfk_1",
+          "constrained_columns": [
+            "detected_symbol_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "detected_symbols",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "detection_reviews_ibfk_2",
+          "constrained_columns": [
+            "reviewer_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_detection_reviews_symbol_sequence",
+          "column_names": [
+            "detected_symbol_id",
+            "sequence_number"
+          ],
+          "duplicates_index": "uq_detection_reviews_symbol_sequence"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_detection_reviews_decision",
+          "sqltext": "`decision` in ('confirmed','deleted')"
+        },
+        {
+          "name": "ck_detection_reviews_sequence_number",
+          "sqltext": "`sequence_number` > 0"
+        }
+      ]
+    },
+    {
+      "name": "estimate_items",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "estimate_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "line_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "material_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "material_code",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "material_name",
+          "type": "VARCHAR(255)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "quantity",
+          "type": "DECIMAL(16, 4)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "unit",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "captured_unit_price",
+          "type": "DECIMAL(16, 4)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "line_total",
+          "type": "DECIMAL(30, 8)",
+          "default": null,
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "estimate_items_ibfk_1",
+          "constrained_columns": [
+            "estimate_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "estimates",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "estimate_items_ibfk_2",
+          "constrained_columns": [
+            "material_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "materials",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_estimate_item_line",
+          "column_names": [
+            "estimate_id",
+            "line_number"
+          ],
+          "duplicates_index": "uq_estimate_item_line"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_estimate_item_amounts",
+          "sqltext": "`quantity` >= 0 and `captured_unit_price` >= 0 and `line_total` >= 0"
+        },
+        {
+          "name": "ck_estimate_item_line",
+          "sqltext": "`line_number` > 0"
+        },
+        {
+          "name": "ck_estimate_item_unit",
+          "sqltext": "char_length(`unit`) between 1 and 32"
+        }
+      ]
+    },
+    {
+      "name": "estimate_sources",
+      "columns": [
+        {
+          "name": "estimate_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "project_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "request_id",
+          "type": "VARCHAR(36)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "snapshot",
+          "type": "LONGTEXT",
+          "default": null,
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "estimate_id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "estimate_sources_ibfk_1",
+          "constrained_columns": [
+            "estimate_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "estimates",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "estimate_sources_ibfk_2",
+          "constrained_columns": [
+            "project_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "projects",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_estimate_request",
+          "column_names": [
+            "project_id",
+            "request_id"
+          ],
+          "duplicates_index": "uq_estimate_request"
+        }
+      ],
+      "checks": []
+    },
+    {
+      "name": "estimates",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "project_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "version_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(3)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "total",
+          "type": "DECIMAL(30, 8)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "estimates_ibfk_1",
+          "constrained_columns": [
+            "project_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "projects",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "estimates_ibfk_2",
+          "constrained_columns": [
+            "created_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_estimate_project_version",
+          "column_names": [
+            "project_id",
+            "version_number"
+          ],
+          "duplicates_index": "uq_estimate_project_version"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_estimate_currency",
+          "sqltext": "char_length(`currency`) = 3"
+        },
+        {
+          "name": "ck_estimate_total",
+          "sqltext": "`total` >= 0"
+        },
+        {
+          "name": "ck_estimate_version",
+          "sqltext": "`version_number` > 0"
+        }
+      ]
+    },
+    {
+      "name": "floor_elevation_settings",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "project_floor_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "elevation_meters",
+          "type": "DECIMAL(15, 9)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "evidence_notes",
+          "type": "VARCHAR(1000)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "reviewed_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "floor_elevation_settings_ibfk_1",
+          "constrained_columns": [
+            "project_floor_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "project_floors",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "floor_elevation_settings_ibfk_2",
+          "constrained_columns": [
+            "reviewed_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [],
+      "checks": [
+        {
+          "name": "ck_floor_elevation_bounds",
+          "sqltext": "`elevation_meters` between -10000 and 10000"
+        }
+      ]
+    },
+    {
+      "name": "floor_plan_interpretation_reviews",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "interpretation_run_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "revision_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "reviewed_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "review_complete",
+          "type": "TINYINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "approved_for_layout",
+          "type": "TINYINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "review_sha256",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "review_json",
+          "type": "LONGTEXT",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "floor_plan_interpretation_reviews_ibfk_1",
+          "constrained_columns": [
+            "interpretation_run_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plan_interpretation_runs",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "floor_plan_interpretation_reviews_ibfk_2",
+          "constrained_columns": [
+            "reviewed_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_floor_plan_interpretation_reviews_run_revision",
+          "column_names": [
+            "interpretation_run_id",
+            "revision_number"
+          ],
+          "duplicates_index": "uq_floor_plan_interpretation_reviews_run_revision"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_floor_plan_interpretation_reviews_approval",
+          "sqltext": "`approved_for_layout` = 0 or `review_complete` = 1"
+        },
+        {
+          "name": "ck_floor_plan_interpretation_reviews_revision",
+          "sqltext": "`revision_number` > 0"
+        },
+        {
+          "name": "ck_floor_plan_interpretation_reviews_sha256",
+          "sqltext": "char_length(`review_sha256`) = 64"
+        }
+      ]
+    },
+    {
+      "name": "floor_plan_interpretation_runs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "candidate_run_id",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "processing_job_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "floor_plan_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "floor_plan_page_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "source_artifact_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "provider",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "candidate_sha256",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "candidate_json",
+          "type": "LONGTEXT",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "floor_plan_interpretation_runs_ibfk_1",
+          "constrained_columns": [
+            "processing_job_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_jobs",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "floor_plan_interpretation_runs_ibfk_2",
+          "constrained_columns": [
+            "floor_plan_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plans",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "floor_plan_interpretation_runs_ibfk_3",
+          "constrained_columns": [
+            "floor_plan_page_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plan_pages",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "floor_plan_interpretation_runs_ibfk_4",
+          "constrained_columns": [
+            "source_artifact_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_artifacts",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "candidate_run_id",
+          "column_names": [
+            "candidate_run_id"
+          ],
+          "duplicates_index": "candidate_run_id"
+        },
+        {
+          "name": "processing_job_id",
+          "column_names": [
+            "processing_job_id"
+          ],
+          "duplicates_index": "processing_job_id"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_floor_plan_interpretation_runs_run_id",
+          "sqltext": "char_length(`candidate_run_id`) = 32"
+        },
+        {
+          "name": "ck_floor_plan_interpretation_runs_sha256",
+          "sqltext": "char_length(`candidate_sha256`) = 64"
+        }
+      ]
+    },
+    {
+      "name": "floor_plan_pages",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "floor_plan_source_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "page_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "floor_plan_pages_ibfk_1",
+          "constrained_columns": [
+            "floor_plan_source_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plan_sources",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_floor_plan_pages_source_number",
+          "column_names": [
+            "floor_plan_source_id",
+            "page_number"
+          ],
+          "duplicates_index": "uq_floor_plan_pages_source_number"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_floor_plan_pages_number_positive",
+          "sqltext": "`page_number` > 0"
+        }
+      ]
+    },
+    {
+      "name": "floor_plan_sources",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "floor_plan_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "original_sha256",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "floor_plan_sources_ibfk_1",
+          "constrained_columns": [
+            "floor_plan_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plans",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "floor_plan_id",
+          "column_names": [
+            "floor_plan_id"
+          ],
+          "duplicates_index": "floor_plan_id"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_floor_plan_sources_sha256_length",
+          "sqltext": "char_length(`original_sha256`) = 64"
+        }
+      ]
+    },
+    {
+      "name": "floor_plans",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "project_floor_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "original_filename",
+          "type": "VARCHAR(255)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "storage_path",
+          "type": "VARCHAR(500)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "mime_type",
+          "type": "VARCHAR(100)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "file_size",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "processing_status",
+          "type": "VARCHAR(32)",
+          "default": "'uploaded'",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "floor_plans_ibfk_1",
+          "constrained_columns": [
+            "project_floor_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "project_floors",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [],
+      "checks": []
+    },
+    {
+      "name": "generated_route_versions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "project_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "version_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "layout_versions",
+          "type": "LONGTEXT",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "configuration",
+          "type": "LONGTEXT",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "result",
+          "type": "LONGTEXT",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "generated_route_versions_ibfk_1",
+          "constrained_columns": [
+            "project_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "projects",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "generated_route_versions_ibfk_2",
+          "constrained_columns": [
+            "created_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "project_id",
+          "column_names": [
+            "project_id",
+            "version_number"
+          ],
+          "duplicates_index": "project_id"
+        }
+      ],
+      "checks": []
+    },
+    {
+      "name": "interpretation_page_outcomes",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "processing_job_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "floor_plan_page_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "page_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "selection_state",
+          "type": "VARCHAR(16)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "default": "'queued'",
+          "nullable": false
+        },
+        {
+          "name": "progress",
+          "type": "INTEGER",
+          "default": "0",
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "failure_code",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "candidate_run_id",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "source_artifact_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "provider",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "model_release_id",
+          "type": "VARCHAR(128)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "configuration_sha256",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "interpretation_page_outcomes_ibfk_1",
+          "constrained_columns": [
+            "processing_job_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_jobs",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "interpretation_page_outcomes_ibfk_2",
+          "constrained_columns": [
+            "floor_plan_page_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plan_pages",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "interpretation_page_outcomes_ibfk_3",
+          "constrained_columns": [
+            "source_artifact_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_artifacts",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_interpretation_outcome_job_page",
+          "column_names": [
+            "processing_job_id",
+            "floor_plan_page_id"
+          ],
+          "duplicates_index": "uq_interpretation_outcome_job_page"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_interpretation_outcome_page_positive",
+          "sqltext": "`page_number` > 0"
+        },
+        {
+          "name": "ck_interpretation_outcome_progress",
+          "sqltext": "`progress` between 0 and 100"
+        },
+        {
+          "name": "ck_interpretation_outcome_selection",
+          "sqltext": "`selection_state` in ('selected','skipped')"
+        },
+        {
+          "name": "ck_interpretation_outcome_status",
+          "sqltext": "`status` in ('queued','processing','completed','failed','cancelled','timeout','skipped')"
+        }
+      ]
+    },
+    {
+      "name": "interpretation_releases",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "release_id",
+          "type": "VARCHAR(128)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "provider",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "model_revision",
+          "type": "VARCHAR(128)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "adapter_revision",
+          "type": "VARCHAR(128)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "manifest_sha256",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "evaluation_report_sha256",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "shadow_report_sha256",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "shadow_report_json",
+          "type": "LONGTEXT",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(16)",
+          "default": "'registered'",
+          "nullable": false
+        },
+        {
+          "name": "active_marker",
+          "type": "TINYINT",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "signed_decision_ref",
+          "type": "VARCHAR(255)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "signed_decision_sha256",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "rollback_target_release_id",
+          "type": "VARCHAR(128)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "rollback_reason",
+          "type": "VARCHAR(1000)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "created_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "shadowed_at",
+          "type": "DATETIME",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "activated_at",
+          "type": "DATETIME",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "rolled_back_at",
+          "type": "DATETIME",
+          "default": null,
+          "nullable": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "release_id",
+          "column_names": [
+            "release_id"
+          ],
+          "duplicates_index": "release_id"
+        },
+        {
+          "name": "uq_interpretation_releases_active_marker",
+          "column_names": [
+            "active_marker"
+          ],
+          "duplicates_index": "uq_interpretation_releases_active_marker"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_interpretation_releases_active_marker",
+          "sqltext": "`active_marker` is null or `active_marker` = 1"
+        },
+        {
+          "name": "ck_interpretation_releases_active_state",
+          "sqltext": "`status` = 'active' and `active_marker` = 1 or `status` <> 'active' and `active_marker` is null"
+        },
+        {
+          "name": "ck_interpretation_releases_decision_sha256",
+          "sqltext": "`signed_decision_sha256` is null or char_length(`signed_decision_sha256`) = 64"
+        },
+        {
+          "name": "ck_interpretation_releases_evaluation_sha256",
+          "sqltext": "`evaluation_report_sha256` is null or char_length(`evaluation_report_sha256`) = 64"
+        },
+        {
+          "name": "ck_interpretation_releases_manifest_sha256",
+          "sqltext": "char_length(`manifest_sha256`) = 64"
+        },
+        {
+          "name": "ck_interpretation_releases_shadow_sha256",
+          "sqltext": "`shadow_report_sha256` is null or char_length(`shadow_report_sha256`) = 64"
+        },
+        {
+          "name": "ck_interpretation_releases_status",
+          "sqltext": "`status` in ('registered','shadow','active','retired','rolled_back','manual_review')"
+        }
+      ]
+    },
+    {
+      "name": "layout_save_requests",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "project_floor_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "idempotency_key",
+          "type": "VARCHAR(36) COLLATE \"ascii_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "expected_version_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "geometry_sha256",
+          "type": "VARCHAR(64) COLLATE \"ascii_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "layout_version_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "layout_save_requests_ibfk_1",
+          "constrained_columns": [
+            "project_floor_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "project_floors",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "layout_save_requests_ibfk_2",
+          "constrained_columns": [
+            "created_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "layout_save_requests_ibfk_3",
+          "constrained_columns": [
+            "layout_version_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "layout_versions",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "layout_version_id",
+          "column_names": [
+            "layout_version_id"
+          ],
+          "duplicates_index": "layout_version_id"
+        },
+        {
+          "name": "uq_layout_save_requests_floor_key",
+          "column_names": [
+            "project_floor_id",
+            "idempotency_key"
+          ],
+          "duplicates_index": "uq_layout_save_requests_floor_key"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_layout_save_requests_expected_version",
+          "sqltext": "`expected_version_number` is null or `expected_version_number` > 0"
+        },
+        {
+          "name": "ck_layout_save_requests_hash_length",
+          "sqltext": "char_length(`geometry_sha256`) = 64"
+        },
+        {
+          "name": "ck_layout_save_requests_key_length",
+          "sqltext": "char_length(`idempotency_key`) = 36"
+        }
+      ]
+    },
+    {
+      "name": "layout_versions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "project_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "project_floor_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "floor_plan_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "version_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "schema_version",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "geometry_document",
+          "type": "LONGTEXT",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "is_current",
+          "type": "TINYINT",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "layout_versions_ibfk_1",
+          "constrained_columns": [
+            "project_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "projects",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "layout_versions_ibfk_2",
+          "constrained_columns": [
+            "project_floor_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "project_floors",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "layout_versions_ibfk_3",
+          "constrained_columns": [
+            "floor_plan_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plans",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_layout_versions_floor_current",
+          "column_names": [
+            "project_floor_id",
+            "is_current"
+          ],
+          "duplicates_index": "uq_layout_versions_floor_current"
+        },
+        {
+          "name": "uq_layout_versions_floor_version",
+          "column_names": [
+            "project_floor_id",
+            "version_number"
+          ],
+          "duplicates_index": "uq_layout_versions_floor_version"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_layout_versions_current_marker",
+          "sqltext": "`is_current` is null or `is_current` = 1"
+        },
+        {
+          "name": "ck_layout_versions_schema_version",
+          "sqltext": "`schema_version` = 1"
+        },
+        {
+          "name": "ck_layout_versions_version_number",
+          "sqltext": "`version_number` > 0"
+        }
+      ]
+    },
+    {
+      "name": "manual_symbols",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "floor_plan_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "processing_job_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "symbol_legend_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "placement_request_id",
+          "type": "VARCHAR(36) COLLATE \"utf8mb4_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(32)",
+          "default": "'manually_added'",
+          "nullable": false
+        },
+        {
+          "name": "class_id",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "class_name",
+          "type": "VARCHAR(255) COLLATE \"utf8mb4_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "center_x_pixels",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "center_y_pixels",
+          "type": "DOUBLE",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "image_width_pixels",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "image_height_pixels",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "manual_symbols_ibfk_1",
+          "constrained_columns": [
+            "floor_plan_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plans",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "manual_symbols_ibfk_2",
+          "constrained_columns": [
+            "processing_job_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_jobs",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "manual_symbols_ibfk_3",
+          "constrained_columns": [
+            "created_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "manual_symbols_ibfk_4",
+          "constrained_columns": [
+            "symbol_legend_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "symbol_legends",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_manual_symbols_creator_request",
+          "column_names": [
+            "created_by_user_id",
+            "placement_request_id"
+          ],
+          "duplicates_index": "uq_manual_symbols_creator_request"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_manual_symbols_class_id",
+          "sqltext": "`class_id` >= 0"
+        },
+        {
+          "name": "ck_manual_symbols_class_name",
+          "sqltext": "`class_name` = trim(`class_name`) and char_length(`class_name`) between 1 and 255"
+        },
+        {
+          "name": "ck_manual_symbols_image_dimensions",
+          "sqltext": "`image_width_pixels` between 1 and 4096 and `image_height_pixels` between 1 and 4096"
+        },
+        {
+          "name": "ck_manual_symbols_pixel_bounds",
+          "sqltext": "`center_x_pixels` >= 0 and `center_y_pixels` >= 0 and `center_x_pixels` <= `image_width_pixels` and `center_y_pixels` <= `image_height_pixels`"
+        },
+        {
+          "name": "ck_manual_symbols_status",
+          "sqltext": "`status` = 'manually_added'"
+        }
+      ]
+    },
+    {
+      "name": "material_prices",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "material_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "version_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "unit_price",
+          "type": "DECIMAL(16, 4)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(3)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "unit",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "effective_at",
+          "type": "DATETIME",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "changed_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "material_prices_ibfk_1",
+          "constrained_columns": [
+            "material_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "materials",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "material_prices_ibfk_2",
+          "constrained_columns": [
+            "changed_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_material_price_version",
+          "column_names": [
+            "material_id",
+            "version_number"
+          ],
+          "duplicates_index": "uq_material_price_version"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_material_price_nonnegative",
+          "sqltext": "`unit_price` >= 0"
+        },
+        {
+          "name": "ck_material_price_version",
+          "sqltext": "`version_number` > 0"
+        }
+      ]
+    },
+    {
+      "name": "materials",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "code",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(255)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "unit",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR(100)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "is_active",
+          "type": "TINYINT",
+          "default": "1",
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "code",
+          "column_names": [
+            "code"
+          ],
+          "duplicates_index": "code"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_materials_category",
+          "sqltext": "`category` = trim(`category`) and char_length(`category`) between 1 and 100"
+        },
+        {
+          "name": "ck_materials_code",
+          "sqltext": "`code` = trim(`code`) and char_length(`code`) between 1 and 64"
+        },
+        {
+          "name": "ck_materials_name",
+          "sqltext": "`name` = trim(`name`) and char_length(`name`) between 1 and 255"
+        },
+        {
+          "name": "ck_materials_unit",
+          "sqltext": "`unit` = trim(`unit`) and char_length(`unit`) between 1 and 32"
+        }
+      ]
+    },
+    {
+      "name": "page_scale_settings",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "floor_plan_page_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "pixels_per_meter",
+          "type": "DECIMAL(16, 9)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "reference_width_pixels",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "reference_height_pixels",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "evidence_notes",
+          "type": "VARCHAR(1000)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "reviewed_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "page_scale_settings_ibfk_1",
+          "constrained_columns": [
+            "floor_plan_page_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plan_pages",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "page_scale_settings_ibfk_2",
+          "constrained_columns": [
+            "reviewed_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [],
+      "checks": [
+        {
+          "name": "ck_page_scale_bounds",
+          "sqltext": "`pixels_per_meter` is null and `reference_width_pixels` is null and `reference_height_pixels` is null or `pixels_per_meter` is not null and `pixels_per_meter` between 0.000001 and 1000000 and `reference_width_pixels` is not null and `reference_width_pixels` between 1 and 100000 and `reference_height_pixels` is not null and `reference_height_pixels` between 1 and 100000"
+        }
+      ]
+    },
+    {
+      "name": "processing_artifacts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "processing_job_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "floor_plan_page_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "artifact_kind",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "relative_path",
+          "type": "VARCHAR(500)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "mime_type",
+          "type": "VARCHAR(100)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "byte_size",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "sha256",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "pixel_width",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "pixel_height",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "processing_artifacts_ibfk_1",
+          "constrained_columns": [
+            "processing_job_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_jobs",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "processing_artifacts_ibfk_2",
+          "constrained_columns": [
+            "floor_plan_page_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plan_pages",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_processing_artifacts_relative_path",
+          "column_names": [
+            "relative_path"
+          ],
+          "duplicates_index": "uq_processing_artifacts_relative_path"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_processing_artifacts_byte_size",
+          "sqltext": "`byte_size` > 0"
+        },
+        {
+          "name": "ck_processing_artifacts_dimensions",
+          "sqltext": "`pixel_width` is null and `pixel_height` is null or `pixel_width` > 0 and `pixel_height` > 0"
+        },
+        {
+          "name": "ck_processing_artifacts_kind",
+          "sqltext": "`artifact_kind` in ('pdf_page','normalized_image','preprocessing_debug','vlm_tile')"
+        },
+        {
+          "name": "ck_processing_artifacts_sha256_length",
+          "sqltext": "char_length(`sha256`) = 64"
+        }
+      ]
+    },
+    {
+      "name": "processing_job_attempts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "processing_job_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "attempt_number",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "worker_identity",
+          "type": "VARCHAR(128) COLLATE \"ascii_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "stage",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "active_marker",
+          "type": "TINYINT",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "lease_expires_at",
+          "type": "DATETIME",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "heartbeat_at",
+          "type": "DATETIME",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "started_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "finished_at",
+          "type": "DATETIME",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "failure_code",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "processing_job_attempts_ibfk_1",
+          "constrained_columns": [
+            "processing_job_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_jobs",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_processing_job_attempts_job_active",
+          "column_names": [
+            "processing_job_id",
+            "active_marker"
+          ],
+          "duplicates_index": "uq_processing_job_attempts_job_active"
+        },
+        {
+          "name": "uq_processing_job_attempts_job_number",
+          "column_names": [
+            "processing_job_id",
+            "attempt_number"
+          ],
+          "duplicates_index": "uq_processing_job_attempts_job_number"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_processing_job_attempts_active_marker",
+          "sqltext": "`active_marker` is null or `active_marker` = 1"
+        },
+        {
+          "name": "ck_processing_job_attempts_number",
+          "sqltext": "`attempt_number` > 0"
+        },
+        {
+          "name": "ck_processing_job_attempts_stage",
+          "sqltext": "`stage` in ('claimed','source_preparation','normalization','geometry_evidence','symbol_evidence','persistence','completed')"
+        },
+        {
+          "name": "ck_processing_job_attempts_status",
+          "sqltext": "`status` in ('active','succeeded','failed','lease_expired','cancelled')"
+        }
+      ]
+    },
+    {
+      "name": "processing_job_cancellations",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "processing_job_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "requested_by_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "mode",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "requested_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "resolved_at",
+          "type": "DATETIME",
+          "default": null,
+          "nullable": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "processing_job_cancellations_ibfk_1",
+          "constrained_columns": [
+            "processing_job_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_jobs",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "processing_job_cancellations_ibfk_2",
+          "constrained_columns": [
+            "requested_by_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "processing_job_id",
+          "column_names": [
+            "processing_job_id"
+          ],
+          "duplicates_index": "processing_job_id"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_processing_job_cancellations_mode",
+          "sqltext": "`mode` in ('queued_cancelled','cooperative_requested')"
+        }
+      ]
+    },
+    {
+      "name": "processing_jobs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "floor_plan_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "type",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(32)",
+          "default": "'queued'",
+          "nullable": false
+        },
+        {
+          "name": "progress",
+          "type": "INTEGER",
+          "default": "0",
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "error_message",
+          "type": "TEXT",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "processing_jobs_ibfk_1",
+          "constrained_columns": [
+            "floor_plan_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plans",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [],
+      "checks": [
+        {
+          "name": "ck_processing_jobs_progress",
+          "sqltext": "`progress` between 0 and 100"
+        },
+        {
+          "name": "ck_processing_jobs_status",
+          "sqltext": "`status` in ('queued','processing','completed','failed','cancelled')"
+        }
+      ]
+    },
+    {
+      "name": "project_floors",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "project_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "sort_order",
+          "type": "INTEGER",
+          "default": "0",
+          "nullable": false,
+          "autoincrement": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "project_floors_ibfk_1",
+          "constrained_columns": [
+            "project_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "projects",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [],
+      "checks": []
+    },
+    {
+      "name": "projects",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "owner_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(255)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(32)",
+          "default": "'draft'",
+          "nullable": false
+        },
+        {
+          "name": "client_name",
+          "type": "VARCHAR(255)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "location",
+          "type": "VARCHAR(500)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "projects_ibfk_1",
+          "constrained_columns": [
+            "owner_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [],
+      "checks": [
+        {
+          "name": "ck_projects_status",
+          "sqltext": "`status` in ('draft','uploaded','processing','needs_review','layout_ready','routing_ready','estimated','report_ready','archived')"
+        }
+      ]
+    },
+    {
+      "name": "roles",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(32)",
+          "default": null,
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "name",
+          "column_names": [
+            "name"
+          ],
+          "duplicates_index": "name"
+        }
+      ],
+      "checks": []
+    },
+    {
+      "name": "symbol_legend_history",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "symbol_legend_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "sequence",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "action",
+          "type": "VARCHAR(16)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "old_class_id",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "old_name",
+          "type": "VARCHAR(255) COLLATE \"utf8mb4_bin\"",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "old_is_active",
+          "type": "TINYINT",
+          "default": null,
+          "nullable": true,
+          "autoincrement": false
+        },
+        {
+          "name": "new_class_id",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "new_name",
+          "type": "VARCHAR(255) COLLATE \"utf8mb4_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "new_is_active",
+          "type": "TINYINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "actor_user_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "symbol_legend_history_ibfk_1",
+          "constrained_columns": [
+            "symbol_legend_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "symbol_legends",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "symbol_legend_history_ibfk_2",
+          "constrained_columns": [
+            "actor_user_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "users",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_symbol_legend_history_sequence",
+          "column_names": [
+            "symbol_legend_id",
+            "sequence"
+          ],
+          "duplicates_index": "uq_symbol_legend_history_sequence"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_symbol_legend_history_action",
+          "sqltext": "`action` in ('created','updated','activated','deactivated')"
+        },
+        {
+          "name": "ck_symbol_legend_history_new_class_id",
+          "sqltext": "`new_class_id` >= 0"
+        },
+        {
+          "name": "ck_symbol_legend_history_new_name",
+          "sqltext": "`new_name` = trim(`new_name`) and char_length(`new_name`) between 1 and 255"
+        },
+        {
+          "name": "ck_symbol_legend_history_old_class_id",
+          "sqltext": "`old_class_id` is null or `old_class_id` >= 0"
+        },
+        {
+          "name": "ck_symbol_legend_history_old_name",
+          "sqltext": "`old_name` is null or `old_name` = trim(`old_name`) and char_length(`old_name`) between 1 and 255"
+        },
+        {
+          "name": "ck_symbol_legend_history_old_snapshot",
+          "sqltext": "`action` = 'created' and `old_class_id` is null and `old_name` is null and `old_is_active` is null or `action` <> 'created' and `old_class_id` is not null and `old_name` is not null and `old_is_active` is not null"
+        },
+        {
+          "name": "ck_symbol_legend_history_sequence",
+          "sqltext": "`sequence` > 0"
+        }
+      ]
+    },
+    {
+      "name": "symbol_legends",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "class_id",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(255) COLLATE \"utf8mb4_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "is_active",
+          "type": "TINYINT",
+          "default": "1",
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [],
+      "unique_constraints": [
+        {
+          "name": "uq_symbol_legends_class_id",
+          "column_names": [
+            "class_id"
+          ],
+          "duplicates_index": "uq_symbol_legends_class_id"
+        },
+        {
+          "name": "uq_symbol_legends_name",
+          "column_names": [
+            "name"
+          ],
+          "duplicates_index": "uq_symbol_legends_name"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_symbol_legends_class_id",
+          "sqltext": "`class_id` >= 0"
+        },
+        {
+          "name": "ck_symbol_legends_name",
+          "sqltext": "`name` = trim(`name`) and char_length(`name`) between 1 and 255"
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "oauth_provider",
+          "type": "VARCHAR(64)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "oauth_subject",
+          "type": "VARCHAR(255) COLLATE \"utf8mb4_bin\"",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(320)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "display_name",
+          "type": "VARCHAR(255)",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "avatar_url",
+          "type": "TEXT",
+          "default": null,
+          "nullable": true
+        },
+        {
+          "name": "role_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "users_ibfk_1",
+          "constrained_columns": [
+            "role_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "roles",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_users_oauth_provider_subject",
+          "column_names": [
+            "oauth_provider",
+            "oauth_subject"
+          ],
+          "duplicates_index": "uq_users_oauth_provider_subject"
+        }
+      ],
+      "checks": []
+    },
+    {
+      "name": "walls",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": true
+        },
+        {
+          "name": "floor_plan_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "processing_job_id",
+          "type": "BIGINT",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "candidate_id",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(32)",
+          "default": "'detected'",
+          "nullable": false
+        },
+        {
+          "name": "pixels_per_meter",
+          "type": "DECIMAL(20, 9)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "raw_start_x",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "raw_start_y",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "raw_end_x",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "raw_end_y",
+          "type": "INTEGER",
+          "default": null,
+          "nullable": false,
+          "autoincrement": false
+        },
+        {
+          "name": "raw_length_pixels",
+          "type": "DECIMAL(20, 6)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "canonical_start_x",
+          "type": "DECIMAL(20, 9)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "canonical_start_y",
+          "type": "DECIMAL(20, 9)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "canonical_end_x",
+          "type": "DECIMAL(20, 9)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "canonical_end_y",
+          "type": "DECIMAL(20, 9)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "canonical_length_meters",
+          "type": "DECIMAL(20, 9)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "angle_degrees",
+          "type": "DECIMAL(9, 6)",
+          "default": null,
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "default": "current_timestamp()",
+          "nullable": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "foreign_keys": [
+        {
+          "name": "walls_ibfk_1",
+          "constrained_columns": [
+            "floor_plan_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "floor_plans",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        },
+        {
+          "name": "walls_ibfk_2",
+          "constrained_columns": [
+            "processing_job_id"
+          ],
+          "referred_schema": null,
+          "referred_table": "processing_jobs",
+          "referred_columns": [
+            "id"
+          ],
+          "options": {}
+        }
+      ],
+      "unique_constraints": [
+        {
+          "name": "uq_walls_floor_plan_candidate",
+          "column_names": [
+            "floor_plan_id",
+            "candidate_id"
+          ],
+          "duplicates_index": "uq_walls_floor_plan_candidate"
+        }
+      ],
+      "checks": [
+        {
+          "name": "ck_walls_angle",
+          "sqltext": "`angle_degrees` >= 0 and `angle_degrees` < 180"
+        },
+        {
+          "name": "ck_walls_candidate_id",
+          "sqltext": "`candidate_id` > 0"
+        },
+        {
+          "name": "ck_walls_canonical_coordinates",
+          "sqltext": "`canonical_start_x` >= 0 and `canonical_start_y` >= 0 and `canonical_end_x` >= 0 and `canonical_end_y` >= 0"
+        },
+        {
+          "name": "ck_walls_lengths",
+          "sqltext": "`raw_length_pixels` >= 0 and `canonical_length_meters` >= 0"
+        },
+        {
+          "name": "ck_walls_raw_coordinates",
+          "sqltext": "`raw_start_x` >= 0 and `raw_start_y` >= 0 and `raw_end_x` >= 0 and `raw_end_y` >= 0"
+        },
+        {
+          "name": "ck_walls_scale",
+          "sqltext": "`pixels_per_meter` > 0"
+        },
+        {
+          "name": "ck_walls_status",
+          "sqltext": "`status` in ('detected','verified')"
+        }
+      ]
+    }
+  ],
+  "model_comparison": []
+}

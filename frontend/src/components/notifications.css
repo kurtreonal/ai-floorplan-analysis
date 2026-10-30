@@ -1,0 +1,7 @@
+.ved-notifications{z-index:300;pointer-events:none;gap:10px;width:min(390px,100vw - 32px);display:grid;position:fixed;bottom:24px;right:24px}
+.ved-notification{color:#183529;pointer-events:auto;background:#fffdfa;border:1px solid #d4dfd3;border-left:3px solid #547d5a;border-radius:10px;align-items:center;gap:10px;padding:14px 15px;font-size:13px;line-height:1.5;display:flex;box-shadow:0 6px 24px #14232d20}
+.ved-notification>svg{flex-shrink:0}
+.ved-notification span{flex:1}
+.ved-notification-error{color:#7b3329;border-color:#ecd2cc #ecd2cc #ecd2cc #bd542d}
+.ved-notification button{cursor:pointer;color:inherit;background:0 0;border:0;place-items:center;padding:5px;display:grid}
+.ved-notification button:focus-visible{outline-offset:2px;outline:2px solid #bd542d}

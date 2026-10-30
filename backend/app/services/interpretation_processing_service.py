@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.floor_plan_interpretation.candidate import CandidateHostProvenance, CandidateWarning, InferenceParameter, build_candidate_envelope
 from app.ai.floor_plan_interpretation import interpret_floor_plan_demo
-from app.ai.floor_plan_interpretation.demo_cv import EVIDENCE_VERSION as CV_EVIDENCE_VERSION, preprocessing_configuration,DemoCVError
+from app.ai.floor_plan_interpretation.demo_cv import EVIDENCE_VERSION as CV_EVIDENCE_VERSION, preprocessing_configuration,DemoCVError, with_final_wall_rooms
 from app.ai.floor_plan_interpretation.chromatic_walls import with_chromatic_wall_evidence
 from app.ai.floor_plan_interpretation.switch_semantics import with_switch_gang_proposals
 from app.ai.floor_plan_interpretation.automatic_wiring import (
@@ -163,9 +163,13 @@ def _interpret_cv_scope(rgb, *, region, experimental, trained, general, linked, 
     if pdf_index is not None:
         payload=with_pdf_wall_evidence(payload,rgb,pdf_index)
         payload=with_pdf_wall_recognition(payload,rgb,pdf_index)
+    payload = with_final_wall_rooms(payload)
     try:payload=with_automatic_wiring(payload, rgb)
     except (ValueError,RuntimeError,cv2.error):payload=failed_wiring_payload(payload)
-    return with_pdf_observed_wiring(payload,rgb,pdf_index) if pdf_index is not None else payload
+    payload=with_pdf_observed_wiring(payload,rgb,pdf_index) if pdf_index is not None else payload
+    from app.ai.ocr.dimensions import with_dimension_ocr
+    try:return with_dimension_ocr(payload,rgb,region=region)
+    except (ValueError,cv2.error):return payload
 
 
 class InterpretationProcessingError(RuntimeError):

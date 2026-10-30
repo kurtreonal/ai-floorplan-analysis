@@ -1,0 +1,32 @@
+{
+  "pages": 1,
+  "original_modules_preserved": 4,
+  "arrows": 28,
+  "admin_explicit_operation_pairs": 6,
+  "designer_operation_pairs": 4,
+  "client_direct_viewing_pairs": 2,
+  "shared_sign_in_roles": [
+    "Admin",
+    "Designer",
+    "Client (planned)"
+  ],
+  "canvas": [
+    1840,
+    1870
+  ],
+  "main_arrow_font": 24,
+  "module_font": 26,
+  "minimum_font": 20,
+  "admin_capability_coverage": "PASS",
+  "client_scope": "Shared sign-in, saved 2D/3D visualization viewing and stored cost-estimate viewing only",
+  "paired_arrows": "PASS",
+  "crossed_arrows": 0,
+  "arrow_node_collisions": 0,
+  "arrow_label_collisions": 0,
+  "overlapping_labels": 0,
+  "text_fit": "PASS",
+  "native_editable_xml": "PASS",
+  "visual_review": "PENDING",
+  "downloads_copy": "PENDING",
+  "editor_import": "NOT TESTED"
+}

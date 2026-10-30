@@ -1,0 +1,29 @@
+.ved-studio-toolbar { position:absolute; z-index:16; top:16px; left:16px; right:64px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; pointer-events:none; }
+.ved-studio-toolbar > * { pointer-events:auto; padding:5px; }
+.ved-studio-toolbar { width:fit-content; max-width:calc(100% - 110px); right:auto; border:1px solid #d8dedc; background:rgba(255,253,249,.97); border-radius:14px; padding:4px; box-shadow:0 8px 28px #24353b12; backdrop-filter:blur(12px); }
+.ved-studio-toolbar > [role=group] + [role=group] { border-left:1px solid #dce1df; border-radius:0; }
+.ved-studio-toolbar button,.ved-studio-toolbar select,.ved-studio-toolbar summary,.ved-studio-inspector button { font:inherit; font-size:12px; color:#27363a; border:0; border-radius:6px; background:transparent; padding:8px 10px; cursor:pointer; }
+.ved-studio-toolbar button[aria-pressed=true] { background:#283c3c; color:white; }
+.ved-studio-toolbar button:disabled { opacity:.45; cursor:default; }
+.ved-studio-toolbar button:hover:not(:disabled),.ved-studio-inspector button:hover { background:#eee7db; color:#27363a; }
+.ved-studio-toolbar details { position:relative; }
+.ved-studio-visibility { position:absolute; top:100%; left:0; width:210px; padding:14px; background:#fffdf9; border:1px solid #dcd3c3; border-radius:10px; box-shadow:0 10px 30px #332b1920; }
+.ved-studio-visibility label { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 0; font-size:12px; text-transform:capitalize; }
+.ved-studio-visibility input { width:auto; accent-color:#c94e28; }
+.ved-studio-inspector { position:absolute; z-index:15; left:20px; top:86px; display:grid; gap:10px; width:min(250px,60%); padding:18px; background:#fffdf9f5; border:1px solid #dcd3c3; border-radius:12px; box-shadow:0 8px 24px #332b1912; }
+.ved-studio-inspector small { color:#627174; }
+.ved-studio-legend { position:absolute; z-index:12; bottom:72px; right:22px; display:flex; justify-content:center; flex-wrap:wrap; gap:10px; padding:8px 12px; border:1px solid #d8dedc; border-radius:8px; background:#fffdf9ed; pointer-events:none; font-size:11px; color:#8a5a00; }
+.ved-studio-legend span:first-child { color:#bf6b3f; }.ved-studio-legend span:nth-child(2) { color:#547caf; }.ved-studio-legend small { color:#667475; }
+.ved-studio-notice { position:absolute; z-index:17; bottom:70px; left:24px; background:#fffdf9; padding:12px; }
+.studio-canvas-first .ved-studio-toolbar { top:78px; left:82px; }
+.studio-canvas-first .ved-studio-inspector { top:146px; left:82px; }
+.viewer-3d-canvas .studio-navigation-help { left:50%; bottom:20px; transform:translateX(-50%); z-index:18; width:max-content; max-width:calc(100% - 180px); border:1px solid #d8dedc; border-radius:10px; background:#fffdf9f5; box-shadow:0 4px 16px #24353b0d; }
+.studio-navigation-help summary { padding:10px 14px; font-size:12px; cursor:pointer; }
+.studio-navigation-help summary span { margin-left:14px; color:#617174; font-weight:400; }
+.studio-navigation-help p { max-width:360px; padding:0 14px 12px; line-height:1.65; font-size:12px; }
+.studio-canvas-first .studio-device-workbench:has(> .demo-review-tools[data-collapsed="false"]) .ved-studio-legend { right:330px; }
+.studio-canvas-first .studio-preview-overlay { top:auto; bottom:64px; left:82px; max-width:300px; pointer-events:none; }
+.studio-preview-overlay > * { pointer-events:auto; }
+@media(max-width:700px) { .studio-canvas-first .ved-studio-toolbar { top:110px; left:66px; gap:4px; } .ved-studio-toolbar button,.ved-studio-toolbar select { padding:6px; } }
+@media(max-width:900px) { .ved-studio-legend { display:none; } .studio-navigation-help summary span { display:none; } .studio-canvas-first .ved-studio-inspector { display:none; } }
+.ved-studio-estimated { position:absolute; left:16px; bottom:16px; z-index:5; padding:7px 10px; border:1px solid #d9c09b; border-radius:7px; background:#fff9ed; color:#77552e; font-size:12px; pointer-events:none; }

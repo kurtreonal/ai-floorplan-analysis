@@ -1,6 +1,17 @@
 from sqlalchemy import select
 from sqlalchemy.orm import defer
 from app.models import Material, Project, ProjectPriceVersion
+from app.models.account_security import AdminActivity
+
+
+def active_import():
+    return ~select(AdminActivity.id).where(AdminActivity.target_type == 'price_import',
+        AdminActivity.target_id == ProjectPriceVersion.id,
+        AdminActivity.action == 'CLIENT_PRICING_REMOVED').exists()
+
+
+def removed_ids(session, project_id):
+    return set(session.scalars(select(ProjectPriceVersion.id).where(ProjectPriceVersion.project_id == project_id, ~active_import())))
 
 
 def materials(session, ids=None, lock=False):
@@ -18,7 +29,7 @@ def lock_project(session, project_id):
 
 
 def versions(session, project_id):
-    return list(session.scalars(select(ProjectPriceVersion).where(ProjectPriceVersion.project_id == project_id)
+    return list(session.scalars(select(ProjectPriceVersion).where(ProjectPriceVersion.project_id == project_id, active_import())
         .order_by(ProjectPriceVersion.version_number.desc()).limit(100)))
 
 
@@ -30,7 +41,7 @@ def latest_version(session, project_id, lock=False):
 
 def current(session, project_id):
     return session.scalar(select(ProjectPriceVersion).options(defer(ProjectPriceVersion.source_bytes))
-        .where(ProjectPriceVersion.project_id == project_id,
+        .where(ProjectPriceVersion.project_id == project_id, active_import(),
             (ProjectPriceVersion.document['usage'].as_string().is_(None)) |
             (ProjectPriceVersion.document['usage'].as_string() != 'item_selection'))
         .order_by(ProjectPriceVersion.version_number.desc()).limit(1))
@@ -43,7 +54,7 @@ def find(session, project_id, version_id):
 
 def latest_automatic(session,project_id,*,for_floor=False,floor_id=None):
     query=(select(ProjectPriceVersion).options(defer(ProjectPriceVersion.source_bytes))
-        .where(ProjectPriceVersion.project_id==project_id,
+        .where(ProjectPriceVersion.project_id==project_id, active_import(),
             ProjectPriceVersion.document['matching_method'].as_string()=='automatic_client_specification')
         .order_by(ProjectPriceVersion.version_number.desc()).limit(1))
     if for_floor:

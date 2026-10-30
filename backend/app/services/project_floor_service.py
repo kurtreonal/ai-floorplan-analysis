@@ -20,10 +20,13 @@ def list_accessible_project_floors(
         current_user=current_user,
         project_id=project_id,
     )
-    return list_project_floors(
+    floors=list_project_floors(
         database_session,
         project_id=project_id,
     )
+    from app.services.plan_material_setup import floor_settings
+    for floor in floors:floor.layout_type=floor_settings(database_session,project_id,floor.id).get('layoutType')
+    return floors
 
 
 def create_project_floor(
@@ -38,8 +41,16 @@ def create_project_floor(
         current_user=current_user,
         project_id=project_id,
     )
+    from app.repositories.routing_repository import lock_context
+    lock_context(database_session,project_id,[])
     project_floor = ProjectFloor(
         project_id=project.id,
         name=floor_data.name,
+        sort_order=max((floor.sort_order for floor in list_project_floors(database_session,project_id=project_id)),default=-1)+1,
     )
-    return add_project_floor(database_session, project_floor)
+    floor=add_project_floor(database_session, project_floor)
+    if floor_data.layout_type:
+        from app.services.plan_material_setup import append
+        append(database_session,current_user,project_id,floor_id=floor.id,layout=floor_data.layout_type)
+    floor.layout_type=floor_data.layout_type
+    return floor

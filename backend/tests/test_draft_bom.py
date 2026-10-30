@@ -224,7 +224,7 @@ def test_conduit_purchase_length_requires_conversion_not_an_implicit_metre():
 def test_under_floor_and_ceiling_paths_keep_installation_identity_and_no_wire_multiplier():
     source=document()
     source['observed_wiring'][0].update(wiring_legend_name='Raceway conduit concealed under floor',installation_method='concealed_under_floor')
-    source['generated_wiring']=[dict(id='g1',points=[dict(x=0,y=0),dict(x=20,y=0)],
+    source['generated_wiring']=[dict(id='g1',disposition='accepted',points=[dict(x=0,y=0),dict(x=20,y=0)],
         wiring_legend_name='Raceway conduit concealed in ceiling',installation_method='concealed_in_ceiling')]
     conduit={**material('Conduit','meter','10',9),'category':'CONDUIT'}
     rows=document_takeoff(source,scale=10)

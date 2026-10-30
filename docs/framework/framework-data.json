@@ -1,0 +1,502 @@
+{
+  "nodes": {
+    "system": {
+      "label": "VED Electrical Services",
+      "x": 650,
+      "y": 160,
+      "w": 500,
+      "h": 1130,
+      "kind": "system"
+    },
+    "access": {
+      "label": "USER AND ACCESS\nMANAGEMENT MODULE",
+      "x": 680,
+      "y": 310,
+      "w": 440,
+      "h": 140,
+      "kind": "module"
+    },
+    "project-ai": {
+      "label": "PROJECT, FLOOR PLAN AND\nAI REVIEW MODULE",
+      "x": 680,
+      "y": 510,
+      "w": 440,
+      "h": 140,
+      "kind": "module"
+    },
+    "visualization": {
+      "label": "2D / 3D VISUALIZATION\nMODULE",
+      "x": 680,
+      "y": 710,
+      "w": 440,
+      "h": 140,
+      "kind": "module"
+    },
+    "routing": {
+      "label": "ELECTRICAL ROUTING AND\nMEASUREMENTS MODULE",
+      "x": 680,
+      "y": 910,
+      "w": 440,
+      "h": 140,
+      "kind": "module"
+    },
+    "estimation": {
+      "label": "COST ESTIMATION AND\nREPORTING MODULE",
+      "x": 680,
+      "y": 1110,
+      "w": 440,
+      "h": 140,
+      "kind": "module"
+    },
+    "designer": {
+      "label": "ELECTRICAL DESIGNER",
+      "x": 90,
+      "y": 650,
+      "w": 230,
+      "h": 250,
+      "kind": "actor"
+    },
+    "admin": {
+      "label": "ADMINISTRATOR",
+      "x": 1370,
+      "y": 80,
+      "w": 230,
+      "h": 220,
+      "kind": "actor"
+    },
+    "client": {
+      "label": "CLIENT*\nREAD-ONLY",
+      "x": 1550,
+      "y": 850,
+      "w": 230,
+      "h": 250,
+      "kind": "actor"
+    },
+    "database": {
+      "label": "MySQL Database",
+      "x": 800,
+      "y": 1390,
+      "w": 200,
+      "h": 150,
+      "kind": "database"
+    }
+  },
+  "flows": [
+    {
+      "id": "f53",
+      "source": "designer",
+      "target": "access",
+      "points": [
+        [
+          120,
+          650
+        ],
+        [
+          120,
+          350
+        ],
+        [
+          680,
+          350
+        ]
+      ],
+      "label": "Sign in and request access",
+      "planned": false,
+      "tag": "sign-in"
+    },
+    {
+      "id": "f55",
+      "source": "access",
+      "target": "designer",
+      "points": [
+        [
+          680,
+          400
+        ],
+        [
+          160,
+          400
+        ],
+        [
+          160,
+          650
+        ]
+      ],
+      "label": "Access result and permissions",
+      "planned": false,
+      "tag": "access-result"
+    },
+    {
+      "id": "f57",
+      "source": "designer",
+      "target": "project-ai",
+      "points": [
+        [
+          200,
+          650
+        ],
+        [
+          200,
+          550
+        ],
+        [
+          680,
+          550
+        ]
+      ],
+      "label": "Create projects; upload plans;\nreview or correct AI results",
+      "planned": false,
+      "tag": "project-write"
+    },
+    {
+      "id": "f59",
+      "source": "project-ai",
+      "target": "designer",
+      "points": [
+        [
+          680,
+          600
+        ],
+        [
+          240,
+          600
+        ],
+        [
+          240,
+          650
+        ]
+      ],
+      "label": "Saved projects; proposals;\nreview and validation status",
+      "planned": false,
+      "tag": "project-result"
+    },
+    {
+      "id": "f61",
+      "source": "designer",
+      "target": "visualization",
+      "points": [
+        [
+          320,
+          750
+        ],
+        [
+          680,
+          750
+        ]
+      ],
+      "label": "Open, edit and save layout",
+      "planned": false,
+      "tag": "layout-write"
+    },
+    {
+      "id": "f63",
+      "source": "visualization",
+      "target": "designer",
+      "points": [
+        [
+          680,
+          800
+        ],
+        [
+          320,
+          800
+        ]
+      ],
+      "label": "Saved 2D / 3D layout and version",
+      "planned": false,
+      "tag": "layout-result"
+    },
+    {
+      "id": "f65",
+      "source": "designer",
+      "target": "routing",
+      "points": [
+        [
+          240,
+          900
+        ],
+        [
+          240,
+          950
+        ],
+        [
+          680,
+          950
+        ]
+      ],
+      "label": "Set routing inputs and\ncalculate electrical routes",
+      "planned": false,
+      "tag": "route-write"
+    },
+    {
+      "id": "f67",
+      "source": "routing",
+      "target": "designer",
+      "points": [
+        [
+          680,
+          1000
+        ],
+        [
+          200,
+          1000
+        ],
+        [
+          200,
+          900
+        ]
+      ],
+      "label": "Wire / conduit paths and lengths",
+      "planned": false,
+      "tag": "route-result"
+    },
+    {
+      "id": "f69",
+      "source": "designer",
+      "target": "estimation",
+      "points": [
+        [
+          160,
+          900
+        ],
+        [
+          160,
+          1150
+        ],
+        [
+          680,
+          1150
+        ]
+      ],
+      "label": "Generate estimate and export report",
+      "planned": false,
+      "tag": "estimate-write"
+    },
+    {
+      "id": "f71",
+      "source": "estimation",
+      "target": "designer",
+      "points": [
+        [
+          680,
+          1200
+        ],
+        [
+          120,
+          1200
+        ],
+        [
+          120,
+          900
+        ]
+      ],
+      "label": "Cost breakdown and report",
+      "planned": false,
+      "tag": "estimate-result"
+    },
+    {
+      "id": "f73",
+      "source": "admin",
+      "target": "system",
+      "points": [
+        [
+          1370,
+          170
+        ],
+        [
+          1150,
+          170
+        ]
+      ],
+      "label": "Manage access, approved legends\nand material prices",
+      "planned": false,
+      "tag": "admin-manage"
+    },
+    {
+      "id": "f75",
+      "source": "system",
+      "target": "admin",
+      "points": [
+        [
+          1150,
+          250
+        ],
+        [
+          1370,
+          250
+        ]
+      ],
+      "label": "Records and update status",
+      "planned": false,
+      "tag": "admin-result"
+    },
+    {
+      "id": "f77",
+      "source": "client",
+      "target": "access",
+      "points": [
+        [
+          1740,
+          850
+        ],
+        [
+          1740,
+          350
+        ],
+        [
+          1120,
+          350
+        ]
+      ],
+      "label": "Sign in and request access",
+      "planned": true,
+      "tag": "client-sign-in"
+    },
+    {
+      "id": "f79",
+      "source": "access",
+      "target": "client",
+      "points": [
+        [
+          1120,
+          400
+        ],
+        [
+          1700,
+          400
+        ],
+        [
+          1700,
+          850
+        ]
+      ],
+      "label": "Access result and read-only permissions",
+      "planned": true,
+      "tag": "client-access-result"
+    },
+    {
+      "id": "f81",
+      "source": "client",
+      "target": "visualization",
+      "points": [
+        [
+          1660,
+          850
+        ],
+        [
+          1660,
+          750
+        ],
+        [
+          1120,
+          750
+        ]
+      ],
+      "label": "Request saved 2D / 3D layout",
+      "planned": true,
+      "tag": "client-view-layout"
+    },
+    {
+      "id": "f83",
+      "source": "visualization",
+      "target": "client",
+      "points": [
+        [
+          1120,
+          800
+        ],
+        [
+          1620,
+          800
+        ],
+        [
+          1620,
+          850
+        ]
+      ],
+      "label": "Authorized layout - view only",
+      "planned": true,
+      "tag": "client-layout-result"
+    },
+    {
+      "id": "f85",
+      "source": "client",
+      "target": "estimation",
+      "points": [
+        [
+          1620,
+          1100
+        ],
+        [
+          1620,
+          1150
+        ],
+        [
+          1120,
+          1150
+        ]
+      ],
+      "label": "Request stored cost estimate",
+      "planned": true,
+      "tag": "client-view-cost"
+    },
+    {
+      "id": "f87",
+      "source": "estimation",
+      "target": "client",
+      "points": [
+        [
+          1120,
+          1200
+        ],
+        [
+          1660,
+          1200
+        ],
+        [
+          1660,
+          1100
+        ]
+      ],
+      "label": "Cost breakdown and total - view only",
+      "planned": true,
+      "tag": "client-cost-result"
+    },
+    {
+      "id": "f89",
+      "source": "system",
+      "target": "database",
+      "points": [
+        [
+          875,
+          1290
+        ],
+        [
+          875,
+          1390
+        ]
+      ],
+      "label": "Store data",
+      "planned": false,
+      "tag": "persist"
+    },
+    {
+      "id": "f91",
+      "source": "database",
+      "target": "system",
+      "points": [
+        [
+          925,
+          1390
+        ],
+        [
+          925,
+          1290
+        ]
+      ],
+      "label": "Retrieve saved data",
+      "planned": false,
+      "tag": "retrieve"
+    }
+  ]
+}

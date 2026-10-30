@@ -14,6 +14,11 @@ import '../projects/projects.css'
 import '../../components/workspace.css'
 import { UserPreferencesProvider } from '../settings/UserPreferences.jsx'
 import { UserSettingsPage } from '../settings/UserSettingsPage.jsx'
+import { AuthRecoveryScreen } from './AuthRecoveryScreen.jsx'
+import { ClientPortal } from '../projects/ClientPortal.jsx'
+import '../projects/clientWorkflow.css'
+import { MutationNotifications } from '../../components/MutationNotifications.jsx'
+import { NotificationCenter } from '../../components/NotificationCenter.jsx'
 
 const Viewer3DPage = lazy(() => import('../viewer-3d/Viewer3DPage.jsx'))
 
@@ -38,29 +43,18 @@ export function ProtectedAppPage({ route, session }) {
   }
 
   if (session.status === 'error') {
-    return (
-      <main className="auth-shell">
-        <section className="auth-card" aria-labelledby="access-error-title">
-          <div className="auth-card-accent mono">APPLICATION ACCESS</div>
-          <h1 id="access-error-title">We couldn’t verify your session.</h1>
-          <p className="auth-intro">The authentication service may be temporarily unavailable.</p>
-          <button className="btn btn-accent auth-primary" type="button" onClick={session.retry}>
-            Try again
-          </button>
-          <a className="auth-home-link" href="#/">← Return to home</a>
-        </section>
-      </main>
-    )
+    return <AuthRecoveryScreen onRetry={session.retry} unavailable />
   }
 
   const projectRoute = parseProjectRoute(route)
 
   return (
-    <UserPreferencesProvider key={session.user.id ?? session.user.email ?? 'session'} userId={session.user.id ?? session.user.email ?? 'session'}>
-    <div className="project-app studio-shell">
+    <UserPreferencesProvider key={session.user.id ?? session.user.email ?? 'session'} userId={session.user.id ?? session.user.email ?? 'session'} loadSharedDefaults={session.user.role !== 'CLIENT'}>
+    <MutationNotifications/>
+    <div className={`project-app studio-shell${projectRoute.view === 'demo-interpretation' ? ' studio-canvas-first' : ''}`}>
       <WorkspaceSidebar projectRoute={projectRoute} session={session} navigationBlocked={navigationBlocked} />
       <div className="studio-content">
-      <header className="studio-topbar"><span className="mono">VED / {projectRoute.projectId ? `PROJECT ${projectRoute.projectId}` : 'PROJECTS'}</span><span>Planning & estimation · review before use</span></header>
+      <header className="studio-topbar"><div className="studio-topbar-start">{projectRoute.view!=='demo-interpretation' && session.user.role==='DESIGNER' && <NotificationCenter/>}<span className="mono">VED / {projectRoute.projectId ? `PROJECT ${projectRoute.projectId}` : 'PROJECTS'}</span></div><span>Planning & estimation · review before use</span></header>
 
       {session.error && (
         <div className="auth-message auth-message-error project-shell-error" role="alert">
@@ -69,8 +63,9 @@ export function ProtectedAppPage({ route, session }) {
       )}
 
       <main className="project-app-main">
-        {projectRoute.view === 'settings' && <UserSettingsPage />}
-        {projectRoute.view === 'dashboard' && <ProjectDashboardPage session={session} />}
+        {projectRoute.view === 'settings' && <UserSettingsPage isAdmin={session.user.role==='ADMIN'}/>}
+        {session.user.role === 'CLIENT' && projectRoute.view !== 'settings' ? <ClientPortal/> : <>
+        {projectRoute.view === 'dashboard' && <ProjectDashboardPage key={`${projectRoute.section || 'dashboard'}:${projectRoute.clientFilter || ''}`} session={session} initialSection={projectRoute.section} clientFilter={projectRoute.clientFilter} />}
         {projectRoute.view === 'project' && (
           <ProjectDetailPage projectId={projectRoute.projectId} session={session} />
         )}
@@ -90,6 +85,9 @@ export function ProtectedAppPage({ route, session }) {
             projectFloorId={projectRoute.projectFloorId}
             floorPlanId={projectRoute.floorPlanId}
             processingJobId={projectRoute.processingJobId}
+            measurementAction={projectRoute.measurementAction}
+            measurementTarget={projectRoute.measurementTarget}
+            measurementTargets={projectRoute.measurementTargets}
             session={session}
           />
         )}
@@ -119,6 +117,7 @@ export function ProtectedAppPage({ route, session }) {
         {projectRoute.view === 'invalid' && (
           <ProjectDetailPage projectId={null} session={session} />
         )}
+        </>}
       </main>
       </div>
     </div>

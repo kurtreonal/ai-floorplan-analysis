@@ -1,20 +1,21 @@
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import select
+from app.models.client_workflow import LinkedIdentity
 
 from app.models import User
 from app.repositories.user_repository import (
-    add_user,
-    find_role_by_name,
     find_user_by_external_identity,
     find_user_by_id_with_role,
 )
 
 
-DEFAULT_NEW_USER_ROLE = "DESIGNER"
-
-
 class AuthenticationServiceError(RuntimeError):
     """Raised when a verified identity cannot be mapped to a local user."""
+
+
+class AccountNotProvisioned(AuthenticationServiceError):
+    """A provider identity is not an enabled, previously provisioned account."""
 
 
 class ExternalOIDCIdentity(BaseModel):
@@ -30,10 +31,16 @@ def resolve_current_user(
     *,
     user_id: int,
 ) -> User | None:
-    return find_user_by_id_with_role(
+    user = find_user_by_id_with_role(
         database_session,
         user_id=user_id,
     )
+    from app.services.local_accounts import account_enabled, credential_for
+    if not user or not account_enabled(database_session, user.id):
+        return None
+    if user.role.name != 'ADMIN' and credential_for(database_session, user.id) is None:
+        return None
+    return user
 
 
 def resolve_external_user(
@@ -45,31 +52,19 @@ def resolve_external_user(
         provider=identity.provider,
         subject=identity.subject,
     )
+    linked = database_session.scalar(select(LinkedIdentity).where(
+        LinkedIdentity.provider == identity.provider, LinkedIdentity.subject == identity.subject))
+    if linked:
+        user = database_session.get(User, linked.user_id)
     if user is not None:
-        if identity.email is not None:
-            user.email = identity.email
-        if identity.display_name is not None:
-            user.display_name = identity.display_name
-        if identity.avatar_url is not None:
-            user.avatar_url = identity.avatar_url
-        database_session.flush()
+        from app.services.local_accounts import account_enabled, credential_for
+        # Preserve explicitly provisioned Admin access for bootstrap. Designer and
+        # Client Google login requires a managed password account and prior link.
+        if not account_enabled(database_session, user.id) or (user.role.name != 'ADMIN'
+                and (credential_for(database_session, user.id) is None or linked is None)):
+            raise AccountNotProvisioned()
+        # Google is a sign-in method, not authority to rename a managed account.
         return user, False
-
-    default_role = find_role_by_name(
-        database_session,
-        name=DEFAULT_NEW_USER_ROLE,
-    )
-    if default_role is None:
-        raise AuthenticationServiceError(
-            "The default local role is unavailable. Run the development role seed."
-        )
-
-    user = User(
-        oauth_provider=identity.provider,
-        oauth_subject=identity.subject,
-        email=identity.email,
-        display_name=identity.display_name,
-        avatar_url=identity.avatar_url,
-        role_id=default_role.id,
-    )
-    return add_user(database_session, user), True
+    # Never auto-provision or match by email: linking requires an authenticated
+    # account and current-password confirmation in the explicit linking flow.
+    raise AccountNotProvisioned()

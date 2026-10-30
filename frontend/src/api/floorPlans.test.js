@@ -73,7 +73,7 @@ describe('floor plan API client', () => {
     await expect(listFloorPlans(7)).rejects.toBe(abortError)
   })
 
-  it('sends credentialed multipart data containing only the floor ID and original file', async () => {
+  it('sends credentialed multipart data with original file and automatic setup initialization', async () => {
     const file = new File([new Uint8Array([1, 2, 3, 4])], 'house-plan.png', {
       type: 'image/png',
     })
@@ -90,7 +90,8 @@ describe('floor plan API client', () => {
     expect(request.headers).toEqual({ Accept: 'application/json' })
     expect(request.headers['Content-Type']).toBeUndefined()
     expect(request.body).toBeInstanceOf(FormData)
-    expect(Array.from(request.body.keys())).toEqual(['project_floor_id', 'file'])
+    expect(Array.from(request.body.keys())).toEqual(['project_floor_id', 'file', 'measurement_settings'])
+    expect(request.body.get('measurement_settings')).toBe('{}')
     expect(request.body.get('project_floor_id')).toBe('12')
     expect(request.body.get('file')).toBe(file)
   })

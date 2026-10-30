@@ -313,7 +313,7 @@ function App() {
 
   if (
     AUTH_ENABLED
-    && (route === '/app' || route === '/app/settings' || route === '/app/projects' || route.startsWith('/app/projects/'))
+    && (route === '/app' || route === '/app/settings' || route === '/app/clients' || route.startsWith('/app/clients/') || route === '/app/projects' || route.startsWith('/app/projects/'))
   ) {
     return <ProtectedAppPage route={route} session={session} />
   }

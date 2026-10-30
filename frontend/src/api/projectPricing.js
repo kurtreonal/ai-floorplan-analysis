@@ -57,3 +57,10 @@ export const inspectProjectPrices = (id, file, options) => request(id, '/inspect
 export const previewProjectPrices = (id, file, selection, options) => request(id, '/preview', { ...options, file, selection })
 export const applyProjectPrices = (id, file, selection, options) => request(id, '/apply', { ...options, file, selection })
 export const uploadAutomaticPrices = (id,file,options) => request(id,'/automatic',{...options,file})
+
+export async function removeProjectPrices(projectId, {signal} = {}) {
+  if (!Number.isSafeInteger(projectId) || projectId <= 0) throw new ProjectPricingError(422)
+  const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/client-pricing`,{method:'DELETE',credentials:'include',signal})
+  if (!response.ok) throw new ProjectPricingError(response.status,'Could not remove client prices. Reload and try again.')
+  return response.json()
+}

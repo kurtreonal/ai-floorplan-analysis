@@ -1,10 +1,14 @@
 from app.models.base import Base
+from app.models.legend_artwork import LegendArtwork
+from app.models.account_security import AccountEmail, EmailChallenge, TrustedDevice, AdminActivity
+from app.models.application_defaults import ApplicationDefaults
 from app.models.estimate import Estimate, EstimateItem
 from app.models.estimate_source import EstimateSource
 from app.models.project_price_version import ProjectPriceVersion
 from app.models.item_price_assignment import ItemPriceAssignment
 from app.models.material import Material
 from app.models.material_price import MaterialPrice
+from app.models.material_assembly import MaterialAssembly
 from app.models.generated_route import GeneratedRouteVersion
 from app.models.analysis_settings import FloorElevationSetting, PageScaleSetting
 from app.models.plan_measurement_setting import PlanMeasurementSetting
@@ -38,6 +42,7 @@ from app.models.wall import Wall
 
 
 __all__ = (
+    "ApplicationDefaults",
     "PlanMeasurementSetting",
     "Base",
     "Estimate",
@@ -47,6 +52,7 @@ __all__ = (
     "ItemPriceAssignment",
     "Material",
     "MaterialPrice",
+    "MaterialAssembly",
     "FloorElevationSetting",
     "PageScaleSetting",
     "DetectionClassCorrection",
@@ -78,3 +84,4 @@ __all__ = (
     "Wall",
     "GeneratedRouteVersion",
 )
+from app.models.client_workflow import LocalCredential, LinkedIdentity, ProjectAssignment, ProjectPublication

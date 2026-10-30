@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, ForeignKey, JSON, String, Text, UniqueConstraint, null
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 class User(Base):
     __tablename__ = "users"
+    profile_details: Mapped[dict | None] = mapped_column(JSON, nullable=True, deferred=True,server_default=null())
     __table_args__ = (
         UniqueConstraint(
             "oauth_provider",

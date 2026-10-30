@@ -34,6 +34,18 @@ class NativeSymbolContextTests(unittest.TestCase):
             context_rows([{'source_box': [10, 10, 30, 30]}],
                          [{'box': [20, 20, 40, 40]}], (512, 512))
 
+    def test_negative_context_mode_keeps_nearby_labels_without_extra_control_windows(self):
+        targets = [{'record_id': 'near', 'source_box': [30, 30, 50, 50], 'class_id': 0},
+                   {'record_id': 'far', 'source_box': [450, 450, 470, 470], 'class_id': 1}]
+        negatives = [{'id': 'text', 'box': [80, 80, 100, 100]}]
+        rows = context_rows(targets, negatives, (512, 512), negative_context_only=True)
+        self.assertTrue(all(r['negative_regions_training_pixels'] for r in rows))
+        self.assertTrue(any('near' in r['supervised_records'] for r in rows))
+        self.assertTrue(all('far' not in r['supervised_records'] for r in rows))
+        with self.assertRaisesRegex(ValueError, 'overlaps'):
+            context_rows(targets, [{'id': 'bad', 'box': [440, 440, 480, 480]}],
+                         (512, 512), negative_context_only=True)
+
     def test_invalid_or_outside_rectangles_rejected(self):
         for box in ([0, 0, 600, 10], [0, 0, float('nan'), 10], [True, 0, 20, 20], [20, 0, 10, 10]):
             with self.subTest(box=box), self.assertRaises(ValueError):

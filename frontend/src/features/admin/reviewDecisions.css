@@ -1,0 +1,24 @@
+.proposal-filters { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }
+.proposal-filters button { display:flex; align-items:center; gap:8px; border:1px solid var(--paper-line); border-radius:8px; padding:9px 13px; background:var(--white); color:var(--ink-soft); cursor:pointer; font-size:12px; }
+.proposal-filters button[aria-pressed=true] { background:#fff0e5; color:#a83b1e; border-color:#ce512d; }
+.proposal-filters button span { padding:2px 6px; border-radius:9px; background:#00000008; font-size:10px; }
+.admin-proposal-reviews table { min-width:800px; }
+.admin-proposal-reviews td { vertical-align:top; }
+.admin-proposal-reviews td small { display:block; margin-top:6px; color:var(--ink-soft); }
+.proposal-status { display:inline-flex; border-radius:6px; padding:5px 8px; background:#f6edda; color:#755b1f; font-size:11px; }
+.proposal-status.is-approved { background:#e9f0e8; color:#46634b; }
+.proposal-open { display:inline-flex; gap:6px; align-items:center; min-height:34px; padding:6px 10px; border:1px solid var(--paper-line); border-radius:7px; text-decoration:none; color:var(--ink); white-space:nowrap; }
+.proposal-open:hover { border-color:#c94a28; background:#fff3e9; }
+.proposal-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.proposal-comment { margin-top:10px; max-width:230px; font-size:11px; }
+.proposal-comment summary { display:flex; align-items:center; gap:5px; cursor:pointer; color:var(--ink-soft); }
+.proposal-comment p { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.6; margin-top:8px; }
+.proposal-decision-form { display:grid; gap:10px; margin-top:20px; }
+.proposal-decision-form>p { font-size:12px; line-height:1.6; }
+.proposal-decision-form label { display:flex; justify-content:space-between; gap:8px; font-size:12px; font-weight:600; }
+.proposal-decision-form label span,.proposal-decision-form>small { color:var(--ink-soft); font-size:10px; font-weight:400; }
+.proposal-decision-form textarea { width:100%; min-height:120px; resize:vertical; border:1px solid var(--paper-line); border-radius:8px; padding:12px; color:var(--ink); background:var(--white); font:inherit; font-size:13px; line-height:1.6; }
+.proposal-decision-form textarea:focus-visible { outline:2px solid #c94a28; outline-offset:2px; }
+.proposal-dialog-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.assembly-choice-action { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.assembly-choice-action select { min-width:180px; width:min(100%,320px); max-width:100%; }

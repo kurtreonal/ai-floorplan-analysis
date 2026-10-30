@@ -1,0 +1,20 @@
+{
+  "pages": 4,
+  "level1_processes": 6,
+  "level1_client_flows": 6,
+  "client_permissions": "Sign-in; read authorized saved 2D/3D layouts; read captured estimates only",
+  "client_status": "Planned, not implemented",
+  "client_restrictions": "PASS",
+  "data_store_entity_separation": "PASS",
+  "process_inputs_and_outputs": "PASS",
+  "geometry_continuation_balance": "PASS",
+  "flow_crossings": 0,
+  "flow_node_collisions": 0,
+  "flow_label_collisions": 0,
+  "text_fit": "PASS",
+  "editable_xml": "PASS",
+  "preview_visual_review": "PASS",
+  "editor_import": "NOT TESTED",
+  "downloads_copy": "PASS: SHA256 match and four-page XML re-opened",
+  "downloads_path": "C:\\Users\\kupal\\Downloads\\ved-data-flow-diagram-2026-10-12.drawio"
+}

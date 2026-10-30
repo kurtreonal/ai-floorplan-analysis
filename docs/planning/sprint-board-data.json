@@ -1,0 +1,498 @@
+{
+  "planning_date": "2026-10-12",
+  "sprint_dates_proposed": [
+    "2026-10-12",
+    "2026-10-23"
+  ],
+  "owners": "TBD",
+  "capacity": "TBD",
+  "branch": "codex/vlm-localization-experiment",
+  "head": "f605974",
+  "lanes": [
+    {
+      "name": "BACKLOG",
+      "description": "Next delivery slice",
+      "cards": [
+        {
+          "id": "Q1",
+          "title": "Freeze report data contract",
+          "body": "Bind project, layout, routes, BOM and costs to one stored estimate version.",
+          "done": "Contract excludes live-price recalculation.",
+          "role": "Backend",
+          "priority": "P1",
+          "needs": "O3 + K2",
+          "source": [
+            "docs/FUNCTIONAL_SPEC.md"
+          ]
+        },
+        {
+          "id": "Q2",
+          "title": "Generate planning PDF",
+          "body": "Render quantities, captured unit prices, totals, date and prepared-by identity.",
+          "done": "Readable PDF stored outside originals.",
+          "role": "Backend",
+          "priority": "P1",
+          "needs": "Q1",
+          "source": [
+            "docs/FUNCTIONAL_SPEC.md"
+          ]
+        },
+        {
+          "id": "Q3",
+          "title": "Persist and serve reports",
+          "body": "Create report records and protected generation/download endpoints.",
+          "done": "Old report downloads retain old costs.",
+          "role": "Backend",
+          "priority": "P1",
+          "needs": "Q2",
+          "source": [
+            "docs/FUNCTIONAL_SPEC.md"
+          ]
+        },
+        {
+          "id": "Q4",
+          "title": "Build report workspace",
+          "body": "Show report status, errors, version history and PDF download.",
+          "done": "Designer can generate and reopen a report.",
+          "role": "Frontend",
+          "priority": "P1",
+          "needs": "Q3",
+          "source": [
+            "docs/FUNCTIONAL_SPEC.md"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "READY TO PLAN",
+      "description": "Proposed Sprint 01",
+      "cards": [
+        {
+          "id": "SP-01",
+          "title": "Capture a clean baseline",
+          "body": "Inventory the current dirty tree. Record full backend/frontend, build and lint results.",
+          "done": "Reproducible baseline; existing work preserved.",
+          "role": "QA",
+          "priority": "P0",
+          "needs": "None",
+          "source": [
+            "docs/U_VLM_PROGRESS.md"
+          ]
+        },
+        {
+          "id": "SP-02",
+          "title": "Resolve catalog lint debt",
+          "body": "Decide how to retain, fix or exclude the unused DeviceMeshCatalog source.",
+          "done": "Full lint passes without masking errors.",
+          "role": "Frontend",
+          "priority": "P1",
+          "needs": "SP-01",
+          "source": [
+            "frontend/src/features/viewer-3d/DeviceMeshCatalog.jsx"
+          ]
+        },
+        {
+          "id": "SP-05",
+          "title": "Align status documentation",
+          "body": "Reconcile README counts, implementation status and the chronological progress ledger.",
+          "done": "Current API/schema inventory is recorded.",
+          "role": "Docs / Backend",
+          "priority": "P1",
+          "needs": "SP-01",
+          "source": [
+            "README.md",
+            "docs/U_VLM_PROGRESS.md"
+          ]
+        },
+        {
+          "id": "SP-09",
+          "title": "Close the integration gate",
+          "body": "Run full regression, build and lint after the scoped integration changes.",
+          "done": "Gates pass; failures remain visible.",
+          "role": "QA",
+          "priority": "P0",
+          "needs": "SP-02..08 + SP-10",
+          "source": [
+            "frontend/package.json"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LOCAL WORK",
+      "description": "Present in the working tree",
+      "cards": [
+        {
+          "id": "SP-03",
+          "title": "Integrate endpoint magnets",
+          "body": "Shared 2D/3D connection controls exist locally; prepare a focused reviewable change.",
+          "done": "Exact anchors, cancel and disconnect persist.",
+          "role": "Frontend",
+          "priority": "P0",
+          "needs": "SP-01",
+          "source": [
+            "docs/U_VLM_PROGRESS.md",
+            "frontend/src/features/detection-review/deviceConnections.js"
+          ]
+        },
+        {
+          "id": "SP-04",
+          "title": "Integrate draft BOM pricing",
+          "body": "Review the local BOM, workbook import, separate pricing and CSV changes as a bounded slice.",
+          "done": "Draft totals stay distinct from snapshots.",
+          "role": "Backend + Frontend",
+          "priority": "P0",
+          "needs": "SP-01",
+          "source": [
+            "backend/app/api/routes/materials.py",
+            "frontend/src/features/estimation/BOMPanel.jsx"
+          ]
+        },
+        {
+          "id": "SP-10",
+          "title": "Integrate source-evidence fixes",
+          "body": "Source-backed helpers are checkpointed; worker/detector integration remains local.",
+          "done": "Existing raw results and reviews survive.",
+          "role": "AI / Backend",
+          "priority": "P0",
+          "needs": "SP-01",
+          "source": [
+            "docs/U_VLM_PROGRESS.md"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "VERIFY",
+      "description": "Acceptance still to prove",
+      "cards": [
+        {
+          "id": "SP-06",
+          "title": "Verify native 2D / 3D drag",
+          "body": "Reproduce actual pointer acquisition, connection, cancellation and reload in both views.",
+          "done": "Recorded live drag succeeds in both views.",
+          "role": "QA + Designer",
+          "priority": "P0",
+          "needs": "SP-03",
+          "source": [
+            "docs/U_VLM_PROGRESS.md"
+          ]
+        },
+        {
+          "id": "SP-07",
+          "title": "Verify pricing and units",
+          "body": "Exercise known-answer draft/snapshot totals, roll conversions and stale-route refusal.",
+          "done": "Exact decimals; historical prices stay fixed.",
+          "role": "QA / Backend",
+          "priority": "P0",
+          "needs": "SP-04",
+          "source": [
+            "backend/app/services/estimate_service.py",
+            "backend/tests/test_estimates.py"
+          ]
+        },
+        {
+          "id": "SP-08",
+          "title": "Verify reanalysis durability",
+          "body": "Check reviewed overrides, endpoint attachments and unchanged originals through reanalysis.",
+          "done": "No lost corrections or fabricated paths.",
+          "role": "QA / Backend",
+          "priority": "P0",
+          "needs": "SP-03 + SP-10",
+          "source": [
+            "backend/tests/test_reanalysis_durability.py"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BLOCKED / GATED",
+      "description": "Inputs or evidence required",
+      "cards": [
+        {
+          "id": "BL-01",
+          "title": "Independent detection evidence",
+          "body": "U3/U5/S3 need approved gold projects and thresholds; independent 85% accuracy is unproven.",
+          "done": "Frozen independent evaluation is approved.",
+          "role": "VED Dataset Approver",
+          "priority": "P0",
+          "needs": "Human-reviewed gold",
+          "source": [
+            "docs/LOCAL_VLM_MIGRATION_PLAN.md",
+            "docs/U_VLM_PROGRESS.md"
+          ]
+        },
+        {
+          "id": "BL-02",
+          "title": "Real measured costing",
+          "body": "Latest live BOM evidence lacks active prices, exact-page scale and reusable purchase inputs.",
+          "done": "Admin prices + Designer measures validate BOM.",
+          "role": "Admin + Designer",
+          "priority": "P0",
+          "needs": "Approved real inputs",
+          "source": [
+            "docs/U_VLM_PROGRESS.md"
+          ]
+        },
+        {
+          "id": "BL-03",
+          "title": "Production model release",
+          "body": "Runtime/model selection, approved training and signed U14 promotion are separate gates.",
+          "done": "Sealed evaluation and rollback evidence pass.",
+          "role": "VED + AI Lead",
+          "priority": "P0",
+          "needs": "U3-U10 evidence + U14",
+          "source": [
+            "docs/LOCAL_VLM_MIGRATION_PLAN.md"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "IMPLEMENTED",
+      "description": "Code / ledger evidence",
+      "cards": [
+        {
+          "id": "FOUNDATION",
+          "title": "Identity, upload and jobs",
+          "body": "OAuth/OIDC roles, original preservation, durable jobs and PRE0-PRE12 foundations exist.",
+          "done": "Historical readiness evidence is recorded.",
+          "role": "Platform",
+          "priority": "P2",
+          "needs": "Recorded implementation",
+          "source": [
+            "docs/PRE_VLM_READINESS_REPORT.md"
+          ]
+        },
+        {
+          "id": "K / L",
+          "title": "Shared 2D / 3D geometry",
+          "body": "Versioned canonical snapshots feed Konva and Three/R3F with conditional saves.",
+          "done": "Metric acceptance remains input-dependent.",
+          "role": "Geometry",
+          "priority": "P2",
+          "needs": "Recorded implementation",
+          "source": [
+            "README.md"
+          ]
+        },
+        {
+          "id": "M1-M7",
+          "title": "Saved electrical routing",
+          "body": "Obstacle-aware A*, service-level paths, drops/risers and route version persistence exist.",
+          "done": "Engineering and real-input QA stay separate.",
+          "role": "Routing",
+          "priority": "P2",
+          "needs": "Recorded implementation",
+          "source": [
+            "README.md",
+            "backend/app/api/routes/routing.py"
+          ]
+        },
+        {
+          "id": "N / O",
+          "title": "Versioned estimates",
+          "body": "Catalog/history, quantities and captured-price estimate APIs/UI are implemented.",
+          "done": "Reports and real costing QA remain open.",
+          "role": "Estimation",
+          "priority": "P2",
+          "needs": "Recorded implementation",
+          "source": [
+            "backend/app/api/routes/estimates.py",
+            "backend/app/services/estimate_service.py"
+          ]
+        }
+      ]
+    }
+  ],
+  "roadmap": [
+    {
+      "label": "SPRINT 01",
+      "title": "Stabilize the current workspace",
+      "date": "Proposed: 12-23 Oct 2026",
+      "color": "#226B83",
+      "goal": "Deliver a reviewable, regression-tested development baseline.",
+      "items": [
+        [
+          "Baseline + lint",
+          "SP-01 / SP-02: inventory, full baseline, catalog decision."
+        ],
+        [
+          "Integrate local work",
+          "SP-03 / SP-04 / SP-10: magnets, draft BOM, source evidence."
+        ],
+        [
+          "Prove acceptance",
+          "SP-06 / SP-07 / SP-08: live drag, units/prices, durability."
+        ],
+        [
+          "Close and document",
+          "SP-05 / SP-09: status alignment and final regression gate."
+        ]
+      ],
+      "exit": "Exit: all sprint checks pass, or unresolved failures are explicitly deferred."
+    },
+    {
+      "label": "SPRINT 02",
+      "title": "Finish PDF reporting",
+      "date": "After the Sprint 01 gate",
+      "color": "#667085",
+      "goal": "Export stored, versioned planning estimates as durable PDF reports.",
+      "items": [
+        [
+          "Q1 - Report contract",
+          "Freeze project, canonical layout, route and captured estimate references."
+        ],
+        [
+          "Q2 - PDF generation",
+          "Readable tables, totals, date/user and planning wording."
+        ],
+        [
+          "Q3 - Report API",
+          "Persist records; authorize generation/retrieval; retain original costs."
+        ],
+        [
+          "Q4 - Report UI",
+          "Status, history, errors and reopening/downloading old reports."
+        ]
+      ],
+      "exit": "Exit: a stored report still matches its estimate after Admin price changes."
+    },
+    {
+      "label": "SPRINT 03",
+      "title": "Complete audit traceability",
+      "date": "Sequence proposed; dates TBD",
+      "color": "#75619C",
+      "goal": "Make important actions traceable through a protected Admin workflow.",
+      "items": [
+        [
+          "R1 - Audit foundation",
+          "Reusable service/table; safe user, action, entity and timestamp fields."
+        ],
+        [
+          "R2 - Workflow events",
+          "Login, upload, review, routing, prices, estimates and reports."
+        ],
+        [
+          "R3 - Admin viewer",
+          "Role-protected filters by user/action/date; sanitized details."
+        ],
+        [
+          "S4-S6 - Regression",
+          "Alignment, multi-floor lengths, no-path behavior and price snapshots."
+        ]
+      ],
+      "exit": "Exit: audit records are complete and Designers cannot read unrestricted logs."
+    },
+    {
+      "label": "RELEASE TRACK",
+      "title": "Earn production acceptance",
+      "date": "Evidence-gated; no fixed date",
+      "color": "#9B4242",
+      "goal": "Keep development capability separate from measured production readiness.",
+      "items": [
+        [
+          "U3-U5 / S3 - Gold evidence",
+          "Approve source eligibility, reference pack, frozen gold and thresholds."
+        ],
+        [
+          "U6 / U8 - Runtime choice",
+          "Select a real measured local model; validate health, privacy and resources."
+        ],
+        [
+          "U9 / U10 - Training",
+          "Human-approved records and compute; register an evaluated adapter."
+        ],
+        [
+          "U14 / T2-T3 - Release",
+          "Signed promotion, rollback drill, deployment and complete workflow proof."
+        ]
+      ],
+      "exit": "Exit: independent results and signed release evidence pass; retain YOLO until then."
+    }
+  ],
+  "acceptance": [
+    [
+      "SP-01 / SP-09",
+      "Run existing backend, frontend, build and lint gates; preserve the dirty tree and private artifacts."
+    ],
+    [
+      "SP-02",
+      "Resolve six reported catalog lint errors; do not silently add missing libraries or suppress checks."
+    ],
+    [
+      "SP-03 / SP-06",
+      "Native drag + click/keyboard paths; exact coordinates, cancel/disconnect, undo/redo and save/reload."
+    ],
+    [
+      "SP-04 / SP-07",
+      "Known quantities x captured prices; draft vs snapshot semantics; conversions; missing and stale inputs."
+    ],
+    [
+      "SP-08 / SP-10",
+      "No lost reviewed paths or attachments after reanalysis; source checksums and history remain intact."
+    ],
+    [
+      "SP-05",
+      "Re-measure counts and reconcile stale README claims with actual code and recent checkpoints."
+    ],
+    [
+      "Q1-Q4",
+      "Reports reference stored estimate/layout/route versions; unchanged historical totals; authenticated access."
+    ],
+    [
+      "R1-R3",
+      "Safe audit fields and role enforcement; no secrets or raw provider credentials in recorded details."
+    ],
+    [
+      "BL-01 / BL-03",
+      "Independent gold, thresholds, rights, training authority and signed release; synthetic tests do not close these."
+    ]
+  ],
+  "sources": [
+    {
+      "path": "AGENTS.md",
+      "finding": "Shared canonical geometry; server-authoritative prices; preserve originals; one ticket at a time."
+    },
+    {
+      "path": "docs/FUNCTIONAL_SPEC.md",
+      "finding": "Q1-Q4 define PDF reporting; R1-R3 define audit logging; S3-S6 define quality and calculation gates."
+    },
+    {
+      "path": "docs/U_VLM_PROGRESS.md",
+      "finding": "Latest October 12: endpoint magnets are local uncommitted work; native drag is inconclusive; 83 files / 684 frontend tests reported."
+    },
+    {
+      "path": "docs/PRE_VLM_READINESS_REPORT.md",
+      "finding": "Historical PRE12 foundation gate passed on September 6; this is not a production AI release."
+    },
+    {
+      "path": "docs/LOCAL_VLM_MIGRATION_PLAN.md",
+      "finding": "Real-data approval, independent evaluation, model selection, training and release remain distinct gates."
+    },
+    {
+      "path": "backend/app/main.py",
+      "finding": "Estimate/material routes are registered; no report or audit router is registered."
+    },
+    {
+      "path": "backend/app/api/routes/estimates.py",
+      "finding": "Versioned estimate endpoints and draft/historical BOM CSV endpoints exist."
+    },
+    {
+      "path": "backend/app/api/routes/materials.py",
+      "finding": "Admin-only workbook preview/apply endpoints exist."
+    },
+    {
+      "path": "frontend/src/features/estimation/BOMPanel.jsx",
+      "finding": "Draft BOM UI, material/price/unit controls, paper dimensions and CSV export are present."
+    },
+    {
+      "path": "frontend/src/features/detection-review/deviceConnections.js",
+      "finding": "Shared endpoint connection logic exists in the current local work."
+    },
+    {
+      "path": "frontend/src/features/viewer-3d/DeviceMeshCatalog.jsx",
+      "finding": "Untracked catalog imports @react-three/drei; ledger records six lint errors. Adoption/removal needs an explicit decision."
+    }
+  ]
+}

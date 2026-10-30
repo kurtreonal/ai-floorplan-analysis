@@ -9,6 +9,7 @@ class FloorPlanUploadResponse(BaseModel):
     id: int
     project_floor_id: int
     original_filename: str
+    display_name: str | None = None
     mime_type: str
     file_size: int
     processing_status: Literal["uploaded"]
@@ -20,6 +21,7 @@ class FloorPlanListItemResponse(BaseModel):
     id: int
     project_floor_id: int
     original_filename: str
+    display_name: str | None = None
     mime_type: str
     file_size: int
     processing_status: str = Field(min_length=1, max_length=32)

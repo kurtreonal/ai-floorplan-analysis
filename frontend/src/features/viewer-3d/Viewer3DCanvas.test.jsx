@@ -72,17 +72,16 @@ describe('3D canvas foundation', () => {
     expect(Canvas).toHaveBeenCalledWith(
       expect.objectContaining({
         frameloop: 'demand',
-        camera: { position: [8, 6, 8], fov: 50, near: 0.01, far: 1000 },
+        camera: { position: [10, 8.5, 10], fov: 42, near: 0.01, far: 300 },
       }),
       undefined,
     )
   })
-  it('starts in orbit Select mode and retains explicit free-flight navigation', () => {
+  it('combines left orbit and keyboard flight without a mode toggle', () => {
     render(<Viewer3DCanvas controlsRef={{current:null}} />)
-    expect(screen.getByRole('button',{name:'Orbit'}).getAttribute('aria-pressed')).toBe('false')
-    expect(screen.getByText(/Click selects · left-drag orbits/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button',{name:'Orbit'}))
-    expect(screen.getByRole('button',{name:'Free fly'}).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByRole('button',{name:'Orbit'})).toBeNull()
+    expect(screen.getByText(/Left-drag orbit · right-drag look/)).toBeTruthy()
+    expect(screen.getByText(/Left drag to orbit/)).toBeTruthy()
   })
   it('uses a compact exact-terminal chooser for 3D overlaps and invalidates stale scenes', () => {
     const scene={previewOnly:true,sourceScale:.1,target:[0,0,0],extent:10,elevation:0,walls:[],symbols:[],draftWires:[]}

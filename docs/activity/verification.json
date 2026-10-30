@@ -1,0 +1,60 @@
+{
+  "source_files": {
+    "C:\\Users\\kupal\\Downloads\\841207488_2284807502296538_4859499289127506223_n.png": "10eb6a441e4dd99d8c00c22ed2c23aa849f39dda56dee248ae77de1d4ccacbec",
+    "C:\\Users\\kupal\\Downloads\\840577695_2274581953114867_7184489182573623837_n.png": "c6d92a448ce712ddfd805c7e6560ef427b490ced7e4c045afa4b2379d23ce4fc"
+  },
+  "scope": "Text enlargement and editable tracing only; no workflow corrections.",
+  "pages": [
+    {
+      "part": 1,
+      "source_dimensions": [
+        1192,
+        1522
+      ],
+      "export_pixels": [
+        3576,
+        4566
+      ],
+      "nodes": 25,
+      "flows": 26,
+      "text_fit": "PASS",
+      "activity_text": 12,
+      "headings": 12,
+      "flow_label_range": [
+        9,
+        10
+      ],
+      "native_editable_shapes": "PASS"
+    },
+    {
+      "part": 2,
+      "source_dimensions": [
+        1022,
+        1302
+      ],
+      "export_pixels": [
+        3066,
+        3906
+      ],
+      "nodes": 18,
+      "flows": 19,
+      "text_fit": "PASS",
+      "activity_text": 12,
+      "headings": 12,
+      "flow_label_range": [
+        9,
+        10
+      ],
+      "native_editable_shapes": "PASS"
+    }
+  ],
+  "visual_review": "PASS",
+  "downloads_copy": "PASS",
+  "drawio_editor_import": "NOT TESTED",
+  "original_attachments_unchanged": "PASS",
+  "delivered_files": {
+    "C:\\Users\\kupal\\Downloads\\Activity Diagrams-Larger Text.drawio": "165263907f2e8ade3aad7c4dfd7acf48cdb95db4eed0883f872bdec9967bf98e",
+    "C:\\Users\\kupal\\Downloads\\Activity Diagram-1-Larger Text.drawio.png": "339b9460a308974ab4be948f9b090e84f7014801529c1a38aac8d9f64f1c2cae",
+    "C:\\Users\\kupal\\Downloads\\Activity Diagram-2-Larger Text.drawio.png": "d2771ded8b89707caebade317c1b92a212281c9022cb6395a58ff65d8fb23526"
+  }
+}

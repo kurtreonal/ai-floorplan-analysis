@@ -32,7 +32,7 @@ def valid_box(box, size):
             and 0 <= box[0] < box[2] <= size[0] and 0 <= box[1] < box[3] <= size[1])
 
 
-def context_rows(targets, negatives, size):
+def context_rows(targets, negatives, size, *, negative_context_only=False):
     """Use the serving lattice, with at most two best-contained views per label."""
     if any(not valid_box(t['source_box'], size) for t in targets):
         raise ValueError('Invalid positive source box')
@@ -51,7 +51,8 @@ def context_rows(targets, negatives, size):
         a, b, c, d = target['source_box']
         contained = [(x, y) for x, y in positions if x <= a < c <= x+256 and y <= b < d <= y+256]
         contained.sort(key=lambda p: (-min(a-p[0], b-p[1], p[0]+256-c, p[1]+256-d), p))
-        controls.update(contained[:2])
+        if not negative_context_only:
+            controls.update(contained[:2])
     rows = []
     for x, y in positions:
         masks = []
@@ -77,7 +78,7 @@ def context_rows(targets, negatives, size):
     return rows
 
 
-def prepare(source, dataset, inspection, output):
+def prepare(source, dataset, inspection, output, *, negative_context_only=False):
     if output.exists():
         raise FileExistsError('Diagnostic revisions are immutable')
     source_hash = digest(source)
@@ -104,7 +105,8 @@ def prepare(source, dataset, inspection, output):
     with Image.open(source) as original:
         if max(original.size) > 10000 or original.width * original.height > 60_000_000:
             raise ValueError('Source dimension bounds exceeded')
-        rows = context_rows(targets, negatives, original.size)
+        rows = context_rows(targets, negatives, original.size,
+                            negative_context_only=negative_context_only)
         output.mkdir(parents=True)
         with original.convert('RGB') as image:
             for row in rows:
@@ -130,6 +132,8 @@ def prepare(source, dataset, inspection, output):
                 'independent_evaluation': False, 'precision': None,
                 'missing_annotation_policy': 'ignore_unreviewed_not_empty_background',
                 'native_window_size': 256, 'training_size': 320,
+                'negative_context_only': negative_context_only,
+                'included_positive_record_ids': sorted({record for row in rows for record in row['supervised_records']}),
                 'positive_records': targets, 'background_regions': negatives,
                 'images': rows, 'classes': data['classes']}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
@@ -141,5 +145,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('source', 'dataset', 'inspection', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
+    parser.add_argument('--negative-context-only', action='store_true',
+                        help='Keep windows intersecting inspected negatives; preserve any contained positives')
     args = parser.parse_args()
-    print(json.dumps(prepare(args.source, args.dataset, args.inspection, args.output)))
+    print(json.dumps(prepare(args.source, args.dataset, args.inspection, args.output,
+                             negative_context_only=args.negative_context_only)))

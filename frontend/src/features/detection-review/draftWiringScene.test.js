@@ -82,7 +82,7 @@ describe('whole-plan advisory wiring projection', () => {
       { ...wire, id: 'deleted', disposition: 'rejected' }, { ...wire, id: 'invalid', points: [{ x: -1, y: 0 }, { x: 50, y: 50 }] }] },800,400)
     expect(scene.draftWires).toHaveLength(1)
     expect(scene.invalidWiringCount).toBe(1)
-    expect(scene.draftWires[0].illustrativeHeight).toBe(false)
+    expect(scene.draftWires[0].illustrativeHeight).toBe(true) // Absolute elevation without a floor datum remains illustrative.
     expect(scene.draftWires[0].points.every(p => p[1] === -.1)).toBe(true)
   })
   it('projects catalog under-floor routes at the floor reference, never an invented depth or ceiling', () => {

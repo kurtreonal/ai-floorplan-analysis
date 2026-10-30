@@ -335,6 +335,35 @@ describe('DemoInterpretationCanvas', () => {
     expect(draft).toEqual(before)
   })
 
+  it('shows wall descriptions only for a clicked selection, never for tool mode or hover', () => {
+    const draft={...mockDraft,walls:mockDraft.walls.map(wall=>({...wall,disposition:'accepted'}))}
+    const before=structuredClone(draft),onSelect=vi.fn()
+    const props={width:400,height:300,draft,layers:{walls:true,dimensions:true},onSelect}
+    const {container,rerender}=render(<DemoInterpretationCanvas {...props} tool="move" />)
+    const descriptions=()=>container.querySelectorAll('[name^="wall-description-"]')
+    for(const tool of ['select','move','draw','delete']) {
+      rerender(<DemoInterpretationCanvas {...props} tool={tool} />)
+      expect(descriptions()).toHaveLength(0)
+      expect(container.querySelectorAll('[name^="wall-centerline-"]')).toHaveLength(2)
+    }
+    rerender(<DemoInterpretationCanvas {...props} tool="move" />)
+    const wallGroup=container.querySelector('[name="wall-centerline-wall-0001"]').parentElement
+    act(()=>wallGroup.konvaProps.onMouseEnter())
+    expect(descriptions()).toHaveLength(0)
+    act(()=>wallGroup.konvaProps.onClick({cancelBubble:false}))
+    expect(onSelect).toHaveBeenCalledWith({kind:'wall',id:'wall-0001'})
+    rerender(<DemoInterpretationCanvas {...props} tool="move" selected={{kind:'wall',id:'wall-0001'}} />)
+    expect(descriptions()).toHaveLength(1)
+    expect(descriptions()[0].textContent).toBe('200 px (unscaled)')
+    expect(descriptions()[0].textContent).not.toMatch(/centerline/)
+    rerender(<DemoInterpretationCanvas {...props} tool="move" selected={{kind:'wall',id:'wall-0002'}} />)
+    expect(descriptions()).toHaveLength(1)
+    expect(descriptions()[0].getAttribute('name')).toBe('wall-description-wall-0002')
+    rerender(<DemoInterpretationCanvas {...props} tool="move" selected={null} />)
+    expect(descriptions()).toHaveLength(0)
+    expect(draft).toEqual(before)
+  })
+
   it('shows the Esc pill when in draw mode', () => {
     render(
       <DemoInterpretationCanvas

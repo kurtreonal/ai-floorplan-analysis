@@ -80,6 +80,38 @@ def _wire_type(wires):
     return {key:wire[key] for key in ("line_style","installation_method","wiring_legend_id","wiring_legend_name") if key in wire}
 
 
+def _suggest_plan_placement(routes, observed, regions):
+    """Placement suggestion only, never a circuit or connectivity assignment.
+
+    Vote inside the proposal's own plan region. Mixed sheets cannot borrow a
+    majority from another drawing. Reviewed/edited routes remain authoritative.
+    """
+    plans = [r.bounds for r in regions if r.kind == 'plan_region']
+    def inside(point, bounds):
+        return bounds.x <= point['x'] <= bounds.x+bounds.width and bounds.y <= point['y'] <= bounds.y+bounds.height
+    result = []
+    for route in routes:
+        if (route.get('disposition') != 'unresolved' or route.get('suppression_reason')
+            or route.get('installation_method','unknown') != 'unknown'):
+            result.append(route); continue
+        matches = [b for b in plans if all(inside(p,b) for p in route['points'])]
+        if len(matches) != 1:
+            result.append(route); continue
+        votes = {}
+        for wire in observed:
+            method = wire.get('installation_method','unknown')
+            if (wire.get('disposition') != 'rejected' and not wire.get('suppression_reason')
+                and method in ('concealed_in_ceiling','concealed_under_floor')
+                and all(inside(p,matches[0]) for p in wire['points'])):
+                votes[method] = votes.get(method,0)+1
+        ranked = sorted(votes,key=votes.get,reverse=True)
+        if ranked and (len(ranked)==1 or votes[ranked[0]]>votes[ranked[1]]):
+            method = ranked[0]
+            route = {**route,'installation_method':method,'line_style':'dashed' if method=='concealed_under_floor' else 'solid'}
+        result.append(route)
+    return result
+
+
 def _prune_redundant(existing, observed):
     """Recoverably suppress automatic cycles, never edited/manual paths.
 
@@ -303,10 +335,14 @@ def generate_draft_wiring(candidate, review=None, *, maximum_devices=64, budget_
     # remains editable with unresolved topology. A* is an independent proposal
     # source, not evidence that a device touches a particular drawing trace.
     if not legacy_completion:
+        from app.routing.homerun_proposals import propose
+        existing, homerun_notes = propose(candidate, review, existing, budget_seconds=min(1,budget_seconds))
+        existing = _inherit_trace_types(existing, wires)
         if payload.observed_routes.recovery is not None:
             from app.routing.geometric_draft import propose_geometric_drafts
-            return propose_geometric_drafts(candidate,review,symbols,wires,existing,clearances,budget_seconds=budget_seconds)
-        return existing, (["Observed wiring connectivity is unresolved unless explicitly attached. No proximity-based A* joins were added."] if wires else [])
+            result, notes = propose_geometric_drafts(candidate,review,symbols,wires,existing,clearances,budget_seconds=budget_seconds)
+            return _suggest_plan_placement(_inherit_trace_types(result,wires),wires,payload.regions), homerun_notes + notes
+        return _suggest_plan_placement(existing,wires,payload.regions), homerun_notes + (["Observed wiring connectivity is unresolved unless explicitly attached. No proximity-based A* joins were added."] if wires else [])
     existing = _prune_redundant(_inherit_trace_types(existing, wires), wires)
     active = wires + [w for w in existing if w.get("disposition") != "rejected"]
     touches = lambda p: any(math.dist(p,_closest(p,(a["x"],a["y"]),(b["x"],b["y"]))) <= 1e-5

@@ -3,7 +3,7 @@ import { fetchProcessingJob, startDrawingRegionProcessing } from '../../api/proc
 import { getDemoInterpretationHref } from '../../routes/projectRoutes.js'
 import { Button } from '../../components/ui/button.jsx'
 
-export function DrawingRegionPanel({ record, region, onRegionChange, onSelectRegion, onFreezeRegion, projectId, projectFloorId, floorPlanId }) {
+export function DrawingRegionPanel({ record, region, onRegionChange, onSelectRegion, onFreezeRegion, projectId, projectFloorId, floorPlanId, compact=false, unsaved=false, onSaveDraft }) {
   const [acknowledged, setAcknowledged] = useState(false)
   const [state, setState] = useState({ status: 'idle', job: null, message: null, locked: false })
   const [refresh, setRefresh] = useState(0)
@@ -23,31 +23,48 @@ export function DrawingRegionPanel({ record, region, onRegionChange, onSelectReg
   useEffect(() => () => controllerRef.current?.abort(), [])
   useEffect(() => {
     if (!jobId || !['queued', 'processing'].includes(jobStatus)) return undefined
-    const controller = new AbortController()
     let active = true
     let timer
-    let polls = 0
+    let requestController
+    let failures = 0
     async function poll() {
+      requestController = new AbortController()
+      const timeout = setTimeout(() => requestController.abort(), 15000)
       try {
-        const job = await fetchProcessingJob(jobId, { signal: controller.signal })
-        if (job.job_id !== jobId) throw new Error('Job identity mismatch')
+        const job = await fetchProcessingJob(jobId, { signal: requestController.signal })
         if (!active) return
+        if (job.job_id !== jobId) {
+          setState((current) => ({ ...current, message: 'The returned status belongs to another analysis. Refresh this job to check again.' }))
+          return
+        }
+        failures = 0
         setState({ status: 'accepted', job, message: null, locked: true })
         if (['queued', 'processing'].includes(job.status)) {
-          if (++polls < 40) timer = setTimeout(poll, 1500)
-          else setState((current) => ({ ...current, message: 'Automatic polling paused. Refresh status to continue.' }))
+          timer = setTimeout(poll, 1500)
         }
       } catch (error) {
-        if (!active || error.name === 'AbortError') return
-        setState((current) => ({ ...current, message: 'Status unavailable. Refresh this same job; do not start another.' }))
+        if (!active) return
+        if (error.status >= 400 && error.status < 500 && ![408, 425, 429].includes(error.status)) {
+          setState((current) => ({ ...current, message: error.status === 401
+            ? 'Sign in again, then refresh this analysis.'
+            : error.status === 403 ? 'You no longer have access to this analysis.'
+              : 'This analysis status is unavailable. Refresh to check again.' }))
+          return
+        }
+        setState((current) => ({ ...current, message: 'Connection interrupted. Retrying status automatically…' }))
+        // Retry the same job only; a status outage must never submit new work.
+        failures = Math.min(failures + 1, 5)
+        timer = setTimeout(poll, Math.min(30000, 1500 * 2 ** failures))
+      } finally {
+        clearTimeout(timeout)
       }
     }
     poll()
-    return () => { active = false; controller.abort(); clearTimeout(timer) }
+    return () => { active = false; requestController?.abort(); clearTimeout(timer) }
   }, [jobId, jobStatus, refresh])
 
   async function start() {
-    if (inFlightRef.current || busy || state.job || !acknowledged || !validRegion) return
+    if (inFlightRef.current || busy || state.job || !(compact ? !unsaved:acknowledged) || !validRegion) return
     inFlightRef.current = true
     if (!requestRef.current) requestRef.current = {
       intent: 'process_drawing_region', candidate_run_id: record.candidate_run_id,
@@ -73,15 +90,8 @@ export function DrawingRegionPanel({ record, region, onRegionChange, onSelectReg
     } finally { inFlightRef.current = false }
   }
 
-  return <section className="demo-approval-panel" aria-label="Drawing-only development reprocessing">
-    <h2>Process a drawing region</h2>
-    <p>Select one drawing, excluding title blocks and unrelated views. This uses the shared detector, not a page-specific model. Outside remains unprocessed, not empty background.</p>
-    <div className="demo-add-actions">
-      <Button variant="outline" disabled={locked || busy} onClick={onSelectRegion}>Select two corners</Button>
-      <Button variant="outline" disabled={locked || busy || !region} onClick={() => onRegionChange(null)}>Clear region</Button>
-    </div>
-    <fieldset className="demo-point-fields" disabled={locked || busy}>
-      <legend>Rectangle in source pixels</legend>
+  const coordinates=<fieldset className="demo-point-fields" disabled={locked || busy}>
+      <legend>Selection bounds</legend>
       {['x', 'y', 'width', 'height'].map((field) => <label key={field}>{field}
         <input aria-label={`Drawing region ${field}`} type="number" step="1" min={field === 'x' || field === 'y' ? 0 : 1}
           max={field === 'x' || field === 'width' ? plane.width_pixels : plane.height_pixels}
@@ -89,10 +99,19 @@ export function DrawingRegionPanel({ record, region, onRegionChange, onSelectReg
             ...region, [field]: Number(event.target.value) })} />
       </label>)}
     </fieldset>
-    <label><input type="checkbox" checked={acknowledged} disabled={busy || Boolean(state.job)}
+  return <section className="demo-approval-panel" aria-label="Plan area selection">
+    {!compact && <><h2>Process a drawing region</h2><p>Select one drawing, excluding title blocks and unrelated views.</p></>}
+    <div className="demo-add-actions">
+      <Button data-select-plan-area variant="outline" disabled={locked || busy} onClick={onSelectRegion}>{compact ? 'Select plan area':'Select two corners'}</Button>
+      <Button variant="outline" disabled={locked || busy || !region} onClick={() => onRegionChange(null)}>Clear region</Button>
+    </div>
+    {compact ? <>{validRegion && <small role="status">Plan area selected. You can adjust it before analyzing.</small>}<details><summary>Adjust selection coordinates</summary>{coordinates}</details></>:coordinates}
+    {!compact && <label><input type="checkbox" checked={acknowledged} disabled={busy || Boolean(state.job)}
       onChange={(event) => setAcknowledged(event.target.checked)} /> Save this draft first if needed. Saved manual replacement drawings carry forward only on the same source page and drawing region; other corrections remain in earlier reviews/layouts. Opening its result leaves unsaved edits.</label>
-    <Button disabled={busy || Boolean(state.job) || !validRegion || !acknowledged} onClick={start}>
-      {busy ? 'Starting…' : locked ? 'Retry identical request' : 'Process selected drawing'}
+    }
+    {compact && unsaved && <p>Save your draft before analyzing this area. <Button size="sm" variant="outline" onClick={onSaveDraft}>Save draft</Button></p>}
+    <Button disabled={busy || Boolean(state.job) || !validRegion || (compact ? unsaved:!acknowledged)} onClick={start}>
+      {busy ? 'Starting…' : state.job ? ['queued', 'processing'].includes(jobStatus) ? 'Analyzing…':'Analysis finished' : locked ? 'Retry identical request' : compact ? 'Analyze selected plan':'Process selected drawing'}
     </Button>
     {state.job && <p role="status">Job #{jobId}: {jobStatus}. {state.job.error_message || ''}</p>}
     {state.message && <p role={state.status === 'error' ? 'alert' : 'status'}>{state.message}</p>}

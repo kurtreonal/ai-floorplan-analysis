@@ -38,7 +38,7 @@ def wire_networks(wires):
         first, anchor = contacts[0]
         for wire, point in contacts[1:]:
             if (point != anchor or wire.get('elevation_meters') != first.get('elevation_meters')
-                or (wire.get('origin') == 'generated') != (first.get('origin') == 'generated')
+                or wire.get('height_above_floor_meters') != first.get('height_above_floor_meters')
                 or wire.get('circuit_id') != first.get('circuit_id')
                 or wire.get('installation_method', 'unknown') != first.get('installation_method', 'unknown')):
                 raise ValueError('Joined paths require one anchor, elevation, circuit assignment and installation method.')
@@ -55,12 +55,34 @@ def takeoff_path_groups(document):
     """
     wires = [dict(w, origin=(w.get('path_origin') or 'observed') if category == 'observed_wiring' else 'generated')
              for category in ('observed_wiring','generated_wiring') for w in document.get(category, [])
-             if w.get('disposition') != 'rejected' and not w.get('suppression_reason')]
+             if w.get('disposition') != 'rejected' and not w.get('suppression_reason')
+             and (category!='generated_wiring' or w.get('disposition') in ('accepted','corrected','added'))]
+    # Pending panel proposals are displayed but excluded from measured takeoff.
+    # Their source-side junction may consequently have only one included member.
+    # Remove that binding ONLY from this calculation projection, after validating
+    # that its complete displayed node is sound. Saved topology stays untouched.
+    selected={w['id'] for w in wires}
+    omitted={w['id']:w for w in document.get('generated_wiring',[])
+             if w['id'] not in selected and w.get('disposition')!='rejected' and not w.get('suppression_reason')}
+    if omitted:
+        contacts={}
+        for wire in wires+list(omitted.values()):
+            for attachment in wire.get('junction_attachments',[]):
+                contacts.setdefault(attachment['junction_id'],[]).append((wire,attachment))
+        projected=set()
+        for identity,rows in contacts.items():
+            if len({w['id'] for w,_ in rows if w['id'] in selected})!=1 or not any(w['id'] in omitted for w,_ in rows):continue
+            node=[dict(w,junction_attachments=[a],device_attachments=[]) for w,a in rows]
+            wire_networks(node)  # Conflicting positions/assignments must still fail.
+            projected.add(identity)
+        wires=[dict(w,junction_attachments=[a for a in w.get('junction_attachments',[])
+                                            if a['junction_id'] not in projected]) for w in wires]
     networks = wire_networks(wires)
     groups = {}
     for wire in wires:
         key = (networks[wire['id']],wire['origin'],wire.get('wiring_legend_id'),wire.get('wiring_legend_name'),
-               wire.get('installation_method','unknown'),wire.get('elevation_meters'),wire.get('circuit_id'))
+               wire.get('installation_method','unknown'),wire.get('elevation_meters'),wire.get('circuit_id'),
+               wire.get('height_above_floor_meters'),wire.get('conductor_count'))
         groups.setdefault(key, []).append(wire)
     by_network = {}
     for key, group in groups.items(): by_network.setdefault(key[0], []).append(group)

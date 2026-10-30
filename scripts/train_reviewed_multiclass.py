@@ -4,6 +4,7 @@ No source matching, downloads, activation, automatic approval, or training on
 unannotated background. Historical development trainers remain unchanged.
 """
 import argparse
+from functools import partial
 import hashlib
 import json
 import math
@@ -183,35 +184,55 @@ def validate_dataset(dataset, base, parent_manifest):
     return data
 
 
-def effective_training_inputs(dataset, data, output, replay_policy):
+def effective_training_inputs(dataset, data, output, replay_policy, retention_boost_class=None,
+                              retention_boost_factor=1):
     """Full replay reuses validated authorized rows, never adds pseudo-labels."""
     if replay_policy == "manifest_sampler":
+        if retention_boost_class is not None or retention_boost_factor != 1:
+            raise ValueError("Retention weighting requires the full authorized pool")
         return dataset / "data.yaml", {"replay_policy": replay_policy}
     if replay_policy != "full_authorized_pool":
         raise ValueError("Unsupported replay policy")
     import yaml
     listing = output / "full-replay-images.txt"
     images = sorted(r["image_id"] for r in data["training_image_records"])
+    weighted = []
+    if retention_boost_class is not None:
+        if (type(retention_boost_class) is not int or not 0 <= retention_boost_class < len(data["classes"])
+                or type(retention_boost_factor) is not int or not 2 <= retention_boost_factor <= 4):
+            raise ValueError("Invalid bounded retention weighting")
+        weighted = sorted(r["image_id"] for r in data["training_image_records"]
+            if r.get("source_kind") == "parent_retention_replay"
+            and [retention_boost_class] in r["allowed_class_ids"])
+        if not weighted:
+            raise ValueError("Retention class has no authorized parent positives")
+        images += weighted * (retention_boost_factor-1)
+    elif retention_boost_factor != 1:
+        raise ValueError("Retention weighting needs an explicit class")
     listing.write_text("\n".join(str((dataset / "images/train" / f"{stem}.png").resolve())
         for stem in images) + "\n", encoding="utf-8")
     config = output / "full-replay-data.yaml"
     config.write_text(yaml.safe_dump(dict(path=dataset.resolve().as_posix(),
         train=listing.resolve().as_posix(), val=listing.resolve().as_posix(),
         names=normalized_names(data["classes"])), sort_keys=False), encoding="utf-8")
-    return config, dict(replay_policy=replay_policy, effective_training_images=len(images),
+    return config, dict(replay_policy=replay_policy, effective_training_image_occurrences=len(images),
+        effective_unique_training_images=len(set(images)), retention_boost_class=retention_boost_class,
+        retention_boost_factor=retention_boost_factor, weighted_parent_contexts=len(weighted),
         effective_image_list_sha256=digest(listing), effective_training_config_sha256=digest(config),
         supervision="unchanged authorized rows; no new background or model pseudo-labels")
 
 
 def train(dataset, base, parent_manifest, output, *, epochs=2, image_size=320,
           batch_size=4, learning_rate=.0001, seed=20261014, freeze=10, warm_start=None,
-          replay_policy="manifest_sampler"):
+          replay_policy="manifest_sampler", retention_boost_class=None, retention_boost_factor=1,
+          negative_sampling_override=None):
     if output.exists():
         raise FileExistsError("Training runs are immutable; use a new output revision")
     if (type(epochs) is not int or not 1 <= epochs <= 20 or image_size not in (320, 480, 640)
             or batch_size not in (1, 2, 4, 8) or not .00001 <= learning_rate <= .001
             or type(seed) is not int or type(freeze) is not int or not 0 <= freeze <= 20
-            or replay_policy not in ("manifest_sampler", "full_authorized_pool")):
+            or replay_policy not in ("manifest_sampler", "full_authorized_pool")
+            or negative_sampling_override not in (None, "uniform_budget", "top_score_anchors")):
         raise ValueError("Bounded diagnostic settings exceeded")
     data = validate_dataset(dataset, base, parent_manifest)
     import torch
@@ -241,11 +262,17 @@ def train(dataset, base, parent_manifest, output, *, epochs=2, image_size=320,
     metadata["ordinary_validation"] = {
         "enabled": False, "metrics": "NOT TESTED",
         "fitness": "constant_zero_checkpoint_serialization_sentinel_not_quality"}
+    metadata["explicit_negative_sampling"] = dict(
+        effective=negative_sampling_override or data.get("reviewed_background_sampling", "uniform_budget"),
+        run_override=negative_sampling_override,
+        scope="manifested reviewed negative controls only; unknown pixels remain ignored")
     output.mkdir(parents=True)
-    training_config, replay_metadata = effective_training_inputs(dataset, data, output, replay_policy)
+    training_config, replay_metadata = effective_training_inputs(dataset, data, output, replay_policy,
+        retention_boost_class, retention_boost_factor)
     metadata.update(replay_metadata)
     (output / "run-manifest.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    model.train(data=str(training_config.resolve()), trainer=ReviewedSetTrainer,
+    trainer = partial(ReviewedSetTrainer, negative_sampling_override=negative_sampling_override)
+    model.train(data=str(training_config.resolve()), trainer=trainer,
                 epochs=epochs, imgsz=image_size, batch=batch_size, nbs=batch_size,
                 workers=0, device="cpu", project=str(output.parent.resolve()), name=output.name,
                 exist_ok=True, val=False, plots=False, save=True, save_period=1, pretrained=True,
@@ -278,8 +305,14 @@ if __name__ == "__main__":
     parser.add_argument("--warm-start", type=Path)
     parser.add_argument("--replay-policy", choices=("manifest_sampler", "full_authorized_pool"),
                         default="manifest_sampler")
+    parser.add_argument("--retention-boost-class", type=int)
+    parser.add_argument("--retention-boost-factor", type=int, choices=(1,2,3,4), default=1)
+    parser.add_argument("--negative-sampling-override", choices=("uniform_budget", "top_score_anchors"))
     args = parser.parse_args()
     print(json.dumps(train(args.dataset, args.base, args.parent_manifest, args.output,
                            epochs=args.epochs, image_size=args.image_size, batch_size=args.batch_size,
                            learning_rate=args.learning_rate, seed=args.seed, freeze=args.freeze,
-                           warm_start=args.warm_start, replay_policy=args.replay_policy)))
+                           warm_start=args.warm_start, replay_policy=args.replay_policy,
+                           retention_boost_class=args.retention_boost_class,
+                           retention_boost_factor=args.retention_boost_factor,
+                           negative_sampling_override=args.negative_sampling_override)))

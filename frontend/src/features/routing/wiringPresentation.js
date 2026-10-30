@@ -1,4 +1,4 @@
-import { CurvePath, LineCurve3, QuadraticBezierCurve3, Vector3 } from 'three'
+import { Curve, CurvePath, LineCurve3, QuadraticBezierCurve3, Vector3 } from 'three'
 
 const EPS = 1e-6
 const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= EPS)
@@ -124,4 +124,44 @@ export function roundedWiringCurve(points, radius, anchors = []) {
   }
   line(clean.at(-1))
   return curve.curves.length ? curve : null
+}
+
+// TubeGeometry normally samples the whole path at uniform arc distances. That
+// can skip a short leg or a pinned corner and draw a diagonal across the bend.
+// Give every local curve boundary its own ring; inspection and picking use the
+// exact same samples. These points are rendering derivatives, never saved data.
+class WiringRenderPath extends Curve {
+  constructor(points) { super(); this.points = points }
+  getPoint(t, target = new Vector3()) {
+    const u = Math.max(0,Math.min(1,t))*(this.points.length-1)
+    const index = Math.min(this.points.length-2,Math.floor(u))
+    return target.copy(this.points[index]).lerp(this.points[index+1],u-index)
+  }
+  getPointAt(t, target) { return this.getPoint(t,target) }
+  getTangentAt(t, target = new Vector3()) {
+    const u = Math.max(0,Math.min(1,t))*(this.points.length-1)
+    const knot = Math.round(u)
+    if (Math.abs(u-knot)<EPS && knot>0 && knot<this.points.length-1) {
+      const incoming = this.points[knot].clone().sub(this.points[knot-1]).normalize()
+      const outgoing = this.points[knot+1].clone().sub(this.points[knot]).normalize()
+      target.copy(incoming).add(outgoing)
+      return target.lengthSq()>EPS*EPS ? target.normalize() : target.copy(outgoing)
+    }
+    const index = Math.min(this.points.length-2,Math.floor(u))
+    return target.copy(this.points[index+1]).sub(this.points[index]).normalize()
+  }
+}
+
+export function wiringRenderPath(points, radius, anchors = []) {
+  const rounded = roundedWiringCurve(points,radius,anchors)
+  if (!rounded) return null
+  const samples = []
+  for (const curve of rounded.curves) {
+    const steps = curve instanceof LineCurve3 ? 1 : 8
+    for (let i=0;i<=steps;i++) {
+      const point = curve.getPoint(i/steps)
+      if (!samples.length || samples.at(-1).distanceToSquared(point)>EPS*EPS) samples.push(point)
+    }
+  }
+  return samples.length>1 ? new WiringRenderPath(samples) : null
 }

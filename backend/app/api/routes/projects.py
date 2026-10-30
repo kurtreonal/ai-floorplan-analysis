@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import require_roles
 from app.core.database import get_db
 from app.models import User
+from app.models.client_workflow import ProjectAssignment
+from app.services.local_accounts import require_same_origin
+from fastapi import Request
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.project_service import (
     ProjectNotFoundError,
@@ -23,14 +26,33 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 logger = logging.getLogger(__name__)
 
 
+def project_response(db, project):
+    result = ProjectResponse.model_validate(project)
+    assignment = db.get(ProjectAssignment, project.id)
+    result.client_id = assignment.client_id if assignment else None
+    from app.services.intake_schema import details
+    intake = details(db,assignment,'intake_details')
+    result.layout_type = intake.get('layout_type')
+    from app.services.project_budget import allocated
+    result.allocated_budget=allocated(db,project.id)
+    result.service_types = intake.get('service_types') or ([project.service_type] if project.service_type else [])
+    result.intake_status = intake.get('status','assigned')
+    result.preferred_designer_id = intake.get('preferred_designer_id')
+    preferred = db.get(User,result.preferred_designer_id) if result.preferred_designer_id else None
+    result.preferred_designer_name = preferred.display_name if preferred else None
+    designer = db.get(User, project.owner_id)
+    result.designer_name = designer.display_name if designer else None
+    return result
+
+
 @router.patch('/{project_id}', response_model=ProjectResponse)
 def update_project_endpoint(project_id: Annotated[int, Path(gt=0)], project_data: ProjectUpdate,
-        current_user: User = Depends(require_roles('DESIGNER')), database_session: Session = Depends(get_db)):
+        current_user: User = Depends(require_roles('ADMIN')), database_session: Session = Depends(get_db)):
     from pydantic import ValidationError
     try:
         project = update_project_details(database_session, current_user=current_user,
             project_id=project_id, project_data=project_data)
-        result = ProjectResponse.model_validate(project)
+        result = project_response(database_session, project)
         database_session.commit()
         logger.info('PROJECT_DETAILS_SAVED project_id=%s user_id=%s', project_id, current_user.id)
         return result
@@ -70,7 +92,7 @@ def list_projects_endpoint(
             },
         ) from None
 
-    return [ProjectResponse.model_validate(project) for project in projects]
+    return [project_response(database_session, project) for project in projects]
 
 
 @router.get(
@@ -113,13 +135,13 @@ def get_project_endpoint(
             },
         ) from None
 
-    return ProjectResponse.model_validate(project)
+    return project_response(database_session, project)
 
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_project_endpoint(
     project_data: ProjectCreate,
-    current_user: User = Depends(require_roles("DESIGNER")),
+    current_user: User = Depends(require_roles("ADMIN")),
     database_session: Session = Depends(get_db),
 ) -> ProjectResponse:
     try:
@@ -130,6 +152,9 @@ def create_project_endpoint(
         )
         database_session.commit()
         database_session.refresh(project)
+    except ValueError:
+        database_session.rollback()
+        raise HTTPException(422, 'Choose a valid client and designer.') from None
     except SQLAlchemyError:
         database_session.rollback()
         raise HTTPException(
@@ -143,4 +168,19 @@ def create_project_endpoint(
             },
         ) from None
 
-    return ProjectResponse.model_validate(project)
+    return project_response(database_session, project)
+
+
+@router.delete('/{project_id}', status_code=204)
+def delete_project(project_id: Annotated[int, Path(gt=0)], request: Request,
+                   user: User = Depends(require_roles('ADMIN')), db: Session = Depends(get_db)):
+    require_same_origin(request)
+    try:
+        project = get_accessible_project(db, current_user=user, project_id=project_id)
+        project.status = 'archived'
+        from app.services.activity_log import record
+        record(db, user, 'PROJECT_ARCHIVED', 'project', project.id, 'Removed project from active projects. Original uploads and saved estimates retained.')
+        db.commit()
+        logger.info('PROJECT_DELETED project_id=%s user_id=%s retained_history=true', project_id, user.id)
+    except ProjectNotFoundError:
+        raise HTTPException(404, 'Project not found.') from None

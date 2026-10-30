@@ -11,12 +11,16 @@ export function draftWiringScene(wires, scene) {
     if (!Array.isArray(wire.points) || wire.points.length < 2 || wire.points.length > 2048
       || wire.points.some(p => !Number.isFinite(p.x) || !Number.isFinite(p.y) || p.x < 0 || p.y < 0
         || p.x * scene.sourceScale > scene.width || p.y * scene.sourceScale > scene.depth)) return []
-    const knownHeight = Number.isFinite(wire.elevation_meters)
+    const knownAbsolute = Number.isFinite(wire.elevation_meters)
     const underFloor = wire.installation_method === 'concealed_under_floor'
     // No installation depth is inferred from dashes. Use the floor reference
     // until an actual depth is supplied, rather than mislabeling it as ceiling.
     const knownFloor = Number.isFinite(scene.floorElevationMeters)
-    const elevation = knownHeight ? (wire.elevation_meters - (knownFloor ? scene.floorElevationMeters : 0)) * scene.unitsPerMeter : underFloor ? 0 : scene.ceilingElevation
+    const relative=Number.isFinite(wire.height_above_floor_meters) ? wire.height_above_floor_meters
+      : !knownAbsolute && underFloor ? 0
+      : !knownAbsolute && (scene.automaticHeights ? wire.installation_method==='concealed_in_ceiling':!underFloor) && Number.isFinite(scene.serviceHeightAboveFloor) ? scene.serviceHeightAboveFloor:null
+    const knownHeight=relative!==null || knownAbsolute && knownFloor
+    const elevation = relative!==null ? relative*scene.unitsPerMeter:knownAbsolute ? (wire.elevation_meters - (knownFloor ? scene.floorElevationMeters : 0)) * scene.unitsPerMeter : underFloor ? 0 : scene.ceilingElevation
     const points = wire.points.map(p => [p.x * scene.sourceScale, elevation, p.y * scene.sourceScale])
     const segments = points.slice(1).map((end, index) => ({ start: points[index], end }))
     // Connections come only from shared draft attachments, never Three.js
@@ -30,7 +34,7 @@ export function draftWiringScene(wires, scene) {
       if (!endpoint || !symbol?.presentation) continue
       const placement = devicePlacement(symbol, scene, symbol.presentation.family)
       if (attachedDevices.has(symbol.id) || placement.mount === 'plan') continue
-      const measured=knownHeight && knownFloor && Number.isFinite(symbol.installation?.elevation_meters)
+      const measured=knownHeight && Number.isFinite(symbol.installation?.elevation_meters)
       attachedDevices.add(symbol.id)
       if (wire.source_evidence_required && !measured) {
         unmeasuredDevices.add(symbol.id)

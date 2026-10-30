@@ -1,11 +1,12 @@
 import { useId, useRef, useState } from 'react'
-import { groupLegendChoices } from '../../api/legendChoices.js'
+import { groupLegendChoices, legendSearchText, deviceChoiceName } from '../../api/legendChoices.js'
 import { isWiringLegend } from '../../api/symbolLegends.js'
 import { deviceFamily } from './devicePresentation.js'
 import { Button } from '../../components/ui/button.jsx'
 import './devicePicker.css'
+import { API_BASE_URL } from '../../api/auth.js'
 
-const normalized = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase('en').replace(/[^\p{L}\p{N}]+/gu,' ').trim()
+const normalized = legendSearchText
 const familyName = item => item.category || item.type || deviceFamily(item.displayName).replaceAll('-',' ')
 const detail = item => [item.catalog_code || item.code,item.specification,familyName(item) === 'unknown' ? null : familyName(item)].filter(Boolean).join(' · ')
 
@@ -37,10 +38,10 @@ export function DevicePicker({ legends, value, onChange, onCancel, disabled = fa
     <label>Device to place<select ref={picker} aria-label="Device to place" size={Math.min(6,Math.max(2,matches.length+1))}
       value={value} disabled={disabled || !choices.length} onChange={event=>onChange(event.target.value)}>
       <option value="">Choose a device</option>
-      {chosen && !matches.includes(chosen) && <optgroup label="Current selection"><option value={chosen.id}>{chosen.displayName} · {detail(chosen)}</option></optgroup>}
-      {matches.map(item=><option key={item.id} value={item.id} title={[item.displayName,detail(item)].filter(Boolean).join(' · ')}>{[item.displayName,detail(item)].filter(Boolean).join(' · ')}</option>)}
+      {chosen && !matches.includes(chosen) && <optgroup label="Current selection"><option value={chosen.id}>{deviceChoiceName(chosen.displayName)}</option></optgroup>}
+      {matches.map(item=><option key={item.id} value={item.id} title={[item.displayName,item.specification].filter(Boolean).join(' · ')} aria-label={[item.displayName,item.specification].filter(Boolean).join(' · ')}>{deviceChoiceName(item.displayName)}</option>)}
     </select></label>
     {!matches.length && <p role="status">No matching approved devices.</p>}
-    {chosen && <p role="status">Ready to place: {chosen.displayName}{detail(chosen) ? ` · ${detail(chosen)}` : ''}</p>}
+    {chosen && <div><img key={chosen.id} alt={`Drawing symbol for ${deviceChoiceName(chosen.displayName)}`} src={`${API_BASE_URL}/api/symbol-legends/${chosen.id}/glyph.png`} crossOrigin="use-credentials" style={{maxWidth:64,maxHeight:48,objectFit:'contain'}} onError={event=>{event.currentTarget.hidden=true}}/><p role="status">Ready to place: {deviceChoiceName(chosen.displayName)}</p></div>}
   </div>
 }

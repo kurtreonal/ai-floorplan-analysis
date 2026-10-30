@@ -71,7 +71,15 @@ def estimate_options(session, user, project_id, project_price_version_id=None):
         materials.append({"id": material.id, "code": material.code, "name": material.name, "unit": material.unit,
                           "has_price": bool(quote and quote['catalog_unit'] == material.unit) if project_version else bool(price and price.unit == material.unit),
                           "currency": quote['currency'] if quote else price.currency if price else None,
-                          "price_unit": quote['unit'] if quote else material.unit})
+                          "price_unit": quote['unit'] if quote else material.unit,
+                          "price_revision_id":price.id if price else None})
+    if project_version is None:
+        from app.services.material_assembly_service import annotate_catalog,choose_default
+        annotate_catalog(session,materials)
+        for component in grouped.values():
+            default=choose_default(dict(kind='device',class_id=component['class_id'],name=component['class_name']),materials)
+            if default and default.get('has_price') and not default.get('price_unavailable_reason'):
+                component['default_material_id']=default['id']
     return dict(route_version_id=route.id if route else None, stale=stale, route_blocker=route_blocker,
         floors=sorted(int(k) for k in route.layout_versions) if route else [],
         components=[grouped[k] for k in sorted(grouped)], materials=materials,
@@ -152,6 +160,8 @@ def generate_estimate(session, user, project_id, request):
     locked = {key: prices.lock_material(session, key) for key in sorted({item[0] for item in raw_lines})}
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     lines, price_ids, currencies, price_sources = [], [], set(), []
+    from app.repositories.material_assembly_repository import records as assembly_records
+    assembly_record_map={r.material_id:r for r in assembly_records(session)}
     item_quote_cache = {}
     with localcontext() as context:
         context.prec = 48
@@ -209,6 +219,13 @@ def generate_estimate(session, user, project_id, request):
                 price_ids.append(price.id)
                 price_sources.append(dict(material_id=material_id, kind='catalog', catalog_unit=unit,
                     units_per_purchase='1', quoted_unit=unit, price_revision_id=price.id))
+                from app.services.material_assembly_service import estimate_snapshot,AssemblyError
+                try:
+                    assembly=estimate_snapshot(session,material_id,price.id,records=assembly_record_map)
+                except AssemblyError:
+                    raise EstimateError('ASSEMBLY_COMPONENT_PRICE_REQUIRED') from None
+                if assembly:
+                    price_sources[-1]['assembly']=assembly
             currencies.add(currency)
             quantity = raw_quantity.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
             total = quantity * unit_price

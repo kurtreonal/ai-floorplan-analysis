@@ -4,6 +4,7 @@ import { createProject, ProjectApiError } from '../../api/projects.js'
 import { getProjectHref } from '../../routes/projectRoutes.js'
 import { ProjectIntakeFields } from './ProjectIntakeFields.jsx'
 import { intakePayload, intakeValues } from './projectIntake.js'
+import { workflowRequest } from '../../api/clientWorkflow.js'
 
 
 const INITIAL_VALUES = intakeValues()
@@ -27,6 +28,8 @@ export function CreateProjectForm({ onCreated }) {
   const [error, setError] = useState(null)
   const [createdProject, setCreatedProject] = useState(null)
   const requestController = useRef(null)
+  const [accounts, setAccounts] = useState([])
+  useEffect(() => { const c = new AbortController(); const load = () => workflowRequest('/admin/accounts', { signal: c.signal }).then(setAccounts).catch(e => { if (e.name !== 'AbortError') setError(e.message) }); load(); window.addEventListener('ved:accounts-changed', load); return () => { c.abort(); window.removeEventListener('ved:accounts-changed', load) } }, [])
 
   useEffect(() => () => requestController.current?.abort(), [])
 
@@ -38,7 +41,8 @@ export function CreateProjectForm({ onCreated }) {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    const projectData = intakePayload(values)
+    const selections = new FormData(event.currentTarget)
+    const projectData = { ...intakePayload(values), client_id: Number(selections.get('client_id')), designer_id: Number(selections.get('designer_id')) }
 
     if (!projectData.name) {
       setError('Project name is required.')
@@ -76,7 +80,9 @@ export function CreateProjectForm({ onCreated }) {
       </div>
 
       <form className="project-form" onSubmit={handleSubmit}>
-        <ProjectIntakeFields values={values} onChange={updateField} disabled={isSubmitting} />
+        <label>Client account<select name="client_id" required disabled={isSubmitting}><option value="">Choose a client</option>{accounts.filter(x => x.role === 'CLIENT' && !x.disabled && x.username).map(x => <option key={x.id} value={x.id}>{x.label} · {x.username}</option>)}</select></label>
+        <label>Assigned designer<select name="designer_id" required disabled={isSubmitting}><option value="">Choose a designer</option>{accounts.filter(x => x.role === 'DESIGNER' && !x.disabled && x.username).map(x => <option key={x.id} value={x.id}>{x.label} · #{x.id}</option>)}</select><small>{accounts.filter(x => x.role === 'DESIGNER' && !x.disabled && x.username).length} available designers. Set up new users in Admin settings → Users.</small></label>
+        <ProjectIntakeFields values={values} onChange={updateField} disabled={isSubmitting} hideClient />
 
         {error && <div className="project-alert project-alert-error" role="alert">{error}</div>}
         {createdProject && (

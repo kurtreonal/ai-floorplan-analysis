@@ -12,23 +12,29 @@ def default_family(name):
     if re.search(r'\bswitch(?:es)?\b',name,re.I):return 'switch'
 
 
-def resolved_mounting(symbol, name=None):
+def resolved_mounting(symbol, name=None, defaults=None):
     """Return a copy, preserving explicit heights and unknown historical references."""
     result=dict(symbol)
-    family=default_family(name or symbol.get('class_name') or '')
+    label=name or symbol.get('class_name') or ''
+    family=default_family(label)
+    if re.search(r'\b(?:lamp|luminaire|lighting fixture|fluorescent|troffer|linear light|strip light|downlight|light point|lighting point|recessed light|pendant|ceiling light)\b',label,re.I) and not re.search(r'\b(?:data|telephone|network|panel|home.?run|notation)\b',label,re.I):
+        if (defaults or {}).get('fixture_connection') is not None:family='fixture_connection'
+        elif (defaults or {}).get('fixture') is not None:family='fixture'
     height=symbol.get('mounting_height_meters')
     reference=symbol.get('mounting_reference')
     if (symbol.get('disposition')!='rejected' and family and
         (name is not None or symbol.get('symbol_legend_id') or symbol.get('class_id') is not None) and
-        (height is None or symbol.get('mounting_height_source')=='ved_default') and
+        height is None and
         reference in (None,'device_center')):
-        result.update(mounting_height_meters=VED_CENTER_HEIGHTS[family],mounting_reference='device_center',mounting_height_source='ved_default')
+        result.update(mounting_height_meters=(defaults or VED_CENTER_HEIGHTS)[family],
+            mounting_reference='connection_terminal' if family=='fixture_connection' else 'device_center',
+            mounting_height_source='ved_automatic' if family=='fixture_connection' else 'ved_default')
     return result
 
 
-def mounting_document(document, legends):
+def mounting_document(document, legends, defaults=None):
     result=deepcopy(document)
-    result['symbols']=[resolved_mounting(symbol,legends[symbol['symbol_legend_id']].name)
+    result['symbols']=[resolved_mounting(symbol,legends[symbol['symbol_legend_id']].name,defaults)
         if symbol.get('symbol_legend_id') in legends else dict(symbol)
         for symbol in document.get('symbols',[])]
     return result

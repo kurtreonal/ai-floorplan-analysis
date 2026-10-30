@@ -14,6 +14,18 @@ const options = { route_version_id: 11, stale: false, floors: [2], components: [
 beforeEach(() => { listEstimates.mockResolvedValue([]); fetchEstimateOptions.mockResolvedValue(options); listProjectPrices.mockResolvedValue([]) })
 afterEach(() => { cleanup(); vi.resetAllMocks() })
 
+it('prefills a compatible Admin device assembly without overwriting a designer choice on reload',async()=>{
+  fetchEstimateOptions.mockResolvedValue({...options,components:[{...options.components[0],default_material_id:5}]})
+  render(<EstimatePage projectId={15} session={designer}/> )
+  await waitFor(()=>expect(screen.getByLabelText('Material for Troffer').value).toBe('5'))
+  expect(screen.getByLabelText('Material units per Troffer').value).toBe('1')
+  fireEvent.change(screen.getByLabelText('Material for Troffer'),{target:{value:'6'}})
+  fireEvent.click(screen.getByRole('button',{name:'Reload inputs'}))
+  await waitFor(()=>expect(fetchEstimateOptions).toHaveBeenCalledTimes(2))
+  expect(screen.getByLabelText('Material for Troffer').value).toBe('6')
+  expect(screen.getByLabelText('I reviewed these material mappings and conversion factors.').checked).toBe(false)
+})
+
 async function fillMappings() {
   await screen.findByLabelText('Material for Troffer')
   fireEvent.change(screen.getByLabelText('Material for Troffer'), { target: { value: '5' } })

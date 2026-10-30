@@ -204,6 +204,34 @@ def list_versions(session, user, project_id):
     return repository.versions(session, project_id)
 
 
+def remove_imports(session, user, project_id):
+    """Detach current Client prices; keep source bytes and captured history."""
+    _access(session, user, project_id)
+    repository.lock_project(session, project_id)
+    from sqlalchemy import select
+    from app.models import ProjectPriceVersion
+    from app.services.activity_log import record
+    rows = session.scalars(select(ProjectPriceVersion).where(
+        ProjectPriceVersion.project_id == project_id, repository.active_import())).all()
+    from app.repositories import item_price_repository as item_prices
+    from uuid import uuid4
+    batch = item_prices.current(session, project_id, lock=True)
+    removed = repository.removed_ids(session, project_id) | {row.id for row in rows}
+    if batch:
+        assignments = batch.document['assignments']
+        kept = {key:value for key,value in assignments.items() if value.get('price_version_id') not in removed}
+        if len(kept) != len(assignments):
+            item_prices.append(session, project_id=project_id, version_number=batch.version_number+1,
+                created_by_user_id=user.id, request_id=str(uuid4()),
+                request_hash=_hash({'removed_imports':sorted(removed),'from_assignment_version':batch.version_number}),
+                document=dict(batch.document,assignments=kept,application={'kind':'client_pricing_removed','removed_import_ids':sorted(removed)}))
+    for row in rows:
+        record(session, user, 'CLIENT_PRICING_REMOVED', 'price_import', row.id,
+            'Removed uploaded prices from active project pricing. Upload and estimate history retained.')
+    session.commit()
+    return {'removed': len(rows)}
+
+
 def get_version(session, user, project_id, version_id):
     _access(session, user, project_id)
     record = repository.find(session, project_id, version_id)

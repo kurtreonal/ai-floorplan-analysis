@@ -949,7 +949,9 @@ Do not create redundant tables that duplicate an existing domain concept without
 
 # 23. Authentication and Authorization
 
-Authentication uses OAuth 2.0 with OpenID Connect. Do not implement local email/password authentication, local password verification, password hashing, or local JWT-based authentication.
+Authentication supports Admin-managed username/password accounts alongside OAuth 2.0 with OpenID Connect, as requested in the Client–Admin–Designer workflow. Both methods use the existing signed server session. Store only salted, memory-hard password hashes. Link Google identities only after authenticated account ownership checks; never merge accounts by email alone. Do not introduce local JWT authentication.
+
+Access is invitation-only. Never auto-create users from OAuth. Admin creates Designer or Client accounts with an initial username/password; the user may link Google after signing in. Unmanaged legacy Designer/Client records require Admin setup. Existing explicitly assigned Admin identities retain bootstrap access. Removing user access must revoke sessions and both sign-in methods while preserving project authorship and estimate history.
 
 Keep authentication and authorization separate:
 
@@ -969,6 +971,7 @@ Required roles:
 ```text
 ADMIN
 DESIGNER
+CLIENT
 ```
 
 Authorization must be enforced by FastAPI.
@@ -981,7 +984,7 @@ Examples:
 
 ```text
 DESIGNER
-- create projects
+- open assigned clients and projects (Admin creates projects and assigns designers)
 - upload floor plans
 - edit authorized project layouts
 - generate routes
@@ -989,11 +992,20 @@ DESIGNER
 - generate reports
 
 ADMIN
+- create client accounts and project information
+- associate projects with clients and assign designers
+- approve specific saved layouts and estimate snapshots for client publication
+- delete projects from active lists while retaining originals and history
 - manage users
 - manage symbol legends
 - manage materials
 - update material prices
 - inspect administrative records
+
+CLIENT
+- read only the Admin-published layout and estimate versions for associated projects
+- manage their own sign-in methods
+- never access designer drafts or mutation endpoints
 ```
 
 Do not trust user IDs, project owner IDs, or role names supplied by the frontend without server-side validation.

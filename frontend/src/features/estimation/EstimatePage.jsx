@@ -84,8 +84,15 @@ function EstimateWorkspace({ projectId, session }) {
       // Repricing does not replace the designer's product/circuit decisions.
       // Keep valid choices; unavailable products must be chosen explicitly again.
       const available = new Set(value.materials.filter(material => material.has_price).map(material => String(material.id)))
-      setBindings(current => Object.fromEntries(Object.entries(current).filter(([id, binding]) =>
-        value.components.some(component => String(component.class_id) === id) && available.has(String(binding.material)))))
+      setBindings(current => {
+        const kept=Object.fromEntries(Object.entries(current).filter(([id,binding])=>
+          value.components.some(component=>String(component.class_id)===id)&&available.has(String(binding.material))))
+        for(const component of value.components){
+          if(!kept[component.class_id]&&component.default_material_id&&available.has(String(component.default_material_id)))
+            kept[component.class_id]={material:String(component.default_material_id),units:'1'}
+        }
+        return kept
+      })
       setConduit(current => available.has(current) ? current : '')
       setWire(current => available.has(current) ? current : '')
       setAdditionalMaterials(current => current.map(row => available.has(row.material) ? row : { ...row, material: '' }))
@@ -97,8 +104,8 @@ function EstimateWorkspace({ projectId, session }) {
 
   function reloadInputs() {
     setHistoryState('loading'); setOptions(null); setOptionsError(null); setHistoryError(null)
-    setBindings({}); setConduit(''); setWire(''); setConductors('')
-    setWireUnitLength(''); setConduitUnitLength(''); setAdditionalMaterials([])
+    // The options response removes unavailable products; keep valid designer inputs.
+    setConfirmed(false)
     setAttempt((value) => value + 1)
   }
 

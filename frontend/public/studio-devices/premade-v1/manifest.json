@@ -1,0 +1,16 @@
+{
+  "revision": 1,
+  "author": "Kenney; VED Blender adaptation",
+  "license": "CC0-1.0",
+  "source": "https://opengameart.org/content/furniture-kit",
+  "originalObject": "lampSquareCeiling.obj",
+  "status": "representative",
+  "changes": "Suspension removed; housing fitted to illustrative troffer envelope; inset diffuser, PBR materials and bevels",
+  "nominalDimensionsMetres": {
+    "x": 0.6,
+    "y": 0.09,
+    "z": 1.2
+  },
+  "bytes": 6264,
+  "anchors": "Existing canonical devicePlacement; mesh does not define connectivity"
+}

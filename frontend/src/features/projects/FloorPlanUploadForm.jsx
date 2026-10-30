@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import {LayoutTypeChoices} from './LayoutTypeChoices.jsx'
+import {layoutValues} from './projectIntake.js'
 
 import { FloorPlanApiError, uploadFloorPlan } from '../../api/floorPlans.js'
 import { ProcessingJobApiError, startFloorPlanProcessing } from '../../api/processingJobs.js'
@@ -49,11 +51,13 @@ function getUploadError(error) {
 export function FloorPlanUploadForm({
   projectId,
   projectFloorId,
+  initialLayoutType='',
   onUploaded,
   onUploadingChange = () => {},
   onUnavailable = () => {},
 }) {
   const [file, setFile] = useState(null)
+  const [layoutType,setLayoutType]=useState(()=>layoutValues(initialLayoutType))
   const [error, setError] = useState(null)
   const [analysisNotice, setAnalysisNotice] = useState(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -92,6 +96,7 @@ export function FloorPlanUploadForm({
       setError('Choose a JPEG, PNG, or PDF floor plan.')
       return
     }
+    if (!layoutType.length) {setError('Select at least one layout type for this file.');return}
 
     const validationError = validateSelectedFile(file)
     if (validationError) {
@@ -110,7 +115,7 @@ export function FloorPlanUploadForm({
     try {
       const uploadedFloorPlan = await uploadFloorPlan(
         projectId,
-        { projectFloorId, file },
+        { projectFloorId, file,layoutType },
         { signal: controller.signal },
       )
       // Preserve a successfully stored original even when analysis cannot queue.
@@ -145,6 +150,7 @@ export function FloorPlanUploadForm({
 
   return (
     <form className="floor-plan-upload-form" onSubmit={handleSubmit}>
+      <LayoutTypeChoices value={layoutType} onChange={setLayoutType} disabled={isUploading}/>
       <label htmlFor="floor-plan-file">
         Floor-plan file
         <input

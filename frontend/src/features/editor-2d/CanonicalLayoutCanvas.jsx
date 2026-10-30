@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Hand, Maximize, MousePointer2, Minus, Plus } from 'lucide-react'
+import { Maximize, MousePointer2, Minus, Plus } from 'lucide-react'
 import { Button } from '../../components/ui/button.jsx'
-import { DeviceGlyph } from '../detection-review/DeviceGlyph.jsx'
+import { ViewportFullscreenButton } from '../../components/ViewportFrame.jsx'
+import { LegendDeviceGlyph } from '../detection-review/LegendDeviceGlyph.jsx'
+import { fetchSymbolLegends } from '../../api/symbolLegends.js'
 import { deviceFamily } from '../detection-review/devicePresentation.js'
 import { routeAppearance } from '../routing/routeProjection.js'
 import {buildWallTopology} from '../../geometry/wallTopology.js'
@@ -38,9 +40,16 @@ export function CanonicalLayoutCanvas({
 }) {
   const containerRef = useRef(null)
   const [availableWidth, setAvailableWidth] = useState(960)
-  const [mode, setMode] = useState('select')
+  const mode = 'select'
+  const panGesture = useRef(null)
   const [viewport, setViewport] = useState({ zoom: 1, x: 0, y: 0 })
   const coordinateSystem = geometry.coordinate_system
+  const [legends, setLegends] = useState([])
+  useEffect(() => {
+    const request = new AbortController()
+    fetchSymbolLegends({ signal: request.signal }).then(setLegends).catch(() => {})
+    return () => request.abort()
+  }, [])
 
   useEffect(() => {
     const element = containerRef.current
@@ -94,16 +103,36 @@ export function CanonicalLayoutCanvas({
 
   return (
     <section className="layout-canvas-card" aria-label="Current canonical 2D layout canvas">
+      <ViewportFullscreenButton />
       <div className="studio-canvas-toolbar" role="toolbar" aria-label="2D viewport tools">
-        <Button variant={mode === 'select' ? 'secondary' : 'ghost'} size="sm" aria-pressed={mode === 'select'} onClick={() => setMode('select')}><MousePointer2 aria-hidden="true" />Select</Button>
-        <Button variant={mode === 'pan' ? 'secondary' : 'ghost'} size="sm" aria-pressed={mode === 'pan'} onClick={() => setMode('pan')}><Hand aria-hidden="true" />Pan</Button>
+        <span className="studio-canvas-mode"><MousePointer2 size={14} aria-hidden="true" />Select &amp; move</span>
         <span className="studio-toolbar-divider" />
         <Button variant="ghost" size="icon" aria-label="Zoom out" disabled={viewport.zoom <= 1} onClick={() => zoomAt(1 / 1.25)}><Minus aria-hidden="true" /></Button>
         <output className="mono" aria-label="Viewport zoom">{Math.round(viewport.zoom * 100)}%</output>
         <Button variant="ghost" size="icon" aria-label="Zoom in" disabled={viewport.zoom >= 6} onClick={() => zoomAt(1.25)}><Plus aria-hidden="true" /></Button>
         <Button variant="ghost" size="sm" onClick={() => setViewport({ zoom: 1, x: 0, y: 0 })}><Maximize aria-hidden="true" />Fit plan</Button>
       </div>
-      <div ref={containerRef} className="layout-canvas-wrap" data-testid="layout-canvas-container">
+      <div ref={containerRef} className="layout-canvas-wrap" data-testid="layout-canvas-container"
+        onContextMenu={event => event.preventDefault()}
+        onPointerDownCapture={event => {
+          if (event.button !== 2) return
+          event.preventDefault(); event.stopPropagation()
+          event.currentTarget.setPointerCapture(event.pointerId)
+          panGesture.current = {x:event.clientX,y:event.clientY,viewport}
+        }}
+        onPointerMoveCapture={event => {
+          const pan = panGesture.current
+          if (!pan) return
+          event.preventDefault(); event.stopPropagation()
+          setViewport({...pan.viewport,x:pan.viewport.x+event.clientX-pan.x,y:pan.viewport.y+event.clientY-pan.y})
+        }}
+        onPointerUpCapture={event => {
+          if (!panGesture.current) return
+          event.preventDefault(); event.stopPropagation()
+          panGesture.current = null
+          event.currentTarget.releasePointerCapture(event.pointerId)
+        }}
+        onPointerCancel={() => { panGesture.current = null }}>
         <Stage
           width={stage.width}
           height={stage.height}
@@ -188,7 +217,7 @@ export function CanonicalLayoutCanvas({
                     stroke="#ffffff"
                     strokeWidth={Math.max(2 / stage.scale, 1)}
                   />
-                  <DeviceGlyph family={deviceFamily(symbol.class.name)} color="#c94e28" scale={stage.scale * viewport.zoom} />
+                  <LegendDeviceGlyph legendId={legends.find(legend => legend.class_id === symbol.class.id)?.id} family={deviceFamily(symbol.class.name)} label={symbol.class.name} color="#c94e28" scale={stage.scale * viewport.zoom} />
                   <Text
                     text={`${symbol.class.name} · ${manual ? 'manual' : 'reviewed'}`}
                     x={18 / (stage.scale * viewport.zoom)}
@@ -237,7 +266,7 @@ export function CanonicalLayoutCanvas({
           </Layer>
         </Stage>
       </div>
-      <p className="studio-canvas-status mono">{mode === 'pan' ? 'Drag to pan · wheel to zoom' : canEdit ? 'Select or drag a symbol · changes require saving' : 'Inspection only · select a symbol for its saved position'} · viewport changes do not alter measurements</p>
+      <p className="studio-canvas-status mono">Right-drag to pan · wheel to zoom · {canEdit ? 'changes require saving' : 'inspection only'}</p>
     </section>
   )
 }

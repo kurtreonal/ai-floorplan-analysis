@@ -66,7 +66,7 @@ def apply_prices(session, project_id, result, materials):
     assignments = batch.document['assignments'] if batch else {}
     previous_import=prices.latest_automatic(session,project_id)
     if not assignments and previous_import is None:
-        result['item_assignment_version'] = 0
+        result['item_assignment_version'] = batch.version_number if batch else 0
         return result
     result['items'] = expand_items(result['items'])
     catalog = {m['id']: m for m in materials}
@@ -74,6 +74,8 @@ def apply_prices(session, project_id, result, materials):
     fallback_cache={}
     for row in result['items']:
         assignment = assignments.get(row['item_key'])
+        if row.get('custom_unit_price') is not None and (not assignment or assignment.get('source_kind')!='manual_price'):
+            continue  # A client import must not replace an explicit designer device rate.
         if assignment and assignment.get('source_kind') in ('client_product','manual_price'):
             from app.services.automatic_client_pricing import quote_for,apply_row
             quote=quote_for(session,project_id,assignment,row,quote_cache)
@@ -97,6 +99,11 @@ def apply_prices(session, project_id, result, materials):
                 fallback_cache[floor_id]=(version,skipped)
             version,skipped=fallback_cache[floor_id]
             quote=previously_skipped_rate(row,version,skipped)
+            # New manual paths inherit only compatible current floor/project
+            # rates. Explicit item assignments and device prices stay untouched.
+            if quote is None and version and row['kind']=='path':
+                from app.services.automatic_client_pricing import compatible,resolve_price
+                quote=resolve_price([q for q in version.document['rows'] if compatible(row,q)])
             if quote:
                 apply_row(row,quote,assignment_for(row,quote,version.id),batch.version_number if batch else 0)
             continue
@@ -168,6 +175,8 @@ def options(session, user, project_id, price_version_id=None):
 def preview(session, user, project_id, selection):
     planning = inventory(session, user, project_id)
     version = pricing.get_version(session, user, project_id, selection.price_version_id)
+    if version.id in prices.removed_ids(session, project_id):
+        raise pricing.PricingConflict('This price list was removed. Upload it again before applying prices.')
     if version.document.get('matching_method')=='automatic_client_specification':
         raise WorkbookError('This client price list is applied automatically. Upload it again to update prices.')
     quotes = {r['row_id']:r for r in version.document['rows'] if not r['excluded']}
@@ -258,6 +267,6 @@ def apply(session, user, project_id, request):
         raise WorkbookError('This project has reached the saved item-price limit.')
     record = repository.append(session, project_id=project_id, version_number=(current.version_number if current else 0) + 1,
         created_by_user_id=user.id, request_id=str(request.request_id), request_hash=request_hash,
-        document=dict(assignments=assignments, application=result))
+        document=dict(current.document if current else {},assignments=assignments, application=result))
     session.commit()
     return dict(id=record.id, version_number=record.version_number)

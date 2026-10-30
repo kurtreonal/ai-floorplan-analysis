@@ -1,6 +1,7 @@
 export const DEFAULT_PREFERENCES = Object.freeze({
   theme: 'system', units: 'metric', snapping: true,
   blueprint: true, walls: true, symbols: true, wiring: true,
+  studioWalls:'cutaway', studioGrid:false,
 })
 
 export function normalizePreferences(value) {
@@ -8,6 +9,8 @@ export function normalizePreferences(value) {
   return {
     theme: ['light', 'dark', 'system'].includes(input.theme) ? input.theme : 'system',
     units: ['metric', 'imperial'].includes(input.units) ? input.units : 'metric',
+    studioWalls:['full','cutaway','xray'].includes(input.studioWalls) ? input.studioWalls : 'cutaway',
+    studioGrid:input.studioGrid === true,
     ...Object.fromEntries(['snapping', 'blueprint', 'walls', 'symbols', 'wiring'].map(
       (key) => [key, typeof input[key] === 'boolean' ? input[key] : DEFAULT_PREFERENCES[key]],
     )),

@@ -1,15 +1,16 @@
 // Shared path records remain the editable edges. Only explicit attachments
 // identify shared nodes; geometric intersections are never graph connections.
 import { nextWiringId } from './observedWiringDraft.js'
-import { joinWireJunction } from './wireJunctions.js'
+import { joinWireJunction, inheritWireAssignments } from './wireJunctions.js'
+import { mergedWireAssignments } from './wireAssignments.js'
 
 export const activeWire = w => w.disposition !== 'rejected' && !w.suppression_reason
 export const vertexIds = w => w.vertex_ids || w.points.map((_, i) => `${w.id}:vertex:${i}`)
 export const compatibleWires = (a, b) =>
   (a.circuit_id ?? null) === (b.circuit_id ?? null)
   && (a.elevation_meters ?? null) === (b.elevation_meters ?? null)
+  && (a.height_above_floor_meters ?? null) === (b.height_above_floor_meters ?? null)
   && (a.installation_method || 'unknown') === (b.installation_method || 'unknown')
-  && (a.origin === 'generated') === (b.origin === 'generated')
 
 export function wiringComponents(wires) {
   const active = wires.filter(activeWire), parents = new Map(active.map(w => [w.id, w.id])), nodes = new Map()
@@ -55,6 +56,21 @@ export function commitWiringPath(draft, vertices, attributes) {
     points:vertices.map(v => ({...v.point})),device_attachments:[]}
   wire.vertex_ids = wire.points.map((p,i)=>`${id}:vertex:${wire.points.findIndex(q=>q.x===p.x && q.y===p.y) ?? i}`)
   let next = {...draft,wirings:[...draft.wirings,wire]}
+  // A newly drawn extension takes the target network's assignments rather than
+  // the toolbar's initial placement suggestion. Conflicting targets still fail.
+  const targets = vertices.flatMap(({snap}) => !snap ? [] : snap.kind === 'wire'
+    ? draft.wirings.filter(w => activeWire(w) && w.id === snap.id)
+    : snap.kind === 'device' ? draft.wirings.filter(w => activeWire(w) && (w.device_attachments || []).some(a =>
+      a.symbol_id === snap.id && (!snap.terminalId || a.terminal_id === snap.terminalId))) : [])
+  if (targets.length) {
+    const assignments = mergedWireAssignments(targets)
+    if (!assignments || (attributes.circuit_id && assignments.circuit_id && attributes.circuit_id !== assignments.circuit_id)) {
+      throw new Error('Choose endpoints on the same circuit and wiring placement.')
+    }
+    wire = {...wire,...assignments}
+    next = {...next,wirings:next.wirings.map(w => w.id === id ? wire : w)}
+    next = inheritWireAssignments(next, [id,...targets.map(w => w.id)])
+  }
   // Reproject against current geometry: two snaps may split the same original edge.
   for (let i = 0; i < vertices.length; i++) {
     const snap = vertices[i].snap
@@ -68,7 +84,7 @@ export function commitWiringPath(draft, vertices, attributes) {
         .filter(a=>a.symbol_id===symbol.id && a.terminal_id).map(a=>a.terminal_id)))]
       if(!snap.terminalId && known.length>1)throw new Error('This device has distinct terminals. Extend the intended wire endpoint instead.')
       const terminal = snap.terminalId || known[0] || 'design-anchor'
-      if (draft.wirings.filter(activeWire).some(w => (w.device_attachments || []).some(a =>
+      if (next.wirings.filter(activeWire).some(w => (w.device_attachments || []).some(a =>
         a.symbol_id === symbol.id && a.terminal_id === terminal) && !compatibleWires(w,wire))) {
         throw new Error('Cannot join different circuits, heights or installation methods.')
       }

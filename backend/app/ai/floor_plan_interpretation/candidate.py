@@ -276,6 +276,7 @@ class ObservedRouteConnection(StrictCandidateModel):
     source_edge_index: Annotated[StrictInt, Field(ge=0, le=510)] | None = None
     path_anchor: PixelPoint | None = None
     device_anchor: PixelPoint | None = None
+    route_node_id: Annotated[str, Field(pattern=r'^source-node\.symbol-[0-9]{4,}$')] | None = None
     evidence_kind: Literal['boundary_contact', 'symbol_occlusion', 'inline_device'] | None = None
     evidence_refs: Annotated[tuple[str, ...], Field(max_length=32)] = ()
     ambiguity: Literal['unambiguous', 'ambiguous'] = 'ambiguous'
@@ -314,7 +315,7 @@ class WiringRecoveryDevice(StrictCandidateModel):
 
 
 class WiringRecoveryReport(StrictCandidateModel):
-    version: Literal['targeted-source-recovery-v1', 'targeted-source-recovery-v2', 'targeted-source-recovery-v3'] = 'targeted-source-recovery-v3'
+    version: Literal['targeted-source-recovery-v1', 'targeted-source-recovery-v2', 'targeted-source-recovery-v3', 'targeted-source-recovery-v4'] = 'targeted-source-recovery-v3'
     stop_reason: Literal['running', 'converged', 'methods_exhausted', 'resource_limit']
     limit_reason: Literal['time_budget','window_budget','path_budget','input_budget'] | None = Field(default=None,exclude_if=lambda value:value is None)
     passes: Annotated[tuple[WiringRecoveryPass, ...], Field(max_length=2)] = ()
@@ -572,11 +573,13 @@ def _validate_candidate_document(document: FloorPlanInterpretationPayload) -> No
         if any(not _inside(point, document.source_plane) for point in item.points):
             raise ValueError("Observed route is outside the source plane.")
     for connection in document.observed_routes.connections:
+        if connection.route_node_id is not None and (connection.route_node_id!=f"source-node.{connection.to_ref.split(':',1)[-1]}" or connection.ambiguity!='unambiguous'):
+            raise ValueError('Source route nodes must identify their unambiguous symbol contact.')
         if connection.from_ref not in entity_refs or connection.to_ref not in entity_refs:
             raise ValueError("Observed route has a dangling graph reference.")
         if connection.from_ref == connection.to_ref:
             raise ValueError("Observed route connection must join distinct references.")
-        if connection.evidence_kind is not None:
+        if connection.evidence_kind is not None or connection.route_node_id is not None:
             if not connection.from_ref.startswith('segment:') or not connection.to_ref.startswith('symbol:'):
                 raise ValueError('Device contact requires source route and symbol references.')
             route = next(r for r in document.observed_routes.segments if f'segment:{r.id}' == connection.from_ref)

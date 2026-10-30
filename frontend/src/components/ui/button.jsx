@@ -19,7 +19,7 @@ const buttonVariants = cva(
   },
 )
 
-export function Button({ className, variant, size, asChild = false, type, ...props }) {
+export function Button({ className, variant = 'default', size, asChild = false, type, ...props }) {
   const Component = asChild ? Slot : 'button'
-  return <Component data-slot="button" type={asChild ? type : type ?? 'button'} className={cn(buttonVariants({ variant, size, className }))} {...props} />
+  return <Component data-slot="button" data-variant={variant} type={asChild ? type : type ?? 'button'} className={cn(buttonVariants({ variant, size, className }))} {...props} />
 }

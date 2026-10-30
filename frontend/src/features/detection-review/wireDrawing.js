@@ -8,13 +8,22 @@ export function withWiringMethod(wire, method) {
 
 export function snapWiringPoint(point, draft, presentations = {}, threshold = 12) {
   const candidates = []
+  const activeWires=(draft.wirings || []).filter(w=>w.disposition!=='rejected' && !w.suppression_reason)
+  const terminals=new Map(), ambiguousDevices=[]
+  for(const wire of activeWires) for(const contact of wire.device_attachments || []) {
+    if(!contact.terminal_id)continue
+    if(!terminals.has(contact.symbol_id))terminals.set(contact.symbol_id,new Set())
+    terminals.get(contact.symbol_id).add(contact.terminal_id)
+  }
   for (const symbol of (draft.symbols || []).slice(0,2048)) {
     if (symbol.disposition === 'rejected' || presentations[symbol.id]?.family === 'annotation') continue
+    // A device-centre magnet cannot choose among distinct terminal identities.
+    // Let the pointer target an existing branch instead of stealing its snap.
+    if(terminals.get(symbol.id)?.size>1){ambiguousDevices.push(symbol.center);continue}
     candidates.push({ ...symbol.center, kind: 'device', id: symbol.id, priority: 0 })
   }
   let examined = 0
-  for (const wire of draft.wirings || []) {
-    if (wire.disposition === 'rejected') continue
+  for (const wire of activeWires) {
     for (let i = 1; i < wire.points.length && examined < 512; i++, examined++) {
       const a = wire.points[i-1], b = wire.points[i], dx = b.x-a.x, dy = b.y-a.y
       candidates.push({ ...a, kind: 'wire', id: wire.id, priority: 1 }, { ...b, kind: 'wire', id: wire.id, priority: 1 })
@@ -25,11 +34,15 @@ export function snapWiringPoint(point, draft, presentations = {}, threshold = 12
     }
     if (examined >= 512) break
   }
+  const selectingTerminal=ambiguousDevices.some(p=>Math.hypot(p.x-point.x,p.y-point.y)<=threshold)
   const ordered = candidates.map(p => ({ ...p, distance: Math.hypot(p.x-point.x,p.y-point.y) }))
     .filter(p => Number.isFinite(p.distance) && p.distance <= threshold)
-    .sort((a,b) => a.priority-b.priority || a.distance-b.distance)
+    .sort((a,b) => selectingTerminal
+      ? (a.kind==='device'?0:1)-(b.kind==='device'?0:1) || a.distance-b.distance || a.priority-b.priority
+      : a.priority-b.priority || a.distance-b.distance)
   const nearest = ordered[0]
-  if (nearest && ordered.some(p => p!==nearest && p.priority===nearest.priority && Math.abs(p.distance-nearest.distance)<1e-6 && (p.id!==nearest.id || p.kind!==nearest.kind))) return {...point,snapped:false}
+  if (nearest && ordered.some(p => p!==nearest && p.kind===nearest.kind && (selectingTerminal || p.priority===nearest.priority) && Math.abs(p.distance-nearest.distance)<1e-6 && p.id!==nearest.id)) return {...point,snapped:false,ambiguous:true}
+  if(!nearest && selectingTerminal)return {...point,snapped:false,ambiguous:true}
   return nearest ? { x: nearest.x, y: nearest.y, snapped: true, kind: nearest.kind, id: nearest.id }
     : { ...point, snapped: false }
 }

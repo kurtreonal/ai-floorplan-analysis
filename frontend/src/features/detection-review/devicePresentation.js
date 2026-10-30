@@ -7,6 +7,7 @@ export function deviceFamily(name = '') {
   if (/troffer/.test(text)) return 'troffer'
   if (/fluorescent|linear|strip light/.test(text)) return 'linear-light'
   if (/downlight|light point|lighting point|recessed|pendant|ceiling light/.test(text)) return 'round-light'
+  if (/led|floodlight|spotlight|luminaire|lighting fixture/.test(text)) return 'round-light'
   if (/panelboard|panel board|distribution board|electrical panel/.test(text)) return 'panel'
   if (/pull station|manual.*call point/.test(text)) return 'pull-station'
   if (/smoke|heat detector/.test(text)) return 'detector'
@@ -31,16 +32,19 @@ export function describeReviewSymbol(symbol, record, legends = []) {
   const gangMatches=gangProposal ? legends.filter(item=>item.is_active!==false &&
     new RegExp(`\\b(${['','one','two','three'][gangProposal.count]}|${gangProposal.count})[ -]*gang\\b`,'i').test(legendDescription(item.name)) &&
     /device switch|gang switch/i.test(item.name) && (!trainingLegend || item.name.includes(`[${trainingLegend.legend_entry}]`) || gangProposal.basis==='user_requested_default')) : []
+  const referenceMatches = legends.filter(item => item.is_active !== false && candidate?.observed_label &&
+    legendDescription(item.name).trim().replace(/\s+/g,' ').toLowerCase() === legendDescription(candidate.observed_label).trim().replace(/\s+/g,' ').toLowerCase())
   const suggestedLegendId = gangProposal && gangProposal.basis!=='model_prediction'
-    ? gangMatches.length===1 ? gangMatches[0].id : null : matches.length === 1 ? matches[0].id : null
+    ? gangMatches.length===1 ? gangMatches[0].id : null : matches.length === 1 ? matches[0].id : referenceMatches.length === 1 ? referenceMatches[0].id : null
   // A persisted class may be inactive now: retain its name, not a new approval.
   const savedName = symbol.symbol_legend_id && saved?.symbol_legend_id === symbol.symbol_legend_id
     ? saved.class_name : null
   const mappedName = legend?.name || savedName
   const provisionalName=gangProposal?.basis==='user_requested_default' ? 'One gang switch (provisional)' : null
-  const name = legendDescription(mappedName || provisionalName || trainingLegend?.name || candidate?.observed_label || 'Unclassified device')
+  const name = legendDescription(mappedName || provisionalName || trainingLegend?.name || (referenceMatches.length===1?referenceMatches[0].name:null) || candidate?.observed_label || 'Unclassified device')
   return {
     name, family: deviceFamily(name), mapped: Boolean(mappedName),
+    legendId: legend?.id || symbol.symbol_legend_id || suggestedLegendId || null,
     label: name,
     originalLabel: candidate?.observed_label || 'Unclassified device',
     ...(gangProposal ? {gangProposal} : {}),
@@ -50,7 +54,7 @@ export function describeReviewSymbol(symbol, record, legends = []) {
       x: candidate.bounds.x + symbol.center.x - candidate.center.x,
       y: candidate.bounds.y + symbol.center.y - candidate.center.y,
     } } : {}),
-    ...(trainingLegend || candidate?.catalog_class_id != null || gangProposal ? {suggestedLegendId} : {}),
+    ...(trainingLegend || candidate?.catalog_class_id != null || gangProposal || suggestedLegendId ? {suggestedLegendId} : {}),
     ...(trainingLegend ? { trainingLegend } : {}),
   }
 }
@@ -89,7 +93,7 @@ export function updateRelatedSymbols(symbols, selectedId, record, patch) {
 
 export function clampDevicePoint(point, width, height) {
   if (![point.x, point.y].every(Number.isFinite)) return null
-  return { x: Math.round(Math.max(0, Math.min(width, point.x))), y: Math.round(Math.max(0, Math.min(height, point.y))) }
+  return { x: Number(Math.max(0, Math.min(width, point.x)).toFixed(4)), y: Number(Math.max(0, Math.min(height, point.y)).toFixed(4)) }
 }
 
 // Keep display-only names, mesh metadata and estimated widths out of strict API writes.

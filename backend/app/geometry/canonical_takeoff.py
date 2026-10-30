@@ -47,15 +47,21 @@ def canonical_path_rows(document, extension=None):
     def point(p):
         return dict(floor_id=p.project_floor_id,x=p.x,y=p.y,elevation_meters=p.elevation_meters)
     for identities in canonical_route_groups(document, extension):
-        edges, missing = [], []
+        edges, missing, path_measurements = [], [], []
         for identity in identities:
+            own_edges, own_missing = [], []
             for a,b in zip(routes[identity].points,routes[identity].points[1:]):
                 if a.project_floor_id != b.project_floor_id or a.project_floor_id != document.floor.project_floor_id:
                     missing.append('Inter-floor canonical edge has no explicit connector in this floor snapshot; excluded.')
+                    own_missing.append('inter_floor')
                 else:
                     # These are stored, reviewed metric points, not perspective
                     # clicks, smoothed tubes or inferred mounting elevations.
                     edges.append(dict(start=point(a),end=point(b),slope_supported=True))
+                    own_edges.append(edges[-1])
+            own = measure_metric_network(own_edges)
+            path_measurements.append(dict(id=identity,horizontal_meters=own.horizontal_meters,
+                vertical_meters=own.vertical_meters,total_meters=round(own.physical_meters,4),incomplete=bool(own_missing)))
         measured = measure_metric_network(edges)
         h, v = measured.horizontal_meters, measured.vertical_meters
         detail = details.get(identities[0])
@@ -66,6 +72,7 @@ def canonical_path_rows(document, extension=None):
             quantity=Decimal(str(measured.physical_meters)).quantize(Decimal('.0001'),rounding=ROUND_HALF_UP),unit='meter',
             measurement_revision=measured.measurement_revision,
             horizontal_meters=h,vertical_meters=v,missing_vertical_inputs=sorted(set(missing)),
+            path_measurements=path_measurements,
             basis='Saved canonical metric centerlines including stored drops/rises. Unique spans only within explicit device/junction-connected same-circuit groups; each route retains its provenance. Independent paths remain separate. No inferred material, conductor count, allowance or display offsets.'
                   + (' INCOMPLETE: unsupported inter-floor edges excluded.' if missing else '')))
     return rows

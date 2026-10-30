@@ -1,0 +1,27 @@
+{
+  "pages": 6,
+  "native_text_labels": 190,
+  "editable_shapes": "PASS",
+  "xml_parse": "PASS",
+  "group_references": "PASS",
+  "text_fit": "PASS",
+  "preview_visual_review": "PASS",
+  "reference_pdf_changed": false,
+  "team_names": [
+    "Aldrin E. Generoso",
+    "Kurt Isaiah R. Pascua",
+    "Lester C. Pajarillo",
+    "Angelo Luigi G. Matavia",
+    "Kristian Kyle Elle P. Madridejo"
+  ],
+  "team_source": "C:\\Users\\kupal\\Documents\\ai-floorplan-analysis\\docs\\THESIS_SOURCE.md",
+  "team_coverage": "PASS: five names exactly once on all six boards",
+  "team_roles_removed": "PASS",
+  "timeline": "Historical record, proposed sprint or TBD",
+  "product_tests_this_task": "NOT TESTED (planning only)",
+  "diagrams_net_editor_import": "NOT TESTED",
+  "downloads_copy": "PASS: requested team/footer edits applied; saved hash verified",
+  "other_saved_cells_preserved": 226,
+  "downloads_before_sha256": "1c3a3ae712c1a30b2a42b0be6a479fbf3a954828333683f4f424652e4f1030d4",
+  "workspace_after_sha256": "3ca2c00c05f1c33d2ea7c6b3612219968fac331bfe67238ab605350b43632de3"
+}

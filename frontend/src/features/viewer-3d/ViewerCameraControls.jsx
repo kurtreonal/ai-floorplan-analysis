@@ -12,6 +12,7 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
   const { camera, gl, invalidate } = useThree()
   const domElement = gl.domElement
   const controlsRef = useRef(null)
+  const transition = useRef(null)
   const flight = useRef({ keys: new Set(), velocity: new Vector3(), sprint: false })
   const stop = useCallback(() => {
     flight.current.keys.clear()
@@ -19,31 +20,46 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
     flight.current.sprint = false
   }, [])
   const [targetX, targetY, targetZ] = target || [0, 0, 0]
+  const moveTo = useCallback((destination,lookAt,duration=.4) => {
+    const controls=controlsRef.current
+    if (!controls) return
+    stop()
+    transition.current={from:camera.position.clone(),to:new Vector3(...destination),
+      fromTarget:controls.target.clone(),toTarget:new Vector3(...lookAt),elapsed:0,
+      duration:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : duration}
+    invalidate()
+  },[camera,invalidate,stop])
+  const fit = useCallback(()=>{
+    const distance=(extent || 20)*Math.max(1,1/(camera.aspect || 1))
+    moveTo([targetX+distance,targetY+distance*.85,targetZ+distance],[targetX,targetY,targetZ])
+  },[camera,extent,moveTo,targetX,targetY,targetZ])
 
   useImperativeHandle(ref, () => ({
+    fit, isometric:fit,
+    benchmarkOrbit(angle) {
+      if(!import.meta.env.DEV || !controlsRef.current)return
+      transition.current=null
+      camera.position.set(targetX+Math.cos(angle)*(extent||20),targetY+(extent||20)*.8,targetZ+Math.sin(angle)*(extent||20))
+      controlsRef.current.target.set(targetX,targetY,targetZ);controlsRef.current.update();invalidate()
+    },
+    focus(point,closeUpDistance,approach) { if(point){const distance=Number.isFinite(closeUpDistance)&&closeUpDistance>0?closeUpDistance:(extent||20)*.25;const direction=Array.isArray(approach)&&approach.length===3&&approach.every(Number.isFinite)?approach:[1,.8,1];moveTo(point.map((value,index)=>value+distance*direction[index]),point,1)} },
     reset() {
-      stop()
-      controlsRef.current?.reset()
-      controlsRef.current?.update()
-      invalidate()
+      stop();transition.current=null
+      controlsRef.current?.reset();controlsRef.current?.update();invalidate()
     },
     top() {
       stop()
       const controls = controlsRef.current
       if (!controls) return
-      camera.position.set(controls.target.x, controls.target.y + (extent || 20) * 1.6, controls.target.z + 0.001)
-      controls.update()
-      invalidate()
+      moveTo([targetX,targetY+(extent||20)*1.6,targetZ+.001],[targetX,targetY,targetZ])
     },
     front() {
       stop()
       const controls = controlsRef.current
       if (!controls) return
-      camera.position.set(controls.target.x, controls.target.y + (extent || 20) * 0.3, controls.target.z + (extent || 20) * 1.6)
-      controls.update()
-      invalidate()
+      moveTo([targetX,targetY,targetZ+(extent||20)*1.6],[targetX,targetY,targetZ])
     },
-  }), [camera, extent, invalidate, stop])
+  }), [extent, stop,fit,moveTo,targetX,targetY,targetZ,invalidate,camera.position])
 
   useEffect(() => {
     const controls = new OrbitControls(camera, domElement)
@@ -56,12 +72,15 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
     controls.update()
     controls.saveState()
     controls.addEventListener('change', invalidate)
+    const interrupt=()=>{transition.current=null}
+    controls.addEventListener('start',interrupt)
     controlsRef.current = controls
     onReady?.(true)
 
     return () => {
       onReady?.(false)
       controls.removeEventListener('change', invalidate)
+      controls.removeEventListener('start',interrupt)
       controls.dispose()
       controlsRef.current = null
     }
@@ -70,9 +89,9 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
   useEffect(() => {
     if (!controlsRef.current) return
     controlsRef.current.enabled = enabled
-    controlsRef.current.enableRotate = !freeFly
+    controlsRef.current.enableRotate = true
     controlsRef.current.mouseButtons.LEFT = panMode ? MOUSE.PAN : leftOrbit ? MOUSE.ROTATE : null
-    controlsRef.current.mouseButtons.MIDDLE = MOUSE.ROTATE
+    controlsRef.current.mouseButtons.MIDDLE = freeFly && leftOrbit ? MOUSE.PAN : MOUSE.ROTATE
     controlsRef.current.mouseButtons.RIGHT = MOUSE.PAN
     controlsRef.current.touches.ONE = leftOrbit ? TOUCH.ROTATE : null
     controlsRef.current.touches.TWO = leftOrbit ? TOUCH.DOLLY_PAN : TOUCH.DOLLY_ROTATE
@@ -80,6 +99,17 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
   }, [enabled, panMode, freeFly, leftOrbit, targetX, targetY, targetZ, extent, stop])
 
   useFrame((_, delta) => {
+    const animation=transition.current
+    if (animation && controlsRef.current) {
+      animation.elapsed+=delta
+      const t=animation.duration ? Math.min(1,animation.elapsed/animation.duration) : 1
+      const eased=1-Math.pow(1-t,3)
+      camera.position.lerpVectors(animation.from,animation.to,eased)
+      controlsRef.current.target.lerpVectors(animation.fromTarget,animation.toTarget,eased)
+      controlsRef.current.update()
+      if(t===1){camera.position.copy(animation.to);controlsRef.current.target.copy(animation.toTarget);transition.current=null}
+      invalidate()
+    }
     if (!enabled || !freeFly || !controlsRef.current) return
     const movement = advanceCameraMovement(flight.current.velocity, camera.quaternion,
       flight.current.keys, extent, delta, flight.current.sprint)
@@ -101,6 +131,7 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
       const key = event.key.toLowerCase()
       if (key === 'escape') { stop(); return }
       if (!isMovementKey(key) && key !== 'shift') return
+      transition.current = null
       event.preventDefault()
       if (isMovementKey(key)) flight.current.keys.add(key)
       flight.current.sprint = event.shiftKey || key === 'shift'
@@ -137,6 +168,7 @@ export const ViewerCameraControls = forwardRef(function ViewerCameraControls(
     let pointer = null
     const down = event => {
       if (!enabled || !freeFly || event.button !== 2) return
+      transition.current = null
       event.preventDefault(); event.stopImmediatePropagation()
       pointer = { id: event.pointerId, x: event.clientX, y: event.clientY }
       domElement.closest('[aria-label="3D viewer"]')?.focus({ preventScroll: true })

@@ -7,7 +7,8 @@ export function SpatialDrawingControls({drawing,tool,floorElevation,presentation
     <div className="spatial-drawing-controls" role="group" aria-label="3D drawing controls">
       <strong>{tool==='wire'?'Draw wiring':'Draw walls'} · horizontal work plane</strong>
       <fieldset disabled={drawing.vertices.length>0}>
-        {tool==='wire'?<label>Service elevation (m, project datum)<input type="number" min="-1000" max="10000" step="any"
+        {tool==='wire'?<label>{drawing.relativeHeight?'Route height above floor (m, optional)':'Service elevation (m, project datum)'}<input type="number" min="-1000" max="10000" step="any"
+          placeholder={drawing.defaultRoutingHeight!=null?`Automatic · ${drawing.defaultRoutingHeight} m`:undefined}
           value={drawing.settings.elevation} onChange={e=>drawing.setOption('elevation',e.target.value)} /></label>
           :<><span>Floor elevation: {Number.isFinite(floorElevation)?`${floorElevation} m`:'not configured'}</span>
             {[['thickness','Wall thickness (m)'],['height','Wall height (m)'],['length','Exact wall length (m, optional)']].map(([key,label])=>

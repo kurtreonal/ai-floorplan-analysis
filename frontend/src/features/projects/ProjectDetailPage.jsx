@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { fetchProject, ProjectApiError } from '../../api/projects.js'
+import { fetchProject, deleteProject, ProjectApiError } from '../../api/projects.js'
 import { ProjectFloorUploadPanel } from './ProjectFloorUploadPanel.jsx'
 import { getEstimateHref } from '../../routes/projectRoutes.js'
 import { Button } from '../../components/ui/button.jsx'
 import { Calculator } from 'lucide-react'
-import { BLUEPRINT_AVAILABILITY, SERVICE_TYPES } from './projectIntake.js'
+import {ProjectDetailsTable} from './ProjectDetailsTable.jsx'
 import { ProjectIntakeEditor } from './ProjectIntakeEditor.jsx'
+import { AdminProjectWorkflow } from '../admin/AdminProjectWorkflow.jsx'
 
 
 function formatTimestamp(value) {
@@ -38,6 +39,11 @@ export function ProjectDetailPage({ projectId, session }) {
   const [error, setError] = useState(projectId ? null : 'The project address is invalid.')
   const [refreshKey, setRefreshKey] = useState(0)
   const uploadPanel = useRef(null)
+  const [deleteOpen, setDeleteOpen] = useState(false), [deleting, setDeleting] = useState(false), [deleteError, setDeleteError] = useState('')
+  async function removeProject() {
+    setDeleting(true); setDeleteError('')
+    try { await deleteProject(projectId); window.location.assign('#/app') } catch { setDeleteError('The project could not be deleted. Try again.'); setDeleting(false) }
+  }
 
   useEffect(() => {
     if (!projectId) return undefined
@@ -93,36 +99,29 @@ export function ProjectDetailPage({ projectId, session }) {
 
   return (
     <article className="project-detail" aria-labelledby="project-detail-title">
-      <a className="project-back-link" href="#/app">← All projects</a>
+      <a className="project-back-link" href="#/app/clients">← Clients &amp; projects</a>
+      <nav className="workflow-steps" aria-label="Project hierarchy"><a href="#/app/clients">Clients</a><a href={`#/app/clients/${encodeURIComponent(project.client_id?`id:${project.client_id}`:`name:${project.client_name || 'Unassigned client'}`)}/projects`}>› {project.client_name || 'Unassigned client'}</a><span>› {project.name}</span><span>› Floor plans</span></nav>
       <div className="project-detail-heading">
         <div>
           <span className="project-kicker mono">PROJECT METADATA</span>
           <h1 id="project-detail-title">{project.name}</h1>
         </div>
-        <div className="studio-detail-actions"><Button variant="outline" asChild><a href={getEstimateHref(project.id)}><Calculator aria-hidden="true" />Cost estimation</a></Button><span className="project-status project-detail-status mono">
+        <div className="studio-detail-actions"><span className="project-status project-detail-status mono">
           {project.status.replaceAll('_', ' ')}
         </span></div>
       </div>
       <p className="project-detail-intro">
         Review the project metadata, organize its floors, and upload original floor-plan files.
       </p>
-      <dl className="project-detail-grid">
-        <div><dt>Project ID</dt><dd>{project.id}</dd></div>
-        <div><dt>Owner ID</dt><dd>{project.owner_id}</dd></div>
-        <div><dt>Client</dt><dd>{project.client_name || 'Not specified'}</dd></div>
-        <div><dt>Location</dt><dd>{project.location || 'Not specified'}</dd></div>
-        <div><dt>Contact number</dt><dd>{project.contact_number || 'Not specified'}</dd></div>
-        <div><dt>Project / service type</dt><dd>{project.service_type === 'other' ? project.service_type_other : SERVICE_TYPES.find(([value]) => value === project.service_type)?.[1] || 'Not specified'}</dd></div>
-        <div><dt>Preferred start date</dt><dd>{project.preferred_start_date || 'Not specified'}</dd></div>
-        <div><dt>Blueprint availability</dt><dd>{BLUEPRINT_AVAILABILITY.find(([value]) => value === project.blueprint_availability)?.[1] || 'Not specified'}</dd></div>
-        <div><dt>Created</dt><dd>{formatTimestamp(project.created_at)}</dd></div>
-        <div><dt>Last updated</dt><dd>{formatTimestamp(project.updated_at)}</dd></div>
-      </dl>
-      {session?.user?.role === 'DESIGNER' && <ProjectIntakeEditor key={project.id} project={project} onSaved={setProject} onReload={() => setRefreshKey(key => key + 1)} />}
+      <ProjectDetailsTable project={project} formatTimestamp={formatTimestamp}/>
+      {session?.user?.role === 'ADMIN' && <><ProjectIntakeEditor key={project.id} project={project} onSaved={setProject} onReload={() => setRefreshKey(key => key + 1)} /><AdminProjectWorkflow project={project} onChanged={() => setRefreshKey(key => key + 1)}/>
+        <div className="workflow-panel"><Button variant="outline" className="workflow-danger" onClick={() => setDeleteOpen(!deleteOpen)}>Delete project</Button>
+        {deleteOpen && <div role="alert"><p>Remove “{project.name}” from active projects? Original files and saved estimates will be retained.</p><Button disabled={deleting} onClick={removeProject}>{deleting ? 'Deleting…' : 'Confirm delete'}</Button> <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button></div>}{deleteError && <p role="alert">{deleteError}</p>}</div></>}
       {session?.user?.role === 'DESIGNER' && project.blueprint_availability === 'available_now' && <Button variant="outline" onClick={() => {
         uploadPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); uploadPanel.current?.focus({ preventScroll: true })
       }}>Add floors &amp; upload blueprint</Button>}
       {session && <div ref={uploadPanel} tabIndex={-1} aria-label="Floors and original uploads"><ProjectFloorUploadPanel projectId={project.id} session={session} /></div>}
+      <footer className="project-estimate-footer"><div><h2>Overall project estimate</h2><p>Combine all floors and plans. Each floor plan keeps its own BOM.</p></div><Button asChild><a href={getEstimateHref(project.id)}><Calculator aria-hidden="true"/>Overall cost estimation</a></Button></footer>
     </article>
   )
 }

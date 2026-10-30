@@ -10,7 +10,7 @@ import numpy as np
 VERSION = 'qualified-band-centres-v2'
 
 
-def refine_filled_bands(rows, mask):
+def refine_filled_bands(rows, mask, *, preserve_width=False):
     if len(rows)>512: return list(rows)
     height,width=mask.shape
     fitted=[]
@@ -64,7 +64,8 @@ def refine_filled_bands(rows, mask):
                 if band_width(probe)>=typical*.65:
                     endpoints[i]=probe;break
         # Never snap to global axes: rotations/skew and genuine angles survive.
-        fitted.append((*map(int,np.rint(endpoints[0])),*map(int,np.rint(endpoints[1])),round(typical,2)))
+        fitted.append((*map(int,np.rint(endpoints[0])),*map(int,np.rint(endpoints[1])),
+                       row[4] if preserve_width else round(typical,2)))
     result=[]
     for row in fitted:
         a,b=np.array(row[:2],float),np.array(row[2:4],float);span=np.linalg.norm(b-a)

@@ -1,4 +1,5 @@
 import { findWireDeviceTargets } from './deviceConnections.js'
+import { mergedWireAssignments, wireAssignmentSignature } from './wireAssignments.js'
 
 // A preview is not connectivity: only the drag-end transaction commits a join.
 export function findWireEndpointSnap(point, wireId, index, draft, presentations = {}, threshold = 14, deviceDistance = null, pathDistance = null) {
@@ -16,10 +17,7 @@ export function findWireEndpointTargets(point, wireId, index, draft, presentatio
     || wire.device_attachments?.some(a => a.point_index === index)) return nearestTargets(choices)
   for (const other of draft.wirings) {
     if (other.id === wireId || other.disposition === 'rejected' || other.suppression_reason
-      || (wire.origin === 'generated') !== (other.origin === 'generated')
-      || (wire.circuit_id ?? null) !== (other.circuit_id ?? null)
-      || (wire.elevation_meters ?? null) !== (other.elevation_meters ?? null)
-      || (wire.installation_method || 'unknown') !== (other.installation_method || 'unknown')) continue
+      || !mergedWireAssignments([wire, other])) continue
     for (let edge = 0; edge < other.points.length-1; edge++) {
       const a = other.points[edge], b = other.points[edge+1], dx = b.x-a.x, dy = b.y-a.y
       if (!(dx*dx+dy*dy)) continue
@@ -33,7 +31,7 @@ export function findWireEndpointTargets(point, wireId, index, draft, presentatio
       const neighbor = wire.points[index === 0 ? 1 : index-1]
       if (neighbor.x === target.x && neighbor.y === target.y) continue
       const distance = pathDistance ? pathDistance(target,other) : Math.hypot(target.x-point.x,target.y-point.y)
-      if (Number.isFinite(distance) && distance <= threshold) choices.push({kind:'junction',wireId:other.id,segmentIndex:edge,t,point:target,distance})
+      if (Number.isFinite(distance) && distance <= threshold) choices.push({kind:'junction',wireId:other.id,segmentIndex:edge,t,point:target,distance,assignmentSignature:wireAssignmentSignature(other)})
     }
   }
   return nearestTargets(choices)

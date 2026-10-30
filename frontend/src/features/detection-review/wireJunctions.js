@@ -1,4 +1,5 @@
 import { vertexIds, wiringComponents } from './connectedWiring.js'
+import { mergedWireAssignments, resolveConnectedProposals } from './wireAssignments.js'
 const active = wire => wire.disposition !== 'rejected' && !wire.suppression_reason
 const changed = wire => ({ ...wire, disposition: wire.disposition === 'added' ? 'added' : 'corrected' })
 const at = (wire, index) => wire.junction_attachments?.find(a => a.point_index === index)
@@ -20,6 +21,7 @@ export function wireJunctions(draft) {
     if (members.some(m => !samePoint(m.point, first.point)
       || (m.wire.circuit_id ?? null) !== (first.wire.circuit_id ?? null)
       || (m.wire.elevation_meters ?? null) !== (first.wire.elevation_meters ?? null)
+      || (m.wire.height_above_floor_meters ?? null) !== (first.wire.height_above_floor_meters ?? null)
       || (m.wire.installation_method || 'unknown') !== (first.wire.installation_method || 'unknown'))) {
       throw new Error('Joined paths require the same position, circuit, height and installation method. Review their assignments first.')
     }
@@ -32,13 +34,46 @@ export function connectedWireIds(draft, wireId) {
   return new Set([...components].filter(([,root])=>root===components.get(wireId)).map(([id])=>id))
 }
 
+export function heightTargetIds(draft,seeds) {
+  const components=wiringComponents(draft.wirings || [])
+  const roots=new Set(seeds.map(id=>components.get(id)).filter(root=>root!==undefined))
+  return new Set([...components].filter(([,root])=>roots.has(root)).map(([id])=>id))
+}
+
+export function applyWireHeights(draft,seeds,{height,depth,onlyMissing=true}) {
+  const ids=heightTargetIds(draft,seeds),components=wiringComponents(draft.wirings)
+  const inherited=new Map()
+  for(const wire of draft.wirings)if(ids.has(wire.id) && wire.height_above_floor_meters!=null){
+    const root=components.get(wire.id),known=inherited.get(root)
+    if(onlyMissing && known!=null && known!==wire.height_above_floor_meters)throw new Error('Joined paths have different saved heights. Clear “Only fill missing heights” to replace them together.')
+    inherited.set(root,wire.height_above_floor_meters)
+  }
+  const methods=new Map()
+  for(const wire of draft.wirings)if(ids.has(wire.id) && wire.installation_method && wire.installation_method!=='unknown')methods.set(components.get(wire.id),wire.installation_method)
+  return validateResult({...draft,wirings:draft.wirings.map(wire=>{
+    if(!ids.has(wire.id) || onlyMissing && (wire.height_above_floor_meters!=null || wire.elevation_meters!=null))return wire
+    const root=components.get(wire.id),under=(wire.installation_method==='unknown'?methods.get(root):wire.installation_method)==='concealed_under_floor'
+    const value=onlyMissing && inherited.has(root)?inherited.get(root):under?-Number(depth):Number(height)
+    if(!(onlyMissing && inherited.has(root)) && ((under?depth:height)==='' || under && Number(depth)<0) || !Number.isFinite(value) || value < -1000 || value>10000)throw new Error('Enter a valid height or depth for the selected paths.')
+    if(value===wire.height_above_floor_meters)return wire
+    return changed({...wire,height_above_floor_meters:value})
+  })})
+}
+
+export function inheritWireAssignments(draft, wireIds) {
+  const ids = new Set(wireIds.flatMap(id => [...connectedWireIds(draft, id)]))
+  const patch = mergedWireAssignments(draft.wirings.filter(w => ids.has(w.id)))
+  if (!patch) throw new Error('Circuit and placement must match. Change them in Advanced settings first.')
+  return resolveConnectedProposals({...draft,wirings:draft.wirings.map(w => ids.has(w.id) ? changed({...w,...patch}) : w)})
+}
+
 function validateResult(draft) {
   if (draft.wirings.some(w => active(w) && w.points.some((p, i) => i && samePoint(p, w.points[i-1])))) {
     throw new Error('This edit would collapse a wiring segment.')
   }
   wireJunctions(draft)
   wiringComponents(draft.wirings)
-  return draft
+  return resolveConnectedProposals(draft)
 }
 
 function reindex(wire, index, delta, point) {
@@ -88,20 +123,28 @@ export function moveJunctionVertex(draft, wireId, index, point) {
 }
 
 export function joinWireJunction(draft, sourceId, sourceIndex, targetId, segmentIndex, t) {
-  const source = draft.wirings.find(w => w.id === sourceId && active(w))
+  let source = draft.wirings.find(w => w.id === sourceId && active(w))
   let target = draft.wirings.find(w => w.id === targetId && active(w))
   if (!source || !target || sourceId === targetId || !source.points[sourceIndex] || !Number.isInteger(sourceIndex)
     || source.device_attachments?.some(a => a.point_index === sourceIndex)) throw new Error('Choose an unattached source vertex and a different active path.')
-  if ((source.origin === 'generated') !== (target.origin === 'generated')) throw new Error('Use measured circuit planning to attach generated routes to observed wiring; their draft review lifecycles must stay separate.')
+  // A designer can explicitly connect a proposal to a trace. Provenance stays
+  // on each edge; this never turns generated geometry into observed evidence.
   if (!Number.isInteger(segmentIndex) || segmentIndex < 0 || segmentIndex >= target.points.length-1 || !Number.isFinite(t) || t < 0 || t > 1) {
     throw new Error('Choose a target segment and a position between 0% and 100%.')
   }
-  let next = draft
+  const memberIds = new Set([...connectedWireIds(draft, sourceId), ...connectedWireIds(draft, targetId)])
+  const members = draft.wirings.filter(w => memberIds.has(w.id))
+  const assignments = mergedWireAssignments(members)
+  if (!assignments) throw new Error('Circuit and placement must match. Change them in Advanced settings first.')
+  let next = {...draft, wirings:draft.wirings.map(w => memberIds.has(w.id) ? changed({...w,...assignments}) : w)}
+  source = next.wirings.find(w => w.id === sourceId)
+  target = next.wirings.find(w => w.id === targetId)
   const index = segmentIndex + (t === 0 ? 0 : 1)
-  if (t > 0 && t < 1) { next = insertWireVertex(draft, targetId, segmentIndex, t); target = next.wirings.find(w => w.id === targetId) }
+  if (t > 0 && t < 1) { next = insertWireVertex(next, targetId, segmentIndex, t); target = next.wirings.find(w => w.id === targetId) }
   if (target.device_attachments?.some(a => a.point_index === index)) throw new Error('Choose a wire vertex without a device terminal binding.')
   if ((source.circuit_id ?? null) !== (target.circuit_id ?? null)
     || (source.elevation_meters ?? null) !== (target.elevation_meters ?? null)
+    || (source.height_above_floor_meters ?? null) !== (target.height_above_floor_meters ?? null)
     || (source.installation_method || 'unknown') !== (target.installation_method || 'unknown')) {
     throw new Error('Circuit, height and installation must match explicitly; paths were not merged.')
   }
@@ -150,7 +193,7 @@ export function updateWireNetwork(draft, replacement) {
     return { ...next, wirings: next.wirings.map(w => w.id === replacement.id ? {...w,disposition:'rejected'} : w) }
   }
   const ids = connectedWireIds(draft, replacement.id)
-  const keys = ['circuit_id','elevation_meters','installation_method','line_style','wiring_legend_id','wiring_legend_name']
+  const keys = ['circuit_id','elevation_meters','height_above_floor_meters','installation_method','line_style','wiring_legend_id','wiring_legend_name','conductor_count']
     .filter(key => replacement[key] !== original[key])
   const patch = Object.fromEntries(keys.map(key => [key,replacement[key]]))
   return validateResult({ ...draft, wirings: draft.wirings.map(w => w.id === replacement.id ? replacement

@@ -1,0 +1,1172 @@
+{
+  "source_files": {
+    "C:\\Users\\kupal\\Downloads\\Gantt Chart-1.drawio.png": "a0095ec14ac1bd49849a21cd6e0c7cae79aa0074f89aeea76784829c1a4e716a",
+    "C:\\Users\\kupal\\Downloads\\Gantt Chart-2.drawio.png": "acd89eec50acdb02add2d99f159f160c717911f7d4f719e4cd40403430a425ca"
+  },
+  "pages": [
+    {
+      "page": 1,
+      "labels_enlarged": 94,
+      "font_changes": {
+        "11": 14,
+        "11 address": 13,
+        "12": 16,
+        "13": 17,
+        "14": 19,
+        "20": 26,
+        "22": 28
+      },
+      "text_fit": "PASS",
+      "text_cells_checked": 94,
+      "geometry_identical": "PASS",
+      "wording_identical": "PASS",
+      "non_text_styles_identical": "PASS",
+      "original_design_bounds": [
+        1392,
+        1266
+      ],
+      "export_pixels": [
+        4176,
+        3798
+      ],
+      "changed_labels": [
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-1",
+          "text": "Appendix Table. Gantt Chart",
+          "before": 22,
+          "after": 28
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-3",
+          "text": "Gantt Chart - 2026 (January - June)",
+          "before": 20,
+          "after": 26
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-6",
+          "text": "RESEARCH ACTIVITIES",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-8",
+          "text": "STATUS / DESCRIPTION",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-10",
+          "text": "JANUARY",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-12",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-14",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-16",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-18",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-20",
+          "text": "FEBRUARY",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-22",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-24",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-26",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-28",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-30",
+          "text": "MARCH",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-32",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-34",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-36",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-38",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-40",
+          "text": "APRIL",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-42",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-44",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-46",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-48",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-50",
+          "text": "MAY",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-52",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-54",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-56",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-58",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-60",
+          "text": "JUNE",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-62",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-64",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-66",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-68",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-71",
+          "text": "PHASE 1 \u00b7 Research and Design",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-73",
+          "text": "PHASE SCHEDULE",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-100",
+          "text": "Initial Research and Literature Review",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-102",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-103",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-130",
+          "text": "Consultation with Research Advisers",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-132",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-133",
+          "text": "Cavite State University - Bacoor City Campus, City of Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-160",
+          "text": "Empathize Stage (Design Thinking)",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-162",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-163",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-190",
+          "text": "Define Stage / Problem Identification",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-192",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-193",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-220",
+          "text": "Technical Feasibility and System Requirements",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-222",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-223",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-250",
+          "text": "Data Gathering and Process Observation",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-252",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-253",
+          "text": "VED Electrical Services",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-280",
+          "text": "Analysis of Gathered Data / Problem Analysis",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-282",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-283",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-310",
+          "text": "System Architecture and Documentation",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-312",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-313",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-340",
+          "text": "Wireframe Model / UI Prototyping",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-342",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-343",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-370",
+          "text": "DOCUMENTATION \u00b7 Diagrams, Test Cases and Checklists",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-372",
+          "text": "PHASE SCHEDULE",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-399",
+          "text": "Gantt Chart",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-401",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-402",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-429",
+          "text": "Sequence Diagram",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-431",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-432",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-459",
+          "text": "Activity Diagram",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-461",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-462",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-489",
+          "text": "Fishbone Diagram",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-491",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-492",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-519",
+          "text": "Use Case Diagram",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-521",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-522",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-549",
+          "text": "Entity Relationship Diagram",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-551",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-552",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-579",
+          "text": "Context Diagram",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-581",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-582",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-609",
+          "text": "Data Flow Diagram",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-611",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-612",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-638",
+          "text": "No activity",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-640",
+          "text": "Completed",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-642",
+          "text": "Planning",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-644",
+          "text": "Phase schedule",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "Gr74HVGsGGi-YRQ1j0Qf-646",
+          "text": "Gantt Chart - 2026 (July - October)",
+          "before": 20,
+          "after": 26
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "labels_enlarged": 89,
+      "font_changes": {
+        "11": 14,
+        "11 address": 13,
+        "12": 16,
+        "13": 17,
+        "14": 19,
+        "16": 21,
+        "21": 27
+      },
+      "text_fit": "PASS",
+      "text_cells_checked": 89,
+      "geometry_identical": "PASS",
+      "wording_identical": "PASS",
+      "non_text_styles_identical": "PASS",
+      "original_design_bounds": [
+        1392,
+        1472
+      ],
+      "export_pixels": [
+        4176,
+        4416
+      ],
+      "changed_labels": [
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-3",
+          "text": "RESEARCH ACTIVITIES",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-5",
+          "text": "STATUS / DESCRIPTION",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-7",
+          "text": "JULY",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-9",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-11",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-13",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-15",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-17",
+          "text": "AUGUST",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-19",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-21",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-23",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-25",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-27",
+          "text": "SEPTEMBER",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-29",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-31",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-33",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-35",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-37",
+          "text": "OCTOBER",
+          "before": 14,
+          "after": 19
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-39",
+          "text": "W1",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-41",
+          "text": "W2",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-43",
+          "text": "W3",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-45",
+          "text": "W4",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-48",
+          "text": "PHASE 2 \u00b7 System Development",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-50",
+          "text": "PHASE SCHEDULE",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-69",
+          "text": "System Foundation and Database",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-71",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-72",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-91",
+          "text": "Authentication and Project Management",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-93",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-94",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-113",
+          "text": "Deployment / Final System Preparation (initial)",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-115",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-116",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-135",
+          "text": "Floor Plan Upload and Processing Framework",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-137",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-138",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-157",
+          "text": "AI / Computer Vision Pipeline",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-159",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-160",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-179",
+          "text": "2D Geometry and Layout Editor",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-181",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-182",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-201",
+          "text": "Detection Review and Symbol Correction",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-203",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-204",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-223",
+          "text": "3D Visualization and 2D-3D Synchronization",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-225",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-226",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-245",
+          "text": "VLM Interpretation, Review and Validation",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-247",
+          "text": "PLANNING",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-248",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-267",
+          "text": "Electrical Routing",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-269",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-270",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-289",
+          "text": "Materials and Estimation Data Foundation",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-291",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-292",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-311",
+          "text": "Estimation Snapshots / Planning",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-313",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-314",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-333",
+          "text": "PHASE 3 \u00b7 Testing and Delivery",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-335",
+          "text": "PHASE SCHEDULE",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-354",
+          "text": "Testing and Verification",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-356",
+          "text": "PLANNING",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-357",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-376",
+          "text": "Deployment / Final System Preparation (final)",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-378",
+          "text": "COMPLETED",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-379",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-398",
+          "text": "Report Generation",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-400",
+          "text": "PLANNING",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-401",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-420",
+          "text": "DOCUMENTATION \u00b7 Diagrams, Test Cases and Checklists",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-422",
+          "text": "PHASE SCHEDULE",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-441",
+          "text": "Test Cases",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-443",
+          "text": "PLANNING",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-444",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-463",
+          "text": "Functional Testing",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-465",
+          "text": "PLANNING",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-466",
+          "text": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-485",
+          "text": "System Checklists",
+          "before": 13,
+          "after": 17
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-487",
+          "text": "PLANNING",
+          "before": 11,
+          "after": 14
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-488",
+          "text": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "before": 11,
+          "after": 13
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-506",
+          "text": "No activity",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-508",
+          "text": "Completed",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-510",
+          "text": "Planning",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-512",
+          "text": "Phase schedule",
+          "before": 12,
+          "after": 16
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-513",
+          "text": "Gantt Chart of VED Electrical Services",
+          "before": 21,
+          "after": 27
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-514",
+          "text": "AI-Driven Floor Plan Analysis and 3D Visualization System for Automated Layout and Cost Estimation",
+          "before": 16,
+          "after": 21
+        },
+        {
+          "id": "9FkHVfs-uU3c2wSfjnF9-515",
+          "text": "Month-level schedule: each active month is shown across W1-W4. Specific weekly dates were not supplied.",
+          "before": 13,
+          "after": 17
+        }
+      ]
+    }
+  ],
+  "design_preserved": "PASS",
+  "visual_review": "PASS",
+  "downloads_copy": "PASS",
+  "drawio_editor_import": "NOT TESTED",
+  "original_attachments_unchanged": "PASS",
+  "delivered_files": {
+    "C:\\Users\\kupal\\Downloads\\Gantt Chart-1-Larger Text.drawio.png": "fcf79a543156531db7e74882eb2ebf64b9e35dea365bb99912a391ab7bca66a3",
+    "C:\\Users\\kupal\\Downloads\\Gantt Chart-2-Larger Text.drawio.png": "7ce354419e793922e724b7de7b1585dd78293df84e5fad8de09475c7e010bdd3",
+    "C:\\Users\\kupal\\Downloads\\Gantt Charts-Larger Text.drawio": "d33b68312669c24434147012aa79dc82ac356d74eb2c8c00e81ffb7cabf5e457"
+  }
+}

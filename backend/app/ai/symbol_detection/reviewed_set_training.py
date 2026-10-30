@@ -155,6 +155,12 @@ class ReviewedSetDetectionModel(ReviewedBackgroundDetectionModel):
 class ReviewedSetTrainer(ReviewedBackgroundTrainer):
     model_class = ReviewedSetDetectionModel
 
+    def __init__(self, *args, negative_sampling_override=None, **kwargs):
+        if negative_sampling_override not in (None, "uniform_budget", "top_score_anchors"):
+            raise ValueError("Unsupported explicit negative sampling override")
+        self.negative_sampling_override = negative_sampling_override
+        super().__init__(*args, **kwargs)
+
     def build_dataset(self, img_path, mode="train", batch=None):
         dataset = super().build_dataset(img_path, mode=mode, batch=batch)
         if mode == "train":
@@ -207,7 +213,8 @@ class ReviewedSetTrainer(ReviewedBackgroundTrainer):
             if len(self._allowed_sets) != len(rows):
                 raise ValueError("Duplicate training image identity")
             self._reviewed_background_stems = {r["image_id"] for r in data.get("reviewed_background_images", [])}
-            self._reviewed_background_sampling = data.get("reviewed_background_sampling", "uniform_budget")
+            self._reviewed_background_sampling = (getattr(self, "negative_sampling_override", None)
+                or data.get("reviewed_background_sampling", "uniform_budget"))
             if self._reviewed_background_sampling not in ("uniform_budget", "top_score_anchors"):
                 raise ValueError("Unsupported explicit negative sampling")
             self._synthetic_complete_stems = {

@@ -2,6 +2,7 @@
 // Its relative units and boundary extrusions must never enter canonical saves.
 import { draftWiringScene } from './draftWiringScene.js'
 import {sceneWallTopology} from '../../geometry/wallTopology.js'
+import {withMountingDefaults} from './deviceMounting.js'
 function isSimpleBoundary(points) {
   const cross = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
   let area = 0
@@ -60,6 +61,7 @@ export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8, 
   const symbols = (draft.symbols || []).filter((symbol) => symbol.disposition !== 'rejected' && symbol.center
     && [symbol.center.x, symbol.center.y].every(Number.isFinite)
     && symbol.center.x >= 0 && symbol.center.y >= 0 && symbol.center.x <= width && symbol.center.y <= height)
+    .map(symbol=>withMountingDefaults(symbol,presentations[symbol.id],preview.mountingDefaults))
     .map((symbol) => ({ id: symbol.id, status: symbol.disposition,
       ...(Number.isFinite(symbol.mounting_height_meters) ? {installation:{provenance:'designer_supplied_planning',
         elevation_meters:symbol.mounting_height_meters+(symbol.terminal_offset_meters??0),wall_id:symbol.mounting_wall_id,
@@ -69,6 +71,8 @@ export function buildDraftRoomScene(draft, width, height, relativeHeight = 0.8, 
   const scene = { width: width * scale, depth: height * scale, elevation: 0, sourceScale: scale,
     unitsPerMeter, ceilingElevation: relativeHeight, mountingWalls: walls,
     floorElevationMeters: preview.floorElevationMeters,
+    serviceHeightAboveFloor:preview.serviceHeightAboveFloor,
+    automaticHeights:preview.automaticHeights,
     planningMountingHeights: preview.planningMountingHeights,
     target: [width * scale / 2, 0, height * scale / 2], extent: 10,
     rooms, walls, wallJunctions:topology.junctions, symbols, previewOnly: true, unit: 'relative',

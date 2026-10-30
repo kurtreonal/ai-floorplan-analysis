@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from datetime import datetime
 
@@ -37,3 +37,24 @@ class SymbolLegendAdminResponse(SymbolLegendResponse):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class LegendReferenceArtworkWrite(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    reference_id: str = Field(min_length=1, max_length=64, pattern=r'^R[0-9_]+-(as_shown|wall|ceiling)$')
+    legend_ids: list[DatabaseId] | None = Field(default=None, min_length=1, max_length=256)
+
+
+class LegendAvailabilityWrite(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    legend_ids: list[DatabaseId] = Field(min_length=1, max_length=256)
+    is_active: StrictBool
+
+
+class LegendReferenceImageResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str
+    label: str
+    reference: str
+    variant: Literal['as_shown', 'wall', 'ceiling']
+    source: Literal['Supplied PEC reference']

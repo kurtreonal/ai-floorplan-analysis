@@ -866,7 +866,6 @@ def _has_repeated_band_ties(pair, ink, minimum):
 
 def _has_tied_axis_band(lines, ink, minimum):
     """Qualify supplemental voting before changing the established scan path."""
-    binary = cv2.bitwise_not(ink)
     maximum = min(64,max(4,min(ink.shape)*.03))
     directions = set()
     for index,(x1,y1,x2,y2) in enumerate(lines):
@@ -886,8 +885,17 @@ def _has_tied_axis_band(lines, ink, minimum):
                 pair = ((((x1+ax)/2,lo),((x1+ax)/2,hi)),separation+1)
             else:
                 continue
-            if (2<=separation<=maximum and hi-lo>=max(minimum*2,min(ink.shape)*.14)
-                    and _regular_thin_parallel_bars((*pair[0][0],*pair[0][1],pair[1]),binary)
+            if not (2<=separation<=maximum and hi-lo>=max(minimum*2,min(ink.shape)*.14)):
+                continue
+            # A dashed centre/datum may be sampled as either two or three bars
+            # after resizing. Qualify the actual white side cavities and ties,
+            # not the number of bars surviving a fixed sampling phase.
+            samples=np.linspace(lo+1,hi-1,64)
+            if horizontal:
+                px,qx=samples,samples;py=np.full(64,y1);qy=np.full(64,ay)
+            else:
+                px=np.full(64,x1);qx=np.full(64,ax);py,qy=samples,samples
+            if (_has_observed_side_cavities(ink,px,py,qx,qy)
                     and _has_repeated_band_ties(pair,ink,minimum)):
                 directions.add(horizontal)
                 if len(directions)==2:
@@ -1077,6 +1085,31 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None, *, partial_pai
             if len(reserved) >= 256:
                 break
             reserved.add(row)
+        # Keep a shorter native mate of an already retained bank only when its
+        # observed strip has wall-like aspect and white side cavities. Reserving
+        # every native run would also promote compact device/fixture outlines.
+        mates=set()
+        maximum=min(64,max(4,min(width,height)*.03))
+        for x1,y1,x2,y2 in native_axes:
+            horizontal=y1==y2
+            for _,ax,ay,bx,by in reserved:
+                if horizontal and abs(by-ay)<=1:
+                    spacing=abs((ay+by)/2-y1)
+                    lo,hi=max(x1,min(ax,bx)),min(x2,max(ax,bx))
+                    t=np.linspace(lo+1,hi-1,64)
+                    px,qx=t,t;py=np.full(64,y1);qy=np.full(64,(ay+by)/2)
+                elif not horizontal and abs(bx-ax)<=1:
+                    spacing=abs((ax+bx)/2-x1)
+                    lo,hi=max(y1,min(ay,by)),min(y2,max(ay,by))
+                    t=np.linspace(lo+1,hi-1,64)
+                    px=np.full(64,x1);qx=np.full(64,(ax+bx)/2);py,qy=t,t
+                else:
+                    continue
+                if (2<=spacing<=maximum and hi-lo>=max(minimum*2,spacing*12)
+                        and _has_observed_side_cavities(ink,px,py,qx,qy)):
+                    mates.add((math.hypot(x2-x1,y2-y1),x1,y1,x2,y2))
+                    break
+        reserved.update(mates)
         lines = sorted(reserved, key=lambda row: (-row[0], row[1:]))
     else:
         lines = ranked[:256]
@@ -1138,21 +1171,30 @@ def _outlined_wall_evidence(ink, parameters, continuity_ink=None, *, partial_pai
             if min(edge_widths) == 0 or max(edge_widths) > min(edge_widths) * 2.2:
                 # A bold circuit beside one thin wall outline is not a wall pair.
                 continue
-            if separation > max(edge_widths) * 4 and max(edge_widths) > min(edge_widths) * 1.6:
+            if (separation > max(edge_widths) * 4
+                    and max(edge_widths)-min(edge_widths) > max(1.,min(edge_widths)*.6)):
                 # Widely separated, differently weighted strokes are weak pair
                 # evidence (e.g. a circuit beside the building boundary). Allow
-                # one-pixel scan differences on the close wall-outline pairs.
+                # one-pixel raster uncertainty before comparing stroke weights;
+                # 1px/2px outlines are not a bold circuit plus a thin boundary.
                 continue
             center = (x1 - ty * distance / 2, y1 + tx * distance / 2)
             endpoints = tuple((round(center[0] + t * tx), round(center[1] + t * ty)) for t in (start, end))
             # A repeated bundle of equally thin strokes is not a two-outline
             # wall cavity. Do not fill each neighboring pair into a solid wall.
             band = (*endpoints[0],*endpoints[1],separation+1)
+            tied = _has_repeated_band_ties((endpoints,separation+1),ink,minimum)
+            if obscured and tied:
+                # A centre/datum stroke inside a wall is not an empty cavity.
+                # White side lanes PLUS distributed original transverse ties
+                # independently qualify the band; do not defer every perimeter
+                # to junction anchors that were themselves deferred.
+                obscured = False
             if _regular_thin_parallel_bars(band,original_binary):
                 # Only an intermittent center stroke between two outer outlines
                 # may be rescued by TWO observed wall junctions. Continuous
                 # three-wire bundles and all wider repeated bundles stay out.
-                if _has_repeated_band_ties((endpoints,separation+1),ink,minimum):
+                if tied:
                     tied_pairs.append((endpoints,separation+1))
                 elif (not _has_intermittent_middle_bar(band,original_binary)
                         or not _has_observed_side_cavities(ink,px,py,qx,qy)):
@@ -1537,7 +1579,11 @@ def _detect_structural_wall_lines(
                     endpoints.append(last)
                 (x1, y1), (x2, y2) = endpoints
             recovered.append((x1, y1, x2, y2, thickness, math.hypot(x2 - x1, y2 - y1)))
-        consolidated = _consolidate_wall_segments(recovered, width, height, max_gap)
+        # Continuation is evidence-gated too: a later geometry-only merge must
+        # not undo the opening/parallel-wall guard applied before extension.
+        continuity_evidence = cv2.bitwise_or(clean_structural, cv2.bitwise_not(continuity_image))
+        consolidated = _consolidate_wall_segments(recovered, width, height, max_gap,
+                                                evidence_mask=continuity_evidence)
     if outlined is not None and outlined[2]:
         # Keep the original stroke statistics, skeleton and Hough votes intact.
         # Excluding the frame before those stages would change unrelated walls.
@@ -1645,6 +1691,10 @@ def _detect_structural_wall_lines(
         # the stronger seed mask alone. No new segment is seeded here.
         refinement_mask=cv2.bitwise_not(continuity_image) if continuity_dist is not None else clean_structural
         retained=refine_filled_bands(retained,refinement_mask)
+    else:
+        # Fit to the qualified cavity bands, not to slanted Hough endpoints.
+        # Local band sections exclude widened intersections and hatch blobs.
+        retained=refine_filled_bands(retained,outlined[0],preserve_width=True)
     snapped = snap_observed_junctions(retained, original_ink, max_gap)
     return unique_wall_spans([after if passes_final_guards(after) else before
             for before, after in zip(retained, snapped)])

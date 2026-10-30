@@ -101,21 +101,24 @@ export function WireHandle({ position, scene, onMove, onFindSnap, onChooseTarget
   </mesh>}</group>
 }
 
-export function DraftWiring3D({ scene, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, onChooseWireTarget, onDraggingChange }) {
+export function DraftWiring3D({ scene, selectedWireId, onSelectWire, onMoveWirePoint, onFindWireDeviceSnap, onChooseWireTarget, onDraggingChange,technical=true,focusNetwork=false }) {
   const selectedNetwork=scene.draftWires?.find(w=>w.id===selectedWireId)?.networkId
   // Scale tubing with the devices, not the arbitrary source-page preview size.
   // This is visual thickness only, never a conduit diameter or quantity input.
-  const radius = ROUTE_DISPLAY_RADIUS * (scene.unitsPerMeter ?? 1)
+  const unit=scene.unitsPerMeter ?? 1
+  const radius = Math.min(.008*unit,Math.max(ROUTE_DISPLAY_RADIUS*unit,(scene.extent || 1)*.00065))
   const runs = useMemo(() => displayWiringRuns((scene.draftWires || []).flatMap(wire =>
     wiringRuns(wire.segments,wire.id,s => wiringAppearance(wire,false,s).color)
       .map(run=>({...run,connectionAnchors:wire.connectionAnchors,
-        spread:wire.installationMethod==='concealed_in_ceiling' && !run.segment.previewDrop}))),radius),[scene.draftWires,radius])
+        spread:false}))),radius),[scene.draftWires,radius])
   return <group name="draft-observed-wiring">{(scene.draftWires || []).map(wire => <group key={wire.id} name={`wire-${wire.id}`}
     userData={{ wireId: wire.id, previewOnly: true, illustrativeHeight: wire.illustrativeHeight,
       provenance: wire.origin ?? 'observed', installationMethod: wire.installationMethod, lineStyle: wire.lineStyle }}>
     {runs.filter(run=>run.ownerId===wire.id).map(run => <WiringTube3D key={run.id} run={run} radius={radius}
-      xray={wire.installationMethod==='concealed_under_floor' || selectedWireId===wire.id}
-      color={wiringAppearance(wire,selectedWireId===wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork),run.segment).color}
+      proposal={wire.origin==='generated' && wire.assignment_state==='unresolved'}
+      opacity={focusNetwork && selectedWireId && wire.id!==selectedWireId && (!selectedNetwork || wire.networkId!==selectedNetwork) ? .18 : 1}
+      xray
+      color={technical || wire.origin==='generated' || wire.illustrativeHeight ? wiringAppearance(wire,selectedWireId===wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork),run.segment).color : '#929b9d'}
       onClick={onSelectWire ? event=>{event.stopPropagation();onSelectWire(wire.id,event)} : undefined} />)}
     {onMoveWirePoint && (selectedWireId === wire.id || Boolean(selectedNetwork && wire.networkId===selectedNetwork)) && wire.points.map((p,index) => <WireHandle key={index} position={p} scene={scene}
       onFindSnap={onFindWireDeviceSnap ? (point,distance,threshold,pathDistance,allTargets) => onFindWireDeviceSnap(wire.id,index,point,distance,threshold,pathDistance,allTargets) : undefined}

@@ -1,0 +1,33 @@
+{
+  "pages": 1,
+  "original_modules_preserved": 4,
+  "arrows": 38,
+  "admin_explicit_operation_pairs": 6,
+  "designer_operation_pairs": 6,
+  "client_logical_operation_pairs": 3,
+  "admin_capability_coverage": "PASS",
+  "client_scope": "Sign-in, saved visualization viewing, stored cost-estimate viewing only",
+  "client_continuation_balance": "PASS",
+  "paired_arrows": "PASS",
+  "crossed_arrows": 0,
+  "arrow_node_collisions": 0,
+  "arrow_label_collisions": 0,
+  "overlapping_labels": 0,
+  "text_fit": "PASS",
+  "native_editable_xml": "PASS",
+  "visual_review": "PASS",
+  "downloads_copy": "PASS: both SHA256 hashes match; saved XML reopened",
+  "editor_import": "NOT TESTED",
+  "source_pdf_sha256": "9c630d4c6c4d7bad9b0eed66a9fd1ff4264337b5ae2150a55315a21e87600e5d",
+  "source_image_sha256": "16c7361cd6100445e3574d73e9918c5d6c323c65a97c53e286c084d2d9ada801",
+  "admin_capabilities": [
+    "Sign-in; user/role records (target); approver assignment/deactivation/history",
+    "All-project/floor-plan/job inspection; saved layout viewing",
+    "Approved dataset management (target); legend management; AI result/review inspection",
+    "Saved route/length inspection",
+    "Global catalog/material prices; report administration (target)",
+    "Estimate/BOM/project-price version inspection; cost CSV export; PDF report export (target)"
+  ],
+  "drawio_path": "C:/Users/kupal/Downloads/ved-theoretical-framework-revised-2026-10-20.drawio",
+  "png_path": "C:/Users/kupal/Downloads/ved-theoretical-framework-revised-2026-10-20.png"
+}

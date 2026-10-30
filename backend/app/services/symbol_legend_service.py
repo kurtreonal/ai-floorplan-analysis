@@ -157,6 +157,15 @@ def import_trained_symbol_legends(database_session: Session, *, current_user: Us
                     legend=legend, actor=current_user, sequence=1, action="created"))
                 next_class += 1
             imported.append(legend)
+        # Both sources share one library. Fill only absent display artwork;
+        # imported meanings, existing overrides and model weights stay intact.
+        from app.services.pec_legend_artwork import populate_missing_artwork
+        try:
+            populate_missing_artwork(database_session, current_user,
+                                     repository.list_all_symbol_legends(database_session))
+        except (OSError, ValueError, KeyError):
+            # A missing optional image pack must not replace or disable a catalog.
+            pass
         database_session.commit()
         return tuple(_managed(row) for row in imported)
     except SymbolLegendServiceError:
@@ -177,6 +186,9 @@ def create_symbol_legend(
     data: SymbolLegendWrite,
 ) -> ManagedSymbolLegend:
     try:
+        from app.services.legend_identity import same_meaning
+        if any(same_meaning([row.name, data.name]) for row in repository.list_all_symbol_legends(database_session)):
+            raise SymbolLegendServiceError('SYMBOL_LEGEND_CONFLICT')
         if repository.find_conflict(
             database_session,
             class_id=data.class_id,
@@ -199,6 +211,28 @@ def create_symbol_legend(
     except SQLAlchemyError:
         database_session.rollback()
         raise SymbolLegendServiceError("SYMBOL_LEGEND_WRITE_FAILED") from None
+
+
+def set_legend_availability(database_session, *, current_user, data):
+    if current_user.role.name != 'ADMIN':
+        raise SymbolLegendServiceError('SYMBOL_LEGEND_AUTHORITY_REQUIRED')
+    from app.services.legend_artwork_service import matching_legends
+    try:
+        rows = matching_legends(database_session, data.legend_ids[0], data.legend_ids)
+        for row in rows:
+            if row.is_active == data.is_active:
+                continue
+            old = (row.class_id, row.name, row.is_active)
+            row.is_active = data.is_active
+            repository.add_and_flush(database_session, _history(legend=row, actor=current_user,
+                sequence=repository.next_history_sequence(database_session, row.id),
+                action='activated' if data.is_active else 'deactivated', old=old))
+        database_session.commit()
+        return retrieve_all_symbol_legends(database_session)
+    except SQLAlchemyError:
+        database_session.rollback()
+        raise SymbolLegendServiceError('SYMBOL_LEGEND_WRITE_FAILED') from None
+
 
 
 def update_symbol_legend(

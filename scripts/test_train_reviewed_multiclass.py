@@ -140,6 +140,8 @@ def test_training_bound_and_existing_output_fail_before_model_loading(tmp_path):
     dataset, base, parent, _ = fixture(tmp_path)
     with pytest.raises(ValueError):
         train(dataset, base, parent, tmp_path / "run", epochs=21)
+    with pytest.raises(ValueError):
+        train(dataset, base, parent, tmp_path / "run", negative_sampling_override="unreviewed")
     existing = tmp_path / "existing"
     existing.mkdir()
     with pytest.raises(FileExistsError):
@@ -155,9 +157,29 @@ def test_full_replay_uses_only_manifested_unchanged_authorized_images(tmp_path):
     config, metadata = effective_training_inputs(dataset, data, output, "full_authorized_pool")
     parsed = yaml.safe_load(config.read_text())
     assert Path(parsed["train"]).read_text().splitlines() == [str((dataset / "images/train/positive.png").resolve())]
-    assert metadata["effective_training_images"] == 1
+    assert metadata["effective_training_image_occurrences"] == 1
+    assert metadata["effective_unique_training_images"] == 1
     assert metadata["effective_training_config_sha256"] == digest(config)
     assert digest(dataset / "manifest.json") == before
     assert parsed["names"] == {0: "Normal", 1: "UPS"}
     with pytest.raises(ValueError):
         effective_training_inputs(dataset, data, output, "unreviewed_background")
+
+
+def test_retention_weighting_repeats_only_existing_parent_positives(tmp_path):
+    dataset, _, _, data = fixture(tmp_path)
+    data["training_image_records"].append(dict(image_id="parent", source_kind="parent_retention_replay",
+                                             allowed_class_ids=[[0]]))
+    (dataset / "images/train/parent.png").write_bytes((dataset / "images/train/positive.png").read_bytes())
+    output = tmp_path / "weighted-run"
+    output.mkdir()
+    config, metadata = effective_training_inputs(dataset, data, output, "full_authorized_pool", 0, 3)
+    import yaml
+    paths = Path(yaml.safe_load(config.read_text())["train"]).read_text().splitlines()
+    assert paths.count(str((dataset / "images/train/parent.png").resolve())) == 3
+    assert paths.count(str((dataset / "images/train/positive.png").resolve())) == 1
+    assert metadata["effective_unique_training_images"] == 2
+    assert metadata["effective_training_image_occurrences"] == 4
+    for cls, factor in ((1,3), (0,5), (None,3)):
+        with pytest.raises(ValueError):
+            effective_training_inputs(dataset, data, output, "full_authorized_pool", cls, factor)

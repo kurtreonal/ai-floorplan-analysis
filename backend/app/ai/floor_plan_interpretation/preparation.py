@@ -664,54 +664,12 @@ def extract_ocr_evidence(
     region_id: str = "region-0001",
     max_items: int = MAXIMUM_OCR_ITEMS,
 ) -> tuple[OcrEvidence, ...]:
-    """Detect candidate text glyph regions and produce deterministic OCR evidence."""
-    H, W = image_rgb.shape[:2]
-    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-    _, thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY_INV)
-
-    # Use morphological gradient to locate text blocks
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 3))
-    dilated = cv2.dilate(thresh, kernel, iterations=1)
-
-    contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Sort contours deterministically: top-to-bottom, left-to-right
-    sorted_contours = sorted(
-        contours,
-        key=lambda c: (cv2.boundingRect(c)[1], cv2.boundingRect(c)[0]),
-    )
-
-    items: list[OcrEvidence] = []
-    ocr_id = 1
-
-    for c in sorted_contours:
-        if len(items) >= max_items:
-            break
-        x, y, w, h = cv2.boundingRect(c)
-
-        # Filter to reasonable text sizes
-        if w < 6 or h < 6 or w > W * 0.8 or h > H * 0.2:
-            continue
-        aspect = float(w) / max(1, h)
-        if aspect < 0.2 or aspect > 20.0:
-            continue
-
-        bounds = PixelBounds(x=float(x), y=float(y), width=float(w), height=float(h))
-
-        # Check for simulated or recognized token
-        text_token = f"SYM_{ocr_id}"
-        items.append(
-            OcrEvidence(
-                id=f"ocr-{ocr_id:04d}",
-                region_id=region_id,
-                bounds=bounds,
-                text=text_token,
-                normalized_text=text_token.lower(),
-            )
-        )
-        ocr_id += 1
-
-    return tuple(items)
+    """Read actual local OCR words; unavailable engines never fabricate tokens."""
+    from app.ai.ocr.local_words import recognize_words
+    return tuple(OcrEvidence(id=f'ocr-{index:04d}',region_id=region_id,
+        bounds=PixelBounds(x=item['x'],y=item['y'],width=item['width'],height=item['height']),
+        text=item['text'],normalized_text=item['text'].lower())
+        for index,item in enumerate(recognize_words(image_rgb,max_items=max_items),1))
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,1232 @@
+{
+  "modules": [
+    [
+      "access",
+      "USER AND ACCESS\nMANAGEMENT MODULE",
+      420,
+      [
+        [
+          "sign-in",
+          "Sign in",
+          330,
+          [
+            "A",
+            "D",
+            "C"
+          ]
+        ],
+        [
+          "users",
+          "Admin: manage users\nand roles*",
+          420,
+          [
+            "A"
+          ]
+        ],
+        [
+          "approvers",
+          "Admin: assign / revoke\ndataset approver",
+          510,
+          [
+            "A"
+          ]
+        ]
+      ]
+    ],
+    [
+      "project",
+      "PROJECT, FLOOR PLAN\nAND VISUALIZATION\nMODULE",
+      900,
+      [
+        [
+          "inspect",
+          "Admin: inspect all\nproject records",
+          660,
+          [
+            "A"
+          ]
+        ],
+        [
+          "projects",
+          "Create / manage\nown projects",
+          750,
+          [
+            "D"
+          ]
+        ],
+        [
+          "upload",
+          "Upload floor plan",
+          840,
+          [
+            "D"
+          ]
+        ],
+        [
+          "validate-upload",
+          "Validate uploaded\nfloor-plan file",
+          960,
+          []
+        ],
+        [
+          "edit-layout",
+          "Open, edit and\nsave layout",
+          1050,
+          [
+            "D"
+          ]
+        ],
+        [
+          "view-layout",
+          "View 2D / 3D layout",
+          1140,
+          [
+            "D",
+            "C"
+          ]
+        ]
+      ]
+    ],
+    [
+      "ai",
+      "AI ANALYSIS AND\nDETECTION MODULE",
+      1470,
+      [
+        [
+          "dataset",
+          "Admin: manage legends\nand datasets*",
+          1320,
+          [
+            "A"
+          ]
+        ],
+        [
+          "analyze",
+          "Analyze floor plan\nwith AI / CV",
+          1410,
+          [
+            "D"
+          ]
+        ],
+        [
+          "review",
+          "Review / confirm\nAI results",
+          1500,
+          [
+            "D"
+          ]
+        ],
+        [
+          "correct",
+          "Correct detection\nresults",
+          1620,
+          [
+            "D"
+          ]
+        ]
+      ]
+    ],
+    [
+      "cost",
+      "ELECTRICAL ROUTING,\nCOST ESTIMATION AND\nREPORTING MODULE",
+      2130,
+      [
+        [
+          "prices",
+          "Admin: import / update\nmaterial prices",
+          1800,
+          [
+            "A"
+          ]
+        ],
+        [
+          "routes",
+          "Configure / calculate\nelectrical routes",
+          1890,
+          [
+            "D"
+          ]
+        ],
+        [
+          "draft-bom",
+          "Preview draft BOM /\nprovisional costs",
+          1980,
+          [
+            "D"
+          ]
+        ],
+        [
+          "estimate",
+          "Generate saved\ncost estimate",
+          2100,
+          [
+            "D"
+          ]
+        ],
+        [
+          "calculate",
+          "Calculate quantities /\ncapture prices and totals",
+          2220,
+          []
+        ],
+        [
+          "view-cost",
+          "View saved\ncost estimate",
+          2340,
+          [
+            "A",
+            "D",
+            "C"
+          ]
+        ],
+        [
+          "export",
+          "Export estimate /\nBOM as CSV",
+          2460,
+          [
+            "A",
+            "D"
+          ]
+        ]
+      ]
+    ]
+  ],
+  "nodes": {
+    "admin": {
+      "label": "ADMINISTRATOR",
+      "x": 45,
+      "y": 640,
+      "w": 180,
+      "h": 275,
+      "kind": "actor"
+    },
+    "designer": {
+      "label": "DESIGNER",
+      "x": 1620,
+      "y": 1210,
+      "w": 180,
+      "h": 275,
+      "kind": "actor"
+    },
+    "client": {
+      "label": "CLIENT*",
+      "x": 1620,
+      "y": 2140,
+      "w": 180,
+      "h": 275,
+      "kind": "actor"
+    },
+    "access": {
+      "label": "USER AND ACCESS\nMANAGEMENT MODULE",
+      "x": 330,
+      "y": 325,
+      "w": 380,
+      "h": 190,
+      "kind": "module"
+    },
+    "sign-in": {
+      "label": "Sign in",
+      "x": 1000,
+      "y": 290,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "users": {
+      "label": "Admin: manage users\nand roles*",
+      "x": 1000,
+      "y": 380,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "approvers": {
+      "label": "Admin: assign / revoke\ndataset approver",
+      "x": 1000,
+      "y": 470,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "project": {
+      "label": "PROJECT, FLOOR PLAN\nAND VISUALIZATION\nMODULE",
+      "x": 330,
+      "y": 805,
+      "w": 380,
+      "h": 190,
+      "kind": "module"
+    },
+    "inspect": {
+      "label": "Admin: inspect all\nproject records",
+      "x": 1000,
+      "y": 620,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "projects": {
+      "label": "Create / manage\nown projects",
+      "x": 1000,
+      "y": 710,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "upload": {
+      "label": "Upload floor plan",
+      "x": 1000,
+      "y": 800,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "validate-upload": {
+      "label": "Validate uploaded\nfloor-plan file",
+      "x": 1000,
+      "y": 920,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "edit-layout": {
+      "label": "Open, edit and\nsave layout",
+      "x": 1000,
+      "y": 1010,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "view-layout": {
+      "label": "View 2D / 3D layout",
+      "x": 1000,
+      "y": 1100,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "ai": {
+      "label": "AI ANALYSIS AND\nDETECTION MODULE",
+      "x": 330,
+      "y": 1375,
+      "w": 380,
+      "h": 190,
+      "kind": "module"
+    },
+    "dataset": {
+      "label": "Admin: manage legends\nand datasets*",
+      "x": 1000,
+      "y": 1280,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "analyze": {
+      "label": "Analyze floor plan\nwith AI / CV",
+      "x": 1000,
+      "y": 1370,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "review": {
+      "label": "Review / confirm\nAI results",
+      "x": 1000,
+      "y": 1460,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "correct": {
+      "label": "Correct detection\nresults",
+      "x": 1000,
+      "y": 1580,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "cost": {
+      "label": "ELECTRICAL ROUTING,\nCOST ESTIMATION AND\nREPORTING MODULE",
+      "x": 330,
+      "y": 2035,
+      "w": 380,
+      "h": 190,
+      "kind": "module"
+    },
+    "prices": {
+      "label": "Admin: import / update\nmaterial prices",
+      "x": 1000,
+      "y": 1760,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "routes": {
+      "label": "Configure / calculate\nelectrical routes",
+      "x": 1000,
+      "y": 1850,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "draft-bom": {
+      "label": "Preview draft BOM /\nprovisional costs",
+      "x": 1000,
+      "y": 1940,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "estimate": {
+      "label": "Generate saved\ncost estimate",
+      "x": 1000,
+      "y": 2060,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "calculate": {
+      "label": "Calculate quantities /\ncapture prices and totals",
+      "x": 1000,
+      "y": 2180,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "view-cost": {
+      "label": "View saved\ncost estimate",
+      "x": 1000,
+      "y": 2300,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    },
+    "export": {
+      "label": "Export estimate /\nBOM as CSV",
+      "x": 1000,
+      "y": 2420,
+      "w": 370,
+      "h": 80,
+      "kind": "case"
+    }
+  },
+  "edges": [
+    {
+      "id": "module-sign-in",
+      "source": "access",
+      "target": "sign-in",
+      "points": [
+        [
+          700.2775637731995,
+          390.0
+        ],
+        [
+          1000,
+          330
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-users",
+      "source": "access",
+      "target": "users",
+      "points": [
+        [
+          710.0,
+          420.0
+        ],
+        [
+          1000,
+          420
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-approvers",
+      "source": "access",
+      "target": "approvers",
+      "points": [
+        [
+          700.2775637731995,
+          450.0
+        ],
+        [
+          1000,
+          510
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-inspect",
+      "source": "project",
+      "target": "inspect",
+      "points": [
+        [
+          700.2775637731995,
+          870.0
+        ],
+        [
+          1000,
+          660
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-projects",
+      "source": "project",
+      "target": "projects",
+      "points": [
+        [
+          706.5583018790641,
+          882.0
+        ],
+        [
+          1000,
+          750
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-upload",
+      "source": "project",
+      "target": "upload",
+      "points": [
+        [
+          709.6206739783403,
+          894.0
+        ],
+        [
+          1000,
+          840
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-validate-upload",
+      "source": "project",
+      "target": "validate-upload",
+      "points": [
+        [
+          709.6206739783403,
+          906.0
+        ],
+        [
+          1000,
+          960
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-edit-layout",
+      "source": "project",
+      "target": "edit-layout",
+      "points": [
+        [
+          706.5583018790641,
+          918.0
+        ],
+        [
+          1000,
+          1050
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-view-layout",
+      "source": "project",
+      "target": "view-layout",
+      "points": [
+        [
+          700.2775637731995,
+          930.0
+        ],
+        [
+          1000,
+          1140
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-dataset",
+      "source": "ai",
+      "target": "dataset",
+      "points": [
+        [
+          700.2775637731995,
+          1440.0
+        ],
+        [
+          1000,
+          1320
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-analyze",
+      "source": "ai",
+      "target": "analyze",
+      "points": [
+        [
+          708.9444362769118,
+          1460.0
+        ],
+        [
+          1000,
+          1410
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-review",
+      "source": "ai",
+      "target": "review",
+      "points": [
+        [
+          708.9444362769118,
+          1480.0
+        ],
+        [
+          1000,
+          1500
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-correct",
+      "source": "ai",
+      "target": "correct",
+      "points": [
+        [
+          700.2775637731995,
+          1500.0
+        ],
+        [
+          1000,
+          1620
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-prices",
+      "source": "cost",
+      "target": "prices",
+      "points": [
+        [
+          700.2775637731995,
+          2100.0
+        ],
+        [
+          1000,
+          1800
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-routes",
+      "source": "cost",
+      "target": "routes",
+      "points": [
+        [
+          705.741756210067,
+          2110.0
+        ],
+        [
+          1000,
+          1890
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-draft-bom",
+      "source": "cost",
+      "target": "draft-bom",
+      "points": [
+        [
+          708.9444362769118,
+          2120.0
+        ],
+        [
+          1000,
+          1980
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-estimate",
+      "source": "cost",
+      "target": "estimate",
+      "points": [
+        [
+          710.0,
+          2130.0
+        ],
+        [
+          1000,
+          2100
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-calculate",
+      "source": "cost",
+      "target": "calculate",
+      "points": [
+        [
+          708.9444362769118,
+          2140.0
+        ],
+        [
+          1000,
+          2220
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-view-cost",
+      "source": "cost",
+      "target": "view-cost",
+      "points": [
+        [
+          705.741756210067,
+          2150.0
+        ],
+        [
+          1000,
+          2340
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "module-export",
+      "source": "cost",
+      "target": "export",
+      "points": [
+        [
+          700.2775637731995,
+          2160.0
+        ],
+        [
+          1000,
+          2460
+        ]
+      ],
+      "kind": "module-membership"
+    },
+    {
+      "id": "designer-sign-in",
+      "source": "designer",
+      "target": "sign-in",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          330
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-projects",
+      "source": "designer",
+      "target": "projects",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          750
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-upload",
+      "source": "designer",
+      "target": "upload",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          840
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-edit-layout",
+      "source": "designer",
+      "target": "edit-layout",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          1050
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-view-layout",
+      "source": "designer",
+      "target": "view-layout",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          1140
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-analyze",
+      "source": "designer",
+      "target": "analyze",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          1410
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-review",
+      "source": "designer",
+      "target": "review",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          1500
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-correct",
+      "source": "designer",
+      "target": "correct",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          1620
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-routes",
+      "source": "designer",
+      "target": "routes",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          1890
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-draft-bom",
+      "source": "designer",
+      "target": "draft-bom",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          1980
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-estimate",
+      "source": "designer",
+      "target": "estimate",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          2100
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-view-cost",
+      "source": "designer",
+      "target": "view-cost",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          2340
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "designer-export",
+      "source": "designer",
+      "target": "export",
+      "points": [
+        [
+          1658,
+          1300
+        ],
+        [
+          1370,
+          2460
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "admin-access",
+      "source": "admin",
+      "target": "access",
+      "points": [
+        [
+          187,
+          730
+        ],
+        [
+          240,
+          730
+        ],
+        [
+          330,
+          420
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "admin-project",
+      "source": "admin",
+      "target": "project",
+      "points": [
+        [
+          187,
+          730
+        ],
+        [
+          240,
+          730
+        ],
+        [
+          330,
+          900
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "admin-ai",
+      "source": "admin",
+      "target": "ai",
+      "points": [
+        [
+          187,
+          730
+        ],
+        [
+          240,
+          730
+        ],
+        [
+          330,
+          1470
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "admin-cost",
+      "source": "admin",
+      "target": "cost",
+      "points": [
+        [
+          187,
+          730
+        ],
+        [
+          240,
+          730
+        ],
+        [
+          330,
+          2130
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "client-sign-in",
+      "source": "client",
+      "target": "sign-in",
+      "points": [
+        [
+          1658,
+          2230
+        ],
+        [
+          1370,
+          330
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "client-view-layout",
+      "source": "client",
+      "target": "view-layout",
+      "points": [
+        [
+          1658,
+          2230
+        ],
+        [
+          1370,
+          1140
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "client-view-cost",
+      "source": "client",
+      "target": "view-cost",
+      "points": [
+        [
+          1658,
+          2230
+        ],
+        [
+          1370,
+          2340
+        ]
+      ],
+      "kind": "association"
+    },
+    {
+      "id": "include-upload",
+      "source": "upload",
+      "target": "validate-upload",
+      "points": [
+        [
+          1185,
+          880
+        ],
+        [
+          1185,
+          920
+        ]
+      ],
+      "kind": "include"
+    },
+    {
+      "id": "extend-correct",
+      "source": "correct",
+      "target": "review",
+      "points": [
+        [
+          1185,
+          1580
+        ],
+        [
+          1185,
+          1540
+        ]
+      ],
+      "kind": "extend"
+    },
+    {
+      "id": "include-estimate",
+      "source": "estimate",
+      "target": "calculate",
+      "points": [
+        [
+          1185,
+          2140
+        ],
+        [
+          1185,
+          2180
+        ]
+      ],
+      "kind": "include"
+    },
+    {
+      "id": "extend-export",
+      "source": "export",
+      "target": "view-cost",
+      "points": [
+        [
+          1185,
+          2420
+        ],
+        [
+          1185,
+          2380
+        ]
+      ],
+      "kind": "extend"
+    }
+  ],
+  "actor_associations": [
+    {
+      "actor": "A",
+      "use_case": "sign-in"
+    },
+    {
+      "actor": "D",
+      "use_case": "sign-in"
+    },
+    {
+      "actor": "C",
+      "use_case": "sign-in"
+    },
+    {
+      "actor": "A",
+      "use_case": "users"
+    },
+    {
+      "actor": "A",
+      "use_case": "approvers"
+    },
+    {
+      "actor": "A",
+      "use_case": "inspect"
+    },
+    {
+      "actor": "D",
+      "use_case": "projects"
+    },
+    {
+      "actor": "D",
+      "use_case": "upload"
+    },
+    {
+      "actor": "D",
+      "use_case": "edit-layout"
+    },
+    {
+      "actor": "D",
+      "use_case": "view-layout"
+    },
+    {
+      "actor": "C",
+      "use_case": "view-layout"
+    },
+    {
+      "actor": "A",
+      "use_case": "dataset"
+    },
+    {
+      "actor": "D",
+      "use_case": "analyze"
+    },
+    {
+      "actor": "D",
+      "use_case": "review"
+    },
+    {
+      "actor": "D",
+      "use_case": "correct"
+    },
+    {
+      "actor": "A",
+      "use_case": "prices"
+    },
+    {
+      "actor": "D",
+      "use_case": "routes"
+    },
+    {
+      "actor": "D",
+      "use_case": "draft-bom"
+    },
+    {
+      "actor": "D",
+      "use_case": "estimate"
+    },
+    {
+      "actor": "A",
+      "use_case": "view-cost"
+    },
+    {
+      "actor": "D",
+      "use_case": "view-cost"
+    },
+    {
+      "actor": "C",
+      "use_case": "view-cost"
+    },
+    {
+      "actor": "A",
+      "use_case": "export"
+    },
+    {
+      "actor": "D",
+      "use_case": "export"
+    }
+  ]
+}

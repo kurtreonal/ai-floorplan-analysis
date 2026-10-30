@@ -33,7 +33,7 @@ async function requestProjectJson(path, options = {}) {
     throw new ProjectApiError('The project request could not be completed.', response.status)
   }
 
-  return response.json()
+  return response.status === 204 ? null : response.json()
 }
 
 export function listProjects({ signal } = {}) {
@@ -42,6 +42,8 @@ export function listProjects({ signal } = {}) {
 
 export function createProject(projectData, { signal } = {}) {
   const payload = { name: projectData.name }
+  if(projectData.allocated_budget!=null)payload.allocated_budget=projectData.allocated_budget
+  for (const key of ['client_id', 'designer_id']) if (projectData[key]) payload[key] = Number(projectData[key])
 
   if (projectData.client_name) {
     payload.client_name = projectData.client_name
@@ -49,7 +51,7 @@ export function createProject(projectData, { signal } = {}) {
   if (projectData.location) {
     payload.location = projectData.location
   }
-  for (const key of ['contact_number', 'service_type', 'service_type_other', 'preferred_start_date', 'blueprint_availability']) {
+  for (const key of ['contact_number', 'layout_type','service_type', 'service_types', 'service_type_other', 'preferred_start_date', 'blueprint_availability']) {
     if (projectData[key]) payload[key] = projectData[key]
   }
 
@@ -65,8 +67,12 @@ export function fetchProject(projectId, { signal } = {}) {
   return requestProjectJson(`/api/projects/${encodeURIComponent(projectId)}`, { signal })
 }
 
+export function deleteProject(projectId) {
+  return requestProjectJson(`/api/projects/${encodeURIComponent(projectId)}`, { method: 'DELETE' })
+}
+
 export function updateProject(projectId, projectData, { signal } = {}) {
-  const allowed = ['name', 'client_name', 'location', 'contact_number', 'service_type', 'service_type_other',
+  const allowed = ['allocated_budget','name', 'client_name', 'location', 'contact_number', 'layout_type','service_type', 'service_types', 'service_type_other',
     'preferred_start_date', 'blueprint_availability', 'expected_details_revision']
   const payload = Object.fromEntries(allowed.filter(key => Object.hasOwn(projectData, key)).map(key => [key, projectData[key]]))
   return requestProjectJson(`/api/projects/${encodeURIComponent(projectId)}`, {

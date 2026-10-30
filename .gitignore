@@ -68,3 +68,14 @@ models/**/checkpoint-*/
 *.njsproj
 *.sln
 *.sw?
+
+# Local source-bound wiring diagnostics and private plan screenshots.
+/outputs/wiring-save-20261026/
+
+# Private, temporary workspace-erasure recovery manifests
+storage/admin-reset/
+
+# Local exports, supplier-price inspection output and downloaded authoring packs.
+# Reproducible source and the optimized runtime assets live outside this tree.
+/outputs/
+/docs/**/reference-preview/

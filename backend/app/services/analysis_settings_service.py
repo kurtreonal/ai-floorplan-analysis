@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from app.geometry.calibration import paper_ruler_evidence
 
 from app.models import FloorElevationSetting, PageScaleSetting, User
 from app.repositories import analysis_settings_repository as repository
@@ -43,8 +44,11 @@ def elevation_response(row):
 
 def scale_response(row):
     value = float(row.pixels_per_meter) if row and row.pixels_per_meter is not None else None
+    metadata = _metadata(row, value)
+    if value is not None and paper_ruler_evidence(row.evidence_notes) is not None:
+        metadata['state'] = 'draft'
     return ScaleResponse(
-        **_metadata(row, value), pixels_per_meter=value,
+        **metadata, pixels_per_meter=value,
         reference_width_pixels=row.reference_width_pixels if row else None,
         reference_height_pixels=row.reference_height_pixels if row else None,
     )

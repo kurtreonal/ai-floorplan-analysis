@@ -46,7 +46,7 @@ def _error(error: DemoInterpretationError) -> HTTPException:
         "SOURCE_VIEW_ASSIGNMENT_REQUIRED": status.HTTP_409_CONFLICT,
     }.get(error.code, status.HTTP_422_UNPROCESSABLE_CONTENT)
     public_codes = {
-        "INVALID_DEVICE_ATTACHMENT", "DEVICE_MOUNTING_HEIGHT_REQUIRED", "DEVICE_NOT_ON_MOUNTING_WALL",
+        "INVALID_DEVICE_ATTACHMENT", "INVALID_WIRING_JUNCTION", "DEVICE_MOUNTING_HEIGHT_REQUIRED", "DEVICE_NOT_ON_MOUNTING_WALL",
         "SOURCE_VIEW_ASSIGNMENT_REQUIRED",
         "AUTHORIZATION_DENIED",
         "DATASET_APPROVER_AUTHORITY_INVALID",
@@ -83,8 +83,13 @@ def _error(error: DemoInterpretationError) -> HTTPException:
                 "code": code,
                 "message": ("Assign one drawing view to this floor before measured canonical publication. "
                             "The multi-view 2D draft can still be saved."
-                            if error.code=='SOURCE_VIEW_ASSIGNMENT_REQUIRED' else
-                            "The demo interpretation operation could not be completed."),
+                            if error.code=='SOURCE_VIEW_ASSIGNMENT_REQUIRED' else {
+                                'INVALID_WIRING_JUNCTION':'Connected wires have conflicting placement, height or circuit settings. Review the junction and save again.',
+                                'INVALID_DEVICE_ATTACHMENT':'A wiring connection no longer matches its device. Reconnect that endpoint and save again.',
+                                'REVIEW_COORDINATE_OUT_OF_BOUNDS':'A drawing point is outside the uploaded page. Move it inside the page and save again.',
+                                'UNKNOWN_CANDIDATE_IDENTITY':'This draft refers to an item from another analysis. Open the current plan before saving.',
+                                'REVIEW_SAVE_FAILED':'The draft could not be saved. Keep this page open and try again.',
+                            }.get(error.code,'VED could not complete this plan request. Please try again.')),
                 "details": {},
             }
         },

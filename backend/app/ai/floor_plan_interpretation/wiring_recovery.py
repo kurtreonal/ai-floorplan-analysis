@@ -21,7 +21,7 @@ from app.ai.floor_plan_interpretation.candidate import (
 from app.ai.floor_plan_interpretation.device_contact_evidence import with_device_contact_evidence
 from app.ai.floor_plan_interpretation.stroke_centerlines import stroke_paths
 
-VERSION = 'targeted-source-recovery-v3'
+VERSION = 'targeted-source-recovery-v4'
 METHODS = ('native_local_strokes', 'contrast_local_strokes')
 
 
@@ -143,7 +143,7 @@ def local_paths(payload, image, symbol, method):
         # Existing structural evidence is context, not a thickness-only rule.
         length = sum(math.hypot(b.x-a.x,b.y-a.y) for a,b in zip(points,points[1:]))
         structural = sum(math.hypot(b.x-a.x,b.y-a.y) for a,b in zip(points,points[1:])
-            if _parallel_wall(((a.x,a.y),(b.x,b.y)),payload.walls.items,2))
+            if _parallel_wall(((a.x,a.y),(b.x,b.y)),payload.walls.items,2,include_width=True))
         if structural > length*.8: continue
         paths.append((points,tuple(refs),'solid'))
     if method == 'contrast_local_strokes':
@@ -170,19 +170,35 @@ def local_paths(payload, image, symbol, method):
     return paths
 
 
-def _duplicate(points, routes, image=None):
-    # All sampled points must belong to ONE existing path. Never fuse parallel
-    # observations or connect two paths just because their bounding boxes meet.
+def _duplicate(points, routes, image=None, *, symbols=(), line_style=None):
+    # Coverage can belong to several existing strokes. This only rejects a
+    # repeated geometry proposal; it never joins those strokes electrically.
     samples = [np.array([a.x,a.y])+(np.array([b.x,b.y])-np.array([a.x,a.y]))*t
-               for a,b in zip(points,points[1:]) for t in np.linspace(0,1,5)]
-    for route in routes:
-        def covered(p):
+               for a,b in zip(points,points[1:]) for t in np.linspace(0,1,9)]
+    continuous=False
+    if image is not None and samples:
+        xy=np.rint(samples).astype(int)
+        continuous=float((image[xy[:,1],xy[:,0]].mean(axis=1)<180).mean())>=.95
+    # A local skeleton sees one dash as a solid stroke. Its different local
+    # label must not duplicate the globally established dashed source run.
+    eligible=[r for r in routes if line_style is None or r.line_style==line_style
+              or (line_style=='solid' and r.line_style=='dashed' and continuous)]
+    def covered(p):
+        # Masked glyph interiors are not additional source-wire coverage.
+        if any(s.bounds and s.bounds.x-2<=p[0]<=s.bounds.x+s.bounds.width+2
+               and s.bounds.y-2<=p[1]<=s.bounds.y+s.bounds.height+2 for s in symbols):return True
+        for route in eligible:
             for a,b in zip(route.points,route.points[1:]):
                 start=np.array([a.x,a.y]);delta=np.array([b.x-a.x,b.y-a.y])
                 t=np.clip(float((p-start)@delta/(delta@delta)),0,1)
                 q=start+delta*t;distance=float(np.linalg.norm(p-q))
                 if distance<=1:return True
-                if image is None or distance>4:continue
+                if image is None or distance>6:continue
+                px,py=np.rint(p).astype(int);qx,qy=np.rint(q).astype(int)
+                if distance<=3 and (image[py,px].mean()>=180 or image[qy,qx].mean()>=180):return True
+                # Matching white dash gaps are not evidence of another path.
+                # Visible stroke samples must still share one dark ink band.
+                if image[py,px].mean()>=180 and image[qy,qx].mean()>=180:return True
                 # Slightly different axes within ONE continuous ink band are
                 # duplicate observations, not parallel physical conductors.
                 xy=np.rint(np.linspace(p,q,max(3,math.ceil(distance)+1))).astype(int)
@@ -192,9 +208,8 @@ def _duplicate(points, routes, image=None):
                     # coordinate uncertainty, not evidence for a SECOND wire.
                     # Keep it reviewable rather than inflate parallel routes.
                     return True
-            return False
-        if samples and all(covered(p) for p in samples): return True
-    return False
+        return False
+    return bool(eligible and samples and all(covered(p) for p in samples))
 
 
 def _source_attachment(points, routes, image, *, endpoint_indices=None):
@@ -350,9 +365,10 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
                         reason='resource_limit';limit_reason='path_budget';break
                     if not _ends_at_device(points,symbol):continue
                     same_scope=[r for r in payload.observed_routes.segments if set(r.evidence_refs)&set(refs)]
-                    if _duplicate(points,same_scope,image): continue
+                    if _duplicate(points,same_scope,image,symbols=symbols,line_style=style[0] if style else 'solid'): continue
                     identity=max((int(r.id.split('-')[-1]) for r in payload.observed_routes.segments),default=0)+1
                     points,attachment=_trim_to_network(points,symbol,same_scope,image)
+                    if _duplicate(points,same_scope,image,symbols=symbols,line_style=style[0] if style else 'solid'):continue
                     if attachment:
                         q=attachment[-1]
                         if any(s.bounds.x-3<=q.x<=s.bounds.x+s.bounds.width+3 and s.bounds.y-3<=q.y<=s.bounds.y+s.bounds.height+3 for s in symbols):attachment=None
@@ -383,6 +399,8 @@ def recover_wiring(payload, image, *, limits=None, check=lambda:None, checkpoint
     if overflow or external_limit:reason='resource_limit'
     if not symbols or any(not s.bounds or not in_plan(payload,s) for s in devices):
         if reason=='converged':reason='methods_exhausted'
+    from app.ai.floor_plan_interpretation.trace_cleanup import deduplicate_traces, with_terminal_continuations
+    payload=with_device_contact_evidence(with_terminal_continuations(deduplicate_traces(payload),image),image)
     report=WiringRecoveryReport(version=VERSION,stop_reason=reason,limit_reason=limit_reason,passes=tuple(passes),
         unassessed_devices=max(0,len(devices)-512),
         devices=audit_devices(payload,image,exhausted=reason=='resource_limit',failed=any(p.failed_windows for p in passes)))

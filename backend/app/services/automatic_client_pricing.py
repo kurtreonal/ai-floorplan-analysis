@@ -10,7 +10,7 @@ from app.repositories import project_pricing_repository as prices
 from app.services import project_pricing_service as pricing
 from app.services.client_workbook import MAX_ROWS, filename
 from app.services.material_workbook import WorkbookError
-from app.services.product_compatibility import family, specifications_match
+from app.services.product_compatibility import family, specifications_match, source_specification
 from app.services.project_pricing_auto import table
 
 METHOD = 'automatic_client_specification'
@@ -99,7 +99,7 @@ def compatible(row, quote):
         return False
     if row['kind'] == 'device' and row.get('class_id') is None:
         return False
-    source = row['name'] + ' ' + (row.get('material_name') or '')
+    source = source_specification(row)
     expected = row.get('material_kind') if row['kind'] == 'path' else family(source)
     return (expected is not None and expected == quote['family'] and
         row['unit'] in (quote['quantity_unit'], 'unit' if quote['quantity_unit']=='piece' else 'source pixel') and
@@ -108,7 +108,8 @@ def compatible(row, quote):
 
 def target_fingerprint(row):
     return pricing._hash([row['item_kind'],row.get('class_id'),row['name'],
-        row.get('material_id'),row.get('material_name'),row.get('material_kind')])
+        None if row.get('default_brand_used') else row.get('material_id'),
+        None if row.get('default_brand_used') else row.get('material_name'),row.get('material_kind')])
 
 
 def resolve_price(candidates):
@@ -229,6 +230,6 @@ def upload(session,user,project_id,data,name,request_id,floor_id=None):
     if affected:
         assignments.append(session,project_id=project_id,version_number=(current.version_number if current else 0)+1,
             created_by_user_id=user.id,request_id=str(request_id),request_hash=identity,
-            document=dict(assignments=saved,application=report))
+            document=dict(current.document if current else {},assignments=saved,application=report))
     session.commit()
     return report | dict(price_version_id=record.id)

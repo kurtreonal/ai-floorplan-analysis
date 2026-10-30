@@ -1,0 +1,7 @@
+.auth-recovery-card { max-width: 460px; padding: clamp(28px,6vw,44px); border-radius: 16px; border-top-width: 1px; text-align: center; }
+.auth-recovery-icon { display: inline-flex; padding: 16px; margin-bottom: 24px; border-radius: 50%; color: var(--accent); background: color-mix(in srgb,var(--accent) 12%,transparent); }
+.auth-card.auth-recovery-card h1 { font-size: clamp(26px,5vw,34px); line-height: 1.15; letter-spacing: -.02em; outline: none; }
+.auth-recovery-card .auth-intro { font-size: 16px; line-height: 1.6; margin: 16px 0 28px; }
+.auth-recovery-card .auth-primary { display: flex; align-items: center; justify-content: center; gap: 10px; color: #10161d; background: var(--accent); border-color: var(--accent); }
+.auth-recovery-card .auth-home-link { display: inline-block; margin-top: 20px; }
+@media (max-width: 480px) { .auth-recovery-shell { padding-inline: 20px; } }

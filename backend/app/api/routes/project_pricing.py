@@ -1,5 +1,5 @@
 from typing import Annotated, Literal
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, UploadFile, Request
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -14,10 +14,29 @@ from app.services.project_service import ProjectNotFoundError
 router = APIRouter(prefix='/api/projects/{project_id}/client-pricing', tags=['project pricing'])
 ProjectId = Annotated[int, Path(gt=0)]
 
+from app.schemas.material_selection import MaterialSelectionWrite
+from app.services import material_selection_service
+
+
+@router.put('/item-assignments/materials')
+def save_material_selection(project_id: ProjectId, data: MaterialSelectionWrite, request: Request,
+        user: User = Depends(require_roles('DESIGNER')),session: Session=Depends(get_db)):
+    from app.services.local_accounts import require_same_origin
+    require_same_origin(request)
+    return execute(session,lambda:material_selection_service.save(session,user,project_id,data))
+
 from app.schemas.item_pricing import ItemPriceSelection, ItemPriceApply, ManualItemPrices, ItemPriceVersion
 from app.services import item_pricing_service as item_pricing
 from uuid import UUID
 from app.services import automatic_client_pricing
+
+
+@router.delete('')
+def remove_uploads(project_id: ProjectId, request: Request,
+        user: User = Depends(require_roles('ADMIN', 'DESIGNER')), session: Session = Depends(get_db)):
+    from app.services.local_accounts import require_same_origin
+    require_same_origin(request)
+    return execute(session, lambda: service.remove_imports(session, user, project_id))
 
 
 @router.post('/automatic',response_model=AutomaticPriceResult)

@@ -179,3 +179,13 @@ def test_noop_geometry_cannot_discard_tiny_reviewed_labels_or_reorder_rows():
     assert result["img"].shape == (3, 320, 320)
     with pytest.raises(ValueError, match="Geometric augmentation"):
         reviewed_transform_pipeline(320, SimpleNamespace(**vars(options), fliplr=.5))
+
+
+def test_negative_sampling_override_is_bounded_and_does_not_mutate_manifest():
+    from app.ai.symbol_detection.partial_label_training import ReviewedBackgroundTrainer
+    with patch.object(ReviewedBackgroundTrainer, "__init__", return_value=None):
+        trainer = ReviewedSetTrainer(negative_sampling_override="top_score_anchors")
+        assert trainer.negative_sampling_override == "top_score_anchors"
+        assert ReviewedSetTrainer().negative_sampling_override is None
+        with pytest.raises(ValueError, match="negative sampling"):
+            ReviewedSetTrainer(negative_sampling_override="unknown_pixels")

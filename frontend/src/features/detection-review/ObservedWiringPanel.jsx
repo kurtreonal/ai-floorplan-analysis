@@ -26,7 +26,7 @@ function WireEditor({ wire, width, height, onApply, onRemove, onCancel, disabled
   </fieldset>
 }
 
-export function ObservedWiringPanel({ wires, width, height, onChange, visible, onVisibilityChange, view, disabled = false }) {
+export function ObservedWiringPanel({ wires, width, height, onChange, visible, onVisibilityChange, view, disabled = false,onCheck }) {
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState(null)
   function add(wire) {
@@ -39,6 +39,7 @@ export function ObservedWiringPanel({ wires, width, height, onChange, visible, o
   return <section className="demo-wiring-panel" aria-labelledby="observed-wiring-title">
     <h2 id="observed-wiring-title">Wiring · {wires.filter((wire) => wire.disposition !== 'rejected').length} paths</h2>
     <p>Click a wire to edit or remove it. No item confirmation is required.</p>
+    {onCheck && <Button data-check-wiring variant="outline" onClick={onCheck}>Check wiring</Button>}
     <label><input type="checkbox" checked={visible} onChange={(event) => onVisibilityChange(event.target.checked)} />Show wiring</label>
     {view === '3d' && <p role="note">Draft heights are illustrative unless set. Click wiring to edit its points; saving does not approve a circuit.</p>}
     <details><summary>Edit wiring points</summary>

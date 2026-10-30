@@ -1,0 +1,1106 @@
+[
+  {
+    "name": "Level 1 - Complete Compact DFD",
+    "height": 1485,
+    "nodes": {
+      "p1": {
+        "kind": "process",
+        "label": "Authentication and\nAccess Control",
+        "x": 470,
+        "y": 100,
+        "w": 190,
+        "h": 265,
+        "planned": false,
+        "number": "1.0"
+      },
+      "p2": {
+        "kind": "process",
+        "label": "Project and Floor\nPlan Management",
+        "x": 470,
+        "y": 405,
+        "w": 190,
+        "h": 100,
+        "planned": false,
+        "number": "2.0"
+      },
+      "p3": {
+        "kind": "process",
+        "label": "AI Analysis and\nDesigner Review",
+        "x": 470,
+        "y": 555,
+        "w": 190,
+        "h": 155,
+        "planned": false,
+        "number": "3.0"
+      },
+      "p4": {
+        "kind": "process",
+        "label": "Shared 2D / 3D\nLayout Management",
+        "x": 470,
+        "y": 760,
+        "w": 190,
+        "h": 150,
+        "planned": false,
+        "number": "4.0"
+      },
+      "p5": {
+        "kind": "process",
+        "label": "Electrical Routing\nand Measurements",
+        "x": 470,
+        "y": 960,
+        "w": 190,
+        "h": 100,
+        "planned": false,
+        "number": "5.0"
+      },
+      "p6": {
+        "kind": "process",
+        "label": "Materials and\nCost Estimation",
+        "x": 470,
+        "y": 1110,
+        "w": 190,
+        "h": 245,
+        "planned": false,
+        "number": "6.0"
+      },
+      "staff1": {
+        "kind": "entity",
+        "label": "Admin / Designer",
+        "x": 35,
+        "y": 110,
+        "w": 170,
+        "h": 62,
+        "planned": false,
+        "number": ""
+      },
+      "client1": {
+        "kind": "entity",
+        "label": "Client (planned)",
+        "x": 35,
+        "y": 190,
+        "w": 170,
+        "h": 62,
+        "planned": true,
+        "number": ""
+      },
+      "provider": {
+        "kind": "entity",
+        "label": "OAuth / OIDC\nIdentity Provider",
+        "x": 35,
+        "y": 278,
+        "w": 170,
+        "h": 72,
+        "planned": false,
+        "number": ""
+      },
+      "designer2": {
+        "kind": "entity",
+        "label": "Electrical Designer",
+        "x": 35,
+        "y": 416,
+        "w": 170,
+        "h": 72,
+        "planned": false,
+        "number": ""
+      },
+      "designer3": {
+        "kind": "entity",
+        "label": "Electrical Designer",
+        "x": 35,
+        "y": 565,
+        "w": 170,
+        "h": 62,
+        "planned": false,
+        "number": ""
+      },
+      "admin3": {
+        "kind": "entity",
+        "label": "Administrator",
+        "x": 35,
+        "y": 644,
+        "w": 170,
+        "h": 62,
+        "planned": false,
+        "number": ""
+      },
+      "designer4": {
+        "kind": "entity",
+        "label": "Electrical Designer",
+        "x": 35,
+        "y": 770,
+        "w": 170,
+        "h": 62,
+        "planned": false,
+        "number": ""
+      },
+      "client4": {
+        "kind": "entity",
+        "label": "Client (planned)",
+        "x": 35,
+        "y": 846,
+        "w": 170,
+        "h": 62,
+        "planned": true,
+        "number": ""
+      },
+      "designer5": {
+        "kind": "entity",
+        "label": "Electrical Designer",
+        "x": 35,
+        "y": 975,
+        "w": 170,
+        "h": 72,
+        "planned": false,
+        "number": ""
+      },
+      "designer6": {
+        "kind": "entity",
+        "label": "Electrical Designer",
+        "x": 35,
+        "y": 1120,
+        "w": 170,
+        "h": 62,
+        "planned": false,
+        "number": ""
+      },
+      "client6": {
+        "kind": "entity",
+        "label": "Client (planned)",
+        "x": 35,
+        "y": 1200,
+        "w": 170,
+        "h": 62,
+        "planned": true,
+        "number": ""
+      },
+      "admin6": {
+        "kind": "entity",
+        "label": "Administrator",
+        "x": 35,
+        "y": 1280,
+        "w": 170,
+        "h": 62,
+        "planned": false,
+        "number": ""
+      },
+      "s1": {
+        "kind": "store",
+        "label": "Users / roles /\naccess records",
+        "x": 905,
+        "y": 185,
+        "w": 200,
+        "h": 80,
+        "planned": false,
+        "number": "D1"
+      },
+      "s2": {
+        "kind": "store",
+        "label": "Projects / floors /\noriginal source files",
+        "x": 905,
+        "y": 415,
+        "w": 200,
+        "h": 80,
+        "planned": false,
+        "number": "D2"
+      },
+      "s2b": {
+        "kind": "store",
+        "label": "Original source\nfiles / metadata",
+        "x": 905,
+        "y": 565,
+        "w": 200,
+        "h": 62,
+        "planned": false,
+        "number": "D2"
+      },
+      "s3": {
+        "kind": "store",
+        "label": "Jobs / results /\nreviews / legends",
+        "x": 905,
+        "y": 644,
+        "w": 200,
+        "h": 62,
+        "planned": false,
+        "number": "D3"
+      },
+      "s4": {
+        "kind": "store",
+        "label": "Canonical layouts",
+        "x": 905,
+        "y": 793,
+        "w": 200,
+        "h": 70,
+        "planned": false,
+        "number": "D4"
+      },
+      "s4b": {
+        "kind": "store",
+        "label": "Canonical layouts",
+        "x": 905,
+        "y": 975,
+        "w": 200,
+        "h": 72,
+        "planned": false,
+        "number": "D4"
+      },
+      "s5": {
+        "kind": "store",
+        "label": "Saved route versions",
+        "x": 905,
+        "y": 1076,
+        "w": 200,
+        "h": 110,
+        "planned": false,
+        "number": "D5"
+      },
+      "s6": {
+        "kind": "store",
+        "label": "Materials / prices /\nestimate snapshots",
+        "x": 905,
+        "y": 1210,
+        "w": 200,
+        "h": 104,
+        "planned": false,
+        "number": "D6"
+      }
+    },
+    "flows": [
+      {
+        "id": "f99",
+        "source": "staff1",
+        "target": "p1",
+        "label": "Sign-in request",
+        "points": [
+          [
+            205,
+            128
+          ],
+          [
+            470,
+            128
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f101",
+        "source": "p1",
+        "target": "staff1",
+        "label": "Session / access result",
+        "points": [
+          [
+            470,
+            156
+          ],
+          [
+            205,
+            156
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f103",
+        "source": "client1",
+        "target": "p1",
+        "label": "Sign-in request",
+        "points": [
+          [
+            205,
+            208
+          ],
+          [
+            470,
+            208
+          ]
+        ],
+        "planned": true,
+        "key": null
+      },
+      {
+        "id": "f105",
+        "source": "p1",
+        "target": "client1",
+        "label": "Read-only session / access result",
+        "points": [
+          [
+            470,
+            236
+          ],
+          [
+            205,
+            236
+          ]
+        ],
+        "planned": true,
+        "key": null
+      },
+      {
+        "id": "f107",
+        "source": "p1",
+        "target": "provider",
+        "label": "OIDC authorization request",
+        "points": [
+          [
+            470,
+            297
+          ],
+          [
+            205,
+            297
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f109",
+        "source": "provider",
+        "target": "p1",
+        "label": "Verified identity claims",
+        "points": [
+          [
+            205,
+            329
+          ],
+          [
+            470,
+            329
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f111",
+        "source": "p1",
+        "target": "s1",
+        "label": "Identity record updates",
+        "points": [
+          [
+            660,
+            207
+          ],
+          [
+            905,
+            207
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f113",
+        "source": "s1",
+        "target": "p1",
+        "label": "User / role / authority data",
+        "points": [
+          [
+            905,
+            243
+          ],
+          [
+            660,
+            243
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f115",
+        "source": "designer2",
+        "target": "p2",
+        "label": "Project details / uploaded plan",
+        "points": [
+          [
+            205,
+            433
+          ],
+          [
+            470,
+            433
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f117",
+        "source": "p2",
+        "target": "designer2",
+        "label": "Project / upload status",
+        "points": [
+          [
+            470,
+            472
+          ],
+          [
+            205,
+            472
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f119",
+        "source": "p2",
+        "target": "s2",
+        "label": "Project / original file data",
+        "points": [
+          [
+            660,
+            434
+          ],
+          [
+            905,
+            434
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f121",
+        "source": "s2",
+        "target": "p2",
+        "label": "Saved source records",
+        "points": [
+          [
+            905,
+            474
+          ],
+          [
+            660,
+            474
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f123",
+        "source": "designer3",
+        "target": "p3",
+        "label": "Analysis / review corrections",
+        "points": [
+          [
+            205,
+            583
+          ],
+          [
+            470,
+            583
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f125",
+        "source": "p3",
+        "target": "designer3",
+        "label": "Candidates / review status",
+        "points": [
+          [
+            470,
+            611
+          ],
+          [
+            205,
+            611
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f127",
+        "source": "admin3",
+        "target": "p3",
+        "label": "Approved legend changes",
+        "points": [
+          [
+            205,
+            661
+          ],
+          [
+            470,
+            661
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f129",
+        "source": "p3",
+        "target": "admin3",
+        "label": "Legend / update status",
+        "points": [
+          [
+            470,
+            690
+          ],
+          [
+            205,
+            690
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f131",
+        "source": "p3",
+        "target": "s2b",
+        "label": "Source / page selectors",
+        "points": [
+          [
+            660,
+            583
+          ],
+          [
+            905,
+            583
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f133",
+        "source": "s2b",
+        "target": "p3",
+        "label": "Original page data",
+        "points": [
+          [
+            905,
+            611
+          ],
+          [
+            660,
+            611
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f135",
+        "source": "p3",
+        "target": "s3",
+        "label": "Job / review / legend updates",
+        "points": [
+          [
+            660,
+            661
+          ],
+          [
+            905,
+            661
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f137",
+        "source": "s3",
+        "target": "p3",
+        "label": "Saved evidence / legends",
+        "points": [
+          [
+            905,
+            690
+          ],
+          [
+            660,
+            690
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f139",
+        "source": "designer4",
+        "target": "p4",
+        "label": "Layout edit / save / view request",
+        "points": [
+          [
+            205,
+            788
+          ],
+          [
+            470,
+            788
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f141",
+        "source": "p4",
+        "target": "designer4",
+        "label": "Saved layout / version",
+        "points": [
+          [
+            470,
+            816
+          ],
+          [
+            205,
+            816
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f143",
+        "source": "client4",
+        "target": "p4",
+        "label": "Saved layout view request",
+        "points": [
+          [
+            205,
+            864
+          ],
+          [
+            470,
+            864
+          ]
+        ],
+        "planned": true,
+        "key": null
+      },
+      {
+        "id": "f145",
+        "source": "p4",
+        "target": "client4",
+        "label": "Authorized 2D / 3D layout",
+        "points": [
+          [
+            470,
+            892
+          ],
+          [
+            205,
+            892
+          ]
+        ],
+        "planned": true,
+        "key": null
+      },
+      {
+        "id": "f147",
+        "source": "p4",
+        "target": "s4",
+        "label": "Canonical snapshot",
+        "points": [
+          [
+            660,
+            814
+          ],
+          [
+            905,
+            814
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f149",
+        "source": "s4",
+        "target": "p4",
+        "label": "Saved geometry / version",
+        "points": [
+          [
+            905,
+            844
+          ],
+          [
+            660,
+            844
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f151",
+        "source": "designer5",
+        "target": "p5",
+        "label": "Panel / obstacles / route settings",
+        "points": [
+          [
+            205,
+            993
+          ],
+          [
+            470,
+            993
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f153",
+        "source": "p5",
+        "target": "designer5",
+        "label": "Routes / measured lengths",
+        "points": [
+          [
+            470,
+            1028
+          ],
+          [
+            205,
+            1028
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f155",
+        "source": "p5",
+        "target": "s4b",
+        "label": "Layout version selectors",
+        "points": [
+          [
+            660,
+            993
+          ],
+          [
+            905,
+            993
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f157",
+        "source": "s4b",
+        "target": "p5",
+        "label": "Saved metric geometry",
+        "points": [
+          [
+            905,
+            1028
+          ],
+          [
+            660,
+            1028
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f159",
+        "source": "designer6",
+        "target": "p6",
+        "label": "Estimate request / material map",
+        "points": [
+          [
+            205,
+            1138
+          ],
+          [
+            470,
+            1138
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f161",
+        "source": "p6",
+        "target": "designer6",
+        "label": "Saved estimate / total costs",
+        "points": [
+          [
+            470,
+            1166
+          ],
+          [
+            205,
+            1166
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f163",
+        "source": "client6",
+        "target": "p6",
+        "label": "Stored estimate view request",
+        "points": [
+          [
+            205,
+            1218
+          ],
+          [
+            470,
+            1218
+          ]
+        ],
+        "planned": true,
+        "key": null
+      },
+      {
+        "id": "f165",
+        "source": "p6",
+        "target": "client6",
+        "label": "Authorized captured cost estimate",
+        "points": [
+          [
+            470,
+            1246
+          ],
+          [
+            205,
+            1246
+          ]
+        ],
+        "planned": true,
+        "key": null
+      },
+      {
+        "id": "f167",
+        "source": "admin6",
+        "target": "p6",
+        "label": "Material / price import selection",
+        "points": [
+          [
+            205,
+            1298
+          ],
+          [
+            470,
+            1298
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f169",
+        "source": "p6",
+        "target": "admin6",
+        "label": "Catalog / price update status",
+        "points": [
+          [
+            470,
+            1326
+          ],
+          [
+            205,
+            1326
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f171",
+        "source": "p6",
+        "target": "s5",
+        "label": "Route version selectors",
+        "points": [
+          [
+            660,
+            1138
+          ],
+          [
+            905,
+            1138
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f173",
+        "source": "s5",
+        "target": "p6",
+        "label": "Measured route version",
+        "points": [
+          [
+            905,
+            1166
+          ],
+          [
+            660,
+            1166
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f175",
+        "source": "p6",
+        "target": "s6",
+        "label": "Material / estimate snapshots",
+        "points": [
+          [
+            660,
+            1237
+          ],
+          [
+            905,
+            1237
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f177",
+        "source": "s6",
+        "target": "p6",
+        "label": "Stored prices / estimates",
+        "points": [
+          [
+            905,
+            1290
+          ],
+          [
+            660,
+            1290
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f179",
+        "source": "p5",
+        "target": "s5",
+        "label": "Saved route version",
+        "points": [
+          [
+            660,
+            1050
+          ],
+          [
+            790,
+            1050
+          ],
+          [
+            790,
+            1100
+          ],
+          [
+            905,
+            1100
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f181",
+        "source": "p1",
+        "target": "p2",
+        "label": "Designer access",
+        "points": [
+          [
+            565,
+            365
+          ],
+          [
+            565,
+            405
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f183",
+        "source": "p2",
+        "target": "p3",
+        "label": "Source / page IDs",
+        "points": [
+          [
+            565,
+            505
+          ],
+          [
+            565,
+            555
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f185",
+        "source": "p3",
+        "target": "p4",
+        "label": "Approved geometry / scale",
+        "points": [
+          [
+            565,
+            710
+          ],
+          [
+            565,
+            760
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f187",
+        "source": "p4",
+        "target": "p5",
+        "label": "Canonical metric geometry",
+        "points": [
+          [
+            565,
+            910
+          ],
+          [
+            565,
+            960
+          ]
+        ],
+        "planned": false,
+        "key": null
+      },
+      {
+        "id": "f189",
+        "source": "p5",
+        "target": "p6",
+        "label": "Routes / verified geometry",
+        "points": [
+          [
+            565,
+            1060
+          ],
+          [
+            565,
+            1110
+          ]
+        ],
+        "planned": false,
+        "key": null
+      }
+    ]
+  }
+]

@@ -9,13 +9,14 @@ def _signature(row):
     name = row['name']
     if row.get('paired_path_component') and ' — wiring path ' in name:
         name = name.split(' — wiring path ', 1)[0]
-    fields = ('kind','class_id','material_kind','material_id','material_name',
+    fields = ('kind','class_id','material_kind','material_id','material_name','layout_category',
         'client_product_name','client_product_code','client_product_specification',
         'client_price_only','client_product_options','unit','currency','client_price_unit',
-        'pricing_state','installation_method','origin','material_conflict','scale_basis','scale_approved')
+        'pricing_state','installation_method','origin','material_conflict','scale_basis','scale_approved',
+        'estimated','measurement_state','conductor_count','wire_quantity_basis','purchase_meters_per_unit','catalog_price_unit','catalog_currency','purchase_input_required','connection_assumed')
     values = {k: row.get(k) for k in fields}
     values['name'] = name
-    for key in ('unit_price','client_unit_price'):
+    for key in ('unit_price','client_unit_price','catalog_unit_price'):
         values[key] = str(Decimal(str(row[key])).normalize()) if row.get(key) is not None else None
     return values
 
@@ -47,13 +48,22 @@ def grouped_rows(rows):
             components = []
             for row in entry:
                 components.append(dict(deepcopy(row),quantity=Decimal(0),
+                    **({'measured_meters':Decimal(0)} if row.get('measured_meters') is not None else {}),
                     line_total=Decimal(0) if row.get('line_total') is not None else None))
             method = {'concealed_in_ceiling':'Ceiling','concealed_under_floor':'Under floor'}.get(entry[0].get('installation_method'))
             name = entry[0]['name'] if entry[0]['kind']=='device' else 'Wiring paths'+(' — '+method if method else '')
-            groups[key] = dict(key=key,kind=entry[0]['kind'],name=name,components=components,members=[],costs={})
+            if entry[0].get('connection_assumed'):name='Estimated connections'+(' — '+method if method else '')
+            groups[key] = dict(key=key,kind=entry[0]['kind'],name=name,layout_category=entry[0].get('layout_category'),components=components,members=[],costs={})
         group = groups[key]
         for component,row in zip(group['components'],entry):
+            unresolved=set(component.get('unresolved_path_ids',[])) | set(row.get('unresolved_path_ids',[]))
+            if unresolved:component['unresolved_path_ids']=sorted(unresolved)
+            issues={json.dumps(issue,sort_keys=True):issue for issue in [*component.get('measurement_issues',[]),*row.get('measurement_issues',[])]}
+            if issues:component['measurement_issues']=list(issues.values())
+            component['trace_incomplete']=bool(component.get('trace_incomplete') or row.get('trace_incomplete'))
             component['quantity'] += Decimal(str(row['quantity']))
+            if row.get('measured_meters') is not None:
+                component['measured_meters'] = Decimal(str(component.get('measured_meters',0))) + Decimal(str(row['measured_meters']))
             if component['line_total'] is not None:
                 if row.get('line_total') is None:
                     component['line_total'] = None
@@ -61,14 +71,16 @@ def grouped_rows(rows):
                     component['line_total'] += Decimal(str(row['line_total']))
             if row.get('line_total') is not None:
                 currency = row['currency']
-                group['costs'][currency] = group['costs'].get(currency,Decimal(0)) + Decimal(str(row['line_total']))
+                group['costs'][currency] = group['costs'].get(currency,Decimal(0)) + Decimal(str(row.get('purchase_cost_share',row['line_total'])))
+                if row.get('shared_purchase'):group['purchase_cost_shared']=True
         first = entry[0]
         ids = first.get('symbol_ids') if first['kind']=='device' else first.get('path_ids') or [first.get('path_id') or f'route {first.get("saved_route_version_id")}']
         group['members'].extend(dict(id=identity,floor_id=first.get('floor_id'),
             floor_plan_id=first.get('floor_plan_id'),page_id=first.get('page_id'),
-            candidate_run_id=first.get('candidate_run_id')) for identity in ids or [])
+            candidate_run_id=first.get('candidate_run_id'),
+            measurement=next((m for m in first.get('path_measurements', []) if m['id'] == identity), None)) for identity in ids or [])
     for group in groups.values():
-        group['incomplete'] = any(r['line_total'] is None or r.get('missing_vertical_inputs') or r.get('scale_approved') is False for r in group['components'])
+        group['incomplete'] = any(r['line_total'] is None or r.get('assembly_scope_incomplete') or r.get('missing_vertical_inputs') or r.get('trace_incomplete') or r.get('scale_approved') is False for r in group['components'])
     return list(groups.values())
 
 
@@ -85,5 +97,6 @@ def cost_summary(rows):
             total[kind]+=value
         total['total']+=value
     return dict(currencies=totals,known_costs_without_currency=dict(devices=Decimal(0),conduit=Decimal(0),wire=Decimal(0),total=Decimal(0)) if not totals else None,
-        incomplete=any(r.get('line_total') is None or r.get('missing_vertical_inputs') or r.get('scale_approved') is False for r in rows),
+        estimated=any(r.get('estimated') or r.get('scale_basis') in ('paper_ruler_draft','estimated_paper','ved_paper_ratio_draft') for r in rows),
+        incomplete=any(r.get('line_total') is None or r.get('assembly_scope_incomplete') or r.get('missing_vertical_inputs') or r.get('trace_incomplete') or r.get('scale_approved') is False for r in rows),
         uncosted_items=sum(r.get('line_total') is None for r in rows))

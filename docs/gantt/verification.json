@@ -1,0 +1,28 @@
+{
+  "pages": 1,
+  "stacked_tables": 2,
+  "tasks": 35,
+  "status_counts": {
+    "Completed": 29,
+    "Planning": 6
+  },
+  "period": "January-October 2026",
+  "months_from_source": 10,
+  "scheduled_task_months": 56,
+  "colored_task_week_cells": 224,
+  "monthly_source_mapping": "PASS",
+  "every_task_once": "PASS",
+  "task_status_and_place_preservation": "PASS",
+  "native_editable_xml": "PASS",
+  "text_fit": "PASS",
+  "source_files_unchanged": "PASS",
+  "source_workbook_sha256": "357f2e9045b70893f36214b694b1aea69d1cfb29b13509dc0e29713ccb304961",
+  "source_reference_sha256": "193b51009a6bdd89c8c886eaff4e9fd0498293792b6aef23e969266d4e920eb6",
+  "source_note": "Phase 2 heading says Aug-Sep, but its source phase fill includes Aug-Oct. Chart retains source filled months and omits date ranges from phase labels.",
+  "weekly_detail": "Not supplied: W1-W4 are visual subdivisions of month-level source data.",
+  "visual_review": "PASS",
+  "editor_import": "NOT TESTED",
+  "downloads_copy": "PASS: matching SHA256; saved XML reopened",
+  "downloads_path": "C:/Users/kupal/Downloads/ved-gantt-chart-2026-10-14.drawio",
+  "downloads_sha256": "EAC8D244F4FDC815B9F0AEA193E69A4780C1D6794B83B64C8FB4ACA3C2BE5071"
+}

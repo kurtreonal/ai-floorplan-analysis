@@ -68,7 +68,7 @@ class DemoSymbolReview(DemoSchema):
     mounting_height_meters: Annotated[StrictInt | StrictFloat, Field(ge=0, le=100, allow_inf_nan=False)] | None = None
     mounting_wall_id: EntityId | None = None
     mounting_reference: Literal['device_center','box_bottom','connection_terminal','legacy_unspecified'] | None = None
-    mounting_height_source: Literal['ved_default','drawing','designer'] | None = None
+    mounting_height_source: Literal['ved_default','ved_automatic','drawing','designer'] | None = None
     terminal_offset_meters: Annotated[StrictInt | StrictFloat, Field(ge=-10, le=10, allow_inf_nan=False)] | None = None
     gang_count_confirmed: StrictBool = False
 
@@ -159,6 +159,8 @@ class DemoObservedWiringReview(DemoSchema):
     points: Annotated[list[DemoPoint], Field(min_length=2, max_length=2048)]
     completeness: Literal["complete", "partial", "unreadable"]
     elevation_meters: Annotated[StrictInt | StrictFloat, Field(ge=-1000, le=10000, allow_inf_nan=False)] | None = None
+    height_above_floor_meters: Annotated[StrictInt | StrictFloat, Field(ge=-1000, le=10000, allow_inf_nan=False)] | None = None
+    conductor_count: Annotated[StrictInt,Field(ge=1,le=1000)] | None = None
     line_style: Literal["solid", "dashed", "unknown"] = "unknown"
     installation_method: Literal["concealed_under_floor", "concealed_in_ceiling", "unknown"] = "unknown"
     wiring_legend_id: Annotated[StrictInt, Field(gt=0)] | None = None
@@ -200,6 +202,8 @@ class DemoObservedWiringReview(DemoSchema):
         if self.network_lineage is None: value.pop('network_lineage', None)
         if self.path_origin is None: value.pop('path_origin', None)
         if value.get('assignment_state') is None: value.pop('assignment_state',None)
+        if self.height_above_floor_meters is None:value.pop('height_above_floor_meters',None)
+        if self.conductor_count is None:value.pop('conductor_count',None)
         return value
 
 
@@ -314,11 +318,29 @@ class DemoReviewResponse(DemoSchema):
 
 
 class DemoRoutingContext(DemoSchema):
-    scale_basis: Literal['unresolved','measured_page','ved_paper_ratio_draft'] = 'unresolved'
+    scale_basis: Literal['unresolved','measured_page','ved_paper_ratio_draft','paper_ruler_draft','pdf_page_ratio','full_sheet_ratio','estimated_paper'] = 'unresolved'
     scale_approved: bool = False
     scale_reason: str | None = None
     paper_size: str | None = None
     scale_denominator: float | None = None
+    custom_width_mm: float | None = None
+    custom_height_mm: float | None = None
+    paper_ruler: dict | None = None
+    measured_ruler: dict | None = None
+    source_width_mm: float | None = None
+    source_height_mm: float | None = None
+    multiple_scale_views: bool = False
+    display_sheet: dict | None = None
+    measurement_state: Literal['source_sheet','known_reference','estimated','needs_reference']='needs_reference'
+    estimated: bool=False
+    ratio_assumed: bool=False
+    assumed_paper_size:str|None=None
+    measurement_binding:dict|None=None
+    service_height_above_floor_meters:float|None=None
+    height_mode:Literal['automatic','custom']='custom'
+    height_basis:Literal['assumed','custom']='custom'
+    ceiling_height_meters:float|None=None
+    applied_defaults_revision:int|None=None
     mounting_defaults: dict[str,float] = Field(default_factory=lambda:dict(VED_CENTER_HEIGHTS))
     pixels_per_meter: Annotated[StrictInt | StrictFloat, Field(gt=0, le=1_000_000, allow_inf_nan=False)] | None = None
     floor_elevation_meters: Annotated[float, Field(ge=-10000, le=10000, allow_inf_nan=False)] | None = None

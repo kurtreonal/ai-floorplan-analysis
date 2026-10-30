@@ -1,0 +1,956 @@
+{
+  "nodes": {
+    "system": {
+      "label": "VED Electrical Services",
+      "x": 580,
+      "y": 170,
+      "w": 460,
+      "h": 1320,
+      "kind": "system"
+    },
+    "access": {
+      "label": "USER AND ACCESS\nMANAGEMENT MODULE",
+      "x": 600,
+      "y": 340,
+      "w": 420,
+      "h": 120,
+      "kind": "module"
+    },
+    "project-visualization": {
+      "label": "PROJECT, FLOOR PLAN AND\nVISUALIZATION MODULE",
+      "x": 600,
+      "y": 480,
+      "w": 420,
+      "h": 280,
+      "kind": "module"
+    },
+    "ai": {
+      "label": "AI ANALYSIS AND\nDETECTION MODULE",
+      "x": 600,
+      "y": 820,
+      "w": 420,
+      "h": 200,
+      "kind": "module"
+    },
+    "routing-cost": {
+      "label": "ELECTRICAL ROUTING,\nCOST ESTIMATION AND\nREPORTING MODULE",
+      "x": 600,
+      "y": 1080,
+      "w": 420,
+      "h": 360,
+      "kind": "module"
+    },
+    "admin": {
+      "label": "ADMINISTRATOR",
+      "x": 20,
+      "y": 730,
+      "w": 230,
+      "h": 270,
+      "kind": "actor"
+    },
+    "designer": {
+      "label": "ELECTRICAL\nDESIGNER",
+      "x": 1270,
+      "y": 890,
+      "w": 200,
+      "h": 220,
+      "kind": "actor"
+    },
+    "client": {
+      "label": "CLIENT*\nVIEW ONLY",
+      "x": 1540,
+      "y": 660,
+      "w": 200,
+      "h": 220,
+      "kind": "actor"
+    },
+    "shared-sign-in": {
+      "label": "SHARED SIGN-IN\nAdmin / Designer / Client*",
+      "x": 1100,
+      "y": 150,
+      "w": 630,
+      "h": 130,
+      "kind": "callout"
+    },
+    "database": {
+      "label": "MySQL Database",
+      "x": 720,
+      "y": 1570,
+      "w": 180,
+      "h": 120,
+      "kind": "database"
+    }
+  },
+  "flows": [
+    {
+      "id": "f52",
+      "source": "shared-sign-in",
+      "target": "access",
+      "points": [
+        [
+          1200,
+          280
+        ],
+        [
+          1200,
+          360
+        ],
+        [
+          1020,
+          360
+        ]
+      ],
+      "label": "Sign in",
+      "planned": false,
+      "tag": "shared-sign-in"
+    },
+    {
+      "id": "f54",
+      "source": "access",
+      "target": "shared-sign-in",
+      "points": [
+        [
+          1020,
+          400
+        ],
+        [
+          1250,
+          400
+        ],
+        [
+          1250,
+          280
+        ]
+      ],
+      "label": "Access / role",
+      "planned": false,
+      "tag": "shared-access-result"
+    },
+    {
+      "id": "f56",
+      "source": "admin",
+      "target": "access",
+      "points": [
+        [
+          60,
+          730
+        ],
+        [
+          60,
+          350
+        ],
+        [
+          600,
+          350
+        ]
+      ],
+      "label": "Manage users / roles*;\nassign / revoke approvers",
+      "planned": false,
+      "tag": "admin-access-manage"
+    },
+    {
+      "id": "f58",
+      "source": "access",
+      "target": "admin",
+      "points": [
+        [
+          600,
+          400
+        ],
+        [
+          100,
+          400
+        ],
+        [
+          100,
+          730
+        ]
+      ],
+      "label": "Records / access status",
+      "planned": false,
+      "tag": "admin-access-result"
+    },
+    {
+      "id": "f60",
+      "source": "admin",
+      "target": "project-visualization",
+      "points": [
+        [
+          140,
+          730
+        ],
+        [
+          140,
+          650
+        ],
+        [
+          600,
+          650
+        ]
+      ],
+      "label": "Inspect projects / layouts",
+      "planned": false,
+      "tag": "admin-project-inspect"
+    },
+    {
+      "id": "f62",
+      "source": "project-visualization",
+      "target": "admin",
+      "points": [
+        [
+          600,
+          700
+        ],
+        [
+          180,
+          700
+        ],
+        [
+          180,
+          730
+        ]
+      ],
+      "label": "Plans / jobs / layouts",
+      "planned": false,
+      "tag": "admin-project-result"
+    },
+    {
+      "id": "f64",
+      "source": "admin",
+      "target": "ai",
+      "points": [
+        [
+          250,
+          900
+        ],
+        [
+          600,
+          900
+        ]
+      ],
+      "label": "Manage legends / datasets*",
+      "planned": false,
+      "tag": "admin-ai-manage"
+    },
+    {
+      "id": "f66",
+      "source": "ai",
+      "target": "admin",
+      "points": [
+        [
+          600,
+          960
+        ],
+        [
+          250,
+          960
+        ]
+      ],
+      "label": "Updates / AI review status",
+      "planned": false,
+      "tag": "admin-ai-result"
+    },
+    {
+      "id": "f68",
+      "source": "admin",
+      "target": "routing-cost",
+      "points": [
+        [
+          220,
+          1000
+        ],
+        [
+          220,
+          1120
+        ],
+        [
+          600,
+          1120
+        ]
+      ],
+      "label": "Inspect saved routes",
+      "planned": false,
+      "tag": "admin-route-inspect"
+    },
+    {
+      "id": "f70",
+      "source": "routing-cost",
+      "target": "admin",
+      "points": [
+        [
+          600,
+          1160
+        ],
+        [
+          180,
+          1160
+        ],
+        [
+          180,
+          1000
+        ]
+      ],
+      "label": "Routes / lengths",
+      "planned": false,
+      "tag": "admin-route-result"
+    },
+    {
+      "id": "f72",
+      "source": "admin",
+      "target": "routing-cost",
+      "points": [
+        [
+          140,
+          1000
+        ],
+        [
+          140,
+          1200
+        ],
+        [
+          600,
+          1200
+        ]
+      ],
+      "label": "Manage prices / reports*",
+      "planned": false,
+      "tag": "admin-price-manage"
+    },
+    {
+      "id": "f74",
+      "source": "routing-cost",
+      "target": "admin",
+      "points": [
+        [
+          600,
+          1240
+        ],
+        [
+          100,
+          1240
+        ],
+        [
+          100,
+          1000
+        ]
+      ],
+      "label": "Catalog / update status",
+      "planned": false,
+      "tag": "admin-price-result"
+    },
+    {
+      "id": "f76",
+      "source": "admin",
+      "target": "routing-cost",
+      "points": [
+        [
+          60,
+          1000
+        ],
+        [
+          60,
+          1280
+        ],
+        [
+          600,
+          1280
+        ]
+      ],
+      "label": "View costs / export reports*",
+      "planned": false,
+      "tag": "admin-cost-export"
+    },
+    {
+      "id": "f78",
+      "source": "routing-cost",
+      "target": "admin",
+      "points": [
+        [
+          600,
+          1320
+        ],
+        [
+          30,
+          1320
+        ],
+        [
+          30,
+          1000
+        ]
+      ],
+      "label": "Costs / BOM / report files*",
+      "planned": false,
+      "tag": "admin-cost-result"
+    },
+    {
+      "id": "f80",
+      "source": "designer",
+      "target": "project-visualization",
+      "points": [
+        [
+          1450,
+          890
+        ],
+        [
+          1450,
+          875
+        ],
+        [
+          1510,
+          875
+        ],
+        [
+          1510,
+          575
+        ],
+        [
+          1020,
+          575
+        ]
+      ],
+      "label": "Projects / uploads / layout edits",
+      "planned": false,
+      "tag": "designer-project-layout-manage"
+    },
+    {
+      "id": "f82",
+      "source": "project-visualization",
+      "target": "designer",
+      "points": [
+        [
+          1020,
+          620
+        ],
+        [
+          1490,
+          620
+        ],
+        [
+          1490,
+          845
+        ],
+        [
+          1410,
+          845
+        ],
+        [
+          1410,
+          890
+        ]
+      ],
+      "label": "Project / layout status",
+      "planned": false,
+      "tag": "designer-project-layout-result"
+    },
+    {
+      "id": "f84",
+      "source": "designer",
+      "target": "ai",
+      "points": [
+        [
+          1270,
+          900
+        ],
+        [
+          1020,
+          900
+        ]
+      ],
+      "label": "Analyze / review",
+      "planned": false,
+      "tag": "designer-ai-review"
+    },
+    {
+      "id": "f86",
+      "source": "ai",
+      "target": "designer",
+      "points": [
+        [
+          1020,
+          960
+        ],
+        [
+          1270,
+          960
+        ]
+      ],
+      "label": "Results / status",
+      "planned": false,
+      "tag": "designer-ai-result"
+    },
+    {
+      "id": "f88",
+      "source": "designer",
+      "target": "routing-cost",
+      "points": [
+        [
+          1330,
+          1110
+        ],
+        [
+          1330,
+          1120
+        ],
+        [
+          1020,
+          1120
+        ]
+      ],
+      "label": "Generate routes",
+      "planned": false,
+      "tag": "designer-route-generate"
+    },
+    {
+      "id": "f90",
+      "source": "routing-cost",
+      "target": "designer",
+      "points": [
+        [
+          1020,
+          1160
+        ],
+        [
+          1370,
+          1160
+        ],
+        [
+          1370,
+          1110
+        ]
+      ],
+      "label": "Paths / measured lengths",
+      "planned": false,
+      "tag": "designer-route-result"
+    },
+    {
+      "id": "f92",
+      "source": "designer",
+      "target": "routing-cost",
+      "points": [
+        [
+          1410,
+          1110
+        ],
+        [
+          1410,
+          1240
+        ],
+        [
+          1020,
+          1240
+        ]
+      ],
+      "label": "Generate costs / reports*",
+      "planned": false,
+      "tag": "designer-cost-generate"
+    },
+    {
+      "id": "f94",
+      "source": "routing-cost",
+      "target": "designer",
+      "points": [
+        [
+          1020,
+          1280
+        ],
+        [
+          1450,
+          1280
+        ],
+        [
+          1450,
+          1110
+        ]
+      ],
+      "label": "Costs / report files*",
+      "planned": false,
+      "tag": "designer-cost-result"
+    },
+    {
+      "id": "f96",
+      "source": "client",
+      "target": "project-visualization",
+      "points": [
+        [
+          1700,
+          660
+        ],
+        [
+          1700,
+          490
+        ],
+        [
+          1020,
+          490
+        ]
+      ],
+      "label": "View saved 2D / 3D layout",
+      "planned": true,
+      "tag": "client-visualization-request"
+    },
+    {
+      "id": "f98",
+      "source": "project-visualization",
+      "target": "client",
+      "points": [
+        [
+          1020,
+          530
+        ],
+        [
+          1650,
+          530
+        ],
+        [
+          1650,
+          660
+        ]
+      ],
+      "label": "Read-only layout",
+      "planned": true,
+      "tag": "client-visualization-result"
+    },
+    {
+      "id": "f100",
+      "source": "client",
+      "target": "routing-cost",
+      "points": [
+        [
+          1740,
+          780
+        ],
+        [
+          1780,
+          780
+        ],
+        [
+          1780,
+          1350
+        ],
+        [
+          1020,
+          1350
+        ]
+      ],
+      "label": "View stored estimate",
+      "planned": true,
+      "tag": "client-cost-request"
+    },
+    {
+      "id": "f102",
+      "source": "routing-cost",
+      "target": "client",
+      "points": [
+        [
+          1020,
+          1400
+        ],
+        [
+          1810,
+          1400
+        ],
+        [
+          1810,
+          740
+        ],
+        [
+          1740,
+          740
+        ]
+      ],
+      "label": "Read-only costs",
+      "planned": true,
+      "tag": "client-cost-result"
+    },
+    {
+      "id": "f104",
+      "source": "system",
+      "target": "database",
+      "points": [
+        [
+          790,
+          1490
+        ],
+        [
+          790,
+          1570
+        ]
+      ],
+      "label": "Store data",
+      "planned": false,
+      "tag": "store"
+    },
+    {
+      "id": "f106",
+      "source": "database",
+      "target": "system",
+      "points": [
+        [
+          830,
+          1570
+        ],
+        [
+          830,
+          1490
+        ]
+      ],
+      "label": "Retrieve data",
+      "planned": false,
+      "tag": "retrieve"
+    }
+  ],
+  "arrow_label_boxes": [
+    [
+      "f52",
+      [
+        1069.0,
+        363,
+        82,
+        32
+      ]
+    ],
+    [
+      "f54",
+      [
+        1061.5,
+        403,
+        147,
+        32
+      ]
+    ],
+    [
+      "f56",
+      [
+        279.0,
+        284,
+        282,
+        60
+      ]
+    ],
+    [
+      "f58",
+      [
+        288.0,
+        403,
+        264,
+        32
+      ]
+    ],
+    [
+      "f60",
+      [
+        283.5,
+        653,
+        273,
+        32
+      ]
+    ],
+    [
+      "f62",
+      [
+        305.5,
+        703,
+        229,
+        32
+      ]
+    ],
+    [
+      "f64",
+      [
+        273.0,
+        903,
+        304,
+        32
+      ]
+    ],
+    [
+      "f66",
+      [
+        281.0,
+        963,
+        288,
+        32
+      ]
+    ],
+    [
+      "f68",
+      [
+        305.0,
+        1123,
+        230,
+        32
+      ]
+    ],
+    [
+      "f70",
+      [
+        329.0,
+        1163,
+        182,
+        32
+      ]
+    ],
+    [
+      "f72",
+      [
+        285.5,
+        1203,
+        269,
+        32
+      ]
+    ],
+    [
+      "f74",
+      [
+        292.5,
+        1243,
+        255,
+        32
+      ]
+    ],
+    [
+      "f76",
+      [
+        274.5,
+        1283,
+        301,
+        32
+      ]
+    ],
+    [
+      "f78",
+      [
+        281.0,
+        1323,
+        288,
+        32
+      ]
+    ],
+    [
+      "f80",
+      [
+        1095.0,
+        578,
+        340,
+        32
+      ]
+    ],
+    [
+      "f82",
+      [
+        1145.5,
+        623,
+        239,
+        32
+      ]
+    ],
+    [
+      "f84",
+      [
+        1053.5,
+        903,
+        183,
+        32
+      ]
+    ],
+    [
+      "f86",
+      [
+        1058.0,
+        963,
+        174,
+        32
+      ]
+    ],
+    [
+      "f88",
+      [
+        1079.0,
+        1123,
+        182,
+        32
+      ]
+    ],
+    [
+      "f90",
+      [
+        1055.0,
+        1163,
+        280,
+        32
+      ]
+    ],
+    [
+      "f92",
+      [
+        1077.0,
+        1243,
+        276,
+        32
+      ]
+    ],
+    [
+      "f94",
+      [
+        1129.0,
+        1283,
+        212,
+        32
+      ]
+    ],
+    [
+      "f96",
+      [
+        1165.5,
+        493,
+        289,
+        32
+      ]
+    ],
+    [
+      "f98",
+      [
+        1216.5,
+        533,
+        187,
+        32
+      ]
+    ],
+    [
+      "f100",
+      [
+        1249.5,
+        1353,
+        231,
+        32
+      ]
+    ],
+    [
+      "f102",
+      [
+        1275.0,
+        1403,
+        180,
+        32
+      ]
+    ],
+    [
+      "f104",
+      [
+        632.5,
+        1515,
+        110,
+        30
+      ]
+    ],
+    [
+      "f106",
+      [
+        875.5,
+        1515,
+        139,
+        30
+      ]
+    ]
+  ]
+}

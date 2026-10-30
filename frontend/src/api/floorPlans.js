@@ -4,6 +4,8 @@ import { API_BASE_URL } from './auth.js'
 const GENERIC_UPLOAD_ERROR = 'The floor-plan upload could not be completed.'
 const GENERIC_LIST_ERROR = 'The project floor plans could not be loaded.'
 
+export const originalFloorPlanHref=(projectId,planId)=>`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/floor-plans/${encodeURIComponent(planId)}/original`
+
 
 export class FloorPlanApiError extends Error {
   constructor(message, status = 0, code = null) {
@@ -53,6 +55,7 @@ function normalizeFloorPlan(value) {
     id: value.id,
     project_floor_id: value.project_floor_id,
     original_filename: value.original_filename,
+    display_name: value.display_name || null,
     mime_type: value.mime_type,
     file_size: value.file_size,
     processing_status: value.processing_status,
@@ -92,12 +95,14 @@ export async function listFloorPlans(
 
 export async function uploadFloorPlan(
   projectId,
-  { projectFloorId, file },
+    { projectFloorId, file, measurementSettings = {},layoutType },
   { signal } = {},
 ) {
   const formData = new FormData()
   formData.append('project_floor_id', String(projectFloorId))
   formData.append('file', file)
+  formData.append('measurement_settings', JSON.stringify(measurementSettings))
+    for(const type of (Array.isArray(layoutType)?layoutType:layoutType?[layoutType]:[]))formData.append('layout_types',type)
 
   let response
   try {

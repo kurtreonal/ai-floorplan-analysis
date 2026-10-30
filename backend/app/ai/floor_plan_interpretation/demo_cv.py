@@ -34,7 +34,7 @@ MAXIMUM_IMAGE_EDGE = 4096
 MAXIMUM_IMAGE_PIXELS = 60_000_000
 SAFE_ERROR_MESSAGE = "The local demo floor-plan interpretation failed."
 # Bump when preprocessing/structural evidence changes; independent of symbol weights.
-EVIDENCE_VERSION = "cv-paired-partition-switch-proposals-v15"
+EVIDENCE_VERSION = "cv-raster-tolerant-paired-wall-bands-v18"
 
 
 class DemoCVError(RuntimeError):
@@ -82,6 +82,7 @@ def preprocessing_configuration(width, height):
                 walls=asdict(wall_parameters(width, height)),
                 chromatic_walls=CHROMATIC_CONFIGURATION.copy(), paired_wall_boundaries=PAIRED_CONFIGURATION.copy(), switch_gang_policy='provisional-switch-gang-count-v1', wall_band_geometry='qualified-band-centres-v2',
                 wall_junctions='source-supported-overshoot-trim-dedup-v3',
+                rooms='final-wall-thickness-bounded-directional-closure-v1',
                 fixture_wiring=FIXTURE_WIRING_CONFIGURATION.copy(),
                 opencv=cv2.__version__, numpy=np.__version__)
 
@@ -204,24 +205,25 @@ def _room_boundaries(
         cv2.MORPH_ELLIPSE,
         (barrier_size, barrier_size),
     )
-    # Prefer long wall-like strokes to short wiring dashes and text. Bridge short
-    # doorway-sized gaps only in the advisory room mask, never observed wiring.
+    # The caller supplies qualified walls, not raw plan ink. Preserve short and
+    # angled partitions; directional masks are only for bounded advisory bridges.
     span = max(12, round(min(width, height) * 0.12))
     horizontal = cv2.morphologyEx(plan_ink, cv2.MORPH_OPEN,
                                  cv2.getStructuringElement(cv2.MORPH_RECT, (span, 1)))
     vertical = cv2.morphologyEx(plan_ink, cv2.MORPH_OPEN,
                                cv2.getStructuringElement(cv2.MORPH_RECT, (1, span)))
-    structural = cv2.bitwise_or(horizontal, vertical)
-    span = max(12, round(min(width, height) * 0.16))
-    # A rotated or thin-stroke drawing may not support the axis-aligned mask.
-    if cv2.countNonZero(structural) >= width * height * 0.005:
-        horizontal = cv2.morphologyEx(structural, cv2.MORPH_CLOSE,
-                                     cv2.getStructuringElement(cv2.MORPH_RECT, (span, 1)))
-        vertical = cv2.morphologyEx(structural, cv2.MORPH_CLOSE,
-                                   cv2.getStructuringElement(cv2.MORPH_RECT, (1, span)))
-        room_ink = cv2.bitwise_or(horizontal, vertical)
-    else:
-        room_ink = plan_ink
+    distances = cv2.distanceTransform(plan_ink, cv2.DIST_L2, 3)
+    radii = distances[distances > 0]
+    thickness = float(np.percentile(radii, 75))*2 if radii.size else 1
+    span = max(3, min(round(thickness*3), round(min(width,height)*.08))) | 1
+    # Closing the union horizontally also joined nearby parallel vertical walls.
+    # Close only each direction's own sustained strokes, never the perpendicular
+    # family. Wide unsupported openings remain open for review.
+    horizontal = cv2.morphologyEx(horizontal, cv2.MORPH_CLOSE,
+                                 cv2.getStructuringElement(cv2.MORPH_RECT, (span, 1)))
+    vertical = cv2.morphologyEx(vertical, cv2.MORPH_CLOSE,
+                               cv2.getStructuringElement(cv2.MORPH_RECT, (1, span)))
+    room_ink = cv2.bitwise_or(plan_ink, cv2.bitwise_or(horizontal,vertical))
     barriers = cv2.morphologyEx(room_ink, cv2.MORPH_CLOSE, kernel)
     barriers = cv2.dilate(barriers, kernel, iterations=1)
     free_space = cv2.bitwise_not(barriers)
@@ -247,18 +249,26 @@ def _room_boundaries(
                 or min(component_width, component_height) < min(width, height) * 0.06):
             continue
         component = np.where(labels == index, 255, 0).astype(np.uint8)
-        contours, _ = cv2.findContours(
+        contours, hierarchy = cv2.findContours(
             component,
-            cv2.RETR_EXTERNAL,
+            cv2.RETR_CCOMP,
             cv2.CHAIN_APPROX_SIMPLE,
         )
         if not contours:
             continue
+        # The contract has one boundary, not a polygon-with-holes. Filling an
+        # exterior contour would swallow enclosed shafts/courts. Keep such a
+        # component unresolved rather than inventing a solid floor through it.
+        outer = max(range(len(contours)),key=lambda i: cv2.contourArea(contours[i]))
+        if hierarchy[0,outer,2] != -1:
+            continue
         # Preserve L-shaped interiors rather than filling them with a convex hull.
-        contour = max(contours, key=cv2.contourArea)
-        epsilon = max(1.0, cv2.arcLength(contour, True) * 0.008)
+        contour = contours[outer]
+        # Perimeter-proportional simplification alone erased narrow returns and
+        # introduced long diagonals on large rooms. Bound deviation by wall ink.
+        epsilon = max(.5,min(cv2.arcLength(contour,True)*.002,thickness*.25))
         polygon = cv2.approxPolyDP(contour, epsilon, True).reshape(-1, 2)
-        if len(polygon) < 3:
+        if not 3 <= len(polygon) <= 256:
             continue
         points = tuple((int(px) + x, int(py) + y) for px, py in polygon)
         boundaries.append(points)
@@ -273,6 +283,49 @@ def _room_boundaries(
     )
     truncated = len(unique) > parameters.maximum_rooms
     return tuple(unique[: parameters.maximum_rooms]), truncated
+
+
+def with_final_wall_rooms(payload):
+    """Rebuild advisory rooms after structural specialists replace wall proposals.
+
+    Never reuse a room polygon derived from superseded walls. Scope each view
+    independently; neither the page border nor a region rectangle is a barrier.
+    """
+    if not payload.walls.items or payload.walls.state in ('failed','unavailable'):
+        return payload
+    width, height = payload.source_plane.width_pixels, payload.source_plane.height_pixels
+    ink = np.zeros((height,width),np.uint8)
+    for wall in payload.walls.items:
+        cv2.line(ink,(round(wall.start.x),round(wall.start.y)),(round(wall.end.x),round(wall.end.y)),
+                 255,max(2,round(wall.estimated_thickness_pixels or 2)))
+    rooms, seen, truncated = [], set(), False
+    parameters = DemoCVParameters()
+    for region in payload.regions:
+        if region.kind != 'plan_region':
+            continue
+        b = region.bounds
+        left,top = max(0,round(b.x)),max(0,round(b.y))
+        right,bottom = min(width,round(b.x+b.width)),min(height,round(b.y+b.height))
+        if right-left < 3 or bottom-top < 3:
+            continue
+        boundaries, limited = _room_boundaries(ink,(left,top,right-left,bottom-top),parameters)
+        truncated |= limited
+        for boundary in boundaries:
+            if boundary in seen:
+                continue
+            seen.add(boundary)
+            if len(rooms) >= parameters.maximum_rooms:
+                truncated = True
+                break
+            rooms.append(RoomCandidate(id=f'room-{len(rooms)+1:04d}',label=None,
+                boundary=tuple(PixelPoint(x=x,y=y) for x,y in boundary),
+                evidence_refs=(f'region:{region.id}',),ambiguity='ambiguous'))
+    value = payload.model_copy(update={
+        'document_state': 'partial' if rooms and payload.document_state == 'completed'
+                          else payload.document_state,
+        'rooms':CandidateCollection(
+            state='partial' if rooms else 'unavailable',items=tuple(rooms),truncated=truncated)})
+    return FloorPlanInterpretationPayload.model_validate(value.model_dump())
 
 
 def _symbol_circles(

@@ -1,5 +1,25 @@
 """One physical path, two purchase components; never infer product specifications."""
 import re
+from decimal import Decimal
+
+
+def apply_conductor_quantity(row):
+    """A single-core product needs an explicit count; cable cores are not a multiplier."""
+    if row.get('kind')!='path' or row.get('material_kind')!='wire' or row.get('saved_route_version_id'):
+        return
+    description=' '.join(str(row.get(k) or '') for k in ('material_name','client_product_name','client_product_specification'))
+    if re.search(r'\b(?:THHN|THW|single[ -]?core|single conductor)\b',description,re.I) and row['unit']=='meter':
+        count=row.get('conductor_count')
+        row['route_meters']=row.get('route_meters',row['quantity'])
+        if count is None:
+            row.update(line_total=None,pricing_state='conductor_count_required')
+        else:
+            row['quantity']=Decimal(str(row['route_meters']))*count
+            if row['unit_price'] is not None:
+                row['line_total']=row['quantity']*Decimal(str(row['unit_price']))
+                if row.get('pricing_state')=='conductor_count_required':row['pricing_state']='partial_measurement_priced' if row.get('missing_vertical_inputs') else 'priced'
+        row['wire_quantity_basis']='individual_conductors'
+    else:row['wire_quantity_basis']='cable_route'
 
 
 def path_scope(row):

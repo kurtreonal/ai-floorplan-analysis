@@ -97,4 +97,83 @@
 .studio-wire-method { border: 1px solid var(--paper-line); border-radius: 10px; padding: 1rem; margin: 0 0 1rem; background: #f5f8f6; }
 .studio-wire-method legend { padding: 0 .35rem; font-weight: 650; }
 .studio-wire-method p { font-size: .78rem; line-height: 1.5; color: #53626b; }
+.studio-ruler-controls { position: absolute; top: 82px; right: 58px; z-index: 20; width: min(290px, calc(100% - 140px)); max-height: calc(100% - 150px); overflow: auto; display: grid; gap: 10px; padding: 14px; border: 1px solid var(--paper-line); border-radius: 12px; background: var(--white); color: var(--ink); box-shadow: 0 6px 24px #18273618; font-size: 12px; }
+.studio-ruler-controls header, .studio-ruler-controls header strong { display: flex; align-items: center; gap: 8px; }
+.studio-ruler-controls header { justify-content: space-between; }
+.studio-ruler-controls header button { width: 28px; height: 28px; }
+.studio-ruler-controls p { margin: 0; line-height: 1.5; }
+.studio-ruler-controls label, .studio-ruler-guide { display: grid; gap: 6px; }
+.studio-ruler-controls input { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--paper-line); border-radius: 7px; background: var(--white); color: var(--ink); font: inherit; font-size: 15px; }
+.studio-ruler-controls input:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.studio-ruler-controls small, .studio-ruler-guide span { font-size: 11px; color: var(--ink-soft); line-height: 1.5; }
+.studio-ruler-guide { padding-top: 8px; border-top: 1px solid var(--paper-line); }
+.studio-ruler-guide > div { display: flex; flex-wrap: wrap; gap: 5px; }
+.studio-ruler-guide button { font-size: 11px; padding: 4px 8px; height: auto; min-height: 32px; }
+.bom-use-ruler { padding: 0; border: 0; background: transparent; color: var(--orange); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.studio-sheet-menu { position: absolute; top: 76px; left: 78px; z-index: 21; font-size: 12px; }
+.studio-sheet-menu > summary { cursor: pointer; padding: 8px 12px; border: 1px solid var(--paper-line); border-radius: 8px; background: var(--white); color: var(--ink); box-shadow: 0 2px 8px #18273610; }
+.studio-sheet-fields { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 9px; }
+.studio-sheet-fields label { display: grid; gap: 5px; color: var(--ink); font-size: 12px; }
+.studio-sheet-fields :is(input,select) { width: 100%; min-width: 0; min-height: 34px; padding: 7px 9px; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--white); color: var(--ink); font: inherit; }
+.studio-sheet-fields small { color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
+.studio-sheet-fields > button { justify-self: start; }
+.studio-sheet-fields small button { color: var(--orange); text-decoration: underline; }
+.studio-sheet-menu .studio-sheet-fields { width: min(280px,calc(100vw - 110px)); max-height: calc(100dvh - 170px); overflow: auto; margin-top: 6px; padding: 14px; border: 1px solid var(--paper-line); border-radius: 10px; background: var(--white); box-shadow: 0 6px 24px #18273618; }
+.studio-scale-actions { position: absolute; top: 76px; left: 78px; z-index: 21; display: flex; flex-wrap: wrap; gap: 7px; max-width: calc(100% - 150px); }
+.studio-scale-actions button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 8px 12px; border: 1px solid var(--paper-line); border-radius: 8px; background: var(--white); color: var(--ink); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; box-shadow: 0 2px 8px #18273610; }
+.studio-scale-actions button:first-child { border-color: var(--orange); }
+.studio-scale-actions button:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+.studio-scale-panel { position: fixed; top: 78px; right: 16px; z-index: 60; width: min(380px,calc(100% - 32px)); max-height: calc(100dvh - 94px); overflow: auto; overscroll-behavior: contain; display: grid; gap: 16px; padding: 18px; border: 1px solid var(--paper-line); border-radius: 12px; background: var(--white); color: var(--ink); box-shadow: 0 8px 32px #18273626; font-size: 13px; }
+.studio-scale-panel[hidden] { display: none; }
+.studio-scale-panel > header { position: sticky; top: 0; z-index: 2; background: var(--white); display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 5px; }
+.studio-scale-panel h2 { margin: 0; font-size: 18px; }
+.studio-scale-panel h3 { margin: 0 0 8px; font-size: 14px; }
+.studio-scale-panel p { margin: 0; line-height: 1.5; color: var(--ink-soft); }
+.studio-scale-panel section + section { padding-top: 14px; border-top: 1px solid var(--paper-line); }
+.studio-scale-panel .studio-sheet-fields label { font-size: 13px; }
+.studio-scale-number { display: flex; align-items: center; gap: 10px; }
+.studio-scale-number > span { flex-shrink: 0; font-size: 18px; font-weight: 650; }
+.studio-scale-denominator input { font-size: 18px; font-weight: 650; }
+.studio-scale-panel .demo-approval-panel { margin: 0; padding: 0; border: 0; background: transparent; }
+.studio-scale-panel .demo-add-actions { display: flex; flex-wrap: wrap; margin: 10px 0; gap: 8px; }
+.studio-scale-panel .studio-plan-area details { margin: 10px 0; font-size: 12px; }
+.studio-scale-panel .studio-plan-area details summary { cursor: pointer; color: var(--ink-soft); }
+.studio-scale-panel .demo-point-fields { min-width: 0; }
+.studio-scale-panel small { display: block; color: var(--ink-soft); line-height: 1.5; }
+.studio-scale-calibration p { margin-bottom: 10px; }
+.studio-scale-calibration small { margin-top: 8px; }
+.measurement-basis { justify-self: start; border: 1px solid var(--paper-line); padding: 5px 9px; border-radius: 6px; font-size: 13px; }
+.studio-sheet-fields .measurement-check { display: flex; align-items: flex-start; gap: 8px; line-height: 1.5; font-size: 12px; }
+.studio-sheet-fields .measurement-check input { width: 16px; min-height: 16px; margin-top: 2px; flex-shrink: 0; }
+.measurement-paper-preview { width: 100%; max-height: 130px; border-radius: 6px; }
+.measurement-heights summary { cursor: pointer; font-size: 13px; padding: 7px 0; }
+.measurement-heights label { margin-top: 9px; }
+.wiring-check-list { display: grid; gap: 7px; }
+.wiring-check-list button { display: grid; justify-items: start; white-space: normal; height: auto; text-align: left; padding: 10px; }
+@media (max-width: 760px) {
+  .studio-scale-actions { top: 108px; left: 70px; gap: 5px; max-width: calc(100% - 124px); }
+  .studio-scale-actions button { min-height: 36px; padding: 7px 9px; font-size: 11px; }
+  .studio-scale-panel { top: 106px; right: 12px; width: calc(100% - 24px); max-height: calc(100dvh - 120px); padding: 14px; }
+}
+@media (max-width: 600px) { .studio-ruler-controls { right: 12px; width: min(260px, calc(100% - 88px)); top: 112px; max-height: calc(100% - 175px); padding: 10px; } }
 @media (max-width: 760px) { .demo-workspace-toolbar { flex-direction: column; align-items: stretch; } .demo-view-switch { width: 100%; } .demo-view-switch button { flex: 1; } }
+.measurement-setup-summary { margin:0; display:grid; gap:.65rem; }
+.measurement-setup-summary > div { display:flex; justify-content:space-between; gap:1rem; }
+.measurement-setup-summary dt { color:var(--muted); }
+.measurement-setup-summary dd { margin:0; text-align:right; overflow-wrap:anywhere; }
+.measurement-advanced > summary { cursor:pointer; padding:.6rem 0; }
+.measurement-advanced .studio-sheet-fields { margin-top:.5rem; }
+.studio-draft-submission { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px 24px; font-size:13px; }
+.wiring-setting-attention{padding:10px;margin:8px 0;border:2px solid var(--orange,#d65229);border-radius:8px;background:rgba(230,105,50,.08)}
+.wiring-setting-attention>strong{display:block;margin-bottom:6px;font-size:.82rem;color:var(--orange,#d65229)}
+.wiring-fix-guide{padding:10px 12px;border-left:3px solid var(--orange,#d65229);background:rgba(230,105,50,.08);line-height:1.5}
+.room-measurement-summary{padding:14px;background:var(--surface-raised,#f7f4ed);border:1px solid var(--paper-line,#ddd4c4);border-radius:10px;margin:12px 0}.room-measurement-summary h4{margin:0 0 10px;font-size:14px}.room-measurement-summary dl{display:grid;gap:10px;margin:0}.room-measurement-summary dl>div{display:flex;justify-content:space-between;gap:16px;font-size:13px}.room-measurement-summary dt{color:var(--ink-soft,#596a74)}.room-measurement-summary dd{margin:0;font-weight:600;text-align:right}.room-measurement-summary p{font-size:12px;line-height:1.5}
+
+.workspace-product-form{display:grid;gap:14px}.workspace-product-form p{margin:6px 0;font-size:13px}.workspace-product-form select{width:100%}.workspace-product-price{font-weight:700}.workspace-product-panel .bom-manual-settings{margin:12px 0}.workspace-product-panel .studio-material-binding{grid-template-columns:1fr}.workspace-product-panel .account-actions{display:flex;flex-wrap:wrap;gap:8px}
+.workspace-guide { margin: 12px 0; font-size: 12px; line-height: 1.6; }
+.workspace-guide > summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.workspace-guide dl { display: grid; gap: 12px; margin: 10px 0; }
+.workspace-guide dt { font-weight: 700; }
+.workspace-guide dd { margin: 4px 0 0; color: var(--ink-soft); }
+.workspace-product-form [data-workspace-field]:focus-within { outline: 2px solid var(--orange); outline-offset: 5px; border-radius: 4px; }
+.workspace-field-guidance { padding-left: 10px; border-left: 3px solid var(--orange); line-height: 1.6; }

@@ -1,20 +1,19 @@
 import { useState } from 'react'
-import { Box, Calculator, Layers3, LayoutDashboard, LogOut, Menu, ScanLine, Settings, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, Users } from 'lucide-react'
 import vedLogo from '../assets/ved-logo.png'
-import { getEstimateHref, getLayoutHref, getProjectHref, getViewer3dHref } from '../routes/projectRoutes.js'
+import { getProjectHref } from '../routes/projectRoutes.js'
 import { Button } from './ui/button.jsx'
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from './ui/sheet.jsx'
 
 function Navigation({ projectRoute, session, onNavigate }) {
-  const { projectId, projectFloorId, view } = projectRoute
+  const { projectId, view } = projectRoute
   const links = [
-    { label: 'Projects', icon: LayoutDashboard, href: '#/app', active: view === 'dashboard' || view === 'project' },
-    ...(projectId ? [
-      { label: '2D editor', icon: Layers3, href: projectFloorId ? getLayoutHref(projectId, projectFloorId) : null, active: view === 'layout' },
-      { label: '3D viewer', icon: Box, href: projectFloorId ? getViewer3dHref(projectId, projectFloorId) : null, active: view === 'viewer-3d' },
-      { label: 'Cost estimation', icon: Calculator, href: getEstimateHref(projectId), active: view === 'estimates' },
+    { label: session.user.role==='ADMIN' ? 'Administration':session.user.role === 'CLIENT' ? 'My projects':'Dashboard', icon: LayoutDashboard, href: '#/app', active: view === 'dashboard' && !projectRoute.section },
+    ...(session.user.role === 'DESIGNER' ? [
+      {label:'Clients',icon:Users,href:'#/app/clients',active:projectRoute.section === 'clients' || projectRoute.section === 'projects'},
     ] : []),
-    { label: 'User settings', icon: Settings, href: '#/app/settings', active: view === 'settings' },
+    ...(session.user.role === 'ADMIN' ? [{label:'Clients',icon:Users,href:'#/app/clients',active:view === 'dashboard' && Boolean(projectRoute.section)}] : []),
+    { label: session.user.role==='ADMIN' ? 'Admin settings':'User settings', icon: Settings, href: '#/app/settings', active: view === 'settings' },
   ]
   return <>
     <a className="studio-brand" href="#/app" onClick={onNavigate} aria-label="VED project dashboard">
@@ -22,14 +21,13 @@ function Navigation({ projectRoute, session, onNavigate }) {
     </a>
     <nav className="studio-navigation" aria-label="Workspace navigation">
       <p className="mono">WORKSPACE</p>
-      {projectId && <a className="studio-project-context" href={getProjectHref(projectId)} onClick={onNavigate}>Project {projectId}<small>Floors &amp; plans</small></a>}
+      {session.user.role==='CLIENT' ? <span className="studio-project-context">Client portal<small>Your authorized projects</small></span> : projectId ? <a className="studio-project-context" href={getProjectHref(projectId)} onClick={onNavigate}>Project {projectId}<small>Floors &amp; plans</small></a>
+        : <span className="studio-project-context studio-nav-unavailable">No project selected<small>Open a project to continue</small></span>}
       {links.map(({ label, icon: Icon, href, active }) => href
         ? <a key={label} href={href} onClick={onNavigate} aria-current={active ? 'page' : undefined}><Icon aria-hidden="true" /><span>{label}</span></a>
-        : <span key={label} className="studio-nav-unavailable"><Icon aria-hidden="true" /><span>{label}<small>Choose a floor in the project</small></span></span>)}
-      {['detection-review', 'demo-interpretation'].includes(view) && <span className="studio-nav-context"><ScanLine aria-hidden="true" />Plan editor</span>}
-      {session.user.role === 'ADMIN' && <><p className="mono">ADMINISTRATION</p><a href="#/app" onClick={onNavigate}><ShieldCheck aria-hidden="true" />Legend administration</a></>}
+        : <button key={label} type="button" className="studio-nav-unavailable" disabled title="Open a project to access cost estimation"><Icon aria-hidden="true" /><span>{label}</span></button>)}
     </nav>
-    <div className="studio-boundary"><ShieldCheck aria-hidden="true" /><div><strong>Local planning workspace</strong><p>Editable planning draft. Originals preserved.</p></div></div>
+    <div className="studio-boundary"><ShieldCheck aria-hidden="true" /><div><strong>{session.user.role==='CLIENT'?'Read-only client view':'Local planning workspace'}</strong><p>{session.user.role==='CLIENT'?'Approved layouts and published estimates.':'Editable planning draft. Originals preserved.'}</p></div></div>
     <div className="studio-profile"><span className="studio-avatar" aria-hidden="true">{(session.user.display_name || 'VED').slice(0, 2).toUpperCase()}</span><div><strong>{session.user.display_name || session.user.email || 'VED user'}</strong><small className="mono">{session.user.role}</small></div></div>
     <Button variant="outline" className="studio-sign-out" disabled={session.isSigningOut} onClick={session.signOut}><LogOut aria-hidden="true" />{session.isSigningOut ? 'Signing out…' : 'Sign out'}</Button>
   </>

@@ -1,0 +1,87 @@
+{
+  "parts": 4,
+  "tables": 33,
+  "columns": 303,
+  "foreign_keys": 60,
+  "direct_within_part": 32,
+  "continuation_relationships": 28,
+  "line_crossings": 0,
+  "line_table_collisions": 0,
+  "line_connector_collisions": 0,
+  "text_fit": "PASS",
+  "xml_parse": "PASS",
+  "complete_schema_coverage": "PASS",
+  "canvas_area_reduction_percent": 52.7,
+  "diagrams_net_editor_import": "NOT TESTED",
+  "parts_directory": {
+    "A": {
+      "title": "Accounts and projects",
+      "tables": [
+        "roles",
+        "users",
+        "dataset_approver_assignments",
+        "projects",
+        "project_floors",
+        "floor_elevation_settings",
+        "floor_plans",
+        "floor_plan_sources",
+        "floor_plan_pages",
+        "page_scale_settings"
+      ],
+      "size": [
+        1520,
+        1240
+      ]
+    },
+    "B": {
+      "title": "Processing and AI",
+      "tables": [
+        "processing_jobs",
+        "processing_job_attempts",
+        "processing_job_cancellations",
+        "processing_artifacts",
+        "interpretation_page_outcomes",
+        "floor_plan_interpretation_reviews",
+        "floor_plan_interpretation_runs",
+        "interpretation_releases"
+      ],
+      "size": [
+        1520,
+        1472
+      ]
+    },
+    "C": {
+      "title": "Symbols and layouts",
+      "tables": [
+        "symbol_legends",
+        "symbol_legend_history",
+        "manual_symbols",
+        "detected_symbols",
+        "detection_reviews",
+        "detection_class_corrections",
+        "walls",
+        "layout_versions",
+        "layout_save_requests"
+      ],
+      "size": [
+        1520,
+        1576
+      ]
+    },
+    "D": {
+      "title": "Routing and estimates",
+      "tables": [
+        "materials",
+        "material_prices",
+        "estimates",
+        "estimate_items",
+        "generated_route_versions",
+        "estimate_sources"
+      ],
+      "size": [
+        1520,
+        936
+      ]
+    }
+  }
+}

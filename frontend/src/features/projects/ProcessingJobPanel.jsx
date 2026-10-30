@@ -1,4 +1,5 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 
 import {
   cancelProcessingJob,
@@ -8,6 +9,7 @@ import {
 } from '../../api/processingJobs.js'
 import { getDemoInterpretationHref, getDetectionReviewHref } from '../../routes/projectRoutes.js'
 import { SourceConnectivityNotice } from './SourceConnectivityNotice.jsx'
+import {workflowRequest} from '../../api/clientWorkflow.js'
 
 
 export const PROCESSING_POLL_INTERVAL_MS = 2000
@@ -31,7 +33,7 @@ function startFailureMessage(error) {
   if (error instanceof ProcessingJobApiError) {
     if (error.status === 403) return 'You are not authorized to start floor-plan processing.'
     if (error.status === 404) return 'This floor plan is no longer available.'
-    if (error.status === 422) return 'This floor plan cannot be processed.'
+    if (error.status === 422) return error.message || 'Choose this plan’s layout type in Options before analysis.'
     if (error.status === 409) return 'An active processing job could not be resumed. Try again manually.'
   }
   return 'Floor-plan processing is temporarily unavailable.'
@@ -45,7 +47,10 @@ export function ProcessingJobPanel({
   initialJob = null,
   canStart = true,
   compact = false,
+  children,
+  optionsContent,
 }) {
+  const optionsId = useId()
   const [viewState, setViewState] = useState(initialJob?.status || 'ready')
   const [job, setJob] = useState(initialJob)
   const [message, setMessage] = useState(null)
@@ -173,6 +178,8 @@ export function ProcessingJobPanel({
       if (pageNumber !== '') {
         options.pageNumber = Number(pageNumber)
       }
+      const layout=await workflowRequest(`/projects/${projectId}/floor-plans/${floorPlanId}/layout-type`,{signal:controller.signal})
+      if(!layout.layout_type){setMessage('Choose Lighting, Power or Data in this plan’s Options before analysis.');setViewState(job?.status || 'ready');const menu=document.getElementById(optionsId);menu?.showPopover?.();menu?.querySelector('.plan-layout-settings input')?.focus();return}
       const startedJob = await startFloorPlanProcessing(floorPlanId, options)
       if (mountedRef.current && startControllerRef.current === controller) {
         adoptJob(startedJob.job_id)
@@ -259,6 +266,50 @@ export function ProcessingJobPanel({
 
   const progress = job?.progress ?? 0
   const isActive = viewState === 'queued' || viewState === 'processing'
+
+  if (compact) {
+    const labels = { ready: 'Not analyzed', starting: 'Starting', queued: 'Queued', processing: 'Processing',
+      completed: 'Analysis finished', failed: 'Failed', cancelled: 'Cancelled', monitor_error: 'Monitoring paused',
+      unavailable: 'Unavailable', start_error: 'Not started' }
+    const failure = viewState === 'failed' ? job?.error_message || 'Processing failed. Try again.'
+      : ['monitor_error', 'unavailable', 'start_error'].includes(viewState) ? message : null
+    return <>
+      <td className="plan-status-cell">
+        <span className="plan-status-badge" data-state={viewState} role="status">{labels[viewState] || viewState}</span>
+        <SourceConnectivityNotice summary={job?.source_connectivity} />
+        {isActive && <div className="plan-row-progress"><progress value={progress} max="100" aria-label={`Processing progress for ${originalFilename}`} /><span>{progress}%</span></div>}
+      </td>
+      <td className="plan-actions-cell">
+        <section aria-label={`Processing controls for ${originalFilename}`}>
+          <div className="plan-row-actions">
+            {viewState === 'completed' && <a className="btn plan-row-primary" href={getDemoInterpretationHref(projectId, projectFloorId, floorPlanId, job.job_id)}>Open editor</a>}
+            {canStart && ['ready', 'failed', 'cancelled', 'start_error'].includes(viewState) && <button className="btn plan-row-primary" type="button" onClick={startProcessing}>
+              {viewState === 'failed' || viewState === 'start_error' ? 'Retry analysis' : 'Analyze'}
+            </button>}
+            {viewState === 'starting' && <button className="btn plan-row-primary" type="button" disabled>Starting…</button>}
+            {isActive && canStart && <button className="btn btn-outline-dark" type="button" disabled={cancelling} onClick={requestCancellation}>{cancelling ? 'Cancelling…' : 'Cancel'}</button>}
+            {viewState === 'monitor_error' && <button className="btn btn-outline-dark" type="button" onClick={retryStatus}>Retry status</button>}
+            <button type="button" className="btn plan-row-options-trigger" popoverTarget={optionsId} style={{anchorName:`--${optionsId.replaceAll(':','')}`}} aria-label={`Options for ${originalFilename}`}>Options<ChevronDown size={14} aria-hidden="true" /></button>
+              <div id={optionsId} popover="auto" className="plan-row-options-body" style={{positionAnchor:`--${optionsId.replaceAll(':','')}`}} aria-label={`Analysis options for ${originalFilename}`}>
+                <header className="plan-options-heading"><strong>Floor-plan options</strong><button type="button" className="btn" popoverTarget={optionsId} popoverTargetAction="hide" aria-label="Close floor-plan options">×</button></header>
+                {job && <small className="mono">Job #{job.job_id}</small>}
+                {canStart && import.meta.env.DEV && !isActive && viewState !== 'starting' && <label>Page (blank = all)
+                  <input type="number" min="1" max="50" step="1" value={pageNumber} onChange={(event) => setPageNumber(event.target.value)} />
+                </label>}
+                {viewState === 'completed' && <>
+                  {canStart && <button className="btn btn-outline-dark" type="button" onClick={startProcessing}>Re-analyze</button>}
+                  <a className="plan-row-review-link" href={getDetectionReviewHref(projectId, floorPlanId, job.job_id)}>Review detections</a>
+                </>}
+                {optionsContent}
+                {children && <details className="plan-options-metadata"><summary>File details</summary>{children}</details>}
+              </div>
+          </div>
+          {failure && <p className="plan-row-error" role="alert">{failure}</p>}
+          {!failure && message && <p className="plan-row-notice" role="status">{message}</p>}
+        </section>
+      </td>
+    </>
+  }
 
   return (
     <section

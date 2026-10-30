@@ -11,7 +11,7 @@ from app.ai.floor_plan_interpretation.candidate import (
     FloorPlanInterpretationPayload, ObservedRouteConnection, PixelPoint, CandidateWarning,
 )
 
-EVIDENCE_VERSION = 'source-device-ports-boundary-continuation-v6'
+EVIDENCE_VERSION = 'source-device-ports-boundary-continuation-v7'
 
 
 def fixture_boundary_ports(payload, ink):
@@ -198,7 +198,9 @@ def with_device_contact_evidence(payload, image_rgb):
                     proposals.append(dict(route=route,symbol=symbol,edge=edge,anchor=anchor,kind=kind,
                         distance=float(np.linalg.norm(anchor-center)),phase=phase))
     # Overlapping detector classes/ports are unresolved, not nearest-wins.
-    connections=[];seen=set()
+    connections=[c.model_copy(update={'id':f'connection-{i+1:04d}'}) for i,c in enumerate(c for c in payload.observed_routes.connections if c.route_node_id)]
+    nodes={c.to_ref:c.route_node_id for c in connections}
+    seen={(c.from_ref.split(':',1)[1],c.to_ref.split(':',1)[1]) for c in connections}
     preserved=[c for c in payload.observed_routes.connections if c.evidence_kind is None]
     for proposal in sorted(proposals,key=lambda p:(p['route'].id,p['edge'],p['distance'],p['symbol'].id)):
         if len(connections)>=2048-len(preserved):break
@@ -222,6 +224,15 @@ def with_device_contact_evidence(payload, image_rgb):
         if contact.evidence_kind is None and (contact.from_ref,contact.to_ref) not in known:
             connections.append(contact.model_copy(update={'id':f'connection-{len(connections)+1:04d}'}))
             known.add((contact.from_ref,contact.to_ref))
+    # These are physical route nodes on ordinary power outlet symbols, not
+    # inferred hot/neutral/earth terminals. Multiple independently supported
+    # approaches can continue through the same depicted box. Split receptacles
+    # and independently terminated data/voice ports remain distinct.
+    for symbol in symbols:
+        label=symbol.training_legend.name if symbol.training_legend else symbol.observed_label or ''
+        if not re.search(r'outlet|receptacle',label,re.I) or re.search(r'data|telephone|voice|computer|split|switched',label,re.I):continue
+        ports={c.from_ref for c in connections if c.to_ref==f'symbol:{symbol.id}' and c.evidence_kind and c.ambiguity=='unambiguous'}
+        if len(ports)>1:nodes[f'symbol:{symbol.id}']=f'source-node.{symbol.id}'
     routes=payload.observed_routes.model_copy(update={'connections':tuple(connections)})
     warnings=tuple(w for w in payload.warnings if w.code not in (
         'ambiguous_device_contacts','dash_phase_device_contact','source_supported_terminal_lead',
@@ -237,4 +248,5 @@ def with_device_contact_evidence(payload, image_rgb):
     if any(c.ambiguity=='ambiguous' for c in connections) and len(warnings)<256:
         warnings=warnings+(CandidateWarning(code='ambiguous_device_contacts',severity='warning',
             message='Overlapping device ports have source contact evidence but no unique association; inspect the device connections.'),)
+    routes=routes.model_copy(update={'connections':tuple(c.model_copy(update={'route_node_id':nodes.get(c.to_ref)}) if c.to_ref in nodes else c for c in routes.connections)})
     return FloorPlanInterpretationPayload.model_validate(payload.model_copy(update={'observed_routes':routes,'warnings':warnings}).model_dump())

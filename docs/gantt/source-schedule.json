@@ -1,0 +1,514 @@
+{
+  "sheet": "Thesis Gantt",
+  "groups": [
+    {
+      "row": 4,
+      "raw_name": "PHASE 1 \u00b7 Research and Design (Jan\u2013May 2026)",
+      "label": "PHASE 1 \u00b7 Research and Design",
+      "schedule": {
+        "0": "Phase schedule",
+        "1": "Phase schedule",
+        "2": "Phase schedule",
+        "3": "Phase schedule",
+        "4": "Phase schedule"
+      },
+      "tasks": [
+        {
+          "row": 5,
+          "raw_name": "Initial Research and Literature Review",
+          "name": "Initial Research and Literature Review",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "0": "Completed",
+            "1": "Completed"
+          }
+        },
+        {
+          "row": 6,
+          "raw_name": "Consultation with Research Advisers",
+          "name": "Consultation with Research Advisers",
+          "status": "Completed",
+          "raw_place": "Cavite State University \u2013 Bacoor City Campus, City of Bacoor, Cavite",
+          "place": "Cavite State University - Bacoor City Campus, City of Bacoor, Cavite",
+          "schedule": {
+            "0": "Completed",
+            "1": "Completed",
+            "2": "Completed"
+          }
+        },
+        {
+          "row": 7,
+          "raw_name": "Empathize Stage (Design Thinking)",
+          "name": "Empathize Stage (Design Thinking)",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "0": "Completed",
+            "1": "Completed"
+          }
+        },
+        {
+          "row": 8,
+          "raw_name": "Define Stage / Problem Identification",
+          "name": "Define Stage / Problem Identification",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "2": "Completed"
+          }
+        },
+        {
+          "row": 9,
+          "raw_name": "Technical Feasibility and System Requirements",
+          "name": "Technical Feasibility and System Requirements",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "2": "Completed",
+            "3": "Completed"
+          }
+        },
+        {
+          "row": 10,
+          "raw_name": "Data Gathering and Process Observation",
+          "name": "Data Gathering and Process Observation",
+          "status": "Completed",
+          "raw_place": "VED Electrical Services",
+          "place": "VED Electrical Services",
+          "schedule": {
+            "2": "Completed",
+            "3": "Completed"
+          }
+        },
+        {
+          "row": 11,
+          "raw_name": "Analysis of Gathered Data / Problem Analysis",
+          "name": "Analysis of Gathered Data / Problem Analysis",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "2": "Completed",
+            "3": "Completed"
+          }
+        },
+        {
+          "row": 12,
+          "raw_name": "System Architecture and Documentation",
+          "name": "System Architecture and Documentation",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "2": "Completed",
+            "3": "Completed"
+          }
+        },
+        {
+          "row": 13,
+          "raw_name": "Wireframe Model / UI Prototyping",
+          "name": "Wireframe Model / UI Prototyping",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "4": "Completed"
+          }
+        }
+      ]
+    },
+    {
+      "row": 14,
+      "raw_name": "PHASE 2 \u00b7 System Development (Aug\u2013Sep 2026)",
+      "label": "PHASE 2 \u00b7 System Development",
+      "schedule": {
+        "7": "Phase schedule",
+        "8": "Phase schedule",
+        "9": "Phase schedule"
+      },
+      "tasks": [
+        {
+          "row": 15,
+          "raw_name": "System Foundation and Database",
+          "name": "System Foundation and Database",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "7": "Completed"
+          }
+        },
+        {
+          "row": 16,
+          "raw_name": "Authentication and Project Management",
+          "name": "Authentication and Project Management",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "7": "Completed"
+          }
+        },
+        {
+          "row": 17,
+          "raw_name": "Deployment / Final System Preparation (initial)",
+          "name": "Deployment / Final System Preparation (initial)",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "7": "Completed"
+          }
+        },
+        {
+          "row": 18,
+          "raw_name": "Floor Plan Upload and Processing Framework",
+          "name": "Floor Plan Upload and Processing Framework",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "7": "Completed"
+          }
+        },
+        {
+          "row": 19,
+          "raw_name": "AI / Computer Vision Pipeline",
+          "name": "AI / Computer Vision Pipeline",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "7": "Completed",
+            "8": "Completed"
+          }
+        },
+        {
+          "row": 20,
+          "raw_name": "2D Geometry and Layout Editor",
+          "name": "2D Geometry and Layout Editor",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "7": "Completed",
+            "8": "Completed"
+          }
+        },
+        {
+          "row": 21,
+          "raw_name": "Detection Review and Symbol Correction",
+          "name": "Detection Review and Symbol Correction",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "7": "Completed"
+          }
+        },
+        {
+          "row": 22,
+          "raw_name": "3D Visualization and 2D\u20133D Synchronization",
+          "name": "3D Visualization and 2D-3D Synchronization",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "8": "Completed"
+          }
+        },
+        {
+          "row": 23,
+          "raw_name": "VLM Interpretation, Review and Validation",
+          "name": "VLM Interpretation, Review and Validation",
+          "status": "Planning",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "8": "Planning",
+            "9": "Planning"
+          }
+        },
+        {
+          "row": 24,
+          "raw_name": "Electrical Routing",
+          "name": "Electrical Routing",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "8": "Completed"
+          }
+        },
+        {
+          "row": 25,
+          "raw_name": "Materials and Estimation Data Foundation",
+          "name": "Materials and Estimation Data Foundation",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "8": "Completed"
+          }
+        },
+        {
+          "row": 26,
+          "raw_name": "Estimation Snapshots / Planning",
+          "name": "Estimation Snapshots / Planning",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "8": "Completed"
+          }
+        }
+      ]
+    },
+    {
+      "row": 27,
+      "raw_name": "PHASE 3 \u00b7 Testing and Delivery (Sep\u2013Oct 2026)",
+      "label": "PHASE 3 \u00b7 Testing and Delivery",
+      "schedule": {
+        "8": "Phase schedule",
+        "9": "Phase schedule"
+      },
+      "tasks": [
+        {
+          "row": 28,
+          "raw_name": "Testing and Verification",
+          "name": "Testing and Verification",
+          "status": "Planning",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "8": "Planning",
+            "9": "Planning"
+          }
+        },
+        {
+          "row": 29,
+          "raw_name": "Deployment / Final System Preparation (final)",
+          "name": "Deployment / Final System Preparation (final)",
+          "status": "Completed",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "8": "Completed"
+          }
+        },
+        {
+          "row": 30,
+          "raw_name": "Report Generation",
+          "name": "Report Generation",
+          "status": "Planning",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "9": "Planning"
+          }
+        }
+      ]
+    },
+    {
+      "row": 31,
+      "raw_name": "DOCUMENTATION \u00b7 Diagrams, Test Cases and Checklists",
+      "label": "DOCUMENTATION \u00b7 Diagrams, Test Cases and Checklists",
+      "schedule": {
+        "0": "Phase schedule",
+        "1": "Phase schedule",
+        "2": "Phase schedule",
+        "3": "Phase schedule",
+        "4": "Phase schedule",
+        "5": "Phase schedule",
+        "6": "Phase schedule",
+        "7": "Phase schedule",
+        "8": "Phase schedule",
+        "9": "Phase schedule"
+      },
+      "tasks": [
+        {
+          "row": 32,
+          "raw_name": "Gantt Chart",
+          "name": "Gantt Chart",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "0": "Completed",
+            "1": "Completed"
+          }
+        },
+        {
+          "row": 33,
+          "raw_name": "Test Cases",
+          "name": "Test Cases",
+          "status": "Planning",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "8": "Planning",
+            "9": "Planning"
+          }
+        },
+        {
+          "row": 34,
+          "raw_name": "Functional Testing",
+          "name": "Functional Testing",
+          "status": "Planning",
+          "raw_place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "place": "B44 L22 Barium St., San Nicolas 3, Bacoor, Cavite",
+          "schedule": {
+            "9": "Planning"
+          }
+        },
+        {
+          "row": 35,
+          "raw_name": "System Checklists",
+          "name": "System Checklists",
+          "status": "Planning",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "9": "Planning"
+          }
+        },
+        {
+          "row": 36,
+          "raw_name": "Sequence Diagram",
+          "name": "Sequence Diagram",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "3": "Completed",
+            "4": "Completed"
+          }
+        },
+        {
+          "row": 37,
+          "raw_name": "Activity Diagram",
+          "name": "Activity Diagram",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "3": "Completed",
+            "4": "Completed"
+          }
+        },
+        {
+          "row": 38,
+          "raw_name": "Fishbone Diagram",
+          "name": "Fishbone Diagram",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "2": "Completed",
+            "3": "Completed"
+          }
+        },
+        {
+          "row": 39,
+          "raw_name": "Use Case Diagram",
+          "name": "Use Case Diagram",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "3": "Completed",
+            "4": "Completed"
+          }
+        },
+        {
+          "row": 40,
+          "raw_name": "Entity Relationship Diagram",
+          "name": "Entity Relationship Diagram",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "3": "Completed",
+            "4": "Completed"
+          }
+        },
+        {
+          "row": 41,
+          "raw_name": "Context Diagram",
+          "name": "Context Diagram",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "3": "Completed",
+            "4": "Completed"
+          }
+        },
+        {
+          "row": 42,
+          "raw_name": "Data Flow Diagram",
+          "name": "Data Flow Diagram",
+          "status": "Completed",
+          "raw_place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "place": "Villa Esperanza, Molino 2, Bacoor, Cavite",
+          "schedule": {
+            "3": "Completed",
+            "4": "Completed"
+          }
+        }
+      ]
+    }
+  ],
+  "panels": [
+    {
+      "title": "Gantt Chart - 2026 (January - June)",
+      "task_rows": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        32,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42
+      ]
+    },
+    {
+      "title": "Gantt Chart - 2026 (July - October)",
+      "task_rows": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        28,
+        29,
+        30,
+        33,
+        34,
+        35
+      ]
+    }
+  ]
+}

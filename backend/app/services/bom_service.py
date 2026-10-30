@@ -43,7 +43,9 @@ def draft_wiring_types(session, project_id):
 
 def reviewed_bom(session, user, project_id, *, floor_plan_id=None, processing_job_id=None,
                  conduit_material_id=None, wire_material_id=None, paper_size=None,
-                 custom_width_mm=None, custom_height_mm=None, wire_meters_per_unit=None, wire_price_per_meter=None):
+                 custom_width_mm=None, custom_height_mm=None, wire_meters_per_unit=None, wire_price_per_meter=None,
+                 conduit_price_per_meter=None, scale_denominator=None,
+                 draft_preview=None, device_materials=None, purchase_pricing=None):
     get_accessible_project(session, current_user=user, project_id=project_id)
     if processing_job_id is not None and floor_plan_id is None:
         raise ValueError('A plan is required for a job-scoped BOM.')
@@ -58,6 +60,9 @@ def reviewed_bom(session, user, project_id, *, floor_plan_id=None, processing_jo
         FloorPlanInterpretationRun.floor_plan_id == floor_plan_id,
         FloorPlanInterpretationRun.processing_job_id == processing_job_id).limit(1)) is None:
         raise ProjectNotFoundError()
+    if draft_preview is not None:
+        from app.services.draft_bom_service import validate_preview
+        validate_preview(session, user, floor_plan_id, processing_job_id, draft_preview)
     components, layouts, missing = [], [], []
     for floor in floor_ids(session, project_id):
         try:
@@ -83,7 +88,9 @@ def reviewed_bom(session, user, project_id, *, floor_plan_id=None, processing_jo
         floor_plan_id=floor_plan_id, processing_job_id=processing_job_id,
         conduit_material_id=conduit_material_id, wire_material_id=wire_material_id, paper_size=paper_size,
         custom_width_mm=custom_width_mm, custom_height_mm=custom_height_mm,
-        wire_meters_per_unit=wire_meters_per_unit, wire_price_per_meter=wire_price_per_meter)
+        wire_meters_per_unit=wire_meters_per_unit, wire_price_per_meter=wire_price_per_meter,
+        conduit_price_per_meter=conduit_price_per_meter, scale_denominator=scale_denominator,
+        draft_preview=draft_preview,device_materials=device_materials,purchase_pricing=purchase_pricing)
     from app.services.bom_display import grouped_rows, cost_summary
     planning['display_groups'] = grouped_rows(planning['items'])
     planning['cost_summary'] = cost_summary(planning['items'])
@@ -92,13 +99,24 @@ def reviewed_bom(session, user, project_id, *, floor_plan_id=None, processing_jo
         wiring_types=draft_wiring_types(session,project_id), planning=planning)
 
 
-def planning_csv(bom):
+def planning_csv(bom, *, xlsx=False):
+    if xlsx:
+        from app.services.bom_spreadsheet import supplier_xlsx
+        return supplier_xlsx(bom['planning']['items'], bom['planning']['priced_subtotals'])
+    from app.services.bom_export import supplier_csv
+    return supplier_csv(bom['planning']['items'], bom['planning']['priced_subtotals'])
+
+
+def diagnostic_csv(bom):
+    """Internal/on-demand diagnostics, deliberately not the normal BOM download."""
     stream = StringIO(newline='')
     writer = csv.writer(stream, quoting=csv.QUOTE_ALL)
     def safe(value):
         text = '' if value is None else str(value)
         return "'" + text if text.lstrip().startswith(('=', '+', '-', '@')) else text
     writer.writerow(['DRAFT BOM', 'Calculated at', bom['planning']['calculated_at']])
+    if bom['planning'].get('cost_summary',{}).get('estimated'):
+        writer.writerow(['ESTIMATED TOTAL','Includes assumed measurement inputs; not a calibrated or professionally verified estimate.'])
     for source in bom['planning'].get('sources', []):
         writer.writerow(['PAGE SCALE BASIS', source.get('floor_plan_id'), source.get('page_id'),
             source.get('scale_basis'), source.get('pixels_per_meter'), source.get('assumed_paper_size'),
@@ -135,15 +153,12 @@ def planning_csv(bom):
     return '\ufeff' + stream.getvalue()
 
 
-def estimate_csv(estimate):
-    stream = StringIO(newline='')
-    writer = csv.writer(stream, quoting=csv.QUOTE_ALL)
-    writer.writerow(['Estimate ID', 'Version', 'Material code', 'Material', 'Quantity', 'Unit', 'Captured unit price', 'Currency', 'Line total'])
-    def safe(value):
-        text = str(value)
-        return "'" + text if text.lstrip().startswith(('=', '+', '-', '@')) else text
-    for item in estimate['items']:
-        writer.writerow([estimate['id'], estimate['version_number'], safe(item.material_code), safe(item.material_name),
-            item.quantity, safe(item.unit), item.captured_unit_price, estimate['currency'], item.line_total])
-    writer.writerow(['', '', '', 'TOTAL', '', '', '', estimate['currency'], estimate['total']])
-    return '\ufeff' + stream.getvalue()
+def estimate_csv(estimate, *, xlsx=False):
+    from app.services.bom_export import supplier_csv
+    rows = [dict(kind='device', name=item.material_name, material_name=item.material_name,
+        material_code=item.material_code, quantity=item.quantity, unit=item.unit,
+        unit_price=item.captured_unit_price, line_total=item.line_total, currency=estimate['currency']) for item in estimate['items']]
+    if xlsx:
+        from app.services.bom_spreadsheet import supplier_xlsx
+        return supplier_xlsx(rows, {estimate['currency']: estimate['total']})
+    return supplier_csv(rows, {estimate['currency']: estimate['total']})

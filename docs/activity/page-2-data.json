@@ -1,0 +1,931 @@
+{
+  "nodes": {
+    "A": {
+      "label": "A",
+      "box": [
+        70,
+        90,
+        30,
+        30
+      ],
+      "kind": "ellipse"
+    },
+    "generate-layout": {
+      "label": "Generate editable 2D layout and 3D visualization",
+      "box": [
+        532,
+        155,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "edit": {
+      "label": "Open, edit and save 2D layout; view 3D",
+      "box": [
+        22,
+        240,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "save": {
+      "label": "Save layout revision to project record",
+      "box": [
+        532,
+        320,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "db-layout": {
+      "label": "layout revisions",
+      "box": [
+        875,
+        320,
+        120,
+        50
+      ],
+      "kind": "database"
+    },
+    "inspect": {
+      "label": "Inspect and approve project record",
+      "box": [
+        362,
+        400,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "configure": {
+      "label": "Configure routing requirements",
+      "box": [
+        22,
+        470,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "route": {
+      "label": "Generate wiring and conduit routes (A*) and lengths",
+      "box": [
+        702,
+        545,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "review-route": {
+      "label": "Review routes",
+      "box": [
+        22,
+        630,
+        125,
+        40
+      ],
+      "kind": "round"
+    },
+    "adjust": {
+      "label": "Adjustment needed?",
+      "box": [
+        15,
+        705,
+        140,
+        60
+      ],
+      "kind": "diamond"
+    },
+    "prices": {
+      "label": "Update material prices; monitor reports",
+      "box": [
+        362,
+        885,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "calculate": {
+      "label": "Quantity takeoff; retrieve prices; compute BOM and cost breakdown",
+      "box": [
+        702,
+        880,
+        125,
+        60
+      ],
+      "kind": "round"
+    },
+    "db-cost": {
+      "label": "material prices, estimates, reports",
+      "box": [
+        875,
+        885,
+        120,
+        50
+      ],
+      "kind": "database"
+    },
+    "report": {
+      "label": "Generate report",
+      "box": [
+        702,
+        980,
+        125,
+        40
+      ],
+      "kind": "round"
+    },
+    "export": {
+      "label": "Export report and cost estimate",
+      "box": [
+        22,
+        1050,
+        125,
+        50
+      ],
+      "kind": "round"
+    },
+    "B": {
+      "label": "B",
+      "box": [
+        240,
+        1040,
+        30,
+        30
+      ],
+      "kind": "ellipse"
+    },
+    "view": {
+      "label": "View approved 2D / 3D layout, cost breakdown and report",
+      "box": [
+        192,
+        1120,
+        125,
+        60
+      ],
+      "kind": "round"
+    },
+    "end": {
+      "label": "",
+      "box": [
+        240,
+        1225,
+        30,
+        30
+      ],
+      "kind": "ellipse"
+    }
+  },
+  "flows": [
+    {
+      "id": "confirmed",
+      "source": "A",
+      "target": "generate-layout",
+      "points": [
+        [
+          100,
+          105
+        ],
+        [
+          595,
+          105
+        ],
+        [
+          595,
+          155
+        ]
+      ],
+      "label": "confirmed results",
+      "dashed": false
+    },
+    {
+      "id": "layout-ready",
+      "source": "generate-layout",
+      "target": "edit",
+      "points": [
+        [
+          532,
+          180
+        ],
+        [
+          85,
+          180
+        ],
+        [
+          85,
+          240
+        ]
+      ],
+      "label": "layout ready",
+      "dashed": false
+    },
+    {
+      "id": "save-edge",
+      "source": "edit",
+      "target": "save",
+      "points": [
+        [
+          147,
+          265
+        ],
+        [
+          595,
+          265
+        ],
+        [
+          595,
+          320
+        ]
+      ],
+      "label": "save",
+      "dashed": false
+    },
+    {
+      "id": "store-layout",
+      "source": "save",
+      "target": "db-layout",
+      "points": [
+        [
+          657,
+          345
+        ],
+        [
+          875,
+          345
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "project-record",
+      "source": "save",
+      "target": "inspect",
+      "points": [
+        [
+          532,
+          345
+        ],
+        [
+          425,
+          345
+        ],
+        [
+          425,
+          400
+        ]
+      ],
+      "label": "project record",
+      "dashed": false
+    },
+    {
+      "id": "approved-layout",
+      "source": "inspect",
+      "target": "configure",
+      "points": [
+        [
+          425,
+          450
+        ],
+        [
+          425,
+          458
+        ],
+        [
+          85,
+          458
+        ],
+        [
+          85,
+          470
+        ]
+      ],
+      "label": "approved",
+      "dashed": false
+    },
+    {
+      "id": "route-config",
+      "source": "configure",
+      "target": "route",
+      "points": [
+        [
+          147,
+          495
+        ],
+        [
+          765,
+          495
+        ],
+        [
+          765,
+          545
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "routes-ready",
+      "source": "route",
+      "target": "review-route",
+      "points": [
+        [
+          702,
+          570
+        ],
+        [
+          85,
+          570
+        ],
+        [
+          85,
+          630
+        ]
+      ],
+      "label": "routes and lengths",
+      "dashed": false
+    },
+    {
+      "id": "review-decision",
+      "source": "review-route",
+      "target": "adjust",
+      "points": [
+        [
+          85,
+          670
+        ],
+        [
+          85,
+          705
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "adjust-yes",
+      "source": "adjust",
+      "target": "route",
+      "points": [
+        [
+          155,
+          735
+        ],
+        [
+          765,
+          735
+        ],
+        [
+          765,
+          595
+        ]
+      ],
+      "label": "Yes: adjust and recalculate",
+      "dashed": false
+    },
+    {
+      "id": "adjust-no",
+      "source": "adjust",
+      "target": "calculate",
+      "points": [
+        [
+          85,
+          765
+        ],
+        [
+          85,
+          815
+        ],
+        [
+          765,
+          815
+        ],
+        [
+          765,
+          880
+        ]
+      ],
+      "label": "No",
+      "dashed": false
+    },
+    {
+      "id": "unit-prices",
+      "source": "prices",
+      "target": "calculate",
+      "points": [
+        [
+          487,
+          910
+        ],
+        [
+          702,
+          910
+        ]
+      ],
+      "label": "unit prices",
+      "dashed": true
+    },
+    {
+      "id": "store-cost",
+      "source": "calculate",
+      "target": "db-cost",
+      "points": [
+        [
+          827,
+          910
+        ],
+        [
+          875,
+          910
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "generate-report",
+      "source": "calculate",
+      "target": "report",
+      "points": [
+        [
+          765,
+          940
+        ],
+        [
+          765,
+          980
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "report-ready",
+      "source": "report",
+      "target": "export",
+      "points": [
+        [
+          702,
+          1000
+        ],
+        [
+          85,
+          1000
+        ],
+        [
+          85,
+          1050
+        ]
+      ],
+      "label": "report ready",
+      "dashed": false
+    },
+    {
+      "id": "share",
+      "source": "export",
+      "target": "view",
+      "points": [
+        [
+          85,
+          1100
+        ],
+        [
+          85,
+          1150
+        ],
+        [
+          192,
+          1150
+        ]
+      ],
+      "label": "share approved outputs",
+      "dashed": false
+    },
+    {
+      "id": "client-b",
+      "source": "B",
+      "target": "view",
+      "points": [
+        [
+          255,
+          1070
+        ],
+        [
+          255,
+          1120
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    },
+    {
+      "id": "approved-records",
+      "source": "inspect",
+      "target": "view",
+      "points": [
+        [
+          362,
+          425
+        ],
+        [
+          330,
+          425
+        ],
+        [
+          330,
+          1150
+        ],
+        [
+          317,
+          1150
+        ]
+      ],
+      "label": "only approved records visible",
+      "dashed": true
+    },
+    {
+      "id": "finish",
+      "source": "view",
+      "target": "end",
+      "points": [
+        [
+          255,
+          1180
+        ],
+        [
+          255,
+          1225
+        ]
+      ],
+      "label": null,
+      "dashed": false
+    }
+  ],
+  "texts": [
+    {
+      "label": "Designer",
+      "font": 12,
+      "box": [
+        4,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "Client",
+      "font": 12,
+      "box": [
+        174,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "Administrator",
+      "font": 12,
+      "box": [
+        344,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "Project, Floorplan, and Visualization Module",
+      "font": 12,
+      "box": [
+        514,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "Electrical Routing, Cost Estimation, and Reporting Module",
+      "font": 12,
+      "box": [
+        684,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "MySQL Database",
+      "font": 12,
+      "box": [
+        854,
+        3,
+        162,
+        49
+      ]
+    },
+    {
+      "label": "A",
+      "font": 14,
+      "box": [
+        72,
+        92,
+        26,
+        26
+      ]
+    },
+    {
+      "label": "Generate editable 2D layout and 3D visualization",
+      "font": 12,
+      "box": [
+        536,
+        156,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Open, edit and save 2D layout; view 3D",
+      "font": 12,
+      "box": [
+        26,
+        241,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Save layout revision to project record",
+      "font": 12,
+      "box": [
+        536,
+        321,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "layout revisions",
+      "font": 10,
+      "box": [
+        879,
+        334,
+        112,
+        34
+      ]
+    },
+    {
+      "label": "Inspect and approve project record",
+      "font": 12,
+      "box": [
+        366,
+        401,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Configure routing requirements",
+      "font": 12,
+      "box": [
+        26,
+        471,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Generate wiring and conduit routes (A*) and lengths",
+      "font": 12,
+      "box": [
+        706,
+        546,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Review routes",
+      "font": 12,
+      "box": [
+        26,
+        631,
+        117,
+        38
+      ]
+    },
+    {
+      "label": "Adjustment needed?",
+      "font": 10,
+      "box": [
+        18,
+        727.0,
+        134,
+        16
+      ]
+    },
+    {
+      "label": "Update material prices; monitor reports",
+      "font": 12,
+      "box": [
+        366,
+        886,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "Quantity takeoff; retrieve prices; compute BOM and cost breakdown",
+      "font": 12,
+      "box": [
+        706,
+        881,
+        117,
+        58
+      ]
+    },
+    {
+      "label": "material prices, estimates, reports",
+      "font": 10,
+      "box": [
+        879,
+        899,
+        112,
+        34
+      ]
+    },
+    {
+      "label": "Generate report",
+      "font": 12,
+      "box": [
+        706,
+        981,
+        117,
+        38
+      ]
+    },
+    {
+      "label": "Export report and cost estimate",
+      "font": 12,
+      "box": [
+        26,
+        1051,
+        117,
+        48
+      ]
+    },
+    {
+      "label": "B",
+      "font": 14,
+      "box": [
+        242,
+        1042,
+        26,
+        26
+      ]
+    },
+    {
+      "label": "View approved 2D / 3D layout, cost breakdown and report",
+      "font": 12,
+      "box": [
+        196,
+        1121,
+        117,
+        58
+      ]
+    },
+    {
+      "label": "Client signed in (view-only)",
+      "font": 10,
+      "box": [
+        172,
+        1013,
+        166,
+        20
+      ]
+    },
+    {
+      "label": "confirmed results",
+      "font": 10,
+      "box": [
+        306.6666666666667,
+        99,
+        80.66666666666667,
+        12
+      ]
+    },
+    {
+      "label": "layout ready",
+      "font": 10,
+      "box": [
+        280.5,
+        174,
+        59.0,
+        12
+      ]
+    },
+    {
+      "label": "save",
+      "font": 10,
+      "box": [
+        359.3333333333333,
+        259,
+        25.333333333333332,
+        12
+      ]
+    },
+    {
+      "label": "project record",
+      "font": 10,
+      "box": [
+        444.1666666666667,
+        339,
+        65.66666666666666,
+        12
+      ]
+    },
+    {
+      "label": "approved",
+      "font": 10,
+      "box": [
+        231.83333333333334,
+        452,
+        46.333333333333336,
+        12
+      ]
+    },
+    {
+      "label": "routes and lengths",
+      "font": 10,
+      "box": [
+        356.5,
+        564,
+        87.0,
+        12
+      ]
+    },
+    {
+      "label": "Yes: adjust and recalculate",
+      "font": 10,
+      "box": [
+        382.5078125,
+        729,
+        124.984375,
+        12
+      ]
+    },
+    {
+      "label": "No",
+      "font": 10,
+      "box": [
+        416.5,
+        809,
+        17.0,
+        12
+      ]
+    },
+    {
+      "label": "unit prices",
+      "font": 10,
+      "box": [
+        575.0,
+        904,
+        50.0,
+        12
+      ]
+    },
+    {
+      "label": "report ready",
+      "font": 10,
+      "box": [
+        365.8333333333333,
+        994,
+        58.333333333333336,
+        12
+      ]
+    },
+    {
+      "label": "share approved outputs",
+      "font": 9,
+      "box": [
+        85.16666666666666,
+        1144,
+        99.66666666666667,
+        12
+      ]
+    },
+    {
+      "label": "only approved records visible",
+      "font": 10,
+      "box": [
+        262.5,
+        784,
+        135.0,
+        12
+      ]
+    }
+  ]
+}

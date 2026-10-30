@@ -1413,7 +1413,621 @@ stash preserved; overlapping editor files staged only from clean snapshot.
 NOT COMPLETE: full checkpoint4 includes product-selection inheritance and device
 orientation; arbitrary orientation is not yet in the current review schema, and
 catalog-backed item assignments are separate from the copied draft custom price.
+
+2026-10-21 follow-up (uncommitted, user-requested quick patch): restore Manual
+pricing & scale under the BOM: VED conduit/cable selectors, explicit PHP/metre
+overrides, A1–A5/custom dimensions and bottom 1:N input (default A1/100).
+Pass calculator settings through normal/live-preview/download calls; nominal
+lengths/costs recalculate, saved calibration still wins. New wiring paths use
+compatible current floor/project uploaded rates without requiring re-upload;
+explicit assignments and ambiguous/incompatible quotes are preserved/excluded.
+Manual calculator choices take precedence without changing stored client lists,
+geometry, catalog or historical estimates. PASS production build, scoped ESLint,
+Python syntax compilation and diff check. NOT TESTED runtime/browser/calculation
+regressions: user explicitly requested no new tests and will test personally.
+No tests written/run, no database/schema writes, no BDO processing resumed.
 Do not claim those features from this bounded fix. Measurement UI/save integration
 still depends on administrator table provisioning. Numeric-angle/width controls,
 full product inspector/legend work and dashboard remain authorized follow-ups,
 not started in this bounded change. BDO detection/training remains paused.
+
+### 2026-10-21 — Admin catalog and price review (uncommitted)
+
+Read-only live audit: 106 legend records (105 active), 562 materials. Exact
+description aliases produce 70 catalog display rows; source/model/database IDs
+are retained. Plural outlet/receptacle search now matches existing active power
+outlets. Simple labels hide source suffixes, not ratings or alias identities.
+No standalone generic Simplex power-outlet legend exists in the live catalog;
+do not repurpose a data faceplate or silently invent a trained class.
+
+Admin UI reuses Designer controls: searchable legend and current-price tables,
+individual price edits with optimistic revision checks and append-only history,
+workbook import behind a disclosure, and shared defaults in Settings. Shared
+defaults cover nominal paper/ratio, outlet/switch device-center AFF heights,
+display units, drawing magnets and initial visible layers. Personal preferences,
+explicit plan inputs/calibration and already-stored mounting heights win. A
+missing shared-default table yields read-only defaults, not a failed editor.
+
+Workbook outputs/admin-catalog-20261021/VED-PH-device-pricing-review.xlsx contains
+32 Philippine listings (29 single displayed prices, 2 variant ranges/from prices,
+1 unverified product price), 8 formula-linked data-outlet component assemblies,
+all 562 original material rows and 70 legend coverage rows. Pending review only:
+existing simplex/duplex faceplates belong to data cabling, not power. Assembly
+subtotals exclude unquoted back boxes, labor and testing; mechanical fit still
+needs confirmation. TikTok shipping is never recorded as a product price.
+Original price rows remain untouched; no researched quote was published live.
+
+PASS: 28 focused backend regressions; 23 frontend catalog/picker/settings/mounting
+checks; production build; scoped ESLint; Python import/syntax; workbook formula
+calculations, export/reimport and four rendered-sheet checks. Synthetic Admin
+API/browser checks: outlet search, price and defaults save/reload, stale 409s,
+Designer 403s. Disposable rows removed and verify-schema baseline restored.
+OpenAPI currently 71 operations / 39 modeled tables in this combined worktree.
+Live remains 37 tables: application_defaults and plan_measurement_settings need
+administrator provisioning through their existing SQLAlchemy models. No grants,
+schema changes or catalog writes were made on the live database. Final read-only
+comparison confirms live legend/material/price rows unchanged. Full suite and
+live Admin writes NOT TESTED; live defaults persistence BLOCKED by provisioning.
+Existing build-size and test-client deprecation warnings remain. Unrelated dirty
+files, originals and stash@{0} are preserved. No BDO processing was started.
+
+### 2026-10-22 — Supplied supplier listing revision (uncommitted)
+
+The follow-up workbook
+outputs/admin-catalog-20261021/VED-supplier-pricing-review-v2.xlsx incorporates
+all seven newly supplied sources: two ALANTEK/COMMSCOPE worksheets and fifteen
+PDF pages. It retains the previous review workbook and the 562-row catalog
+snapshot. The supplier listing has 602 distinct offers after exact full-offer
+deduplication, separate from the 32 online research listings. It is review data,
+not a publication of current approved company prices. Catalog-ID comparisons
+are reconciliation hints, not compatibility approvals or automatic live writes.
+
+The Excel provides 63 numeric prices and one TBC row; its 63 priced items already
+exist in the audited catalog. Its scope is structured cabling, not every power
+outlet or luminaire. Add COMMSCOPE plate/jack combinations (PHP388 simplex,
+PHP678 duplex), preserve the eight existing data-outlet combinations, and link
+all ten calculations to supplied-price inputs. Include both omitted Belden
+AP500412 loaded floor-data offers separately: CAT5e PHP2750 and CAT6 PHP2800,
+historical 2020 quotes despite a shared part number. Also include seventeen
+supplier-quoted fiber-panel sets and one explicitly calculated OM3 panel build
+(PHP11700 + 4 x PHP3000 = PHP23700), with source inconsistencies recorded.
+
+Do not infer missing prices, stock lengths or hub package conversion factors.
+Three offers lack discounted/selling prices and remain blank, not zero; retail
+SRPs are separate. HARD flexible conduit rates are per metre, not per roll.
+Panasonic pipe includes one coupling. Source dates remain literal: the fiber
+document heading says 2019 despite its 2020 filename, and Kairos page 6 contains
+visible price/date annotations revising that page to August 2025. Parse those
+annotations and inspect the rendered page rather than relying on text alone.
+
+PASS: all seven original SHA-256 values unchanged; source counts and critical
+rates checked; assembly formulas recalculated; saved workbook reimported with
+all 602 supplier rows compared; disposable input-change/recalculation/restoration
+check; zero formula errors before/after export; all five worksheet views and
+updated assembly/source-register ranges rendered and inspected. No application
+code or live data changed in this supplier-file follow-up. Native Excel UI and
+live supplier publication NOT TESTED. Shared-default provisioning remains
+BLOCKED as recorded above. This remains uncommitted in the existing mixed dirty
+worktree; originals, historical reviews and stash@{0} were not modified. BDO
+processing remains paused.
+
+### 2026-10-22 — Published component-based device assemblies (uncommitted)
+
+Following explicit authorization to use the XAMPP administrator connection and
+attribute this import to existing Admin 108, provision only the SQLAlchemy
+material_assemblies table. No other tables, grants, accounts or roles changed.
+Live schema is now 38 tables; the combined working tree models 40 tables and
+exposes 74 OpenAPI operations. application_defaults and
+plan_measurement_settings provisioning remain separate outstanding work.
+
+Publish 11 component products and 13 flat device recipes, with nine configurable
+device-type defaults. Material count is 562 to 586. All 562 original materials
+and their complete price histories compare unchanged; layout, estimate, review
+and legend counts are unchanged. The approved supplier workbook remains intact
+(SHA-256 96536b703449f0d3552b80be57f00db466572c83be0dc8944ef3b0c93910b8b7).
+Publication retry in a rolled-back transaction adds no new products or recipes.
+Generated ID gaps from rollback rehearsals are intentional, not renumbered.
+
+Panasonic defaults cover simplex/duplex power outlets, one/two/three-gang and
+three-way switches, and single/duplex CAT6 data outlets. Keep separate 10A/16A
+outlets, Belden CAT5e alternatives and analog/IP CCTV technologies. Hikvision
+IP dome is the configurable generic CCTV planning default, not detected camera
+technology. No brand/specification is inferred as source evidence. Explicit
+ratings, technologies, catalog choices and designer-uploaded prices take
+precedence. Disabled defaults do not silently select the only remaining recipe.
+
+Whole-unit examples (PHP): simplex 234.50; grounded duplex 10A 517.50; one-gang
+switch 193.50; two-gang 288.50; three-gang 383.50; three-way 484.50; single CAT6
+998.50; duplex CAT6 1898.50; IP dome camera hardware 3240.00. Price provenance
+and component quantities are stored in recipes/price snapshots, not official
+application constants. Box selection is an editable planning assumption, not
+proof of mechanical fit. CCTV shared recorder/storage/power and cabling are
+excluded rather than invented per camera. Shipping and labor are excluded.
+
+Research uses exact priced variants from Buildwell Depot, Electx, CCTV Pinoy
+and Bermor, plus the confirmed supplier utility-box/Belden prices. Shopee's
+PHP408 three-gang listing is comparison only because contents/ratings are not
+fully established. Lazada and TikTok selected product prices could not be
+verified; never substitute shipping or variant-range prices. Source URLs and
+limitations are retained in the publication input and recipe source references.
+
+Admin > Device assemblies owns parts/defaults; component-price updates append
+derived assembly price revisions. Direct total edits, nested recipes, duplicate
+components, inactive/unpriced parts, shipping lines and mixed currencies are
+rejected. Revision conflicts return 409. Estimates capture the recipe and leaf
+price revisions so future Admin edits cannot reprice historical snapshots.
+Normal BOM calculation applies valid client/item pricing before default fallback.
+Fallback brand/rating does not alter client-upload identity or constrain later
+client quotes. Reload inputs preserves still-available designer selections.
+
+PASS: 78 focused backend tests (assemblies, material prices/import, draft BOM,
+item prices and estimates); 22 frontend Admin/estimate tests; scoped ESLint;
+production build; scoped diff whitespace check. Normal saved-draft BOM API uses
+the default, then an automatic CSV upload overrides it and survives reload.
+Disposable verification rows were removed and table-count baseline restored.
+Browser checks on isolated synthetic data prove recipe save/reload, derived
+price changes after a part edit, and disabled direct-total editing. Screenshot:
+tmp/ux-checkpoints/admin-assemblies-verified.png (synthetic PHP198.50 price after
+the test edit, not the published PHP193.50 default). Test servers stopped.
+
+FAIL outside this checkpoint: broader pricing runs retain two assertions about
+partial measurement pricing versus measurement_incomplete, and automatic
+uploaded conduit rates on newly added paths. Both reproduce with assembly
+matching disabled and the pre-assembly fingerprint/source matching restored
+in memory. They were not silenced or represented as passing. Extended automatic
+pricing gate: 94 passed, one failed; separate project-pricing failure remains.
+Full suite and native Excel UI NOT TESTED. Build-size and test-client deprecation
+warnings remain. Work is uncommitted on codex/vlm-localization-experiment at
+a823ce5; unrelated mixed edits, originals, historical reviews and stash@{0}
+(bb78854e87833124a1725b51f0be6099a8ac0cfa) are preserved. BDO remains paused.
+This device-assembly checkpoint is complete; no detection or routing tuning
+was started as part of it.
+
+### 2026-10-22 — Designer approved-price access and device selectors (uncommitted)
+
+Fix the workspace-only catalog masking without changing stored client imports,
+estimate snapshot generation or historical estimates. A missing client material
+price falls back to the compatible active VED catalog price for draft calculation.
+The conduit/wire dropdowns always list approved catalog products, even when a
+partial client import exists. An explicit manual product choice uses the VED
+catalog rate; automatic client/item pricing remains preferred otherwise.
+
+Manual pricing & scale now has four responsive cards: Conduit, Wire/cable,
+Paper size, Devices. Devices lists each classified device group with its own
+compatible approved-product dropdown and an automatic client/default option.
+Server validation checks family, ratings, assembly type and active pricing;
+device component parts are not offered as whole-device assemblies. Draft
+choices travel with normal, live-preview and CSV BOM requests and change only
+the draft calculation, not saved geometry or prices. Removing a selected device
+group does not block the remaining canvas. Controls follow the existing design
+tokens, native accessible selects and compact 4/2/1-column layout.
+
+Metre-priced product selection fills an editable PHP/metre field. Wire rolls
+with known or entered purchase length are converted to per-metre rates. Unknown
+conduit stick length is not assumed to be three metres; request an explicit rate.
+
+PASS: production build, scoped ESLint, Python compilation and scoped whitespace
+check. Read-only project 10219 / plan 9378 / job 24293 calculation now exposes
+59 conduit and 18 cable choices despite the partial client BOM, versus 1 and 0
+before. It lists four device groups; approved Panasonic one/two-gang switch
+choices are available and explicit selection sets manual_catalog provenance and
+the backend-derived total. Neither fluorescent lamp group has a compatible
+approved catalog product; those remain unavailable rather than mismatched.
+The read-only calculation left no pending ORM writes. No test files were added
+and automated tests were not run, as requested. Browser verification NOT TESTED
+in this checkpoint (no running app server). Build-size warning remains. No
+schema/data writes, original-file changes, reviewed-geometry edits or BDO work.
+Unrelated dirty edits and stash@{0} remain intact; work is not committed.
+
+### 2026-10-22 — New lighting upload wall recovery (uncommitted)
+
+The user-authorized wall-only development scope uses LIGHTING.png, plan 9400,
+source plane 1341 x 703, frozen run 280 / job 24355. It is development data,
+not unseen evaluation. No filename, source digest or drawing coordinate enters
+the production wall detector. This is CV geometry work, not model training.
+
+Evidence-backed losses: the outline weight-ratio guard rejected legitimate
+1px/2px rasterized mates; the native-vote gate depended on whether a dashed
+datum sampled as two versus three bars; centre-obscured walls with independent
+side cavities and distributed transverse ties were still deferred to missing
+junction anchors. The bounded vote pool also discarded a short partition bank
+while keeping its longer mate. Qualified Hough fragments could retain slanted
+endpoints despite straight observed bands.
+
+Correct the one-pixel weight uncertainty, qualify the native gate using cavities
+and original ties, retain bounded long/narrow native mates of existing banks,
+and fit qualified bands while preserving their established widths. An initial
+experiment reserving every native run produced new compact fixture artifacts
+on the power regression and was discarded. Keep the narrower mate qualification.
+Version the evidence as cv-raster-tolerant-paired-wall-bands-v17 so old processing
+configuration/checkpoints cannot silently stand in for the changed extraction.
+Existing unrelated room/continuity edits in the dirty tree are preserved.
+
+PASS: the normal processing service created and completed job 24357 / run 282
+for this upload (68.3 seconds); the authorized latest-interpretation read returns
+the new 11-wall candidate, no inherited wall override, no pending writes. The
+old 13-wall result remains immutable history. All pre-existing candidate hashes,
+review/layout counts and source artifact bytes compare unchanged. No layout or
+dataset approval was created and no model weights were edited.
+
+The local diagnostic comparison uses assistant-created provisional perimeter
+traces ONLY for reporting, never inference. At 6 source-pixel tolerance, coverage
+is top 98.4 to 100%, bottom 0 to 100%, left 57.9 to 100%, right 24.5 to 100%.
+Duplicated top coverage is 48.8 to 0%. These are span checks on the targeted
+perimeter, not total-wall accuracy. The new top and upper-left partition are
+straight after band fitting. Wall-only overlay comparison:
+tmp/ux-checkpoints/wall-fix-comparison.png; frozen developer observations and
+publication integrity report remain under tmp/ux-checkpoints/wall-fix-*.
+
+PASS: source-level replay of the earlier power drawing retains its 13 hypotheses
+without the two new fixture false positives from the discarded experiment;
+endpoint fitting shifts some positions by up to a few pixels. Earlier lighting
+replay restores a missing left partition (11 to 12 candidates). These known
+drawings are regressions, not generalization accuracy. Python compilation and
+scoped whitespace checks pass. No tests were written or run, as requested.
+
+FAIL / remaining recognition limits: a short central hatched return remains
+missed, an existing compact/hatched false fragment remains on earlier lighting,
+and half/double-size diagnostic copies still show some small-glyph false wall
+fragments. Their perimeter recovery improves, but full resize equivalence is
+not achieved. These copies are robustness probes, not independent drawings.
+Browser/3D verification NOT TESTED in this checkpoint; saved canonical geometry
+was deliberately not overwritten. The normal upload path uses the new evidence
+version. Original uploads, historical reviews, unrelated edits and stash@{0}
+(bb78854e87833124a1725b51f0be6099a8ac0cfa) are preserved. BDO remains paused.
+Work remains uncommitted on codex/vlm-localization-experiment at a823ce5.
+
+### 2026-10-22 — interactive paper ruler, quick integration
+
+The workspace ruler tool now opens a temporary Konva ruler with draggable ends
+and whole-ruler movement. Length is explicitly centimetres ON PAPER. The
+designer aligns it to a known paper span, then applies the selected BOM paper
+size and 1:N denominator. The guide includes A1 59.4 x 84.1 cm, comparisons to
+a 30 cm school ruler, short/long-edge presets, A2-A5 and custom-paper support.
+This does not measure centimetres on the physical display or recover unknown
+cropping/print scaling automatically.
+
+Apply uses the existing authorized page-scale endpoint and append-only
+page_scale_settings table. Backend validation checks source bounds and derives
+pixels/metre from endpoint distance / (paper centimetres * denominator / 100).
+Structured PAPER_RULER_V1 provenance and endpoints remain in evidence_notes;
+no schema initialization, new table or original-image mutation is required.
+Paper-ruler inputs expose state=draft and scale_basis=paper_ruler_draft, never
+independent calibration or layout approval. Existing measured calibrations keep
+their previous behavior until deliberately replaced by an Apply action.
+
+2D measurements, draft 3D and backend takeoff share the same saved scale.
+Refreshing measurement context preserves unsaved canvas geometry and undo
+history. BOM source-pixel quantities say "Use ruler to measure" and, in the
+workspace, open the tool. Unit prices remain unchanged; measured quantities
+drive conduit/wire costs. Unknown drop/rise heights remain excluded.
+
+PASS: frontend production build, scoped ESLint, Python compilation and
+whitespace checks. A read-only runtime example round-tripped ruler provenance
+and both response models: 600 pixels / (30 paper cm at 1:100) = 20 px/m,
+state=draft, scale_approved=false, with no extra database columns. This check
+also found and corrected a shadowed math import before handoff.
+NOT TESTED: browser dragging, authenticated database save/reload and live BOM
+refresh. No tests were written or test suites run, as requested. Existing Vite
+large-bundle warning remains. Changes are uncommitted in the mixed working
+tree; unrelated work and stash@{0} are preserved. BDO remains paused.
+
+### 2026-10-22 — A1 visual canvas
+
+The 2D workspace now fits a white, bordered A1 sheet (841 x 594 mm,
+portrait for portrait sources) with the source image centred at approximately
+half its area. Extreme source aspect ratios are contained without stretching.
+The sheet, source image, overlays and ruler use the same pan/zoom transform;
+Fit sheet restores the initial framing. Canvas/UI guidance keeps this solely
+in the presentation layer: no source coordinates, calibration, BOM quantities,
+saved geometry or original bytes are changed by this visual sheet sizing.
+
+PASS: scoped ESLint and production frontend build. Existing large-chunk warning
+remains. NOT TESTED: live browser interaction or responsive visual inspection.
+No tests were written or run, as requested. Only the canvas component and this
+existing document changed in this follow-up; unrelated edits remain preserved.
+
+### 2026-10-23 — complete source sheets and independent display paper
+
+Supersedes the artificial half-area A1 framing above. Original page fits the
+complete upload, including its original margins, notes and title block. A1-A5,
+Custom and orientation controls uniformly contain the source; custom dimensions
+appear only for Custom. The label is outside the source image. Fit sheet and
+Fit drawing share the existing pan/zoom coordinates. Workspace and BOM reuse
+one controlled settings model, so their controls stay synchronized.
+
+Plan measurement requests now include display_paper_size, display_orientation,
+display_width_mm and display_height_mm, separately from source ratio and source
+physical metadata. The existing GET/PUT measurement-settings endpoints retain
+revision checks and idempotent request IDs. Provisioned ONLY the already-modelled
+plan_measurement_settings table using the authorized local administrator
+connection; live schema count is now 39. No grants or existing table definitions
+were changed. The application account successfully reads and writes this table.
+
+Physical PDF mapping uses MediaBox/CropBox intersection, UserUnit, page rotation
+and normalized raster dimensions. The provided DepED PDF is 762 x 508 mm, not
+A1. 10 source-page millimetres at 1:100 maps to 1 metre at half, native and double
+raster resolution. Quarter/half rotations and cropped PDF bounds retain the
+same mapping, including UserUnit=2. Display size never enters this calculation.
+VED region processing restores page coordinates, so its selected drawing retains
+the original page scale. Independent raster images require a known distance;
+existing explicit and older paper-ruler records retain their stored values.
+
+The ruler now captures two source endpoints and a known length in metres via
+the existing authorized page-scale endpoint. MEASURED_RULER_V1 evidence stores
+the endpoints without new database columns; existing payload methods remain
+readable. The shared context drives 2D, draft 3D and backend takeoff. PDF page
+ratio is labelled pdf_page_ratio and does not approve a canonical layout.
+Pages with multiple source views, mixed ratios or NTS content require existing
+plan-view selection before applying one page-wide ratio. Detection and view
+selection algorithms are unchanged. The full DepED sheet remains deliberately
+unmeasured for takeoff until a scaled plan view is selected; this checkpoint does
+not remove its existing legend/notes false detections or repair recognition.
+
+PASS: authenticated browser GET/PUT, A1 save/reload, presets A1-A5, Custom-only
+dimensions, orientation, synchronized BOM controls, unchanged BOM display after
+paper changes, and an unsaved temporary wall/history retained through a paper
+save. The wall was undone; no geometry review was saved. Final live selection
+for plan 9401 is Original page at 1:100 (settings revision 4). A 375px viewport
+check shows the paper panel fits without horizontal overflow; viewport restored.
+Screenshot: tmp/pdfs/sheet-workspace-complete.png.
+
+PASS: transaction-scoped ruler save/reload yielded 100 px/m for a 400px / 4m
+reference; changed display paper retained the same scale, identical retries
+retained one revision, stale revision returned 409. Temporary data rolled back.
+A separate 4m diagnostic path through production takeoff produced 4m conduit
+and 4m wire/cable, with costs 4000 and 800 PHP from existing catalog revisions
+(material IDs 330 and 84), total 4800 PHP. These diagnostic quantities were never
+saved or used as detection input. The original PDF's local, stored and registered
+SHA-256 identities match. Historical layout/estimate data, unrelated edits and
+stash@{0} were preserved. BDO remains paused.
+
+No new test files or test-suite runs. Focused lint/build/compilation and manual
+calculation checks cover this checkpoint; existing bundle-size and Konva layer
+count warnings remain. Temporary verification servers were stopped, and the
+user's existing API exposes the updated schema. Work remains uncommitted on
+codex/vlm-localization-experiment at a823ce5.
+
+### 2026-10-23 — discoverable scale editing and plan-area fallback
+
+The mixed-scale DepED page has no automatic source-view choices. The former
+instruction to open those choices was therefore unusable. The workspace now has
+a visible Scale · 1:N action; BOM has Scale & measurements and a clickable
+Choose plan area prompt. The shared panel puts the editable ratio first, then
+display paper. Manual two-corner selection remains available even when inferred
+view choices are empty. It reuses existing region processing, source identity,
+job retry/polling and save-before-analysis behavior; no recognition changes.
+The panel stays mounted while closed so pending jobs are not discarded.
+
+PASS: focused ESLint and production build. Browser verification on plan 9401 /
+job 24359 covered both entry points, scale input focus/editing, Escape and focus
+return, manual area selection and clearing. The analysis action enabled after a
+valid selection, but was not submitted. No scale, geometry or review was saved
+during this UX verification. At 375px, the panel fits within the client area
+without horizontal overflow; the temporary viewport override was reset.
+Screenshot: tmp/pdfs/scale-controls-visible.png. The design-system guidance
+informed the visible labelled action, concise panel and keyboard behavior.
+
+NOT TESTED: starting a new region-analysis job in this follow-up. No new test
+files or test-suite runs. Existing bundle-size warning remains. Detection,
+historical estimates, originals and unrelated changes are preserved; BDO remains
+paused. This focused UX work is uncommitted on the same branch and HEAD.
+
+### 2026-10-23 — continuous drawing-region status polling
+
+DrawingRegionPanel stopped after 40 successful checks (approximately one minute)
+and also stopped after a single status-request error. Removed that client cutoff.
+Active jobs now poll every 1.5 seconds until a terminal status; temporary network,
+server, timeout and throttling failures retry the same job with exponential delay
+from 3 seconds, capped at 30 seconds. Individual status requests time out after
+15 seconds. Authorization/resource errors remain actionable instead of retrying
+indefinitely. Identity mismatches are not adopted; unmount/manual refresh aborts
+the outstanding request and clears its timer. Status recovery never submits new
+analysis work. The disabled action now says Analyzing rather than Retry identical
+request when a job already exists.
+
+PASS: scoped ESLint, production build and all four existing DrawingRegionPanel
+checks. An in-memory check using the actual effect body exercised 81 polls,
+transient recovery/backoff, all terminal states, authorization stop, mismatched
+identity, request timeout/retry and cleanup abort. No test files were added.
+The adjacent SourceViewsPanel suite has one wording assertion failure from the
+preceding UI change (expected the removed technical paragraph); its other check
+passes. This is not a polling failure and has not been silently marked passing.
+The initial sandbox test invocation was blocked by temporary-cache permissions;
+the existing checks executed on the approved retry outside that sandbox.
+
+Read-only live verification found screenshot job 24360 completed at 100 percent;
+no analysis was restarted and no database, original or review data was changed.
+Existing bundle-size warning remains. Work is uncommitted; unrelated changes and
+stash are preserved. BDO remains paused.
+
+### 2026-10-23 — unified measurement workflow, wiring audit and partial costs
+
+The three authorized measurement checkpoints are implemented together in the
+existing draft workflow. No new measurement table or migration was introduced.
+View-bound settings are append-only JSON in `plan_measurement_settings`, keyed
+by source SHA, page and normalized selected region. Display-paper settings stay
+separate. Retry identity and revision conflicts remain enforced; prior page
+calibrations and historical snapshots are not rewritten.
+
+1. **Measurement contract and setup — PASS.** Plan measurements is the shared
+   workspace/BOM entry point. Its basis is Source sheet, Known reference,
+   Estimated or Needs reference. Original PDF physical bounds and selected-view
+   scale captions supply native scale; unavailable or unconfirmed ratios are
+   assumptions. Complete scanned sheets require confirmation and compatible
+   aspect ratio. Standalone crops accept one known span, or an explicit rough
+   paper-placement estimate with a proportional preview. Display/print layout
+   moved to Layers; Material prices contains no competing scale controls.
+   Known-distance references take precedence; legacy paper-ruler settings are
+   readable but labelled estimates. NTS and unresolved mixed-view sheets are
+   not assigned indiscriminate page-wide lengths. Caption association is
+   bounded geometric evidence, not a claim of universal OCR recognition.
+2. **Source/view consistency and wiring audit — PASS for scale/diagnostics.**
+   Current selected-region inference already uses full normalized source
+   coordinates; uniform resizing preserves reference measurements and
+   incompatible nonuniform transforms are rejected. Source/region bindings
+   isolate unrelated views. Check wiring opens a source-candidate/current-draft
+   overlay with open endpoints and changed/removed path diagnostics. Device
+   contacts do not certify full traces. Untouched generated proposals do not
+   enter observed takeoff. This checkpoint does not retune recognition or
+   establish an independently verified complete wiring trace.
+3. **Vertical quantities, prices and totals — PASS for focused checks.**
+   Same-floor drops can use routing height and device centre height above
+   finished floor without an absolute floor datum. Explicit overrides remain;
+   unknown routing/fixture heights remain partial. Designer price overrides
+   precede compatible client prices and approved defaults. Conduit/cable remain
+   separate price components of one route. Single-core conductor purchases
+   require an explicit count; cable cores do not imply a multiplier. Accumulated
+   subtotals remain visible, estimated quantities yield Estimated total, and
+   missing prices, drops or trace extent remain incomplete. Saved historical
+   estimates retain their captured values.
+
+Verification: scoped ESLint, production build and Python compilation PASS.
+Guarded isolated backend run: 106 tests plus 16 subtests PASS, including existing
+measurement, geometry, takeoff and canonical API checks. Existing frontend
+targets: six files / 32 tests PASS. The initial frontend invocation hit sandbox
+temporary-cache rename permissions; the approved retry executed successfully.
+No new test files. Existing Starlette/httpx deprecation and bundle-size warnings
+remain. Updated stale existing assertions for the current contract rather than
+claiming the earlier failures passed unchanged.
+
+Inline calculation checks PASS: a 10 mm PDF span at 1:100 equals 1 m through
+rotation and uniform resizing; display paper does not enter the conversion.
+Source-bound reference inheritance, source isolation, incompatible aspect
+rejection, full-sheet confirmation, NTS exclusion, explicit conductor counts,
+idempotent multiplication and estimated totals were checked. A 4 m horizontal
+route at 2.8 m AFF with a 1.2 m switch gives a 1.6 m drop without floor elevation.
+Rollback-only API checks covered save/reload, identical retry, stale 409,
+out-of-region 422, neighboring-view isolation and estimated backend takeoff.
+Synthetic references were never saved as real plan measurements.
+
+The discrepancy is reproduced, not concealed: PDF job 24361 has 51.4984 m,
+including 48.2194 m common spans and 3.2790 m additional switch continuations.
+PNG job 24362 retains 74.0647 m under its old 30 m / 1341 px paper-ruler
+assumption; equivalent PDF-space scaling gives about 48.22685 m. Recognition
+sets differ and still need comparison against source pixels. Plan 9400 has been
+removed by the user; it was inspected diagnostically, not restored or included
+in active project BOM quantities.
+
+Signed-in browser verification PASS: shared panel, explicit unsaved rough
+preview, conditional Custom dimensions, separate display controls, on-demand
+wiring overlay, Escape/focus return and 375 px panel bounds. All temporary
+browser settings were reverted without saving. Screenshot:
+`tmp/pdfs/plan-measurements-final.png`. Measurement revision remains 5. Both
+original PDF/PNG SHA-256 values match their source registry; the local supplied
+PDF matches too. No original, review geometry or historical estimate was
+written by verification. Live schema remains 39 tables; current OpenAPI has 74
+operations (preexisting adjacent Admin changes account for the wider schema).
+
+Final coupling check: display-only saves send the previously saved measurement
+basis plus changed display fields, retain unfinished measurement edits locally,
+and do not invalidate backend takeoff. An in-memory execution of the actual hook
+verified the payload and retained edits; scoped lint/build passed again.
+
+NOT TESTED: a new recognition run, exhaustive accuracy against a professionally
+verified trace, and every hardware/browser combination. Unknown heights and
+prices require real inputs; estimates are not professionally verified plans.
+No model training, BDO work or detector retuning started. No verification
+servers were started. Work remains uncommitted on
+`codex/vlm-localization-experiment` at `a823ce5`; unrelated changes and
+stash `bb78854e87833124a1725b51f0be6099a8ac0cfa` are preserved. No next roadmap
+ticket has started.
+
+### 2026-10-23 — draw-wire snapping near distinct device terminals
+
+Reproduced the reported terminal warning: a click at (94,100) on a wire ending
+at a device at (100,100) selected the generic device magnet, even though that
+device already had separate A/B terminals. The commit correctly rejected an
+unspecified terminal, but the drawing magnet had chosen the wrong target.
+
+PASS: drawing no longer offers a generic centre magnet for multi-terminal
+devices. Near those devices, the nearest wire span wins over a farther endpoint;
+the normal single-terminal and endpoint magnet behavior is unchanged. Equally
+near independent branches remain ambiguous, display immediate guidance and do
+not append a disconnected drawing point. Suppressed wires are not snap targets.
+The terminal, circuit and height compatibility checks are retained.
+
+PASS: inline reproduction now joins each intended branch independently, keeps
+A/B networks separate, preserves the input draft and survives JSON reload.
+All 21 existing wire-drawing/connectivity/device-connection checks pass. Canvas
+suite: 15 pass, five fail; an in-memory pre-fix baseline reproduces the same five
+failures (old Fit-to-screen wording, missing Arrow mock, and two old Escape-mode
+expectations). They are not introduced by this patch and were not rewritten.
+Focused lint and production build pass; existing chunk-size warning remains.
+No new test files, database writes or saved plan changes. Browser interaction
+verification of this specific follow-up is NOT TESTED. Changes are limited to
+wireDrawing.js and the canvas ambiguity hint/guard, plus this record; unrelated
+dirty changes remain intact.
+
+### 2026-10-24 — automatic plan setup (three checkpoints)
+
+Implemented the shared defaults/context, single setup UI and 2D/3D/BOM
+integration. Existing plans remain Custom until the designer explicitly chooses
+Use automatic setup. Normal frontend uploads send the existing atomic
+measurement-settings initializer; legacy raw API uploads that omit it remain
+readable through the compatibility path. No new tables or migrations were added.
+
+Admin defaults now include a 3.0 m planning ceiling. Automatic setup snapshots
+its revision, ceiling, paper/ratio and outlet/switch centre heights in the
+existing append-only measurement JSON. Reapplying adopts current Admin defaults;
+later Admin changes alone do not replace the snapshot. Automatic ceiling routes
+and lighting connection terminals share the ceiling height. Fixture bodies sit
+below their connection terminals. Per-item heights and terminal offsets remain
+authoritative. Unknown equipment, under-floor depth and multi-floor routing do
+not inherit an invented ceiling connection. These are planning assumptions,
+not detected building dimensions or code requirements.
+
+The panel exposes Setup/Ceiling height/Scale, Use automatic setup and Improve
+accuracy, with detailed inputs in Advanced settings. 3D settings link back to
+the shared panel instead of maintaining an independent height. Display layout
+is separate. Defaults are resolved by scene/takeoff adapters rather than being
+materialized as synthetic item overrides in the live draft. Applying setup
+does not save geometry or reset undo history. A setup revision also invalidates
+stale local 3D elevation entry without changing already-drawn wires.
+
+Known-distance references take priority. Supported source dimensions and view
+transforms are reused; otherwise automatic paper containment yields a labelled
+estimate. Genuine NTS and mixed-view guards remain active. Assumed heights mark
+affected backend quantities and the total Estimated even with a known scale.
+Pricing precedence, purchase lengths, conductor specifications and historical
+estimate snapshots are unchanged. Display-only saves do not rebind an inherited
+reference to a child view or replace unfinished measurement edits.
+
+PASS: 106 focused backend tests plus 16 subtests, 77 focused frontend tests,
+scoped ESLint and production build. Existing Starlette/httpx deprecation and
+large-chunk build warnings remain. No new test files. Inline checks additionally
+cover Admin snapshots/reapplication, automatic upload initialization, explicit
+upload overrides, distorted inherited-reference reset, unchanged inherited
+reference outside a selected child ROI, rejection of a new out-of-region ruler,
+and display-only binding preservation. A 10 mm PDF span at 1:100 measures 1 m.
+Numerical routing checks give 2.70 m outlet drop, 1.80 m switch drop and no
+artificial lighting drop at equal 3.0 m route/connection heights.
+
+PASS: rollback-only real API verification for plan 9402 resets its plan-level
+0.08 m routing / 10 m lighting assumptions, preserves its existing valid known
+reference, checks retry/revision conflicts and reload, and produces estimated
+backend BOM components. All verification writes were rolled back. The actual
+plan has NOT been persistently reset; the designer must choose the action.
+Original byte hashes, review/estimate counts and measurement JSON were checked
+unchanged after rollback. Schema remains 39 live tables (40 metadata models),
+with 74 OpenAPI operations; no schema change was performed for this checkpoint.
+
+PASS: signed-in browser checks of the actual plan, collapsed Advanced settings,
+visible one-click action, Escape/focus return and a 336 px panel inside a 375 px
+viewport. No geometry/settings were saved in the browser. Screenshot:
+`tmp/pdfs/automatic-plan-setup.png`. BLOCKED: rendered 3D visual verification;
+the verification browser cannot initialize WebGL. Numerical scene/connection
+projection checks passed, but do not substitute for that visual check.
+
+FAIL: the broader DemoInterpretationPage suite has 13 failures / 39 cases,
+including obsolete labels/review controls and BOM callback-identity expectations.
+An in-memory baseline restoring eager defaults before the final adapter fix
+reproduces the same 13 failures; they were not hidden by rewriting tests. This
+does not constitute a green full frontend suite. The earlier five canvas-suite
+baseline failures also remain outside this change. Exhaustive browser/hardware
+and professionally verified route accuracy are NOT TESTED.
+
+Work remains uncommitted on `codex/vlm-localization-experiment` at `a823ce5`.
+Unrelated dirty changes, reviewed geometry, originals and stash
+`bb78854e87833124a1725b51f0be6099a8ac0cfa` are preserved. No verification
+server, model training, detection retuning or next roadmap ticket was started.

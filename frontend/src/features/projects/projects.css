@@ -84,6 +84,9 @@
 
 .project-form label { display: grid; gap: 7px; color: var(--ink); font-weight: 600; }
 .project-form label small { margin-left: 5px; color: var(--ink-soft); font-weight: 400; }
+.project-form > label { display: flex; flex-direction: column; align-self: start; min-width: 0; }
+.project-form > label > :is(input, select) { flex: 0 0 auto; height: 46px; }
+.project-form > label > small { margin-left: 0; font-size: 12px; line-height: 1.5; }
 .project-form-wide, .project-alert, .project-submit { grid-column: 1 / -1; }
 
 .project-form :is(input, select) {

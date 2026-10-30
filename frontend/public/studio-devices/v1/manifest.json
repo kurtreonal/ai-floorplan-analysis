@@ -1,0 +1,223 @@
+{
+  "revision": 1,
+  "license": "CC0-1.0 \u2014 original VED generated geometry",
+  "coordinateConvention": "metres; glTF X right, Y up, +Z wall front; luminaires face -Y",
+  "assets": {
+    "outlet-1": {
+      "url": "/studio-devices/v1/outlet-1.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.12,
+        "y": 0.075,
+        "z": 0.0305
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 43136,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "outlet-2": {
+      "url": "/studio-devices/v1/outlet-2.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.12,
+        "y": 0.075,
+        "z": 0.0305
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 69032,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "switch-1": {
+      "url": "/studio-devices/v1/switch-1.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.12,
+        "y": 0.075,
+        "z": 0.0349
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 34008,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "switch-2": {
+      "url": "/studio-devices/v1/switch-2.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.12,
+        "y": 0.075,
+        "z": 0.0349
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 49344,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "switch-3": {
+      "url": "/studio-devices/v1/switch-3.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.12,
+        "y": 0.075,
+        "z": 0.0349
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 64672,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "data-1": {
+      "url": "/studio-devices/v1/data-1.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.12,
+        "y": 0.075,
+        "z": 0.0315
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 39136,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "data-2": {
+      "url": "/studio-devices/v1/data-2.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.12,
+        "y": 0.075,
+        "z": 0.0315
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 60328,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "linear-1": {
+      "url": "/studio-devices/v1/linear-1.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.16,
+        "y": 0.072,
+        "z": 1.2
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 28188,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "linear-2": {
+      "url": "/studio-devices/v1/linear-2.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.16,
+        "y": 0.072,
+        "z": 1.2
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 46412,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "cctv-dome": {
+      "url": "/studio-devices/v1/cctv-dome.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.12,
+        "y": 0.1,
+        "z": 0.12
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 35660,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "cctv-bullet": {
+      "url": "/studio-devices/v1/cctv-bullet.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.065,
+        "y": 0.06,
+        "z": 0.1775
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 27988,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    },
+    "panel": {
+      "url": "/studio-devices/v1/panel.glb",
+      "status": "representative",
+      "nominalDimensionsMetres": {
+        "x": 0.4,
+        "y": 0.6,
+        "z": 0.158
+      },
+      "dimensions": "Illustrative only; renderer fits the existing device envelope",
+      "referenceSources": [],
+      "connectionAnchorPolicy": "Use canonical devicePlacement terminals, never infer terminals from the mesh",
+      "anchor": "Existing devicePlacement anchor; no geometry or terminal mutation",
+      "bytes": 24640,
+      "materialSlots": 3,
+      "textures": 0,
+      "source": "Original Blender construction: scripts/author_studio_devices.py",
+      "referenceStatus": "Family representation only; not an exact manufacturer-certified model"
+    }
+  }
+}

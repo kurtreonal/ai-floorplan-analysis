@@ -32,6 +32,9 @@ def test_ved_center_defaults_drop_height_and_terminal_offset(name,height):
 
 
 def test_existing_heights_and_references_are_not_silently_reinterpreted():
+    saved=dict(class_name='Outlet',class_id=1,mounting_height_meters=.3,mounting_reference='device_center',mounting_height_source='ved_default')
+    assert resolved_mounting(saved,defaults={'outlet':.4,'switch':1.3})==saved
+    assert resolved_mounting(dict(class_name='Outlet',class_id=1),defaults={'outlet':.4,'switch':1.3})['mounting_height_meters']==.4
     for reference in (None,'box_bottom','connection_terminal','legacy_unspecified'):
         symbol=dict(class_name='Outlet',mounting_height_meters=.75,mounting_reference=reference)
         assert resolved_mounting(symbol)==symbol

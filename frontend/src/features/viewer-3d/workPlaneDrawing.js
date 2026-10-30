@@ -3,17 +3,21 @@ import { compatibleWires, activeWire } from '../detection-review/connectedWiring
 import { findSnapPoint } from '../detection-review/wallEditorUtils.js'
 
 const number = value => value === '' || value == null ? NaN : Number(value)
+export const usesRelativeHeight=context=>context?.height_mode==='automatic' || Number.isFinite(context?.service_height_above_floor_meters)
 
-export function drawingWorkPlane(tool, settings, context, scene) {
+export function drawingWorkPlane(tool, settings, context, scene, method='concealed_in_ceiling') {
   const ppm=context?.pixels_per_meter, floor=context?.floor_elevation_meters
-  if (!Number.isFinite(ppm) || ppm<=0 || !Number.isFinite(floor)) throw new Error('Review the plan scale and floor elevation before drawing in 3D.')
+  const relative=tool==='wire' && usesRelativeHeight(context)
+  if (!Number.isFinite(ppm) || ppm<=0 || !relative && !Number.isFinite(floor)) throw new Error('Review the plan scale and floor elevation before drawing in 3D.')
   if (!scene || !Number.isFinite(scene.unitsPerMeter) || scene.unitsPerMeter<=0
     || Math.abs(scene.sourceScale*ppm-scene.unitsPerMeter)>1e-8) throw new Error('The 3D view does not match the calibrated source plane.')
-  const elevation=tool==='draw' ? floor : number(settings.elevation)
-  if (!Number.isFinite(elevation) || elevation < -1000 || elevation > 10000) throw new Error('Enter a service elevation in metres from the project datum.')
+  const inheritHeight=relative && (settings.elevation==='' || settings.elevation==null) && method==='concealed_in_ceiling'
+  const elevation=tool==='draw' ? floor : inheritHeight ? context.service_height_above_floor_meters : number(settings.elevation)
+  if (!Number.isFinite(elevation) || elevation < -1000 || elevation > 10000) throw new Error(relative ? 'Enter a route height above finished floor; under-floor depth is not assumed.':'Enter a service elevation in metres from the project datum.')
   const circuitId=settings.circuit?.trim() || null
   if(circuitId&&circuitId.length>80)throw new Error('Circuit identifiers must be at most 80 characters.')
-  const config={elevation,sceneElevation:(elevation-floor)*scene.unitsPerMeter,ppm,axis:settings.axis || 'none',circuitId}
+  const config={elevation,sceneElevation:(relative ? elevation:elevation-floor)*scene.unitsPerMeter,ppm,axis:settings.axis || 'none',circuitId,
+    ...(relative ? {relativeHeight:true,wireAttributes:{elevation_meters:null,circuit_id:circuitId,...(!inheritHeight ? {height_above_floor_meters:elevation}:{})}}:{})}
   if (tool==='draw') {
     const thickness=number(settings.thickness), height=number(settings.height), length=settings.length==='' ? null : number(settings.length)
     if (![thickness,height].every(n=>Number.isFinite(n)&&n>0&&n<=1000) || thickness*ppm>1000) throw new Error('Enter wall thickness and height within the source geometry limits.')
@@ -54,7 +58,7 @@ export function spatialDrawingTarget(raw,{tool,vertices,draft,presentations,conf
     return {point,snapped:snap.snapped}
   }
   if (!snapping) return {point}
-  const attributes={circuit_id:config.circuitId??null,elevation_meters:config.elevation,installation_method:method}
+  const attributes={...(config.wireAttributes || {circuit_id:config.circuitId??null,elevation_meters:config.elevation}),installation_method:method}
   const probe={...attributes,id:'drawing-probe',points:[point,anchor || {x:-1,y:-1}]}
   const choices=findWireEndpointTargets(point,probe.id,0,{...draft,wirings:[...draft.wirings,probe]},presentations,12,
     deviceDistance || (s=>Math.hypot(s.center.x-point.x,s.center.y-point.y)*screenScale),

@@ -1,6 +1,19 @@
 export function parseProjectRoute(route) {
+  const query=new URLSearchParams(route.includes('?') ? route.slice(route.indexOf('?')+1):'')
+  route=route.split('?')[0]
+  const measurementAction=['view','scale','wiring','heights','wire-height','device-height','material-wire','material-wire-length','material-conduit-length','material-conductor-count','product','product-conductors','product-wire-length','product-conduit-length','product-wire','product-conduit'].includes(query.get('measure')) ? query.get('measure'):null
+  const measurementTarget=/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(query.get('target') || '') ? query.get('target'):null
+  const measurementTargets=(query.get('targets') || '').split(',').filter(id=>/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(id)).slice(0,2048)
   if (route === '/app/settings') return { view: 'settings', projectId: null }
-  if (route === '/app' || route === '/app/projects') {
+  const clientProjects = route.match(/^\/app\/clients\/([^/]+)\/projects$/)
+  if (clientProjects) {
+    try { return { view: 'dashboard', projectId: null, section: 'projects', clientFilter: decodeURIComponent(clientProjects[1]) } }
+    catch { return { view: 'invalid', projectId: null } }
+  }
+  if (route === '/app/clients' || route === '/app/projects') {
+    return { view: 'dashboard', projectId: null, section: route === '/app/clients' ? 'clients' : 'projects' }
+  }
+  if (route === '/app') {
     return { view: 'dashboard', projectId: null }
   }
 
@@ -38,6 +51,9 @@ export function parseProjectRoute(route) {
     }
     return {
       view: 'demo-interpretation', projectId, projectFloorId, floorPlanId, processingJobId,
+      ...(measurementAction ? {measurementAction}:{}),
+      ...(measurementTarget ? {measurementTarget}:{}),
+      ...(measurementTargets.length ? {measurementTargets}:{}),
     }
   }
 

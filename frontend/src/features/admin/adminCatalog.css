@@ -1,0 +1,111 @@
+.admin-catalog-toolbar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:16px 0; }
+.admin-workspace { max-width:1480px; margin:0 auto; }
+.admin-workspace-heading { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:8px 0 28px; }
+.admin-workspace-heading h1 { margin:6px 0 8px; font-size:clamp(1.4rem,2vw,2rem); }
+.admin-workspace-heading p { margin:0; color:var(--ink-soft); }
+.admin-workspace-heading>a { display:flex; align-items:center; gap:8px; white-space:nowrap; padding:10px 14px; border:1px solid var(--paper-line); border-radius:8px; }
+.admin-workspace-grid { display:grid; grid-template-columns:210px minmax(0,1fr); gap:24px; align-items:start; }
+.admin-section-nav { position:sticky; top:20px; display:grid; gap:24px; padding:16px 12px; border:1px solid var(--paper-line); border-radius:12px; background:var(--white); }
+.admin-section-nav h2 { margin:0 12px 8px; color:var(--ink-soft); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; }
+.admin-section-nav button { justify-content:flex-start; width:100%; gap:10px; margin:2px 0; min-height:42px; font-weight:500; }
+.admin-section-nav button[aria-current="page"] { background:#fff0e8; color:#a33916; box-shadow:inset 3px 0 #cb4e27; }
+.admin-section-content { min-width:0; }
+.admin-section-content>.workflow-panel { margin-top:0; }
+.admin-section-content :is(th,td) { vertical-align:top; }
+.admin-section-content .account-management table { table-layout:fixed; min-width:600px; }
+.admin-section-content .account-management :is(th,td) { overflow-wrap:anywhere; }
+.admin-section-content .account-management th:nth-child(1) { width:24%; }
+.admin-section-content .account-management th:nth-child(2) { width:12%; }
+.admin-section-content .account-management th:nth-child(3) { width:25%; }
+.admin-section-content .account-management th:nth-child(4) { width:17%; }
+.admin-section-content .account-management th:nth-child(5) { width:22%; }
+@media(max-width:960px) { .admin-workspace-grid { grid-template-columns:1fr; gap:18px; } .admin-section-nav { position:static; grid-template-columns:1fr 1fr; gap:12px; } .admin-section-nav>div { display:flex; flex-wrap:wrap; align-items:center; gap:4px; } .admin-section-nav h2 { width:100%; } .admin-section-nav button { width:auto; } }
+@media(max-width:600px) { .admin-workspace-heading { align-items:flex-start; flex-direction:column; gap:12px; } .admin-section-nav { grid-template-columns:1fr; } }
+.admin-catalog-toolbar input { flex:1; min-width:180px; }
+.admin-catalog :is(input,select) { min-height:36px; padding:7px 10px; border:1px solid var(--paper-line); border-radius:6px; background:var(--white); color:var(--ink); font:inherit; }
+.admin-catalog table { width:100%; border-collapse:collapse; }
+.admin-catalog :is(th,td) { padding:10px 12px; border-bottom:1px solid var(--paper-line); text-align:left; vertical-align:middle; }
+.admin-catalog-tools { margin-top:16px; }
+.admin-catalog-tools summary { cursor:pointer; }
+.admin-catalog-tools small { display:block; margin-top:8px; color:var(--ink-soft); }
+.admin-catalog button, .admin-catalog td:nth-child(3) { white-space:nowrap; }
+.admin-assembly-form fieldset { display:grid; gap:16px; border:1px solid var(--paper-line); padding:16px; margin:16px 0; border-radius:8px; }
+.admin-assembly-form label { display:grid; gap:6px; min-width:0; }
+.admin-assembly-form label:has(input[type="checkbox"]) { display:flex; align-items:center; }
+.admin-assembly-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.admin-assembly-part { display:grid; grid-template-columns:minmax(0,1fr) 100px auto; gap:12px; align-items:end; }
+.admin-assembly-form :is(input:not([type="checkbox"]),select) { width:100%; min-width:0; }
+.admin-price-gaps { margin:20px 0; padding:16px; border:1px solid var(--paper-line); border-radius:10px; background:var(--white); }
+.admin-price-gaps h3 { margin:0; font-size:1rem; }
+.admin-price-gaps p { margin:6px 0; }
+.admin-price-gaps small { display:block; margin-top:12px; color:var(--ink-soft); }
+.admin-price-gaps td:last-child { display:flex; flex-wrap:wrap; gap:6px; }
+.admin-assembly-form textarea { width:100%; min-width:0; padding:10px; border:1px solid var(--paper-line); border-radius:6px; background:var(--white); color:var(--ink); font:inherit; resize:vertical; }
+@media(max-width:640px) { .admin-assembly-fields { grid-template-columns:1fr; } .admin-assembly-part { grid-template-columns:minmax(0,1fr) 80px; } .admin-assembly-part button { grid-column:1/-1; justify-self:end; } }
+
+/* Administration uses the application's warm surfaces in both themes. */
+.admin-workspace { max-width:1440px; }
+.admin-workspace-heading { padding-bottom:20px; }
+.admin-workspace-grid { display:block; }
+.admin-section-nav { position:static; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; padding:8px; margin-bottom:22px; border-radius:12px; background:var(--surface-card,var(--white)); }
+.admin-section-nav>div { display:contents; }
+.admin-section-nav h2 { display:none; }
+.admin-section-nav button { width:100%; margin:0; min-height:44px; padding:10px 12px; white-space:normal; text-align:left; border-radius:8px; }
+.admin-section-nav button svg { flex-shrink:0; }
+@media(min-width:1400px) { .admin-section-nav { grid-template-columns:repeat(7,minmax(0,1fr)); } }
+@media(max-width:600px) { .admin-section-nav { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.admin-pagination { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:16px 0 0; font-size:13px; }
+.admin-pagination small { margin-right:auto; color:var(--text-secondary,var(--ink-soft)); }
+.admin-section-nav button[aria-current="page"] { background:color-mix(in srgb,var(--orange,#cc4e27) 14%,transparent); color:var(--orange,#cc4e27); box-shadow:none; }
+.admin-section-content>.studio-panel,.admin-section-content>.workflow-panel { border-radius:14px; padding:clamp(16px,2.3vw,28px); }
+.admin-section-content .studio-panel-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
+.admin-section-content h2 { font-size:21px; margin:0 0 6px; }
+.admin-section-content h3 { font-size:16px; }
+.admin-section-content p { font-size:14px; line-height:1.6; }
+.admin-section-content :is(.studio-table-scroll,.material-import-table) { position:relative; max-width:100%; overflow:auto; border:1px solid var(--paper-line); border-radius:10px; max-height:66vh; }
+.admin-section-content .studio-estimate-table :is(th,td) { text-align:left; white-space:normal; }
+.admin-section-content :is(th,td) { padding:14px 12px; font-size:13px; line-height:1.5; text-align:left; }
+.admin-section-content thead th { position:sticky; top:0; z-index:1; background:var(--surface-raised,var(--white)); color:var(--text-secondary,var(--ink-soft)); font-size:12px; font-weight:600; }
+.admin-section-content tbody tr:hover { background:color-mix(in srgb,var(--orange,#cc4e27) 4%,transparent); }
+.admin-section-content :is(input:not([type="checkbox"]),select,textarea) { min-width:0; min-height:42px; border-radius:8px; font-size:14px; padding:10px 12px; }
+.admin-catalog-toolbar { gap:10px; margin:18px 0; }
+.admin-catalog-toolbar input { min-width:min(100%,220px); }
+.admin-catalog-toolbar select { max-width:260px; }
+.admin-catalog-toolbar small { color:var(--text-secondary,var(--ink-soft)); }
+.admin-item-meta { display:block; margin-top:4px; color:var(--text-secondary,var(--ink-soft)); font-size:11px; overflow-wrap:anywhere; }
+.admin-editor-form { margin:20px 0; padding:20px; border:1px solid var(--paper-line); border-radius:12px; background:var(--surface-raised,var(--white)); }
+.admin-editor-form header p { margin:6px 0 18px; }
+.admin-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; min-width:0; border:0; padding:0; margin:0 0 20px; }
+.admin-form-grid label { display:grid; min-width:0; gap:7px; font-size:13px; font-weight:500; }
+.admin-form-grid input,.admin-form-grid select { width:100%; }
+.admin-form-wide { grid-column:1/-1; }
+.admin-form-error { color:var(--error,#bd3d2c)!important; padding:8px 0; line-height:1.5; }
+.admin-assembly-form [aria-invalid="true"] { border-color:var(--error,#bd3d2c); outline:2px solid color-mix(in srgb,var(--error,#bd3d2c) 20%,transparent); }
+.admin-assembly-form label>small { font-weight:400; font-size:12px; line-height:1.5; color:var(--text-secondary,var(--ink-soft)); }
+.admin-assembly-form input[type="checkbox"] { width:18px; height:18px; flex:0 0 18px; margin:0 8px 0 0; }
+.admin-legend-identity { display:flex; align-items:center; gap:12px; min-width:160px; }
+.admin-legend-preview { display:grid; place-items:center; flex:0 0 44px; width:44px; height:44px; border:1px solid var(--paper-line); border-radius:9px; background:#fff; color:#62696f; }
+.admin-legend-preview img { display:block; max-width:34px; max-height:34px; object-fit:contain; }
+.legend-artwork-picker { display:grid; gap:12px; grid-column:1/-1; min-width:0; padding:16px; border:1px solid var(--paper-line); border-radius:10px; }
+.legend-artwork-picker label { display:grid; gap:7px; min-width:0; }
+.legend-artwork-picker select { width:100%; min-width:0; }
+.legend-reference-preview { display:flex; gap:16px; align-items:center; padding:12px; background:var(--surface-card,var(--white)); border-radius:8px; }
+.legend-reference-preview img { width:72px; height:64px; object-fit:contain; background:white; padding:6px; border-radius:6px; flex-shrink:0; }
+.legend-reference-preview div { min-width:0; overflow-wrap:anywhere; }
+.legend-reference-preview small { display:block; margin-top:6px; }
+.admin-catalog-tools { margin-top:24px; padding-top:20px; border-top:1px solid var(--paper-line); }
+.admin-catalog-tools button { margin:0 8px 10px 0; }
+.admin-import-panel { margin-top:20px; padding:20px; border:1px solid var(--paper-line); border-radius:14px; }
+.admin-import-panel>header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+@media(max-width:640px) {
+  .admin-section-nav { gap:4px; margin-inline:-4px; }
+  .admin-section-nav button { padding:10px; font-size:12px; }
+  .admin-section-content .account-actions { width:100%; flex-wrap:wrap; }
+  .admin-section-content .account-actions button { flex:1; white-space:normal; min-height:44px; }
+  .admin-catalog-toolbar input { flex-basis:100%; }
+  .admin-catalog-toolbar select { flex:1; max-width:none; }
+  .admin-form-grid { grid-template-columns:1fr; }
+  .admin-editor-form { padding:14px; }
+  .admin-section-content :is(input:not([type="checkbox"]),select,textarea) { min-height:44px; font-size:16px; }
+  .admin-section-content :is(th,td) { padding:12px 8px; }
+}

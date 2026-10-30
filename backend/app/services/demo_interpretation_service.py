@@ -37,14 +37,13 @@ from app.repositories.manual_symbol_repository import (
 from app.schemas.demo_interpretation import DemoReviewRequest
 from app.services.analysis_settings_service import (
     AnalysisSettingsError,
-    require_approved_metric_inputs,
     retrieve_settings,
 )
 from app.services.layout_service import LayoutServiceError, save_owned_layout
 from app.services.wiring_legend_service import annotate_wiring
 from app.routing.endpoint_connections import connect_touching_endpoints
 from app.repositories.analysis_settings_repository import latest_elevation, latest_scales
-from app.geometry.device_mounting import VED_CENTER_HEIGHTS, mounting_document, connection_height
+from app.geometry.device_mounting import mounting_document, connection_height
 
 
 SAFE_ERROR_MESSAGE = "The demo interpretation operation could not be completed."
@@ -71,6 +70,7 @@ class DemoInterpretationRecord:
 
 
 def _routing_context(session, run):
+    from app.services.application_defaults_service import mounting_defaults
     floor = session.get(FloorPlan, run.floor_plan_id).project_floor_id
     elevation = latest_elevation(session, floor)
     scale = latest_scales(session,[run.floor_plan_page_id]).get(run.floor_plan_page_id)
@@ -81,7 +81,7 @@ def _routing_context(session, run):
         multiple_views=any(w.code=='separate_source_views' for w in candidate.payload.warnings))
     return {'floor_elevation_meters': float(elevation.elevation_meters)
             if elevation and elevation.elevation_meters is not None else None,
-            **metric,'mounting_defaults':dict(VED_CENTER_HEIGHTS)}
+            **metric,'mounting_defaults':{**mounting_defaults(session),**metric.get('mounting_defaults',{})}}
 
 
 def _fail(code: str) -> None:
@@ -177,6 +177,7 @@ def retrieve_interpretation(
         drawing_name=session.get(FloorPlan,run.floor_plan_id).original_filename
         document = annotate_wiring(session,candidate,document,drawing_name=drawing_name)
         from app.routing.draft_wiring import generate_draft_wiring
+        document = connect_touching_endpoints(candidate, document)
         generated, limitations = generate_draft_wiring(candidate, document)
         document=annotate_wiring(session,candidate,{**document,'generated_wiring':generated},
                                  drawing_name=drawing_name)
@@ -400,7 +401,8 @@ def append_interpretation_review(
             }
             for symbol in payload.symbols
         ]
-        document=mounting_document(document,legends)
+        from app.services.application_defaults_service import mounting_defaults
+        document=mounting_document(document,legends,mounting_defaults(session))
         document.pop("expected_revision_number")
         # Compatibility: older clients detach by removing an attachment. Persist
         # that intent as an endpoint opt-out instead of immediately reattaching.
@@ -416,6 +418,7 @@ def append_interpretation_review(
         drawing_name=session.get(FloorPlan,run.floor_plan_id).original_filename
         document = annotate_wiring(session,candidate,document,drawing_name=drawing_name)
         from app.routing.draft_wiring import generate_draft_wiring
+        document = connect_touching_endpoints(candidate, document)
         generated, limitations = generate_draft_wiring(candidate, document)
         document["generated_wiring"] = generated
         document=annotate_wiring(session,candidate,document,drawing_name=drawing_name)
@@ -442,6 +445,9 @@ def append_interpretation_review(
                 review_json=serialized,
             ),
         )
+        from app.services.activity_log import record as log_activity
+        log_activity(session,current_user,'DRAFT_SAVED','review',review.id,
+            f'Saved plan {floor_plan_id}, review revision {review.revision_number}.')
         session.commit()
         session.refresh(review)
         return DemoInterpretationRecord(
@@ -590,12 +596,12 @@ def save_approved_interpretation_layout(
             # One project floor cannot silently accept ground/mezzanine sheet coordinates
             # as one physical floor. Unfinished reviews are still freely saveable.
             _fail('SOURCE_VIEW_ASSIGNMENT_REQUIRED')
-        elevation, pixels_per_meter = require_approved_metric_inputs(
-            settings,
-            page_id=run.floor_plan_page_id,
-            image_width=candidate.payload.source_plane.width_pixels,
-            image_height=candidate.payload.source_plane.height_pixels,
-        )
+        metric=_routing_context(session,run)
+        if not metric['scale_approved'] or metric.get('estimated') or settings.elevation.state!='approved':
+            raise AnalysisSettingsError('METRIC_INPUTS_UNRESOLVED')
+        # The same effective source-bound reference drives draft views, takeoff
+        # and new canonical snapshots. Existing snapshots are never rewritten.
+        elevation,pixels_per_meter=settings.elevation.elevation_meters,metric['pixels_per_meter']
         scale = float(pixels_per_meter)
 
         walls = []
@@ -658,7 +664,8 @@ def save_approved_interpretation_layout(
             _fail("SYMBOL_MAPPING_REQUIRED")
 
         symbols = []
-        accepted_symbols=mounting_document({'symbols':accepted_symbols},legends)['symbols']
+        from app.services.application_defaults_service import mounting_defaults
+        accepted_symbols=mounting_document({'symbols':accepted_symbols},legends,{**mounting_defaults(session),**metric.get('mounting_defaults',{})})['symbols']
         symbol_id_map = {}
         for symbol in accepted_symbols:
             # K1 remains frozen: an accepted interpretation proposal is persisted as
@@ -696,6 +703,10 @@ def save_approved_interpretation_layout(
                 continue
             if wire["completeness"] != "complete":
                 _fail("OBSERVED_WIRING_INCOMPLETE")
+            relative=wire.get('height_above_floor_meters')
+            if relative is None and wire.get('elevation_meters') is None and (wire.get('installation_method')=='concealed_in_ceiling' if metric.get('height_mode')=='automatic' else wire.get('installation_method')!='concealed_under_floor'):
+                relative=metric.get('service_height_above_floor_meters')
+            if relative is not None:wire['elevation_meters']=float(elevation)+relative
             if wire.get("elevation_meters") is None:
                 _fail("OBSERVED_WIRING_ELEVATION_REQUIRED")
             for attachment in wire.get('device_attachments', []):

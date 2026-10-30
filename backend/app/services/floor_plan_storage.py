@@ -155,6 +155,7 @@ def store_floor_plan_upload(
     max_file_size_bytes: int,
     measurement_settings=None,
     actor_user_id: int | None = None,
+    on_stored=None,
 ) -> FloorPlan:
     """Store an original and own its database commit/rollback boundary."""
     validated = validate_floor_plan_upload(
@@ -196,6 +197,8 @@ def store_floor_plan_upload(
         if measurement_settings is not None:
             from app.services.plan_measurement_service import initial
             initial(database_session,persisted_floor_plan,actor_user_id,measurement_settings,content)
+        if on_stored is not None:
+            on_stored(persisted_floor_plan)
         database_session.commit()
     except Exception:
         try:

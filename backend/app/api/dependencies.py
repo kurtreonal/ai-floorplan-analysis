@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import User
 from app.services.authentication import resolve_current_user
+from app.services.local_accounts import session_revision
 
 
 def _authentication_error(
@@ -53,6 +54,8 @@ def get_current_user(
             database_session,
             user_id=user_id,
         )
+        if user and session_data.get('account_revision', 0) != session_revision(database_session, user.id):
+            user = None
     except SQLAlchemyError:
         raise _authentication_error(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -68,6 +71,8 @@ def get_current_user(
             message="Authentication is required.",
         )
 
+    from app.services.workspace_reset import guard
+    guard(database_session,request)
     return user
 
 

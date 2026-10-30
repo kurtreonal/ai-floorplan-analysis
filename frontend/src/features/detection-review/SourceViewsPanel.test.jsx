@@ -20,7 +20,7 @@ it('offers distinct alphabetized partial scopes without writing or approving the
   expect(screen.getAllByRole('button').map(b => b.textContent)).toEqual(['Use GROUND FLOOR', 'Use MEZZANINE'])
   fireEvent.click(screen.getByRole('button', { name: 'Use MEZZANINE' }))
   expect(onRegionChange).toHaveBeenCalledWith({ x: 350, y: 50, width: 200, height: 200 })
-  expect(screen.getByText(/not a physical floor or circuit/)).toBeTruthy()
+  expect(screen.getByText(/Keep notes, legends and NTS diagrams outside/)).toBeTruthy()
   expect(record).toEqual(before)
 })
 

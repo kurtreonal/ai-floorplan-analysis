@@ -1,7 +1,12 @@
 // Device terminal bindings and committed shared-node edits. Crossings alone
 // never imply connectivity; path magnets commit through the junction model.
 import { moveDraftWirePoint } from './draftWiringScene.js'
-import { joinWireJunction, moveJunctionVertex } from './wireJunctions.js'
+import { joinWireJunction, moveJunctionVertex, inheritWireAssignments } from './wireJunctions.js'
+import { mergedWireAssignments, wireAssignmentSignature } from './wireAssignments.js'
+
+// A homerun is a routing anchor, not a mounted electrical product. Designers
+// can explicitly snap a wire to it without enabling magnets on other notes.
+const routingMarker=(symbol,presentation)=>/home.?run/i.test(symbol.class_name||presentation?.name||'')
 
 // Source-coordinate contact test, independent of camera, zoom or pixel density.
 // Only endpoints meeting a device port qualify; segment crossings never do.
@@ -66,7 +71,7 @@ export function findWireDeviceTargets(point, wireId, pointIndex, draft, presenta
     // An explicit inspector choice disambiguates co-located devices by stable ID.
     // Automatic magnets still reject equally close ports and never pick one by ID.
     if (targetSymbolId && symbol.id !== targetSymbolId) continue
-    if (symbol.disposition === 'rejected' || presentations[symbol.id]?.family === 'annotation'
+    if (symbol.disposition === 'rejected' || presentations[symbol.id]?.family === 'annotation'&&!routingMarker(symbol,presentations[symbol.id])
       || !symbol.center || ![symbol.center.x, symbol.center.y].every(Number.isFinite)) continue
     // Do not bridge unrelated runs or close a loop through the same device.
     const circuit = wire.circuit_id || wire.circuit_ref
@@ -94,6 +99,8 @@ export function findWireDeviceTargets(point, wireId, pointIndex, draft, presenta
     if (!terminals.size) terminals.set('design-anchor', symbol.center)
     for (const [terminalId, anchor] of terminals) {
       if (!anchor || (neighbor.x === anchor.x && neighbor.y === anchor.y)) continue
+      const connected = draft.wirings.filter(w => w.disposition !== 'rejected' && !w.suppression_reason && (w.device_attachments || []).some(a => a.symbol_id === symbol.id && a.terminal_id === terminalId))
+      if (!mergedWireAssignments([wire,...connected])) continue
       const distance = distanceToSymbol ? distanceToSymbol({...symbol,center:anchor,terminalId}) : Math.hypot(point.x-anchor.x,point.y-anchor.y)
       if (Number.isFinite(distance) && distance <= threshold) candidates.push({symbolId:symbol.id,terminalId,point:{...anchor},distance})
     }
@@ -106,6 +113,10 @@ export function moveConnectedWirePoint(draft, wireId, pointIndex, point, width, 
   if (!wire) return draft
   if (snap?.kind === 'junction') {
     if (![0,wire.points.length-1].includes(pointIndex)) return draft
+    const target = draft.wirings.find(w => w.id === snap.wireId)
+    if (!target || snap.assignmentSignature && snap.assignmentSignature !== wireAssignmentSignature(target)) throw new Error('Circuit or placement changed during the drag. Connect again.')
+    const a=target.points[snap.segmentIndex], b=target.points[snap.segmentIndex+1]
+    if (!a || !b || Math.hypot(a.x+(b.x-a.x)*snap.t-snap.point.x,a.y+(b.y-a.y)*snap.t-snap.point.y)>1e-6) throw new Error('This wire moved during the drag. Connect it again.')
     return joinWireJunction(draft,wireId,pointIndex,snap.wireId,snap.segmentIndex,snap.t)
   }
   if (wire.junction_attachments?.some(a => a.point_index === pointIndex)) {
@@ -139,7 +150,10 @@ export function moveConnectedWirePoint(draft, wireId, pointIndex, point, width, 
     ...(wire.auto_connect_disabled_endpoints || []).filter(i => i !== pointIndex),
     ...(!snap && wire.device_attachments?.some(a => a.point_index === pointIndex) ? [pointIndex] : []),
   ])]
-  return {...draft, wirings: draft.wirings.map(w => w.id === wireId ? updated : w)}
+  const next = {...draft, wirings: draft.wirings.map(w => w.id === wireId ? updated : w)}
+  if (!snap?.terminalId) return next
+  const targetIds = draft.wirings.filter(w => w.disposition !== 'rejected' && !w.suppression_reason && (w.device_attachments || []).some(a => a.symbol_id === snap.symbolId && a.terminal_id === snap.terminalId)).map(w => w.id)
+  return inheritWireAssignments(next, [wireId,...targetIds])
 }
 
 export function findDeviceWireSnap(point, symbolId, wires, threshold) {
@@ -172,12 +186,30 @@ export function moveConnectedDevice(draft, symbol, snap = null) {
   if (snap && (draft.wirings || []).some(w => w.disposition !== 'rejected' && w.id !== snap.wireId &&
     (w.device_attachments || []).some(a => a.symbol_id === symbol.id))) return draft
   const center = snap?.point ?? symbol.center
+  const movedVertices = new Set(), movedJunctions = new Set()
+  for (const wire of draft.wirings || []) {
+    if (wire.disposition === 'rejected') continue
+    for (const attachment of wire.device_attachments || []) if (attachment.symbol_id === symbol.id) {
+      if (wire.vertex_ids?.[attachment.point_index]) movedVertices.add(wire.vertex_ids[attachment.point_index])
+      for (const join of wire.junction_attachments || []) if (join.point_index === attachment.point_index) movedJunctions.add(join.junction_id)
+    }
+  }
+  for (const wire of draft.wirings || []) {
+    if (wire.disposition === 'rejected') continue
+    for (const attachment of wire.device_attachments || []) {
+      if (attachment.symbol_id === symbol.id) continue
+      if (movedVertices.has(wire.vertex_ids?.[attachment.point_index]) || (wire.junction_attachments || []).some(j => j.point_index === attachment.point_index && movedJunctions.has(j.junction_id))) return draft
+    }
+  }
   const wirings = (draft.wirings || []).map(wire => {
     if (wire.disposition === 'rejected') return wire
     let attachments = wire.device_attachments || []
     if (snap?.wireId === wire.id) attachments = [...attachments.filter(a => a.point_index !== snap.pointIndex),
       {symbol_id: symbol.id, point_index: snap.pointIndex}]
     const indices = new Set(attachments.filter(a => a.symbol_id === symbol.id).map(a => a.point_index))
+    wire.vertex_ids?.forEach((id,i)=>{if(movedVertices.has(id))indices.add(i)})
+    for (const join of wire.junction_attachments || []) if (movedJunctions.has(join.junction_id)) indices.add(join.point_index)
+    if (attachments.some(a => indices.has(a.point_index) && a.symbol_id !== symbol.id)) return wire
     if (!indices.size) return wire
     const identities=new Set([...indices].map(i=>wire.vertex_ids?.[i]).filter(Boolean))
     wire.vertex_ids?.forEach((id,i)=>{if(identities.has(id))indices.add(i)})

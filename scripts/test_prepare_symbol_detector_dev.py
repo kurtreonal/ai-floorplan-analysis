@@ -11,13 +11,66 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from prepare_symbol_detector_dev import build, digest, overlapping_reviewed_records, tile_supervision
-from probe_symbol_detector_dev import fuse, iou, origins, match_targets, probe, probe_unreviewed_image
+from probe_symbol_detector_dev import fuse, iou, origins, match_targets, probe, probe_unreviewed_image, probe_authored_synthetic
 from app.ai.symbol_detection.partial_label_training import (
     local_negative_mask, ReviewedBoxOnlyLoss, ReviewedBoxOnlyTrainer,
 )
 
 
 class DetectorDevelopmentDatasetTests(unittest.TestCase):
+    def test_synthetic_learning_check_is_not_real_page_accuracy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'images/train').mkdir(parents=True)
+            page = root / 'images/train/example.png'
+            Image.new('RGB', (256,256), 'white').save(page)
+            checkpoint = root / 'model.pt'
+            checkpoint.write_bytes(b'fixture')
+            data = {'classes': [{'id':0,'label':'Lamp'}], 'authored_legend_synthetic_images': [
+                {'image_id':'example', 'class_id':0,'box':[10,10,30,30],
+                 'image_sha256':digest(page), 'human_review_claim':False}]}
+            (root / 'manifest.json').write_text(json.dumps(data))
+            model = SimpleNamespace(names={0:'Lamp'}, predict=lambda *args,**kwargs: [SimpleNamespace(boxes=[
+                SimpleNamespace(xyxy=torch.tensor([[10,10,30,30]]),cls=torch.tensor([0]),conf=torch.tensor([.8]))])])
+            with patch('probe_symbol_detector_dev.YOLO',return_value=model):
+                summary = probe_authored_synthetic(root,checkpoint,root/'out',samples_per_class=1)
+            self.assertEqual(summary,[{'class_id':0,'tested':1,'localized':1,'localized_and_classified':1}])
+            report=json.loads((root/'out/report.json').read_text())
+            self.assertIsNone(report['independent_accuracy'])
+            self.assertIsNone(report['real_page_accuracy'])
+            self.assertEqual(report['threshold'],.50)
+            data['authored_legend_synthetic_images'][0]['human_review_claim']=True
+            (root/'manifest.json').write_text(json.dumps(data))
+            with self.assertRaisesRegex(ValueError,'synthetic identity'):
+                probe_authored_synthetic(root,checkpoint,root/'bad')
+            self.assertFalse((root/'bad').exists())
+
+    def test_candidate_probe_uses_same_tiler_without_activating_checkpoint(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original, checkpoint = root / "page.png", root / "model.pt"
+            Image.new("RGB", (200, 200), "white").save(original)
+            checkpoint.write_bytes(b"test fixture, not model evidence")
+            (root / "manifest.json").write_text(json.dumps({"classes": [
+                {"id": 0, "label": "1 x 40 watts fluorescent lamp", "legend_entry": "drawing:L07"}]}))
+            model = SimpleNamespace(names={0: "1 x 40 watts fluorescent lamp"})
+            with patch("probe_symbol_detector_dev.YOLO", return_value=model), \
+                 patch("app.ai.floor_plan_interpretation.multiclass_symbol_detector.shared.locate",
+                       return_value=([], False)) as locate, \
+                 patch("app.ai.floor_plan_interpretation.multiclass_symbol_detector.locate") as active:
+                probe_unreviewed_image(original, root / "out", checkpoint=checkpoint, dataset=root)
+                active.assert_not_called()
+                self.assertEqual(locate.call_args.kwargs["catalog"]["classes"][0][1], "drawing:L07")
+                self.assertEqual(locate.call_args.kwargs["catalog"]["threshold"], .50)
+                report = json.loads((root / "out/report.json").read_text())
+                self.assertFalse(report["active_provider_checkpoint"])
+                self.assertEqual(report["checkpoint_sha256"], digest(checkpoint))
+                self.assertIsNone(report["precision"])
+                model.names = {0: "Wrong lamp"}
+                with self.assertRaisesRegex(ValueError, "identities differ"):
+                    probe_unreviewed_image(original, root / "bad", checkpoint=checkpoint, dataset=root)
+                self.assertFalse((root / "bad").exists())
+
     def test_unreviewed_upload_probe_never_invents_metrics_or_changes_source(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

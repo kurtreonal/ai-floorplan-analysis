@@ -9,11 +9,13 @@ from app.api.dependencies import require_roles
 from app.core.database import get_db
 from app.models import User
 from app.schemas.estimate import EstimateOptions, EstimateResponse, EstimateWrite
+from app.schemas.demo_interpretation import DemoReviewRequest
 from app.services import estimate_service as service
 from app.services.layout_service import LayoutServiceError
 from app.services.project_service import ProjectNotFoundError
 from app.services.bom_service import reviewed_bom, estimate_csv, planning_csv
 from app.services.demo_interpretation_service import DemoInterpretationError
+from app.services.bom_spreadsheet import MIME as XLSX_MIME
 
 router = APIRouter(prefix="/api/projects", tags=["estimates"])
 ProjectId = Annotated[int, Path(gt=0)]
@@ -58,46 +60,84 @@ def options(project_id: ProjectId, project_price_version_id: Annotated[int | Non
 
 @router.get('/{project_id}/bom', response_model=BOMResponse)
 def bom(project_id: ProjectId, floor_plan_id: Annotated[int | None, Query(gt=0)] = None,
+        purchase_pricing: Annotated[str | None, Query(max_length=4000)] = None,
+        device_materials: Annotated[str | None, Query(max_length=12000)] = None,
         processing_job_id: Annotated[int | None, Query(gt=0)] = None,
         conduit_material_id: Annotated[int | None, Query(gt=0)] = None,
         wire_material_id: Annotated[int | None, Query(gt=0)] = None,
         wire_meters_per_unit: Annotated[float | None, Query(gt=0, le=100000, allow_inf_nan=False)] = None,
         wire_price_per_meter: Annotated[float | None, Query(ge=0, le=1000000000, allow_inf_nan=False)] = None,
-        paper_size: Annotated[Literal['A4', 'A3', 'A2', 'A1', 'A0', 'CUSTOM'] | None, Query()] = None,
+        conduit_price_per_meter: Annotated[float | None, Query(ge=0, le=1000000000, allow_inf_nan=False)] = None,
+        scale_denominator: Annotated[float | None, Query(ge=1, le=100000, allow_inf_nan=False)] = None,
+        paper_size: Annotated[Literal['A5', 'A4', 'A3', 'A2', 'A1', 'A0', 'CUSTOM'] | None, Query()] = None,
         custom_width_mm: Annotated[float | None, Query(gt=0, le=10000, allow_inf_nan=False)] = None,
         custom_height_mm: Annotated[float | None, Query(gt=0, le=10000, allow_inf_nan=False)] = None,
         user: User = Depends(require_roles('ADMIN', 'DESIGNER')), session: Session = Depends(get_db)):
     return execute(session, lambda: reviewed_bom(session, user, project_id,
-        floor_plan_id=floor_plan_id, processing_job_id=processing_job_id,
+        floor_plan_id=floor_plan_id, processing_job_id=processing_job_id,device_materials=device_materials,
         conduit_material_id=conduit_material_id, wire_material_id=wire_material_id, paper_size=paper_size,
+        conduit_price_per_meter=conduit_price_per_meter, scale_denominator=scale_denominator,
         custom_width_mm=custom_width_mm, custom_height_mm=custom_height_mm,
-        wire_meters_per_unit=wire_meters_per_unit, wire_price_per_meter=wire_price_per_meter))
+        wire_meters_per_unit=wire_meters_per_unit, wire_price_per_meter=wire_price_per_meter,purchase_pricing=purchase_pricing))
 
 
 @router.get('/{project_id}/bom.csv')
-def export_draft_bom(project_id: ProjectId, floor_plan_id: Annotated[int | None, Query(gt=0)] = None,
+def export_draft_bom(project_id: ProjectId, format: Literal['csv', 'xlsx'] = 'csv', floor_plan_id: Annotated[int | None, Query(gt=0)] = None,
+        purchase_pricing: Annotated[str | None, Query(max_length=4000)] = None,
+        device_materials: Annotated[str | None, Query(max_length=12000)] = None,
         processing_job_id: Annotated[int | None, Query(gt=0)] = None,
         conduit_material_id: Annotated[int | None, Query(gt=0)] = None,
         wire_material_id: Annotated[int | None, Query(gt=0)] = None,
         wire_meters_per_unit: Annotated[float | None, Query(gt=0, le=100000, allow_inf_nan=False)] = None,
         wire_price_per_meter: Annotated[float | None, Query(ge=0, le=1000000000, allow_inf_nan=False)] = None,
-        paper_size: Annotated[Literal['A4', 'A3', 'A2', 'A1', 'A0', 'CUSTOM'] | None, Query()] = None,
+        conduit_price_per_meter: Annotated[float | None, Query(ge=0, le=1000000000, allow_inf_nan=False)] = None,
+        scale_denominator: Annotated[float | None, Query(ge=1, le=100000, allow_inf_nan=False)] = None,
+        paper_size: Annotated[Literal['A5', 'A4', 'A3', 'A2', 'A1', 'A0', 'CUSTOM'] | None, Query()] = None,
         custom_width_mm: Annotated[float | None, Query(gt=0, le=10000, allow_inf_nan=False)] = None,
         custom_height_mm: Annotated[float | None, Query(gt=0, le=10000, allow_inf_nan=False)] = None,
         user: User = Depends(require_roles('ADMIN', 'DESIGNER')), session: Session = Depends(get_db)):
     value = execute(session, lambda: planning_csv(reviewed_bom(session, user, project_id,
-        floor_plan_id=floor_plan_id, processing_job_id=processing_job_id,
+        floor_plan_id=floor_plan_id, processing_job_id=processing_job_id,device_materials=device_materials,
         conduit_material_id=conduit_material_id, wire_material_id=wire_material_id, paper_size=paper_size,
+        conduit_price_per_meter=conduit_price_per_meter, scale_denominator=scale_denominator,
         custom_width_mm=custom_width_mm, custom_height_mm=custom_height_mm,
-        wire_meters_per_unit=wire_meters_per_unit, wire_price_per_meter=wire_price_per_meter)))
-    return Response(value, media_type='text/csv', headers={'Content-Disposition': f'attachment; filename="ved-draft-bom-{project_id}.csv"'})
+        wire_meters_per_unit=wire_meters_per_unit, wire_price_per_meter=wire_price_per_meter,purchase_pricing=purchase_pricing), xlsx=format=='xlsx'))
+    return Response(value, media_type=XLSX_MIME if format=='xlsx' else 'text/csv', headers={'Content-Disposition': f'attachment; filename="VED-Bill-of-Materials-{project_id}.{format}"'})
+
+
+@router.post('/{project_id}/bom/preview', response_model=BOMResponse)
+def preview_bom(project_id: ProjectId, payload: DemoReviewRequest,
+        floor_plan_id: Annotated[int, Query(gt=0)], processing_job_id: Annotated[int, Query(gt=0)],
+        purchase_pricing: Annotated[str | None, Query(max_length=4000)] = None,
+        device_materials: Annotated[str | None, Query(max_length=12000)] = None,
+        conduit_material_id: Annotated[int | None, Query(gt=0)] = None,
+        wire_material_id: Annotated[int | None, Query(gt=0)] = None,
+        wire_meters_per_unit: Annotated[float | None, Query(gt=0, le=100000, allow_inf_nan=False)] = None,
+        wire_price_per_meter: Annotated[float | None, Query(ge=0, le=1000000000, allow_inf_nan=False)] = None,
+        conduit_price_per_meter: Annotated[float | None, Query(ge=0, le=1000000000, allow_inf_nan=False)] = None,
+        scale_denominator: Annotated[float | None, Query(ge=1, le=100000, allow_inf_nan=False)] = None,
+        paper_size: Annotated[Literal['A5', 'A4', 'A3', 'A2', 'A1', 'A0', 'CUSTOM'] | None, Query()] = None,
+        custom_width_mm: Annotated[float | None, Query(gt=0, le=10000, allow_inf_nan=False)] = None,
+        custom_height_mm: Annotated[float | None, Query(gt=0, le=10000, allow_inf_nan=False)] = None,
+        download: bool = False, format: Literal['csv', 'xlsx'] = 'csv',
+        user: User = Depends(require_roles('ADMIN', 'DESIGNER')), session: Session = Depends(get_db)):
+    value = execute(session, lambda: reviewed_bom(session, user, project_id,
+        floor_plan_id=floor_plan_id, processing_job_id=processing_job_id, draft_preview=payload,device_materials=device_materials,
+        conduit_material_id=conduit_material_id, wire_material_id=wire_material_id, paper_size=paper_size,
+        conduit_price_per_meter=conduit_price_per_meter, scale_denominator=scale_denominator,
+        custom_width_mm=custom_width_mm, custom_height_mm=custom_height_mm,
+        wire_meters_per_unit=wire_meters_per_unit, wire_price_per_meter=wire_price_per_meter,purchase_pricing=purchase_pricing))
+    if download:
+        return Response(planning_csv(value,xlsx=format=='xlsx'), media_type=XLSX_MIME if format=='xlsx' else 'text/csv', headers={'Content-Disposition':f'attachment; filename="VED-Bill-of-Materials-{project_id}.{format}"'})
+    return value
 
 
 @router.get('/{project_id}/estimates/{estimate_id}/bom.csv')
 def export_bom(project_id: ProjectId, estimate_id: Annotated[int, Path(gt=0)],
+               format: Literal['csv', 'xlsx'] = 'csv',
                user: User = Depends(require_roles('ADMIN', 'DESIGNER')), session: Session = Depends(get_db)):
-    value = execute(session, lambda: estimate_csv(service.retrieve_estimate(session, user, project_id, estimate_id)))
-    return Response(value, media_type='text/csv', headers={'Content-Disposition': f'attachment; filename="ved-bom-{estimate_id}.csv"'})
+    value = execute(session, lambda: estimate_csv(service.retrieve_estimate(session, user, project_id, estimate_id),xlsx=format=='xlsx'))
+    return Response(value, media_type=XLSX_MIME if format=='xlsx' else 'text/csv', headers={'Content-Disposition': f'attachment; filename="VED-Bill-of-Materials-estimate-{estimate_id}.{format}"'})
 
 
 @router.get("/{project_id}/estimates", response_model=list[EstimateResponse])

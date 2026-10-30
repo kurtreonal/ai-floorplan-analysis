@@ -8,10 +8,12 @@ import argparse
 from collections import Counter
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import sys
 import time
+import unicodedata
 import numpy as np
 
 from PIL import Image, ImageDraw
@@ -24,6 +26,17 @@ from ultralytics import YOLO
 def digest(path):
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def validate_model_classes(model, rows):
+    if any(type(row['id']) is not int for row in rows) or {row['id'] for row in rows} != set(range(len(rows))):
+        raise ValueError("Candidate class IDs must be contiguous")
+    expected = {row['id']: unicodedata.normalize('NFKD', row['label']).encode('ascii', 'ignore').decode()
+                for row in rows}
+    actual = {i: unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode()
+              for i, name in model.names.items()}
+    if actual != expected:
+        raise ValueError("Candidate checkpoint and legend identities differ")
 
 
 def origins(length, tile=256, stride=192):
@@ -77,7 +90,7 @@ def match_targets(targets, predictions, *, require_class=True, threshold=0.5):
     return {target_index: prediction_index for prediction_index, target_index in assigned.items()}
 
 
-def probe_unreviewed_image(source, output):
+def probe_unreviewed_image(source, output, *, checkpoint=None, dataset=None):
     """Exercise the actual shared upload provider; no ground truth is invented."""
     from app.ai.floor_plan_interpretation import multiclass_symbol_detector as runtime
     if output.exists():
@@ -90,7 +103,24 @@ def probe_unreviewed_image(source, output):
             raise ValueError("Source dimensions exceed bound")
         image = opened.convert("RGB")
     start = time.perf_counter()
-    predictions, truncated = runtime.locate(np.asarray(image))
+    if (checkpoint is None) != (dataset is None):
+        raise ValueError("Candidate probes require both checkpoint and dataset")
+    checkpoint_hash, dataset_hash = runtime.CHECKPOINT_SHA256, runtime.DATASET_SHA256
+    if checkpoint is None:
+        predictions, truncated = runtime.locate(np.asarray(image))
+    else:
+        # Exercise the same bounded tiler without changing the active provider.
+        manifest_path = dataset / "manifest.json"
+        if checkpoint.stat().st_size > 30_000_000 or manifest_path.stat().st_size > 5_000_000:
+            raise ValueError("Candidate artifacts exceed bounds")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        rows = manifest["classes"]
+        model = YOLO(str(checkpoint))
+        validate_model_classes(model, rows)
+        predictions, truncated = runtime.shared.locate(np.asarray(image), catalog={
+            "classes": {row["id"]: (row["label"], row["legend_entry"]) for row in rows},
+            "threshold": runtime.THRESHOLD, "model": model})
+        checkpoint_hash, dataset_hash = digest(checkpoint), digest(manifest_path)
     seconds = round(time.perf_counter() - start, 3)
     if digest(source) != before:
         raise ValueError("Source changed during probe")
@@ -100,8 +130,9 @@ def probe_unreviewed_image(source, output):
         pen.rectangle(row["bbox"], outline="orange", width=2)
         pen.text((row["bbox"][0], row["bbox"][1]), str(row["class_id"]), fill="red")
     result = {"kind": "unscored_shared_multiclass_upload_probe", "source_sha256": before,
-        "source_size": image.size, "checkpoint_sha256": runtime.CHECKPOINT_SHA256,
-        "dataset_manifest_sha256": runtime.DATASET_SHA256, "provider": runtime.PROVIDER,
+        "source_size": image.size, "checkpoint_sha256": checkpoint_hash,
+        "dataset_manifest_sha256": dataset_hash, "provider": runtime.PROVIDER,
+        "active_provider_checkpoint": checkpoint is None,
         "threshold": runtime.THRESHOLD, "seconds": seconds, "predictions": predictions,
         "truncated": truncated, "precision": None, "recall": None,
         "reason": "No verified complete reference labels or drawing-specific legend mapping; proposals require review."}
@@ -111,7 +142,110 @@ def probe_unreviewed_image(source, output):
     return {"proposals": len(predictions), "seconds": seconds, "precision": None, "recall": None}
 
 
-def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference_mode="tiles", shared_multiclass=False):
+def probe_authored_synthetic(dataset, checkpoint, output, *, samples_per_class=16, image_size=320):
+    """Known-box learning check only; never interpreted as real-page accuracy."""
+    if output.exists():
+        raise FileExistsError("Probe result versions are immutable")
+    if type(samples_per_class) is not int or not 1 <= samples_per_class <= 64:
+        raise ValueError("Synthetic probe bounds exceeded")
+    if image_size not in (320,640):
+        raise ValueError('Synthetic image-size bound exceeded')
+    if checkpoint.stat().st_size > 30_000_000 or (dataset / "manifest.json").stat().st_size > 5_000_000:
+        raise ValueError("Candidate artifacts exceed bounds")
+    manifest = json.loads((dataset / "manifest.json").read_text())
+    selected, counts = [], Counter()
+    for row in manifest["authored_legend_synthetic_images"]:
+        if counts[row["class_id"]] >= samples_per_class:
+            continue
+        name = row["image_id"]
+        if Path(name).name != name or row.get("human_review_claim") is not False:
+            raise ValueError("Invalid synthetic identity")
+        path = dataset / "images/train" / f"{name}.png"
+        if path.stat().st_size > 2_000_000 or digest(path) != row["image_sha256"]:
+            raise ValueError("Synthetic image differs")
+        selected.append((row, path))
+        counts[row["class_id"]] += 1
+    full_reference = manifest.get('scope') == 'full_requested_reference_learning_diagnostic_not_universal_detector_release'
+    replay = manifest.get('scope') == 'all_class_reference_replay_development_not_release'
+    limit = 5
+    if full_reference or replay:
+        specification = manifest.get('reference_specification', {})
+        reference_classes={r['model_class_id'] for r in specification.get('point_mappings', [])}
+        if (manifest.get('diagnostic_only') is not True
+                or manifest.get('required_loss') != ('positive_boxes_and_explicit_reviewed_background' if replay
+                                                     else 'synthetic_complete_known_composite_only')
+                or len(specification.get('point_mappings', [])) != 54
+                or len(specification.get('wiring_references', [])) != 12
+                or len(manifest['authored_legend_synthetic_images']) > 512
+                or not reference_classes.issubset(counts)
+                or not replay and set(counts)!=reference_classes
+                or replay and (manifest.get('all_eligible_entries') is not True
+                               or len(manifest['classes'])!=129
+                               or any(r['samples']<1 for r in manifest['classes']))):
+            raise ValueError('Full reference diagnostic coverage or bounds differ')
+        for row, _ in selected:
+            values = (dataset/'labels/train'/f"{row['image_id']}.txt").read_text().split()
+            x1,y1,x2,y2 = row['box']
+            if (any(type(v) not in (int,float) or not math.isfinite(v) for v in row['box'])
+                    or not 0<=x1<x2<=256 or not 0<=y1<y2<=256):
+                raise ValueError('Full reference known composite box outside source tile')
+            expected = [(x1+x2)/512,(y1+y2)/512,(x2-x1)/256,(y2-y1)/256]
+            if (digest(dataset/'labels/train'/f"{row['image_id']}.txt") != row['label_sha256']
+                    or len(values) != 5 or int(values[0]) != row['class_id']
+                    or any(not math.isfinite(float(v)) or abs(float(v)-e)>1e-6 for v,e in zip(values[1:],expected))):
+                raise ValueError('Full reference label or known composite box differs')
+        limit = 129 if replay else 54
+    # The full reference experiment increases class coverage, not memory: two
+    # images per serial batch; never full-page or independent validation.
+    if not selected or len(counts) > limit:
+        raise ValueError("Expected bounded authored-legend learning check")
+    model = YOLO(str(checkpoint))
+    validate_model_classes(model, manifest['classes'])
+    results = []
+    output.mkdir(parents=True)
+    for offset in range(0, len(selected), 2):
+        batch = selected[offset:offset+2]
+        images = []
+        for row, path in batch:
+            with Image.open(path) as opened:
+                if opened.size != (256, 256):
+                    raise ValueError("Synthetic dimensions differ")
+                images.append(opened.convert("RGB"))
+        predictions = model.predict(images, imgsz=image_size, conf=.50, device="cpu", batch=2,
+                                    verbose=False, max_det=200)
+        for (row, _), image, prediction in zip(batch, images, predictions):
+            boxes = [{"bbox": box.xyxy[0].tolist(), "class_id": int(box.cls[0]),
+                      "score": float(box.conf[0])} for box in prediction.boxes]
+            target = {"source_box": row["box"], "class_id": row["class_id"]}
+            localized = bool(match_targets([target], boxes, require_class=False))
+            classified = bool(match_targets([target], boxes))
+            pen = ImageDraw.Draw(image)
+            pen.rectangle(row["box"], outline="green", width=2)
+            for box in boxes:
+                pen.rectangle(box["bbox"], outline="orange", width=1)
+                pen.text((box["bbox"][0], box["bbox"][1]), str(box["class_id"]), fill="red")
+            image.save(output / f"{row['image_id']}.png")
+            image.close()
+            results.append({"image_id": row["image_id"], "expected_class_id": row["class_id"],
+                            "reference_id": row.get('reference_id'), "variant": row.get('variant'),
+                            "localized": localized, "localized_and_classified": classified,
+                            "predictions": boxes})
+    summary = [{"class_id": cls, "tested": sum(r["expected_class_id"] == cls for r in results),
+                "localized": sum(r["expected_class_id"] == cls and r["localized"] for r in results),
+                "localized_and_classified": sum(r["expected_class_id"] == cls and r["localized_and_classified"] for r in results)}
+               for cls in sorted(counts)]
+    report = {"kind": "synthetic_reference_resubstitution_learning_check", "threshold": .50, 'model_input':image_size,
+              'full_requested_reference_diagnostic':full_reference,
+              'all_class_reference_replay':replay,
+              "checkpoint_sha256": digest(checkpoint), "dataset_sha256": digest(dataset / "manifest.json"),
+              "independent_accuracy": None, "real_page_accuracy": None, "summary": summary,
+              "results": results}
+    (output / "report.json").write_text(json.dumps(report, indent=2))
+    return summary
+
+
+def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference_mode="tiles",
+          shared_multiclass=False, candidate_shared=False, box_fusion=False):
     if output.exists():
         raise FileExistsError("Probe result versions are immutable")
     if not 0.01 <= threshold <= 0.95:
@@ -131,11 +265,18 @@ def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference
     if not source_hashes <= by_hash.keys():
         raise ValueError("Exact source missing")
     model = YOLO(str(checkpoint))
-    if shared_multiclass:
+    if shared_multiclass and candidate_shared:
+        raise ValueError('Choose the active runtime or a candidate probe, not both')
+    if box_fusion and not candidate_shared:
+        raise ValueError('Explicit box-fusion probing requires the candidate shared runtime')
+    if shared_multiclass or candidate_shared:
         from app.ai.floor_plan_interpretation import multiclass_symbol_detector as runtime
-        if (threshold != runtime.THRESHOLD or digest(checkpoint) != runtime.CHECKPOINT_SHA256
-                or digest(dataset/"manifest.json") != runtime.DATASET_SHA256):
+        if (threshold != runtime.THRESHOLD or (shared_multiclass and
+                (digest(checkpoint) != runtime.CHECKPOINT_SHA256
+                 or digest(dataset/"manifest.json") != runtime.TRAINING_DATASET_SHA256))):
             raise ValueError("Probe must use the exact shared runtime checkpoint, dataset, and threshold")
+        validate_model_classes(model, manifest['classes'])
+    use_shared_tiler = shared_multiclass or candidate_shared
     class_ids = sorted({row["id"] for row in manifest["classes"]})
     if inference_mode not in {"tiles", "full"}:
         raise ValueError("Unsupported inference mode")
@@ -148,7 +289,7 @@ def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference
             raise ValueError("Source dimensions exceed bound")
         positions = ([(x, y) for y in origins(image.height) for x in origins(image.width)]
                      if inference_mode == "tiles" else [])
-        if shared_multiclass:
+        if use_shared_tiler:
             positions = runtime.shared.tile_positions(image.width, image.height, dual_phase=True)
         if len(positions) > 500:
             raise ValueError("Tile count exceeds bound")
@@ -158,6 +299,13 @@ def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference
         if shared_multiclass:
             predictions, truncated = runtime.locate(np.asarray(image))
             raw = list(predictions)
+        elif candidate_shared:
+            candidate_classes={row['id']:(row['label'],row['legend_entry']) for row in manifest['classes']}
+            predictions, truncated = runtime.shared.locate(np.asarray(image), catalog={
+                'classes':candidate_classes, 'threshold':threshold, 'model':model,
+                **({'box_fusion':True,'class_groups':runtime.model_class_groups(candidate_classes)}
+                   if box_fusion else {})})
+            raw = list(predictions)
         elif inference_mode == "full":
             result = model.predict(image, imgsz=1280, conf=threshold, classes=class_ids,
                                    device="cpu", verbose=False, max_det=500)[0]
@@ -165,7 +313,7 @@ def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference
                 raw.append({"bbox": [float(v) for v in box.xyxy[0].tolist()],
                             "class_id": int(box.cls[0]), "score": float(box.conf[0]),
                             "tile_origin": None})
-        for offset in range(0, 0 if shared_multiclass else len(positions), 16):
+        for offset in range(0, 0 if use_shared_tiler else len(positions), 16):
             batch_positions = positions[offset:offset + 16]
             tiles = [image.crop((x, y, x + 256, y + 256)) for x, y in batch_positions]
             results = model.predict(tiles, imgsz=320, conf=threshold, classes=class_ids,
@@ -178,7 +326,9 @@ def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference
                                 "class_id": int(box.cls[0]), "score": float(box.conf[0]),
                                 "tile_origin": [x, y]})
         elapsed = round(time.perf_counter() - start, 3)
-        predictions = fuse(raw)
+        # The opt-in candidate path already uses the exact serving fusion.
+        # A second legacy NMS would alter its measured coordinates/provenance.
+        predictions = raw if box_fusion else fuse(raw)
         targets = [row for row in reviewed if row["source_sha256"] == source_hash]
         classified_matches = match_targets(targets, predictions, require_class=not generic)
         localized_matches = match_targets(targets, predictions, require_class=False)
@@ -219,9 +369,12 @@ def probe(dataset, source_root, checkpoint, output, *, threshold=0.25, inference
               "inference_mode": inference_mode, "class_agnostic": generic,
               "classification": None if generic else "same-source diagnostic",
               "shared_runtime": shared_multiclass,
+              "candidate_shared_tiler_without_activation": candidate_shared,
+              "box_fusion": box_fusion,
               "tiling": {"size": 256, "stride": 192, "model_input": 320,
-                         "second_phase_offset": 128 if shared_multiclass else None,
-                         "duplicate_suppression": "same-class IoU >= 0.5"},
+                         "second_phase_offset": 128 if use_shared_tiler else None,
+                         "duplicate_suppression": ("same-class IoU >= 0.5 or nested IoS >= 0.85 with bounded centers"
+                                                   if use_shared_tiler else "same-class IoU >= 0.5")},
               "precision": None, "generalization": None,
               "matching": "maximum one-to-one IoU >= 0.5; localization and same-class scored separately",
               "reasons": ["Pages are partially annotated; false positives cannot be established.",
@@ -265,14 +418,25 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", type=float, default=0.25)
     parser.add_argument("--inference-mode", choices=("tiles", "full"), default="tiles")
     parser.add_argument("--shared-multiclass", action="store_true")
+    parser.add_argument("--candidate-shared", action="store_true")
+    parser.add_argument("--box-fusion", action="store_true")
+    parser.add_argument("--authored-synthetic", action="store_true")
+    parser.add_argument('--synthetic-image-size',type=int,default=320,choices=(320,640))
     args = parser.parse_args()
-    if args.source_image:
-        if any((args.dataset, args.source_root, args.checkpoint)):
-            parser.error("Single-source probes use only the pinned shared runtime")
-        print(json.dumps(probe_unreviewed_image(args.source_image, args.output)))
+    if args.authored_synthetic:
+        if not args.dataset or not args.checkpoint or args.source_image or args.source_root:
+            parser.error("Synthetic learning checks require dataset and checkpoint only")
+        print(json.dumps(probe_authored_synthetic(args.dataset, args.checkpoint, args.output,
+                                                  image_size=args.synthetic_image_size)))
+    elif args.source_image:
+        if args.source_root or bool(args.dataset) != bool(args.checkpoint):
+            parser.error("Single-source candidate probes require both dataset and checkpoint, not source root")
+        print(json.dumps(probe_unreviewed_image(args.source_image, args.output,
+                                               checkpoint=args.checkpoint, dataset=args.dataset)))
     else:
         if not all((args.dataset, args.source_root, args.checkpoint)):
             parser.error("Reviewed probes require dataset, source root, and checkpoint")
         print(json.dumps(probe(args.dataset, args.source_root, args.checkpoint, args.output,
                                threshold=args.threshold, inference_mode=args.inference_mode,
-                               shared_multiclass=args.shared_multiclass)))
+                               shared_multiclass=args.shared_multiclass, candidate_shared=args.candidate_shared,
+                               box_fusion=args.box_fusion)))

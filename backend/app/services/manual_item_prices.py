@@ -50,6 +50,6 @@ def save(session,user,project_id,request):
         raise WorkbookError('This project has reached the saved item-price limit.')
     record=repository.append(session,project_id=project_id,version_number=version+1,
         created_by_user_id=user.id,request_id=str(request.request_id),request_hash=identity,
-        document=dict(assignments=saved,application=dict(kind='manual_prices',applied=len(request.items))))
+        document=dict(current.document if current else {},assignments=saved,application=dict(kind='manual_prices',applied=len(request.items))))
     session.commit()
     return dict(id=record.id,version_number=record.version_number)
